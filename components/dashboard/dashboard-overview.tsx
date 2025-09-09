@@ -352,53 +352,26 @@ export function DashboardOverview() {
                   </Button>
                 )}
 
-                <Dialog open={showAlerts} onOpenChange={setShowAlerts}>
-                  <DialogTrigger asChild>
+                {user?.role === "user" && (
+                  <>
                     <Button
                       variant="outline"
                       className="w-full justify-start bg-transparent"
-                      onClick={handleViewAlerts}
+                      onClick={() => router.push("/dashboard/complaints")}
                     >
-                      <AlertTriangle className="h-5 w-5 mr-3 text-primary" />
-                      <span className="text-sm font-medium">View Alerts</span>
+                      <Plus className="h-5 w-5 mr-3 text-primary" />
+                      <span className="text-sm font-medium">Submit Complaint</span>
                     </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>System Alerts</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      {alerts.map((alert) => (
-                        <div key={alert.id} className="flex items-start space-x-3 p-3 rounded-lg border">
-                          <div
-                            className={`h-2 w-2 rounded-full mt-2 ${
-                              alert.type === "warning"
-                                ? "bg-orange-500"
-                                : alert.type === "success"
-                                  ? "bg-green-500"
-                                  : "bg-blue-500"
-                            }`}
-                          />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">{alert.title}</p>
-                            <p className="text-xs text-muted-foreground">{alert.message}</p>
-                            <p className="text-xs text-muted-foreground mt-1">{alert.time}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </DialogContent>
-                </Dialog>
 
-                {user?.role === "user" && (
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start bg-transparent"
-                    onClick={() => router.push("/dashboard/complaints")}
-                  >
-                    <Plus className="h-5 w-5 mr-3 text-primary" />
-                    <span className="text-sm font-medium">Submit Complaint</span>
-                  </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start bg-transparent"
+                      onClick={() => router.push("/dashboard/service-desk")}
+                    >
+                      <Settings className="h-5 w-5 mr-3 text-primary" />
+                      <span className="text-sm font-medium">My Service Requests</span>
+                    </Button>
+                  </>
                 )}
 
                 {(user?.role === "service_desk_admin" || user?.role === "service_desk_head") && (
