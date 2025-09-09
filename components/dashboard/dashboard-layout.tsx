@@ -5,7 +5,19 @@ import type React from "react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Menu, Monitor, Wrench, Users, Bell, Settings, LogOut, Home, Headphones, MessageSquare } from "lucide-react"
+import {
+  Menu,
+  Monitor,
+  Wrench,
+  Users,
+  Bell,
+  LogOut,
+  Home,
+  Headphones,
+  MessageSquare,
+  BarChart3,
+  Database,
+} from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 
 interface DashboardLayoutProps {
@@ -20,11 +32,27 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     const baseItems = [{ name: "Dashboard", href: "/dashboard", icon: Home }]
 
     if (user?.role === "user") {
-      // Regular staff only see complaints
       return [...baseItems, { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare }]
     }
 
-    // All other roles see full navigation
+    if (user?.role === "it_staff") {
+      return [
+        ...baseItems,
+        { name: "Devices", href: "/dashboard/devices", icon: Monitor },
+        { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones },
+        { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
+      ]
+    }
+
+    if (user?.role === "service_desk" || user?.role === "service_desk_head") {
+      return [
+        ...baseItems,
+        { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones },
+        { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
+      ]
+    }
+
+    // IT Head and Admin roles see more modules
     const fullNavigation = [
       ...baseItems,
       { name: "Devices", href: "/dashboard/devices", icon: Monitor },
@@ -32,12 +60,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones },
     ]
 
-    // Admin and IT Head roles see additional items
     if (user?.role === "admin" || user?.role === "it_head") {
       fullNavigation.push(
         { name: "Users", href: "/dashboard/users", icon: Users },
         { name: "Notifications", href: "/dashboard/notifications", icon: Bell },
-        { name: "Settings", href: "/dashboard/settings", icon: Settings },
+      )
+    }
+
+    if (user?.role === "admin") {
+      fullNavigation.push(
+        { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
+        { name: "System Settings", href: "/dashboard/system-settings", icon: Database },
       )
     }
 

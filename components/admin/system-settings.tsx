@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
-import { Settings, Mail, MessageSquare, Shield } from "lucide-react"
+import { Settings, Mail, MessageSquare, Shield, Upload, Download, Database } from "lucide-react"
 
 export function SystemSettings() {
   return (
@@ -15,6 +15,68 @@ export function SystemSettings() {
       </div>
 
       <div className="grid gap-6">
+        {/* Bulk Import/Export Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5" />
+              Bulk Data Management
+            </CardTitle>
+            <CardDescription>Import and export system data in bulk</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <h4 className="font-medium">Import Data</h4>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Input type="file" accept=".csv,.xlsx" className="flex-1" />
+                    <Button variant="outline" size="sm">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Import Users
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input type="file" accept=".csv,.xlsx" className="flex-1" />
+                    <Button variant="outline" size="sm">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Import Devices
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input type="file" accept=".csv,.xlsx" className="flex-1" />
+                    <Button variant="outline" size="sm">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Import Locations
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <h4 className="font-medium">Export Data</h4>
+                <div className="space-y-3">
+                  <Button variant="outline" className="w-full justify-start bg-transparent">
+                    <Download className="h-4 w-4 mr-2" />
+                    Export All Users
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start bg-transparent">
+                    <Download className="h-4 w-4 mr-2" />
+                    Export All Devices
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start bg-transparent">
+                    <Download className="h-4 w-4 mr-2" />
+                    Export All Locations
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start bg-transparent">
+                    <Download className="h-4 w-4 mr-2" />
+                    Export System Report
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* General Settings */}
         <Card>
           <CardHeader>
@@ -28,11 +90,11 @@ export function SystemSettings() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="companyName">Company Name</Label>
-                <Input id="companyName" defaultValue="Ghana Company Ltd." />
+                <Input id="companyName" defaultValue="Quality Control Company Limited" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="systemEmail">System Email</Label>
-                <Input id="systemEmail" type="email" defaultValue="system@company.com" />
+                <Input id="systemEmail" type="email" defaultValue="system@qccghana.com" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="repairDeadline">Default Repair Deadline (days)</Label>
@@ -67,7 +129,7 @@ export function SystemSettings() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="smtpUsername">SMTP Username</Label>
-                <Input id="smtpUsername" defaultValue="notifications@company.com" />
+                <Input id="smtpUsername" defaultValue="notifications@qccghana.com" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="smtpPassword">SMTP Password</Label>

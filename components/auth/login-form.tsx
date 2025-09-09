@@ -25,13 +25,6 @@ const demoCredentials = [
     description: "Full system access - all locations",
   },
   {
-    type: "Admin (Kumasi)",
-    username: "admin.kumasi",
-    password: "admin123",
-    icon: Crown,
-    description: "Kumasi location admin access only",
-  },
-  {
     type: "IT Head (Head Office)",
     username: "ithead.headoffice",
     password: "ithead123",

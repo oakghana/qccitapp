@@ -1,8 +1,59 @@
+"use client"
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Monitor, Wrench, CheckCircle, AlertTriangle, Clock, Users } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Monitor, Wrench, CheckCircle, AlertTriangle, Clock, Users, Plus, Settings } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/lib/auth-context"
+import { useState } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
 export function DashboardOverview() {
+  const router = useRouter()
+  const { user } = useAuth()
+  const [showAlerts, setShowAlerts] = useState(false)
+
+  const handleNewRepairRequest = () => {
+    router.push("/dashboard/repairs")
+  }
+
+  const handleAddNewDevice = () => {
+    router.push("/dashboard/devices")
+  }
+
+  const handleManageUsers = () => {
+    router.push("/dashboard/admin")
+  }
+
+  const handleViewAlerts = () => {
+    setShowAlerts(true)
+  }
+
+  const alerts = [
+    {
+      id: 1,
+      type: "warning",
+      title: "Overdue Repair",
+      message: "Dell Laptop #DL-2024-001 repair is overdue by 3 days",
+      time: "2 hours ago",
+    },
+    {
+      id: 2,
+      type: "info",
+      title: "New Service Provider",
+      message: "Natland Computers has been added as a service provider",
+      time: "1 day ago",
+    },
+    {
+      id: 3,
+      type: "success",
+      title: "Repair Completed",
+      message: "HP Printer #HP-2024-045 repair has been completed",
+      time: "2 days ago",
+    },
+  ]
+
   const stats = [
     {
       title: "Total Devices",
@@ -138,22 +189,78 @@ export function DashboardOverview() {
             <CardDescription>Common tasks and shortcuts</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <button className="w-full flex items-center space-x-3 p-3 rounded-lg border border-border hover:bg-accent hover:text-accent-foreground transition-colors">
-              <Wrench className="h-5 w-5 text-primary" />
+            <Button variant="outline" className="w-full justify-start bg-transparent" onClick={handleNewRepairRequest}>
+              <Wrench className="h-5 w-5 mr-3 text-primary" />
               <span className="text-sm font-medium">New Repair Request</span>
-            </button>
-            <button className="w-full flex items-center space-x-3 p-3 rounded-lg border border-border hover:bg-accent hover:text-accent-foreground transition-colors">
-              <Monitor className="h-5 w-5 text-primary" />
+            </Button>
+
+            <Button variant="outline" className="w-full justify-start bg-transparent" onClick={handleAddNewDevice}>
+              <Monitor className="h-5 w-5 mr-3 text-primary" />
               <span className="text-sm font-medium">Add New Device</span>
-            </button>
-            <button className="w-full flex items-center space-x-3 p-3 rounded-lg border border-border hover:bg-accent hover:text-accent-foreground transition-colors">
-              <Users className="h-5 w-5 text-primary" />
-              <span className="text-sm font-medium">Manage Users</span>
-            </button>
-            <button className="w-full flex items-center space-x-3 p-3 rounded-lg border border-border hover:bg-accent hover:text-accent-foreground transition-colors">
-              <AlertTriangle className="h-5 w-5 text-primary" />
-              <span className="text-sm font-medium">View Alerts</span>
-            </button>
+            </Button>
+
+            {(user?.role === "admin" || user?.role === "it_head") && (
+              <Button variant="outline" className="w-full justify-start bg-transparent" onClick={handleManageUsers}>
+                <Users className="h-5 w-5 mr-3 text-primary" />
+                <span className="text-sm font-medium">Manage Users</span>
+              </Button>
+            )}
+
+            <Dialog open={showAlerts} onOpenChange={setShowAlerts}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="w-full justify-start bg-transparent" onClick={handleViewAlerts}>
+                  <AlertTriangle className="h-5 w-5 mr-3 text-primary" />
+                  <span className="text-sm font-medium">View Alerts</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>System Alerts</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  {alerts.map((alert) => (
+                    <div key={alert.id} className="flex items-start space-x-3 p-3 rounded-lg border">
+                      <div
+                        className={`h-2 w-2 rounded-full mt-2 ${
+                          alert.type === "warning"
+                            ? "bg-orange-500"
+                            : alert.type === "success"
+                              ? "bg-green-500"
+                              : "bg-blue-500"
+                        }`}
+                      />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{alert.title}</p>
+                        <p className="text-xs text-muted-foreground">{alert.message}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{alert.time}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {user?.role === "user" && (
+              <Button
+                variant="outline"
+                className="w-full justify-start bg-transparent"
+                onClick={() => router.push("/dashboard/complaints")}
+              >
+                <Plus className="h-5 w-5 mr-3 text-primary" />
+                <span className="text-sm font-medium">Submit Complaint</span>
+              </Button>
+            )}
+
+            {(user?.role === "service_desk_admin" || user?.role === "service_desk_head") && (
+              <Button
+                variant="outline"
+                className="w-full justify-start bg-transparent"
+                onClick={() => router.push("/dashboard/service-desk")}
+              >
+                <Settings className="h-5 w-5 mr-3 text-primary" />
+                <span className="text-sm font-medium">Service Desk</span>
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
