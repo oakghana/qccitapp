@@ -6,7 +6,7 @@ interface User {
   id: string
   username: string
   role: "admin" | "it_head" | "it_staff" | "service_desk_head" | "service_desk_staff" | "service_provider" | "user"
-  location: "head_office" | "kumasi" | "accra" | "tamale" | "cape_coast"
+  location: "head_office" | "kumasi" | "accra" | "kaase_inland_port" | "cape_coast"
   name: string
   email: string
 }
@@ -134,11 +134,11 @@ const userMapping: Record<string, User> = {
     name: "Kwame Osei",
     email: "kwame.osei@qcc.com.gh",
   },
-  "user.tamale": {
+  "user.kaase": {
     id: "USR-004",
-    username: "user.tamale",
+    username: "user.kaase",
     role: "user",
-    location: "tamale",
+    location: "kaase_inland_port",
     name: "Fatima Ibrahim",
     email: "fatima.ibrahim@qcc.com.gh",
   },

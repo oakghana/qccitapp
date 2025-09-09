@@ -36,7 +36,7 @@ export function DeviceTransferForm({ device, onSubmit, onCancel }: DeviceTransfe
     head_office: "Head Office",
     accra: "Accra",
     kumasi: "Kumasi",
-    tamale: "Tamale",
+    kaase_inland_port: "Kaase Inland Port",
     cape_coast: "Cape Coast",
   }
 
@@ -63,7 +63,7 @@ export function DeviceTransferForm({ device, onSubmit, onCancel }: DeviceTransfe
               <SelectItem value="head_office">Head Office</SelectItem>
               <SelectItem value="accra">Accra</SelectItem>
               <SelectItem value="kumasi">Kumasi</SelectItem>
-              <SelectItem value="tamale">Tamale</SelectItem>
+              <SelectItem value="kaase_inland_port">Kaase Inland Port</SelectItem>
               <SelectItem value="cape_coast">Cape Coast</SelectItem>
             </SelectContent>
           </Select>

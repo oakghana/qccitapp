@@ -30,7 +30,7 @@ const mockDevices = [
   { id: "DL-2024-001", name: "Dell Latitude 5520", location: "Accra" },
   { id: "HP-2024-045", name: "HP LaserJet Pro", location: "Head Office" },
   { id: "LD-2024-012", name: "Lenovo ThinkCentre", location: "Kumasi" },
-  { id: "IP-2024-008", name: "iPhone 13", location: "Tamale" },
+  { id: "IP-2024-008", name: "iPhone 13", location: "Kaase Inland Port" },
 ]
 
 export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {

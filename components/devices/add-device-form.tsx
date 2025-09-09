@@ -15,7 +15,7 @@ interface Device {
   model: string
   brand: string
   status: "active" | "repair" | "maintenance" | "retired"
-  location: "head_office" | "accra" | "kumasi" | "tamale" | "cape_coast"
+  location: "head_office" | "accra" | "kumasi" | "kaase_inland_port" | "cape_coast"
   assignedTo: string
   assignedDate: string
 }
@@ -44,6 +44,14 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
 
   const handleInputChange = (field: keyof Device, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const locationNames = {
+    head_office: "Head Office",
+    accra: "Accra",
+    kumasi: "Kumasi",
+    kaase_inland_port: "Kaase Inland Port",
+    cape_coast: "Cape Coast",
   }
 
   return (
@@ -135,7 +143,7 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
               <SelectItem value="head_office">Head Office</SelectItem>
               <SelectItem value="accra">Accra</SelectItem>
               <SelectItem value="kumasi">Kumasi</SelectItem>
-              <SelectItem value="tamale">Tamale</SelectItem>
+              <SelectItem value="kaase_inland_port">Kaase Inland Port</SelectItem>
               <SelectItem value="cape_coast">Cape Coast</SelectItem>
             </SelectContent>
           </Select>

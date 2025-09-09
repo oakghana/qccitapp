@@ -23,7 +23,7 @@ interface SystemUser {
   email: string
   phone: string
   role: "admin" | "it_head" | "it_staff" | "user"
-  location: "head_office" | "accra" | "kumasi" | "tamale" | "cape_coast"
+  location: "head_office" | "accra" | "kumasi" | "kaase_inland_port" | "cape_coast"
   status: "active" | "inactive" | "suspended"
   lastLogin: string
   createdDate: string
@@ -73,7 +73,7 @@ const mockUsers: SystemUser[] = [
     email: "kofi.mensah@company.com",
     phone: "+233241234570",
     role: "it_staff",
-    location: "tamale",
+    location: "kaase_inland_port",
     status: "inactive",
     lastLogin: "2024-02-28T16:45:00Z",
     createdDate: "2024-02-01",
@@ -98,7 +98,7 @@ const locationNames = {
   head_office: "Head Office",
   accra: "Accra",
   kumasi: "Kumasi",
-  tamale: "Tamale",
+  kaase_inland_port: "Kaase Inland Port",
   cape_coast: "Cape Coast",
 }
 
@@ -208,7 +208,7 @@ export function UserManagement() {
                 <SelectItem value="head_office">Head Office</SelectItem>
                 <SelectItem value="accra">Accra</SelectItem>
                 <SelectItem value="kumasi">Kumasi</SelectItem>
-                <SelectItem value="tamale">Tamale</SelectItem>
+                <SelectItem value="kaase_inland_port">Kaase Inland Port</SelectItem>
                 <SelectItem value="cape_coast">Cape Coast</SelectItem>
               </SelectContent>
             </Select>

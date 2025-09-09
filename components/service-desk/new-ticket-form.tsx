@@ -31,7 +31,7 @@ export function NewTicketForm({ onClose }: NewTicketFormProps) {
   const locations = [
     "Head Office - Accra",
     "Kumasi District Office",
-    "Tamale District Office",
+    "Kaase Inland Port District Office",
     "Cape Coast District Office",
     "Ho District Office",
     "Sunyani District Office",

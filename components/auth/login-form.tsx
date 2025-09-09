@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, Shield, User, Lock, Users, UserCheck, Crown } from "lucide-react"
 
 interface LoginFormData {
@@ -109,7 +110,7 @@ const demoCredentials = [
     description: "Regular staff - submit IT complaints",
   },
   {
-    type: "Staff (Kaase)",
+    type: "Staff (Kaase Inland Port)",
     username: "user.kaase",
     password: "user123",
     icon: User,
@@ -133,10 +134,14 @@ export function LoginForm() {
   const [step, setStep] = useState<"credentials" | "otp">("credentials")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [selectedCredential, setSelectedCredential] = useState("")
 
-  const fillDemoCredentials = (username: string, password: string) => {
-    setFormData((prev) => ({ ...prev, username, password }))
-    setError("")
+  const fillDemoCredentials = (credentialKey: string) => {
+    const credential = demoCredentials.find((cred) => `${cred.username}:${cred.password}` === credentialKey)
+    if (credential) {
+      setFormData((prev) => ({ ...prev, username: credential.username, password: credential.password }))
+      setError("")
+    }
   }
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
@@ -217,32 +222,49 @@ export function LoginForm() {
           <CardHeader className="pb-3">
             <CardTitle className="text-lg text-foreground">Demo Access</CardTitle>
             <CardDescription className="text-foreground/80">
-              Click any credential below to auto-fill and test different user roles
+              Select a user role to auto-fill credentials for testing
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {demoCredentials.map((cred) => {
-              const IconComponent = cred.icon
-              return (
-                <Button
-                  key={cred.type}
-                  variant="outline"
-                  className="w-full justify-start h-auto p-3 bg-background hover:bg-primary/10"
-                  onClick={() => fillDemoCredentials(cred.username, cred.password)}
-                >
-                  <div className="flex items-center gap-3 w-full">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                      <IconComponent className="h-4 w-4 text-primary" />
-                    </div>
-                    <div className="text-left flex-1">
-                      <div className="font-medium">{cred.type}</div>
-                      <div className="text-xs text-muted-foreground">{cred.description}</div>
-                    </div>
-                    <div className="text-xs text-muted-foreground font-mono">{cred.username}</div>
-                  </div>
-                </Button>
-              )
-            })}
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="credentialSelect">Select User Role</Label>
+              <Select
+                value={selectedCredential}
+                onValueChange={(value) => {
+                  setSelectedCredential(value)
+                  fillDemoCredentials(value)
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a user role to test..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {demoCredentials.map((cred) => {
+                    const IconComponent = cred.icon
+                    return (
+                      <SelectItem key={cred.type} value={`${cred.username}:${cred.password}`}>
+                        <div className="flex items-center gap-2">
+                          <IconComponent className="h-4 w-4 text-primary" />
+                          <span>{cred.type}</span>
+                        </div>
+                      </SelectItem>
+                    )
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedCredential && (
+              <div className="p-3 bg-background rounded-lg border">
+                <div className="text-sm">
+                  <p className="font-medium">
+                    Selected: {demoCredentials.find((c) => `${c.username}:${c.password}` === selectedCredential)?.type}
+                  </p>
+                  <p className="text-muted-foreground text-xs mt-1">
+                    {demoCredentials.find((c) => `${c.username}:${c.password}` === selectedCredential)?.description}
+                  </p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

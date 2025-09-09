@@ -29,7 +29,7 @@ export function SystemOverview() {
     { region: "Head Office", devices: 89, repairs: 8, users: 45 },
     { region: "Accra", devices: 67, repairs: 6, users: 38 },
     { region: "Kumasi", devices: 45, repairs: 4, users: 28 },
-    { region: "Tamale", devices: 32, repairs: 3, users: 25 },
+    { region: "Kaase Inland Port", devices: 32, repairs: 3, users: 25 },
     { region: "Cape Coast", devices: 15, repairs: 2, users: 20 },
   ]
 
@@ -43,7 +43,7 @@ export function SystemOverview() {
     {
       id: 2,
       type: "info",
-      message: "New user registration: Akosua Mensah (Tamale office)",
+      message: "New user registration: Akosua Mensah (Kaase Inland Port office)",
       time: "4 hours ago",
     },
     {
