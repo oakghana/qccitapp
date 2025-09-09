@@ -1,0 +1,725 @@
+"use client"
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  Search,
+  Filter,
+  Eye,
+  MessageSquare,
+  Clock,
+  User,
+  MapPin,
+  Monitor,
+  Wifi,
+  Smartphone,
+  Printer,
+  Settings,
+  HelpCircle,
+  Edit,
+  CheckCircle,
+  ArrowUp,
+  Wrench,
+  AlertTriangle,
+} from "lucide-react"
+
+interface Ticket {
+  id: string
+  title: string
+  category: string
+  priority: string
+  status: string
+  location: string
+  requester: string
+  assignee: string
+  created: string
+  updated: string
+  description: string
+  comments: Array<{
+    id: string
+    author: string
+    message: string
+    timestamp: string
+  }>
+}
+
+export function TicketList() {
+  const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [priorityFilter, setPriorityFilter] = useState("all")
+  const [locationFilter, setLocationFilter] = useState("all")
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
+  const [viewDetailsOpen, setViewDetailsOpen] = useState(false)
+  const [commentDialogOpen, setCommentDialogOpen] = useState(false)
+  const [newComment, setNewComment] = useState("")
+  const [editingTicket, setEditingTicket] = useState<Ticket | null>(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [escalationDialogOpen, setEscalationDialogOpen] = useState(false)
+  const [escalationReason, setEscalationReason] = useState("")
+  const [escalationSuccess, setEscalationSuccess] = useState(false)
+
+  const [tickets, setTickets] = useState<Ticket[]>([
+    {
+      id: "TKT-001",
+      title: "Computer won't start - Blue screen error",
+      category: "Hardware",
+      priority: "High",
+      status: "Open",
+      location: "Head Office - Accra",
+      requester: "Kwame Asante",
+      assignee: "IT Team Accra",
+      created: "2024-01-15 09:30",
+      updated: "2024-01-15 10:15",
+      description: "Computer shows blue screen on startup. Error code: 0x0000007B",
+      comments: [
+        {
+          id: "c1",
+          author: "IT Team Accra",
+          message: "We've received your ticket and will investigate the blue screen error.",
+          timestamp: "2024-01-15 10:15",
+        },
+      ],
+    },
+    {
+      id: "TKT-002",
+      title: "Email not receiving messages",
+      category: "Software",
+      priority: "Medium",
+      status: "In Progress",
+      location: "Kumasi District Office",
+      requester: "Ama Osei",
+      assignee: "Regional IT Support",
+      created: "2024-01-15 08:45",
+      updated: "2024-01-15 11:20",
+      description: "Outlook not receiving new emails since yesterday morning",
+      comments: [
+        {
+          id: "c2",
+          author: "Regional IT Support",
+          message: "Checking email server configuration. Please try restarting Outlook.",
+          timestamp: "2024-01-15 11:20",
+        },
+      ],
+    },
+    {
+      id: "TKT-003",
+      title: "Internet connection very slow",
+      category: "Network",
+      priority: "Low",
+      status: "Open",
+      location: "Tamale District Office",
+      requester: "Abdul Rahman",
+      assignee: "Unassigned",
+      created: "2024-01-14 14:20",
+      updated: "2024-01-14 14:20",
+      description: "Internet speed very slow, affecting daily work productivity",
+      comments: [],
+    },
+    {
+      id: "TKT-004",
+      title: "Printer not working - Paper jam error",
+      category: "Hardware",
+      priority: "Medium",
+      status: "Resolved",
+      location: "Cape Coast District Office",
+      requester: "Efua Mensah",
+      assignee: "Local IT Support",
+      created: "2024-01-14 11:00",
+      updated: "2024-01-15 09:00",
+      description: "Office printer showing paper jam error even after clearing paper",
+      comments: [
+        {
+          id: "c3",
+          author: "Local IT Support",
+          message: "Printer mechanism was cleaned and paper path cleared. Issue resolved.",
+          timestamp: "2024-01-15 09:00",
+        },
+      ],
+    },
+    {
+      id: "TKT-005",
+      title: "Password reset request",
+      category: "Account",
+      priority: "Low",
+      status: "Resolved",
+      location: "Ho District Office",
+      requester: "Kojo Mensah",
+      assignee: "IT Help Desk",
+      created: "2024-01-14 16:30",
+      updated: "2024-01-14 17:00",
+      description: "Unable to login to system, need password reset",
+      comments: [
+        {
+          id: "c4",
+          author: "IT Help Desk",
+          message: "Password has been reset. New temporary password sent via SMS.",
+          timestamp: "2024-01-14 17:00",
+        },
+      ],
+    },
+  ])
+
+  const categoryIcons = {
+    Hardware: Monitor,
+    Software: Smartphone,
+    Network: Wifi,
+    Account: User,
+    Printer: Printer,
+    Other: HelpCircle,
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Open":
+        return "destructive"
+      case "In Progress":
+        return "default"
+      case "Resolved":
+        return "secondary"
+      case "Escalated":
+        return "orange"
+      default:
+        return "outline"
+    }
+  }
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "High":
+        return "destructive"
+      case "Medium":
+        return "default"
+      case "Low":
+        return "secondary"
+      default:
+        return "outline"
+    }
+  }
+
+  const handleViewTicket = (ticket: Ticket) => {
+    setSelectedTicket(ticket)
+    setViewDetailsOpen(true)
+  }
+
+  const handleEditTicket = (ticket: Ticket) => {
+    setEditingTicket({ ...ticket })
+    setEditDialogOpen(true)
+  }
+
+  const handleUpdateTicket = () => {
+    if (editingTicket) {
+      setTickets(
+        tickets.map((t) =>
+          t.id === editingTicket.id
+            ? { ...editingTicket, updated: new Date().toISOString().slice(0, 16).replace("T", " ") }
+            : t,
+        ),
+      )
+      setEditDialogOpen(false)
+      setEditingTicket(null)
+    }
+  }
+
+  const handleAddComment = () => {
+    if (selectedTicket && newComment.trim()) {
+      const updatedTicket = {
+        ...selectedTicket,
+        comments: [
+          ...selectedTicket.comments,
+          {
+            id: `c${Date.now()}`,
+            author: "Current User",
+            message: newComment,
+            timestamp: new Date().toISOString().slice(0, 16).replace("T", " "),
+          },
+        ],
+        updated: new Date().toISOString().slice(0, 16).replace("T", " "),
+      }
+
+      setTickets(tickets.map((t) => (t.id === selectedTicket.id ? updatedTicket : t)))
+      setSelectedTicket(updatedTicket)
+      setNewComment("")
+      setCommentDialogOpen(false)
+    }
+  }
+
+  const handleStatusChange = (ticketId: string, newStatus: string) => {
+    setTickets(
+      tickets.map((t) =>
+        t.id === ticketId
+          ? { ...t, status: newStatus, updated: new Date().toISOString().slice(0, 16).replace("T", " ") }
+          : t,
+      ),
+    )
+  }
+
+  const handleEscalateToRepair = () => {
+    if (selectedTicket && escalationReason.trim()) {
+      const repairRequest = {
+        id: `REP-${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`,
+        deviceId: `DEV-${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`,
+        deviceName: selectedTicket.title.split(" - ")[0] || "Device",
+        issueDescription: selectedTicket.description,
+        priority: selectedTicket.priority.toLowerCase(),
+        status: "pending_approval",
+        requestedBy: selectedTicket.requester,
+        location: selectedTicket.location,
+        escalatedFrom: selectedTicket.id,
+        escalationReason: escalationReason,
+        submittedAt: new Date().toISOString(),
+      }
+
+      const updatedTicket = {
+        ...selectedTicket,
+        status: "Escalated",
+        comments: [
+          ...selectedTicket.comments,
+          {
+            id: `c${Date.now()}`,
+            author: "Service Desk Admin",
+            message: `Ticket escalated to repair team. Repair request ${repairRequest.id} created. Reason: ${escalationReason}`,
+            timestamp: new Date().toISOString().slice(0, 16).replace("T", " "),
+          },
+        ],
+        updated: new Date().toISOString().slice(0, 16).replace("T", " "),
+      }
+
+      setTickets(tickets.map((t) => (t.id === selectedTicket.id ? updatedTicket : t)))
+
+      const existingRepairs = JSON.parse(localStorage.getItem("repairRequests") || "[]")
+      existingRepairs.push(repairRequest)
+      localStorage.setItem("repairRequests", JSON.stringify(existingRepairs))
+
+      setEscalationSuccess(true)
+      setEscalationReason("")
+      setEscalationDialogOpen(false)
+
+      setTimeout(() => {
+        setEscalationSuccess(false)
+        setViewDetailsOpen(false)
+      }, 3000)
+    }
+  }
+
+  const clearFilters = () => {
+    setSearchTerm("")
+    setStatusFilter("all")
+    setPriorityFilter("all")
+    setLocationFilter("all")
+  }
+
+  const filteredTickets = tickets.filter((ticket) => {
+    const matchesSearch =
+      ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      ticket.requester.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      ticket.id.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesStatus = statusFilter === "all" || ticket.status === statusFilter
+    const matchesPriority = priorityFilter === "all" || ticket.priority === priorityFilter
+    const matchesLocation = locationFilter === "all" || ticket.location === locationFilter
+
+    return matchesSearch && matchesStatus && matchesPriority && matchesLocation
+  })
+
+  return (
+    <div className="space-y-4">
+      {escalationSuccess && (
+        <Alert className="border-green-200 bg-green-50">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800">
+            Ticket successfully escalated to repair team. A repair request has been created and the IT repair team has
+            been notified.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Filter Tickets</CardTitle>
+          <CardDescription>Search and filter IT support tickets</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search tickets..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="Open">Open</SelectItem>
+                <SelectItem value="In Progress">In Progress</SelectItem>
+                <SelectItem value="Resolved">Resolved</SelectItem>
+                <SelectItem value="Escalated">Escalated</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Priority</SelectItem>
+                <SelectItem value="High">High</SelectItem>
+                <SelectItem value="Medium">Medium</SelectItem>
+                <SelectItem value="Low">Low</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={locationFilter} onValueChange={setLocationFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Locations" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Locations</SelectItem>
+                <SelectItem value="Head Office - Accra">Head Office - Accra</SelectItem>
+                <SelectItem value="Kumasi District Office">Kumasi District Office</SelectItem>
+                <SelectItem value="Tamale District Office">Tamale District Office</SelectItem>
+                <SelectItem value="Cape Coast District Office">Cape Coast District Office</SelectItem>
+                <SelectItem value="Ho District Office">Ho District Office</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button variant="outline" className="w-full bg-transparent" onClick={clearFilters}>
+              <Filter className="mr-2 h-4 w-4" />
+              Clear Filters
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="space-y-4">
+        {filteredTickets.map((ticket) => {
+          const IconComponent = categoryIcons[ticket.category as keyof typeof categoryIcons] || HelpCircle
+          return (
+            <Card key={ticket.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start space-x-4 flex-1">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <IconComponent className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <h3 className="font-semibold text-lg">{ticket.title}</h3>
+                        <Badge variant="outline" className="text-xs">
+                          {ticket.id}
+                        </Badge>
+                      </div>
+
+                      <p className="text-muted-foreground text-sm mb-3 line-clamp-2">{ticket.description}</p>
+
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center space-x-1">
+                          <User className="h-3 w-3" />
+                          <span>{ticket.requester}</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <MapPin className="h-3 w-3" />
+                          <span>{ticket.location}</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Clock className="h-3 w-3" />
+                          <span>Created {ticket.created}</span>
+                        </div>
+                        {ticket.assignee !== "Unassigned" && (
+                          <div className="flex items-center space-x-1">
+                            <Settings className="h-3 w-3" />
+                            <span>Assigned to {ticket.assignee}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end space-y-2 ml-4">
+                    <div className="flex items-center space-x-2">
+                      <Badge variant={getPriorityColor(ticket.priority)}>{ticket.priority}</Badge>
+                      <Badge variant={getStatusColor(ticket.status)}>{ticket.status}</Badge>
+                    </div>
+
+                    <div className="flex items-center space-x-1">
+                      <Button variant="ghost" size="sm" onClick={() => handleViewTicket(ticket)}>
+                        <Eye className="h-4 w-4 mr-1" />
+                        View
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleEditTicket(ticket)}>
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTicket(ticket)
+                          setCommentDialogOpen(true)
+                        }}
+                      >
+                        <MessageSquare className="h-4 w-4 mr-1" />
+                        Comment
+                      </Button>
+                      {ticket.status !== "Resolved" && ticket.status !== "Escalated" && (
+                        <Button variant="ghost" size="sm" onClick={() => handleStatusChange(ticket.id, "Resolved")}>
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Resolve
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
+
+      {filteredTickets.length === 0 && (
+        <Card>
+          <CardContent className="text-center py-8">
+            <HelpCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium mb-2">No tickets found</h3>
+            <p className="text-muted-foreground">Try adjusting your search criteria or create a new ticket</p>
+          </CardContent>
+        </Card>
+      )}
+
+      <Dialog open={viewDetailsOpen} onOpenChange={setViewDetailsOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Ticket Details - {selectedTicket?.id}</DialogTitle>
+            <DialogDescription>{selectedTicket?.title}</DialogDescription>
+          </DialogHeader>
+          {selectedTicket && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <strong>Status:</strong> {selectedTicket.status}
+                </div>
+                <div>
+                  <strong>Priority:</strong> {selectedTicket.priority}
+                </div>
+                <div>
+                  <strong>Category:</strong> {selectedTicket.category}
+                </div>
+                <div>
+                  <strong>Location:</strong> {selectedTicket.location}
+                </div>
+                <div>
+                  <strong>Requester:</strong> {selectedTicket.requester}
+                </div>
+                <div>
+                  <strong>Assignee:</strong> {selectedTicket.assignee}
+                </div>
+              </div>
+              <div>
+                <strong>Description:</strong>
+                <p className="mt-1 text-muted-foreground">{selectedTicket.description}</p>
+              </div>
+              <div>
+                <strong>Comments ({selectedTicket.comments.length}):</strong>
+                <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+                  {selectedTicket.comments.map((comment) => (
+                    <div key={comment.id} className="p-2 bg-muted rounded">
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                        <span>{comment.author}</span>
+                        <span>{comment.timestamp}</span>
+                      </div>
+                      <p className="text-sm">{comment.message}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {selectedTicket.status !== "Resolved" && selectedTicket.status !== "Escalated" && (
+                <div className="flex justify-between pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedTicket(selectedTicket)
+                      setEscalationDialogOpen(true)
+                    }}
+                    className="bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
+                  >
+                    <ArrowUp className="h-4 w-4 mr-2" />
+                    Escalate to Repair Team
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Ticket - {editingTicket?.id}</DialogTitle>
+            <DialogDescription>Update ticket information</DialogDescription>
+          </DialogHeader>
+          {editingTicket && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Title</Label>
+                <Input
+                  value={editingTicket.title}
+                  onChange={(e) => setEditingTicket({ ...editingTicket, title: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select
+                    value={editingTicket.status}
+                    onValueChange={(value) => setEditingTicket({ ...editingTicket, status: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Open">Open</SelectItem>
+                      <SelectItem value="In Progress">In Progress</SelectItem>
+                      <SelectItem value="Resolved">Resolved</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Priority</Label>
+                  <Select
+                    value={editingTicket.priority}
+                    onValueChange={(value) => setEditingTicket({ ...editingTicket, priority: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Low">Low</SelectItem>
+                      <SelectItem value="Medium">Medium</SelectItem>
+                      <SelectItem value="High">High</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Assignee</Label>
+                <Input
+                  value={editingTicket.assignee}
+                  onChange={(e) => setEditingTicket({ ...editingTicket, assignee: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea
+                  value={editingTicket.description}
+                  onChange={(e) => setEditingTicket({ ...editingTicket, description: e.target.value })}
+                  rows={3}
+                />
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleUpdateTicket}>Update Ticket</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={commentDialogOpen} onOpenChange={setCommentDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Comment</DialogTitle>
+            <DialogDescription>Add a comment to ticket {selectedTicket?.id}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Textarea
+              placeholder="Enter your comment..."
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              rows={4}
+            />
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setCommentDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleAddComment}>Add Comment</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={escalationDialogOpen} onOpenChange={setEscalationDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wrench className="h-5 w-5 text-orange-600" />
+              Escalate to Repair Team
+            </DialogTitle>
+            <DialogDescription>
+              This will create a repair request and transfer the issue to the IT repair team for hardware intervention.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Alert className="border-orange-200 bg-orange-50">
+              <AlertTriangle className="h-4 w-4 text-orange-600" />
+              <AlertDescription className="text-orange-800">
+                <strong>Ticket:</strong> {selectedTicket?.id} - {selectedTicket?.title}
+              </AlertDescription>
+            </Alert>
+
+            <div className="space-y-2">
+              <Label htmlFor="escalation-reason">Escalation Reason</Label>
+              <Textarea
+                id="escalation-reason"
+                placeholder="Explain why this ticket needs to be escalated to the repair team (e.g., hardware replacement required, device needs physical repair, etc.)"
+                value={escalationReason}
+                onChange={(e) => setEscalationReason(e.target.value)}
+                rows={4}
+                required
+              />
+            </div>
+
+            <div className="bg-muted p-3 rounded-lg text-sm">
+              <p className="font-medium mb-1">What happens next:</p>
+              <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                <li>A repair request will be created automatically</li>
+                <li>The IT repair team will be notified</li>
+                <li>This ticket status will change to "Escalated"</li>
+                <li>The repair team will handle hardware intervention</li>
+              </ul>
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setEscalationDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleEscalateToRepair}
+                disabled={!escalationReason.trim()}
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                <Wrench className="h-4 w-4 mr-2" />
+                Escalate to Repair Team
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
