@@ -31,7 +31,7 @@ interface RepairRequest {
   approvedDate?: string
   estimatedCompletion?: string
   attachments: string[]
-  location: "head_office" | "kumasi" | "accra" | "tamale" | "cape_coast"
+  location: "head_office" | "kumasi" | "accra" | "kaase_inland_port" | "cape_coast"
   locationName: string
   serviceProvider?: string
   notes?: string
@@ -100,6 +100,34 @@ const mockRepairRequests: RepairRequest[] = [
     location: "kumasi",
     locationName: "Kumasi District Office",
   },
+  {
+    id: "RR-2024-005",
+    deviceId: "KI-2024-003",
+    deviceName: "Canon Printer MX490",
+    requestedBy: "Sarah Mensah",
+    requestedDate: "2024-03-03",
+    description: "Ink cartridge not recognized, error messages on display",
+    priority: "medium",
+    status: "pending",
+    attachments: ["repair-form-005.pdf"],
+    location: "kaase_inland_port",
+    locationName: "Kaase Inland Port",
+  },
+  {
+    id: "RR-2024-006",
+    deviceId: "CC-2024-007",
+    deviceName: "HP EliteBook 840",
+    requestedBy: "Cape Coast IT",
+    requestedDate: "2024-03-04",
+    description: "Battery not charging, power adapter issues",
+    priority: "high",
+    status: "approved",
+    approvedBy: "Head Office IT Head",
+    approvedDate: "2024-03-04",
+    attachments: ["repair-form-006.pdf"],
+    location: "cape_coast",
+    locationName: "Cape Coast Office",
+  },
 ]
 
 const statusColors = {
@@ -132,11 +160,45 @@ export function RepairWorkflow() {
   const [newRequestOpen, setNewRequestOpen] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<RepairRequest | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
-  const { canViewAllLocations, getUserLocation, user } = useAuth()
+  const { user } = useAuth()
 
-  const filteredRepairRequests = canViewAllLocations()
-    ? repairRequests
-    : repairRequests.filter((request) => request.location === getUserLocation())
+  const getFilteredRepairRequests = () => {
+    if (user?.role === "it_head" && user?.location === "head_office") {
+      return repairRequests
+    }
+
+    if (user?.role === "it_head" && user?.location !== "head_office") {
+      return repairRequests.filter((request) => request.location === user.location)
+    }
+
+    if (user?.role === "admin") {
+      return repairRequests
+    }
+
+    return repairRequests.filter((request) => request.location === user?.location)
+  }
+
+  const filteredRepairRequests = getFilteredRepairRequests()
+
+  const getLocationDisplayText = () => {
+    if (user?.role === "it_head" && user?.location === "head_office") {
+      return "all locations"
+    }
+
+    if (user?.role === "admin") {
+      return "all locations"
+    }
+
+    const locationNames = {
+      head_office: "Head Office",
+      kumasi: "Kumasi District Office",
+      accra: "Accra Office",
+      kaase_inland_port: "Kaase Inland Port",
+      cape_coast: "Cape Coast Office",
+    }
+
+    return locationNames[user?.location as keyof typeof locationNames] || "your location"
+  }
 
   const handleNewRequest = (newRequest: Omit<RepairRequest, "id" | "requestedDate" | "status" | "locationName">) => {
     const request: RepairRequest = {
@@ -192,9 +254,11 @@ export function RepairWorkflow() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Repair Requests</h1>
           <p className="text-muted-foreground">
-            {canViewAllLocations()
+            {user?.role === "it_head" && user?.location === "head_office"
               ? "Manage device repair workflow and approvals across all locations"
-              : `Manage device repair workflow for ${getUserLocation() === "head_office" ? "Head Office" : "Kumasi District Office"}`}
+              : user?.role === "admin"
+                ? "Manage device repair workflow and approvals across all locations"
+                : `Manage device repair workflow for ${getLocationDisplayText()}`}
           </p>
         </div>
         <Dialog open={newRequestOpen} onOpenChange={setNewRequestOpen}>
@@ -223,7 +287,11 @@ export function RepairWorkflow() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{pendingRequests.length}</div>
-            <p className="text-xs text-muted-foreground">{canViewAllLocations() ? "All locations" : "This location"}</p>
+            <p className="text-xs text-muted-foreground">
+              {user?.role === "admin" || (user?.role === "it_head" && user?.location === "head_office")
+                ? "All locations"
+                : getLocationDisplayText()}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -273,9 +341,9 @@ export function RepairWorkflow() {
                 <Clock className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-2">No pending requests</h3>
                 <p className="text-muted-foreground text-center">
-                  {canViewAllLocations()
+                  {user?.role === "admin" || (user?.role === "it_head" && user?.location === "head_office")
                     ? "All repair requests have been reviewed."
-                    : "No pending repair requests for your location."}
+                    : `No pending repair requests for ${getLocationDisplayText()}.`}
                 </p>
               </CardContent>
             </Card>
@@ -305,9 +373,9 @@ export function RepairWorkflow() {
                 <AlertTriangle className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-2">No active repairs</h3>
                 <p className="text-muted-foreground text-center">
-                  {canViewAllLocations()
+                  {user?.role === "admin"
                     ? "No devices are currently being repaired."
-                    : "No devices from your location are currently being repaired."}
+                    : `No devices from ${getLocationDisplayText()} are currently being repaired.`}
                 </p>
               </CardContent>
             </Card>

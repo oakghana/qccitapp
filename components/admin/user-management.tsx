@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,6 +18,7 @@ import {
 } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Search, Plus, MoreHorizontal, User, MapPin, Mail, Phone } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
 
 interface SystemUser {
   id: string
@@ -103,23 +106,54 @@ const locationNames = {
 }
 
 export function UserManagement() {
+  const { user } = useAuth()
   const [users, setUsers] = useState<SystemUser[]>(mockUsers)
   const [searchTerm, setSearchTerm] = useState("")
   const [roleFilter, setRoleFilter] = useState<string>("all")
   const [locationFilter, setLocationFilter] = useState<string>("all")
   const [addUserOpen, setAddUserOpen] = useState(false)
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.id.toLowerCase().includes(searchTerm.toLowerCase())
+  const getFilteredUsers = () => {
+    let filteredByAccess = users
 
-    const matchesRole = roleFilter === "all" || user.role === roleFilter
-    const matchesLocation = locationFilter === "all" || user.location === locationFilter
+    if (user?.role === "it_head" && user?.location !== "head_office") {
+      filteredByAccess = users.filter((u) => u.location === user.location)
+    }
 
-    return matchesSearch && matchesRole && matchesLocation
-  })
+    return filteredByAccess.filter((user) => {
+      const matchesSearch =
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.id.toLowerCase().includes(searchTerm.toLowerCase())
+
+      const matchesRole = roleFilter === "all" || user.role === roleFilter
+      const matchesLocation = locationFilter === "all" || user.location === locationFilter
+
+      return matchesSearch && matchesRole && matchesLocation
+    })
+  }
+
+  const filteredUsers = getFilteredUsers()
+
+  const getLocationFilterOptions = () => {
+    if (user?.role === "it_head" && user?.location !== "head_office") {
+      return [
+        { value: "all", label: "All Locations" },
+        { value: user.location, label: locationNames[user.location as keyof typeof locationNames] },
+      ]
+    }
+
+    return [
+      { value: "all", label: "All Locations" },
+      { value: "head_office", label: "Head Office" },
+      { value: "accra", label: "Accra" },
+      { value: "kumasi", label: "Kumasi" },
+      { value: "kaase_inland_port", label: "Kaase Inland Port" },
+      { value: "cape_coast", label: "Cape Coast" },
+    ]
+  }
+
+  const locationOptions = getLocationFilterOptions()
 
   const handleUserAction = (userId: string, action: "activate" | "deactivate" | "suspend" | "delete") => {
     setUsers(
@@ -150,7 +184,11 @@ export function UserManagement() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-foreground">User Management</h2>
-          <p className="text-muted-foreground">Manage system users and access permissions</p>
+          <p className="text-muted-foreground">
+            {user?.role === "it_head" && user?.location !== "head_office"
+              ? `Manage users in ${locationNames[user.location as keyof typeof locationNames]}`
+              : "Manage system users and access permissions"}
+          </p>
         </div>
         <Dialog open={addUserOpen} onOpenChange={setAddUserOpen}>
           <DialogTrigger asChild>
@@ -164,7 +202,13 @@ export function UserManagement() {
               <DialogTitle>Add New User</DialogTitle>
               <DialogDescription>Create a new system user account</DialogDescription>
             </DialogHeader>
-            <div className="p-4 text-center text-muted-foreground">User creation form would be implemented here</div>
+            <AddUserForm
+              onClose={() => setAddUserOpen(false)}
+              onUserAdded={(newUser) => {
+                setUsers([...users, newUser])
+                setAddUserOpen(false)
+              }}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -204,12 +248,11 @@ export function UserManagement() {
                 <SelectValue placeholder="Filter by location" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
-                <SelectItem value="head_office">Head Office</SelectItem>
-                <SelectItem value="accra">Accra</SelectItem>
-                <SelectItem value="kumasi">Kumasi</SelectItem>
-                <SelectItem value="kaase_inland_port">Kaase Inland Port</SelectItem>
-                <SelectItem value="cape_coast">Cape Coast</SelectItem>
+                {locationOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -316,5 +359,99 @@ export function UserManagement() {
         </Card>
       )}
     </div>
+  )
+}
+
+function AddUserForm({ onClose, onUserAdded }: { onClose: () => void; onUserAdded: (user: SystemUser) => void }) {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    role: "user" as SystemUser["role"],
+    location: "head_office" as SystemUser["location"],
+  })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const newUser: SystemUser = {
+      id: `USR-${String(Date.now()).slice(-3).padStart(3, "0")}`,
+      ...formData,
+      status: "active",
+      lastLogin: new Date().toISOString(),
+      createdDate: new Date().toISOString().split("T")[0],
+      deviceCount: 0,
+    }
+
+    onUserAdded(newUser)
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="text-sm font-medium">Name</label>
+          <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
+        </div>
+        <div>
+          <label className="text-sm font-medium">Email</label>
+          <Input
+            type="email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            required
+          />
+        </div>
+        <div>
+          <label className="text-sm font-medium">Phone</label>
+          <Input
+            value={formData.phone}
+            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            required
+          />
+        </div>
+        <div>
+          <label className="text-sm font-medium">Role</label>
+          <Select
+            value={formData.role}
+            onValueChange={(value) => setFormData({ ...formData, role: value as SystemUser["role"] })}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="user">User</SelectItem>
+              <SelectItem value="it_staff">IT Staff</SelectItem>
+              <SelectItem value="it_head">IT Head</SelectItem>
+              <SelectItem value="admin">Admin</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="col-span-2">
+          <label className="text-sm font-medium">Location</label>
+          <Select
+            value={formData.location}
+            onValueChange={(value) => setFormData({ ...formData, location: value as SystemUser["location"] })}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="head_office">Head Office</SelectItem>
+              <SelectItem value="accra">Accra</SelectItem>
+              <SelectItem value="kumasi">Kumasi</SelectItem>
+              <SelectItem value="kaase_inland_port">Kaase Inland Port</SelectItem>
+              <SelectItem value="cape_coast">Cape Coast</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button type="submit">Create User</Button>
+      </div>
+    </form>
   )
 }

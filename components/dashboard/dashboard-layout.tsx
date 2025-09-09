@@ -17,6 +17,7 @@ import {
   MessageSquare,
   BarChart3,
   Database,
+  ClipboardList,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 
@@ -30,6 +31,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const getNavigationItems = () => {
     const baseItems = [{ name: "Dashboard", href: "/dashboard", icon: Home }]
+
+    if (user?.role === "service_provider") {
+      return [...baseItems, { name: "Assigned Repairs", href: "/dashboard/assigned-repairs", icon: ClipboardList }]
+    }
 
     if (user?.role === "user") {
       return [...baseItems, { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare }]
@@ -91,7 +96,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <SheetContent side="left" className="w-64 p-0">
           <div className="flex h-full flex-col">
             <div className="flex h-16 items-center px-6 border-b">
-              <h2 className="text-lg font-semibold text-foreground">IT Tracker</h2>
+              <h2 className="text-lg font-semibold text-foreground">
+                {user?.role === "service_provider" ? "Natland Repairs" : "IT Tracker"}
+              </h2>
             </div>
             <nav className="flex-1 space-y-1 px-3 py-4">
               {navigation.map((item) => (
@@ -122,7 +129,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
           <div className="flex flex-col flex-grow bg-card border-r border-border">
             <div className="flex h-16 items-center px-6 border-b border-border">
-              <h2 className="text-lg font-semibold text-card-foreground">IT Device Tracker</h2>
+              <h2 className="text-lg font-semibold text-card-foreground">
+                {user?.role === "service_provider" ? "Natland Repairs" : "IT Device Tracker"}
+              </h2>
             </div>
             <nav className="flex-1 space-y-1 px-3 py-4">
               {navigation.map((item) => (
