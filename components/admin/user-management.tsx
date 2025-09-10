@@ -19,6 +19,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Search, Plus, MoreHorizontal, User, MapPin, Mail, Phone } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { FormNavigation } from "@/components/ui/form-navigation"
 
 interface SystemUser {
   id: string
@@ -181,6 +182,8 @@ export function UserManagement() {
 
   return (
     <div className="space-y-6">
+      <FormNavigation currentPage="/dashboard/users" />
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-foreground">User Management</h2>
@@ -387,71 +390,79 @@ function AddUserForm({ onClose, onUserAdded }: { onClose: () => void; onUserAdde
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="text-sm font-medium">Name</label>
-          <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
+    <div>
+      <FormNavigation currentPage="/dashboard/users" className="mb-4" />
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm font-medium">Name</label>
+            <Input
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Email</label>
+            <Input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Phone</label>
+            <Input
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Role</label>
+            <Select
+              value={formData.role}
+              onValueChange={(value) => setFormData({ ...formData, role: value as SystemUser["role"] })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="user">User</SelectItem>
+                <SelectItem value="it_staff">IT Staff</SelectItem>
+                <SelectItem value="it_head">IT Head</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="col-span-2">
+            <label className="text-sm font-medium">Location</label>
+            <Select
+              value={formData.location}
+              onValueChange={(value) => setFormData({ ...formData, location: value as SystemUser["location"] })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="head_office">Head Office</SelectItem>
+                <SelectItem value="accra">Accra</SelectItem>
+                <SelectItem value="kumasi">Kumasi</SelectItem>
+                <SelectItem value="kaase_inland_port">Kaase Inland Port</SelectItem>
+                <SelectItem value="cape_coast">Cape Coast</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <div>
-          <label className="text-sm font-medium">Email</label>
-          <Input
-            type="email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            required
-          />
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit">Create User</Button>
         </div>
-        <div>
-          <label className="text-sm font-medium">Phone</label>
-          <Input
-            value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            required
-          />
-        </div>
-        <div>
-          <label className="text-sm font-medium">Role</label>
-          <Select
-            value={formData.role}
-            onValueChange={(value) => setFormData({ ...formData, role: value as SystemUser["role"] })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="user">User</SelectItem>
-              <SelectItem value="it_staff">IT Staff</SelectItem>
-              <SelectItem value="it_head">IT Head</SelectItem>
-              <SelectItem value="admin">Admin</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="col-span-2">
-          <label className="text-sm font-medium">Location</label>
-          <Select
-            value={formData.location}
-            onValueChange={(value) => setFormData({ ...formData, location: value as SystemUser["location"] })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="head_office">Head Office</SelectItem>
-              <SelectItem value="accra">Accra</SelectItem>
-              <SelectItem value="kumasi">Kumasi</SelectItem>
-              <SelectItem value="kaase_inland_port">Kaase Inland Port</SelectItem>
-              <SelectItem value="cape_coast">Cape Coast</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button type="submit">Create User</Button>
-      </div>
-    </form>
+      </form>
+    </div>
   )
 }

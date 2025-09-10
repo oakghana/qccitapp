@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { X, Upload, AlertTriangle, Clock, Zap } from "lucide-react"
+import { FormNavigation } from "@/components/ui/form-navigation"
 
 interface NewTicketFormProps {
   onClose: () => void
@@ -113,6 +114,8 @@ export function NewTicketForm({ onClose }: NewTicketFormProps) {
           </Button>
         </CardHeader>
         <CardContent>
+          <FormNavigation currentPage="/dashboard/service-desk" className="mb-4" />
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Requester Information */}
             <div className="space-y-4">

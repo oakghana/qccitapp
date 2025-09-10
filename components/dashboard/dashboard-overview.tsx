@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { DashboardNavigation } from "@/components/ui/dashboard-navigation"
 
 export function DashboardOverview() {
   const router = useRouter()
@@ -189,6 +190,8 @@ export function DashboardOverview() {
 
   return (
     <div className="space-y-6">
+      <DashboardNavigation />
+
       <div>
         <h1 className="text-3xl font-bold text-foreground">
           {user?.role === "service_provider" ? "Natland Repairs Dashboard" : "Dashboard"}

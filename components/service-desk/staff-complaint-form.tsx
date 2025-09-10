@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle, Clock, AlertTriangle, Paperclip, Send } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { FormNavigation } from "@/components/ui/form-navigation"
 
 interface Complaint {
   id: string
@@ -161,6 +162,8 @@ export function StaffComplaintForm() {
 
   return (
     <div className="space-y-6">
+      <FormNavigation currentPage="/dashboard/complaints" />
+
       <div>
         <h1 className="text-2xl font-bold text-foreground">IT Support Complaints</h1>
         <p className="text-muted-foreground">Submit and track your IT support requests</p>
