@@ -105,9 +105,9 @@ export function PWAInstall({ className }: PWAInstallProps) {
 
   if (isInstalled) {
     return (
-      <Card className={cn("border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950", className)}>
+      <Card className={cn("border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 dark:border-green-800 dark:bg-gradient-to-br dark:from-green-950 dark:to-emerald-950", className)}>
         <CardContent className="flex items-center justify-center p-6">
-          <div className="flex items-center space-x-2 text-orange-700 dark:text-orange-300">
+          <div className="flex items-center space-x-2 text-green-700 dark:text-green-300">
             <Check className="h-5 w-5" />
             <span className="font-medium">App installed successfully!</span>
           </div>
@@ -121,13 +121,13 @@ export function PWAInstall({ className }: PWAInstallProps) {
   }
 
   return (
-    <Card className={cn("border-primary/20 bg-primary/5 dark:bg-primary/10", className)}>
+    <Card className={cn("border-primary/20 bg-gradient-to-br from-orange-50 to-amber-50 dark:bg-gradient-to-br dark:from-orange-950 dark:to-amber-950", className)}>
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Smartphone className="h-5 w-5 text-primary" />
             <CardTitle className="text-lg">Install Mobile App</CardTitle>
-            <Badge variant="secondary" className="text-xs">
+            <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100 text-xs">
               PWA
             </Badge>
           </div>
@@ -147,7 +147,7 @@ export function PWAInstall({ className }: PWAInstallProps) {
       <CardContent className="pt-0">
         <div className="space-y-4">
           {/* Connection Status */}
-          <div className="flex items-center justify-between p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg border border-green-200 dark:border-green-800">
             <div className="flex items-center space-x-2">
               {isOnline ? (
                 <Zap className="h-4 w-4 text-green-600" />
@@ -158,33 +158,33 @@ export function PWAInstall({ className }: PWAInstallProps) {
                 {isOnline ? "Online" : "Offline Mode"}
               </span>
             </div>
-            <Badge variant={isOnline ? "default" : "secondary"} className="text-xs">
+            <Badge variant={isOnline ? "default" : "secondary"} className={isOnline ? "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100" : "text-xs"}>
               {isOnline ? "Connected" : "Cached Data Available"}
             </Badge>
           </div>
 
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="flex items-center space-x-2">
-              <WifiOff className="h-3 w-3 text-orange-500" />
+              <WifiOff className="h-3 w-3 text-green-500" />
               <span>Full offline support</span>
             </div>
             <div className="flex items-center space-x-2">
-              <Zap className="h-3 w-3 text-amber-500" />
+              <Zap className="h-3 w-3 text-green-600" />
               <span>Lightning fast</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
               <span>Push notifications</span>
             </div>
             <div className="flex items-center space-x-2">
-              <Smartphone className="h-3 w-3 text-orange-500" />
+              <Smartphone className="h-3 w-3 text-green-500" />
               <span>Native app feel</span>
             </div>
           </div>
           
           <Button 
             onClick={handleInstallClick} 
-            className="w-full"
+            className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
             size="lg"
           >
             <Download className="mr-2 h-4 w-4" />
