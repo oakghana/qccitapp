@@ -42,7 +42,7 @@ const mockRepairRequests: RepairRequest[] = [
     id: "RR-2024-001",
     deviceId: "DL-2024-001",
     deviceName: "Dell Latitude 5520",
-    requestedBy: "Kwame Asante",
+    requestedBy: "John Mensah",
     requestedDate: "2024-03-01",
     description: "Screen flickering and keyboard keys not responding properly",
     priority: "high",
@@ -55,12 +55,12 @@ const mockRepairRequests: RepairRequest[] = [
     id: "RR-2024-002",
     deviceId: "HP-2024-045",
     deviceName: "HP LaserJet Pro",
-    requestedBy: "IT Department",
+    requestedBy: "Head Office IT Staff",
     requestedDate: "2024-02-28",
     description: "Paper jam mechanism broken, unable to print",
     priority: "medium",
     status: "with_provider",
-    approvedBy: "John Doe",
+    approvedBy: "Head Office Admin",
     approvedDate: "2024-03-01",
     estimatedCompletion: "2024-03-15",
     attachments: ["repair-form-002.pdf"],
@@ -72,7 +72,7 @@ const mockRepairRequests: RepairRequest[] = [
     id: "RR-2024-003",
     deviceId: "LD-2024-012",
     deviceName: "Lenovo ThinkCentre",
-    requestedBy: "Ama Osei",
+    requestedBy: "Akosua Asante",
     requestedDate: "2024-02-25",
     description: "Computer randomly shutting down, possible power supply issue",
     priority: "urgent",
@@ -89,7 +89,7 @@ const mockRepairRequests: RepairRequest[] = [
     id: "RR-2024-004",
     deviceId: "AC-2024-008",
     deviceName: "Acer Aspire Desktop",
-    requestedBy: "Kofi Mensah",
+    requestedBy: "Kumasi IT Staff",
     requestedDate: "2024-03-02",
     description: "Blue screen errors and system crashes during startup",
     priority: "high",
@@ -117,7 +117,7 @@ const mockRepairRequests: RepairRequest[] = [
     id: "RR-2024-006",
     deviceId: "CC-2024-007",
     deviceName: "HP EliteBook 840",
-    requestedBy: "Cape Coast IT",
+    requestedBy: "Cape Coast Staff",
     requestedDate: "2024-03-04",
     description: "Battery not charging, power adapter issues",
     priority: "high",
@@ -163,50 +163,73 @@ export function RepairWorkflow() {
   const { user } = useAuth()
 
   const getFilteredRepairRequests = () => {
-    if (user?.role === "it_head" && user?.location === "head_office") {
-      return repairRequests
-    }
-
-    if (user?.role === "it_head" && user?.location !== "head_office") {
-      return repairRequests.filter((request) => request.location === user.location)
-    }
-
+    // Admin can see all requests
     if (user?.role === "admin") {
       return repairRequests
     }
 
-    return repairRequests.filter((request) => request.location === user?.location)
+    // Head office IT Head can see all requests regardless of location
+    if (user?.role === "it_head" && user?.location === "head_office") {
+      return repairRequests
+    }
+
+    // Regional IT Head can see requests from their location only
+    if (user?.role === "it_head" && user?.location !== "head_office") {
+      return repairRequests.filter((request) => request.location === user.location)
+    }
+
+    // IT Staff can see requests from their location only
+    if (user?.role === "it_staff") {
+      return repairRequests.filter((request) => request.location === user.location)
+    }
+
+    // Regular users (staff, service desk, etc.) can only see their own requests
+    return repairRequests.filter((request) => request.requestedBy === user?.name)
   }
 
   const filteredRepairRequests = getFilteredRepairRequests()
 
   const getLocationDisplayText = () => {
-    if (user?.role === "it_head" && user?.location === "head_office") {
-      return "all locations"
-    }
-
     if (user?.role === "admin") {
       return "all locations"
     }
 
+    if (user?.role === "it_head" && user?.location === "head_office") {
+      return "all locations"
+    }
+
+    if (user?.role === "it_head" || user?.role === "it_staff") {
+      const locationNames = {
+        head_office: "Head Office",
+        kumasi: "Kumasi District Office",
+        accra: "Accra Office",
+        kaase_inland_port: "Kaase Inland Port",
+        cape_coast: "Cape Coast Office",
+      }
+      return locationNames[user?.location as keyof typeof locationNames] || "your location"
+    }
+
+    // For regular users (staff, service desk, etc.)
+    return "your requests"
+  }
+
+  const handleNewRequest = (newRequest: Omit<RepairRequest, "id" | "requestedBy" | "requestedDate" | "status" | "location" | "locationName">) => {
     const locationNames = {
-      head_office: "Head Office",
+      head_office: "Head Office - Accra",
       kumasi: "Kumasi District Office",
-      accra: "Accra Office",
+      accra: "Accra Office", 
       kaase_inland_port: "Kaase Inland Port",
       cape_coast: "Cape Coast Office",
     }
 
-    return locationNames[user?.location as keyof typeof locationNames] || "your location"
-  }
-
-  const handleNewRequest = (newRequest: Omit<RepairRequest, "id" | "requestedDate" | "status" | "locationName">) => {
     const request: RepairRequest = {
       ...newRequest,
       id: `RR-2024-${String(repairRequests.length + 1).padStart(3, "0")}`,
+      requestedBy: user?.name || "Unknown User",
       requestedDate: new Date().toISOString().split("T")[0],
       status: "pending",
-      locationName: newRequest.location === "head_office" ? "Head Office - Accra" : "Kumasi District Office",
+      location: user?.location || "head_office",
+      locationName: locationNames[user?.location as keyof typeof locationNames] || "Head Office - Accra",
     }
     setRepairRequests([request, ...repairRequests])
     setNewRequestOpen(false)
@@ -254,11 +277,13 @@ export function RepairWorkflow() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Repair Requests</h1>
           <p className="text-muted-foreground">
-            {user?.role === "it_head" && user?.location === "head_office"
+            {user?.role === "admin"
               ? "Manage device repair workflow and approvals across all locations"
-              : user?.role === "admin"
+              : user?.role === "it_head" && user?.location === "head_office"
                 ? "Manage device repair workflow and approvals across all locations"
-                : `Manage device repair workflow for ${getLocationDisplayText()}`}
+                : user?.role === "it_head" || user?.role === "it_staff"
+                  ? `Manage device repair workflow for ${getLocationDisplayText()}`
+                  : "View and manage your repair requests"}
           </p>
         </div>
         <Dialog open={newRequestOpen} onOpenChange={setNewRequestOpen}>
@@ -290,7 +315,9 @@ export function RepairWorkflow() {
             <p className="text-xs text-muted-foreground">
               {user?.role === "admin" || (user?.role === "it_head" && user?.location === "head_office")
                 ? "All locations"
-                : getLocationDisplayText()}
+                : user?.role === "it_head" || user?.role === "it_staff"
+                  ? getLocationDisplayText()
+                  : "Your requests"}
             </p>
           </CardContent>
         </Card>
@@ -343,7 +370,9 @@ export function RepairWorkflow() {
                 <p className="text-muted-foreground text-center">
                   {user?.role === "admin" || (user?.role === "it_head" && user?.location === "head_office")
                     ? "All repair requests have been reviewed."
-                    : `No pending repair requests for ${getLocationDisplayText()}.`}
+                    : user?.role === "it_head" || user?.role === "it_staff"
+                      ? `No pending repair requests for ${getLocationDisplayText()}.`
+                      : "You have no pending repair requests."}
                 </p>
               </CardContent>
             </Card>
@@ -373,9 +402,11 @@ export function RepairWorkflow() {
                 <AlertTriangle className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-2">No active repairs</h3>
                 <p className="text-muted-foreground text-center">
-                  {user?.role === "admin"
+                  {user?.role === "admin" || (user?.role === "it_head" && user?.location === "head_office")
                     ? "No devices are currently being repaired."
-                    : `No devices from ${getLocationDisplayText()} are currently being repaired.`}
+                    : user?.role === "it_head" || user?.role === "it_staff"
+                      ? `No devices from ${getLocationDisplayText()} are currently being repaired.`
+                      : "You have no devices currently being repaired."}
                 </p>
               </CardContent>
             </Card>

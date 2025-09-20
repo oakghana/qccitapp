@@ -19,30 +19,28 @@ interface RepairRequest {
   description: string
   priority: "low" | "medium" | "high" | "urgent"
   attachments: string[]
-  location: string
+  location: "head_office" | "kumasi" | "accra" | "kaase_inland_port" | "cape_coast"
 }
 
 interface NewRepairRequestFormProps {
-  onSubmit: (request: RepairRequest) => void
+  onSubmit: (request: Omit<RepairRequest, "id" | "requestedBy" | "requestedDate" | "status" | "location" | "locationName">) => void
 }
 
 // Mock device data - in real app, this would come from the device inventory
 const mockDevices = [
-  { id: "DL-2024-001", name: "Dell Latitude 5520", location: "Accra" },
-  { id: "HP-2024-045", name: "HP LaserJet Pro", location: "Head Office" },
-  { id: "LD-2024-012", name: "Lenovo ThinkCentre", location: "Kumasi" },
-  { id: "IP-2024-008", name: "iPhone 13", location: "Kaase Inland Port" },
+  { id: "DL-2024-001", name: "Dell Latitude 5520", location: "accra" as const },
+  { id: "HP-2024-045", name: "HP LaserJet Pro", location: "head_office" as const },
+  { id: "LD-2024-012", name: "Lenovo ThinkCentre", location: "kumasi" as const },
+  { id: "IP-2024-008", name: "iPhone 13", location: "kaase_inland_port" as const },
 ]
 
 export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
-  const [formData, setFormData] = useState<RepairRequest>({
+  const [formData, setFormData] = useState({
     deviceId: "",
     deviceName: "",
-    requestedBy: "",
     description: "",
-    priority: "medium",
-    attachments: [],
-    location: "",
+    priority: "medium" as const,
+    attachments: [] as string[],
   })
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
@@ -57,7 +55,7 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
     })
   }
 
-  const handleInputChange = (field: keyof RepairRequest, value: string) => {
+  const handleInputChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
@@ -68,7 +66,6 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
         ...prev,
         deviceId: device.id,
         deviceName: device.name,
-        location: device.location,
       }))
     }
   }
@@ -105,17 +102,6 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="requestedBy">Requested By</Label>
-            <Input
-              id="requestedBy"
-              value={formData.requestedBy}
-              onChange={(e) => handleInputChange("requestedBy", e.target.value)}
-              placeholder="Your name"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
             <Label htmlFor="priority">Priority Level</Label>
             <Select value={formData.priority} onValueChange={(value) => handleInputChange("priority", value)}>
               <SelectTrigger>
@@ -128,11 +114,6 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
                 <SelectItem value="urgent">Urgent</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Device Location</Label>
-            <Input value={formData.location} disabled className="bg-muted" />
           </div>
         </div>
 
