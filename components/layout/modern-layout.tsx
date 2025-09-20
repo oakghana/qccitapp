@@ -37,23 +37,23 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
   const recentNotifications = notifications.slice(0, 5)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <div className="flex min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Sidebar */}
       <ModernSidebar 
         isOpen={sidebarOpen} 
         setIsOpen={setSidebarOpen}
-        className="lg:w-80"
+        className="w-80 flex-shrink-0"
       />
 
       {/* Main Content */}
-      <div className="lg:pl-80">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* PWA Install Banner */}
         <div className="p-4">
           <PWAInstall />
         </div>
 
         {/* Top Header */}
-        <header className="sticky top-0 z-30 flex h-20 items-center gap-4 border-b border-gray-200/50 bg-white/95 backdrop-blur-xl px-4 sm:px-6 lg:px-8 shadow-sm dark:bg-gray-900/95 dark:border-gray-800/50">
+        <header className="sticky top-0 z-30 flex h-20 items-center gap-4 border-b border-gray-200/50 bg-white/95 backdrop-blur-xl px-4 sm:px-6 lg:px-8 shadow-sm dark:bg-gray-900/95 dark:border-gray-800/50 flex-shrink-0">
           <div className="flex items-center gap-4">
             <MobileMenuButton onClick={() => setSidebarOpen(true)} />
             
@@ -205,9 +205,9 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
         </header>
 
         {/* Main Content Area */}
-        <main className={cn("flex-1 p-6 sm:p-8 lg:p-10", className)}>
-          <div className="mx-auto max-w-7xl">
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 dark:bg-gray-900/80 dark:border-gray-800/50 p-8">
+        <main className={cn("flex-1 p-6 sm:p-8 lg:p-10 overflow-auto", className)}>
+          <div className="mx-auto max-w-7xl h-full">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 dark:bg-gray-900/80 dark:border-gray-800/50 p-8 min-h-full">
               {children}
             </div>
           </div>

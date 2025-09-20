@@ -125,10 +125,11 @@ export function ModernSidebar({ isOpen, setIsOpen, className }: ModernSidebarPro
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-50 h-full w-80 bg-white/95 backdrop-blur-xl border-r border-gray-200/50 shadow-xl transform transition-all duration-300 ease-in-out",
-          isOpen ? "translate-x-0" : "-translate-x-full",
-          "lg:relative lg:translate-x-0 lg:flex lg:flex-col lg:shadow-none",
+          "h-screen bg-white/95 backdrop-blur-xl border-r border-gray-200/50 shadow-xl",
           "dark:bg-gray-900/95 dark:border-gray-800/50",
+          // Mobile: fixed overlay
+          "fixed left-0 top-0 z-50 w-80 transform transition-all duration-300 ease-in-out lg:relative lg:z-auto",
+          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
           className
         )}
       >
