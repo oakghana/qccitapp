@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Download, Smartphone, X, Check } from "lucide-react"
+import { Download, Smartphone, X, Check, WifiOff, Zap } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface PWAInstallProps {
@@ -16,8 +16,18 @@ export function PWAInstall({ className }: PWAInstallProps) {
   const [isInstallable, setIsInstallable] = useState(false)
   const [isInstalled, setIsInstalled] = useState(false)
   const [showPrompt, setShowPrompt] = useState(false)
+  const [isOnline, setIsOnline] = useState(true)
 
   useEffect(() => {
+    // Check online status
+    const updateOnlineStatus = () => {
+      setIsOnline(navigator.onLine)
+    }
+
+    updateOnlineStatus()
+    window.addEventListener('online', updateOnlineStatus)
+    window.addEventListener('offline', updateOnlineStatus)
+
     // Check if app is already installed
     if (window.matchMedia('(display-mode: standalone)').matches) {
       setIsInstalled(true)
@@ -65,6 +75,8 @@ export function PWAInstall({ className }: PWAInstallProps) {
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
       window.removeEventListener('appinstalled', handleAppInstalled)
+      window.removeEventListener('online', updateOnlineStatus)
+      window.removeEventListener('offline', updateOnlineStatus)
     }
   }, [])
 
@@ -129,27 +141,44 @@ export function PWAInstall({ className }: PWAInstallProps) {
           </Button>
         </div>
         <CardDescription>
-          Install QCC IT Device Tracker as a mobile app for quick access and offline functionality.
+          Install QCC IT Device Tracker as a mobile app for quick access and full offline functionality.
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
         <div className="space-y-4">
+          {/* Connection Status */}
+          <div className="flex items-center justify-between p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+            <div className="flex items-center space-x-2">
+              {isOnline ? (
+                <Zap className="h-4 w-4 text-green-600" />
+              ) : (
+                <WifiOff className="h-4 w-4 text-orange-600" />
+              )}
+              <span className="text-sm font-medium">
+                {isOnline ? "Online" : "Offline Mode"}
+              </span>
+            </div>
+            <Badge variant={isOnline ? "default" : "secondary"} className="text-xs">
+              {isOnline ? "Connected" : "Cached Data Available"}
+            </Badge>
+          </div>
+
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-              <span>Works offline</span>
+              <WifiOff className="h-3 w-3 text-orange-500" />
+              <span>Full offline support</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-              <span>Fast loading</span>
+              <Zap className="h-3 w-3 text-amber-500" />
+              <span>Lightning fast</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
               <span>Push notifications</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-              <span>Home screen access</span>
+              <Smartphone className="h-3 w-3 text-orange-500" />
+              <span>Native app feel</span>
             </div>
           </div>
           

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { ModernSidebar, MobileMenuButton } from "@/components/ui/modern-sidebar"
 import { PWAInstall } from "@/components/ui/pwa-install"
 import { Button } from "@/components/ui/button"
@@ -14,9 +14,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Bell, Search, User, Settings, LogOut, ChevronDown } from "lucide-react"
+import { Bell, Search, User, Settings, LogOut, ChevronDown, WifiOff, Zap } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useNotifications } from "@/lib/notification-context"
+import { useOfflineCache } from "@/lib/offline-cache"
 import { cn } from "@/lib/utils"
 
 interface ModernLayoutProps {
@@ -26,8 +27,31 @@ interface ModernLayoutProps {
 
 export function ModernLayout({ children, className }: ModernLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isOnline, setIsOnline] = useState(true)
   const { user, logout } = useAuth()
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
+  const { setupConnectivityListeners, preloadCriticalData, isOnline: checkOnline } = useOfflineCache()
+
+  useEffect(() => {
+    // Initialize online status
+    setIsOnline(checkOnline())
+
+    // Setup connectivity listeners
+    const cleanup = setupConnectivityListeners(
+      () => {
+        setIsOnline(true)
+        preloadCriticalData() // Preload data when connection is restored
+      },
+      () => setIsOnline(false)
+    )
+
+    // Preload critical data on mount if online
+    if (checkOnline()) {
+      preloadCriticalData()
+    }
+
+    return cleanup
+  }, [])
 
   const handleLogout = () => {
     logout()
@@ -73,6 +97,21 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
               Search...
               <span className="ml-3 text-sm text-orange-500 bg-white px-2 py-1 rounded-md dark:bg-orange-900/50">⌘K</span>
             </Button>
+
+            {/* Offline Indicator */}
+            <div className="flex items-center gap-2">
+              {isOnline ? (
+                <div className="hidden sm:flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md dark:bg-green-900/30 dark:text-green-300">
+                  <Zap className="h-3 w-3" />
+                  <span className="text-xs">Online</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 rounded-md dark:bg-orange-900/30 dark:text-orange-300">
+                  <WifiOff className="h-3 w-3" />
+                  <span className="text-xs">Offline</span>
+                </div>
+              )}
+            </div>
 
             {/* Notifications */}
             <DropdownMenu>
