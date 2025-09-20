@@ -37,7 +37,7 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
   const recentNotifications = notifications.slice(0, 5)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Sidebar */}
       <ModernSidebar 
         isOpen={sidebarOpen} 
@@ -53,25 +53,25 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
         </div>
 
         {/* Top Header */}
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border/50 bg-background/95 backdrop-blur-md px-4 sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-30 flex h-20 items-center gap-4 border-b border-gray-200/50 bg-white/95 backdrop-blur-xl px-4 sm:px-6 lg:px-8 shadow-sm dark:bg-gray-900/95 dark:border-gray-800/50">
           <div className="flex items-center gap-4">
             <MobileMenuButton onClick={() => setSidebarOpen(true)} />
             
             {/* Breadcrumb */}
-            <div className="hidden sm:flex items-center space-x-2 text-sm text-muted-foreground">
-              <span>Dashboard</span>
+            <div className="hidden sm:flex items-center space-x-2 text-base font-medium text-gray-600 dark:text-gray-400">
+              <span className="px-3 py-1 bg-gradient-to-r from-green-100 to-blue-100 text-green-700 rounded-lg">Dashboard</span>
               <span>/</span>
-              <span className="text-foreground font-medium">Overview</span>
+              <span className="text-gray-900 dark:text-white font-semibold">Overview</span>
             </div>
           </div>
 
           {/* Right side */}
           <div className="flex flex-1 items-center justify-end gap-4">
             {/* Search */}
-            <Button variant="ghost" size="sm" className="hidden md:flex">
-              <Search className="h-4 w-4 mr-2" />
+            <Button variant="ghost" size="sm" className="hidden md:flex h-12 px-4 bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-700 border-none rounded-xl shadow-sm">
+              <Search className="h-5 w-5 mr-3" />
               Search...
-              <span className="ml-2 text-xs text-muted-foreground">⌘K</span>
+              <span className="ml-3 text-sm text-gray-500 bg-white px-2 py-1 rounded-md">⌘K</span>
             </Button>
 
             {/* Notifications */}
@@ -205,9 +205,11 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
         </header>
 
         {/* Main Content Area */}
-        <main className={cn("flex-1 p-4 sm:p-6 lg:p-8", className)}>
+        <main className={cn("flex-1 p-6 sm:p-8 lg:p-10", className)}>
           <div className="mx-auto max-w-7xl">
-            {children}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 dark:bg-gray-900/80 dark:border-gray-800/50 p-8">
+              {children}
+            </div>
           </div>
         </main>
       </div>

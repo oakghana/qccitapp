@@ -125,24 +125,25 @@ export function ModernSidebar({ isOpen, setIsOpen, className }: ModernSidebarPro
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-50 h-full w-80 bg-background/95 backdrop-blur-md border-r border-border/50 transform transition-transform duration-300 ease-in-out",
+          "fixed left-0 top-0 z-50 h-full w-80 bg-white/95 backdrop-blur-xl border-r border-gray-200/50 shadow-xl transform transition-all duration-300 ease-in-out",
           isOpen ? "translate-x-0" : "-translate-x-full",
-          "lg:relative lg:translate-x-0 lg:flex lg:flex-col",
+          "lg:relative lg:translate-x-0 lg:flex lg:flex-col lg:shadow-none",
+          "dark:bg-gray-900/95 dark:border-gray-800/50",
           className
         )}
       >
         <div className="flex h-full flex-col">
           {/* Header */}
-          <div className="flex h-16 items-center justify-between px-6 border-b border-border/50">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/60 rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">QCC</span>
+          <div className="flex h-20 items-center justify-between px-6 border-b border-gray-200/50 bg-gradient-to-r from-green-50 to-blue-50 dark:from-gray-800 dark:to-gray-900 dark:border-gray-800/50">
+            <div className="flex items-center space-x-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-500 via-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold text-lg">Q</span>
               </div>
               <div className="flex flex-col">
-                <h2 className="text-lg font-semibold text-foreground">
-                  {user?.role === "service_provider" ? "Natland Repairs" : "IT Device Tracker"}
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {user?.role === "service_provider" ? "Natland Repairs" : "QCC IT Tracker"}
                 </h2>
-                <span className="text-xs text-muted-foreground capitalize">
+                <span className="text-xs text-gray-600 dark:text-gray-400 capitalize font-medium">
                   {user?.role?.replace('_', ' ')} Portal
                 </span>
               </div>
@@ -158,11 +159,11 @@ export function ModernSidebar({ isOpen, setIsOpen, className }: ModernSidebarPro
           </div>
 
           {/* User Profile */}
-          <div className="p-6 border-b border-border/50">
-            <div className="flex items-center space-x-3">
-              <Avatar className="h-10 w-10">
+          <div className="p-6 border-b border-gray-200/50 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 dark:border-gray-800/50">
+            <div className="flex items-center space-x-4">
+              <Avatar className="h-12 w-12 ring-2 ring-green-500/20 shadow-lg">
                 <AvatarImage src="/placeholder-user.jpg" />
-                <AvatarFallback className="bg-primary/10">
+                <AvatarFallback className="bg-gradient-to-br from-green-400 to-blue-500 text-white font-bold text-lg">
                   {user?.name
                     ?.split(" ")
                     .map((n) => n[0])
@@ -170,59 +171,66 @@ export function ModernSidebar({ isOpen, setIsOpen, className }: ModernSidebarPro
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">
+                <p className="text-lg font-bold text-gray-900 dark:text-white truncate">
                   {user?.name || "User"}
                 </p>
-                <p className="text-xs text-muted-foreground truncate">
+                <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
                   {user?.email || "user@qcc.com.gh"}
                 </p>
               </div>
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-xs font-medium bg-green-100 text-green-700 border-green-300">
                 {user?.location?.replace('_', ' ')}
               </Badge>
             </div>
           </div>
 
           {/* Quick Actions */}
-          <div className="p-6 border-b border-border/50">
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" size="sm" className="h-8">
-                <Plus className="h-3 w-3 mr-1" />
+          <div className="p-6 border-b border-gray-200/50 dark:border-gray-800/50">
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="outline" size="sm" className="h-10 bg-gradient-to-r from-green-500 to-blue-500 text-white border-none hover:from-green-600 hover:to-blue-600 shadow-md">
+                <Plus className="h-4 w-4 mr-2" />
                 New
               </Button>
-              <Button variant="outline" size="sm" className="h-8">
-                <Search className="h-3 w-3 mr-1" />
+              <Button variant="outline" size="sm" className="h-10 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-none hover:from-purple-600 hover:to-pink-600 shadow-md">
+                <Search className="h-4 w-4 mr-2" />
                 Search
               </Button>
             </div>
           </div>
 
           {/* Navigation */}
-          <ScrollArea className="flex-1 px-3 py-4">
-            <nav className="space-y-2">
-              {navigation.map((item) => (
+          <ScrollArea className="flex-1 px-4 py-6">
+            <nav className="space-y-3">
+              {navigation.map((item, index) => (
                 <div key={item.name} className="transform transition-all duration-200 hover:scale-[1.02]">
                   <a
                     href={item.href}
                     className={cn(
-                      "flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-all",
-                      "text-foreground hover:bg-accent hover:text-accent-foreground",
-                      "group relative overflow-hidden"
+                      "flex items-center justify-between px-4 py-4 text-base font-medium rounded-xl transition-all duration-200",
+                      "text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-green-500/10 hover:to-blue-500/10",
+                      "hover:text-gray-900 dark:hover:text-white hover:shadow-md",
+                      "group relative overflow-hidden border border-transparent hover:border-green-200/50",
+                      "dark:hover:border-green-800/50"
                     )}
+                    style={{
+                      animationDelay: `${index * 50}ms`
+                    }}
                   >
-                    <div className="flex items-center space-x-3">
-                      <item.icon className="h-5 w-5 transition-transform group-hover:scale-110" />
-                      <span>{item.name}</span>
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 group-hover:from-green-100 group-hover:to-blue-100 dark:group-hover:from-green-800 dark:group-hover:to-blue-800 transition-all duration-200">
+                        <item.icon className="h-5 w-5 text-gray-600 dark:text-gray-400 group-hover:text-green-600 dark:group-hover:text-green-400 transition-all duration-200" />
+                      </div>
+                      <span className="font-semibold">{item.name}</span>
                     </div>
                     {item.badge && (
                       <Badge 
                         variant="secondary" 
-                        className="h-5 px-2 text-xs bg-primary/10 text-primary border-primary/20"
+                        className="h-6 px-3 text-xs bg-gradient-to-r from-red-500 to-pink-500 text-white border-none shadow-md animate-pulse"
                       >
                         {item.badge}
                       </Badge>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-green-500/5 via-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
                   </a>
                 </div>
               ))}
@@ -230,21 +238,21 @@ export function ModernSidebar({ isOpen, setIsOpen, className }: ModernSidebarPro
           </ScrollArea>
 
           {/* Footer */}
-          <div className="border-t border-border/50 p-4 space-y-2">
+          <div className="border-t border-gray-200/50 dark:border-gray-800/50 p-6 space-y-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900">
             <Button
               variant="ghost"
-              className="w-full justify-start text-sm"
+              className="w-full justify-start text-base font-medium h-12 rounded-xl hover:bg-gradient-to-r hover:from-blue-500/10 hover:to-purple-500/10 hover:shadow-md transition-all duration-200"
             >
-              <Settings className="mr-3 h-4 w-4" />
-              Settings
+              <Settings className="mr-4 h-5 w-5 text-gray-600 dark:text-gray-400" />
+              <span className="text-gray-700 dark:text-gray-300">Settings</span>
             </Button>
-            <Separator className="my-2" />
+            <Separator className="my-3" />
             <Button
               variant="ghost"
-              className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 h-12 rounded-xl font-medium text-base transition-all duration-200"
               onClick={handleLogout}
             >
-              <LogOut className="mr-3 h-4 w-4" />
+              <LogOut className="mr-4 h-5 w-5" />
               Sign Out
             </Button>
           </div>
