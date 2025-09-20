@@ -183,6 +183,8 @@ export function LoginForm() {
           const authModule = await import("@/lib/auth-context")
           // Store login info for context pickup
           localStorage.setItem("pendingLogin", formData.username)
+          // Flag to show mobile app download notification
+          localStorage.setItem("showMobileAppDownload", "true")
         }
         // Redirect to dashboard - in real app, set auth tokens
         window.location.href = "/dashboard"

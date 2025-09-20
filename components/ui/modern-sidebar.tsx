@@ -23,6 +23,7 @@ import {
   ClipboardList,
   Search,
   Plus,
+  Smartphone,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
@@ -240,6 +241,19 @@ export function ModernSidebar({ isOpen, setIsOpen, className }: ModernSidebarPro
 
           {/* Footer */}
           <div className="border-t border-orange-200/50 dark:border-orange-800/50 p-6 space-y-3 bg-gradient-to-r from-orange-50/50 to-white dark:from-orange-900/10 dark:to-gray-900">
+            {/* Mobile App Download */}
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-base font-medium h-12 rounded-xl hover:bg-gradient-to-r hover:from-orange-500/10 hover:to-amber-500/10 hover:shadow-md transition-all duration-200"
+              onClick={() => {
+                const event = new CustomEvent('showMobileAppDownload')
+                window.dispatchEvent(event)
+              }}
+            >
+              <Smartphone className="mr-4 h-5 w-5 text-orange-600 dark:text-orange-400" />
+              <span className="text-orange-700 dark:text-orange-300">Install Mobile App</span>
+              <Badge variant="secondary" className="ml-auto text-xs">PWA</Badge>
+            </Button>
             <Button
               variant="ghost"
               className="w-full justify-start text-base font-medium h-12 rounded-xl hover:bg-gradient-to-r hover:from-orange-500/10 hover:to-amber-500/10 hover:shadow-md transition-all duration-200"

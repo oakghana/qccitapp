@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react"
 import { ModernSidebar, MobileMenuButton } from "@/components/ui/modern-sidebar"
 import { PWAInstall } from "@/components/ui/pwa-install"
+import { MobileAppDownload } from "@/components/ui/mobile-app-download"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -28,6 +29,7 @@ interface ModernLayoutProps {
 export function ModernLayout({ children, className }: ModernLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isOnline, setIsOnline] = useState(true)
+  const [showMobileDownload, setShowMobileDownload] = useState(false)
   const { user, logout } = useAuth()
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
   const { setupConnectivityListeners, preloadCriticalData, isOnline: checkOnline } = useOfflineCache()
@@ -35,6 +37,14 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
   useEffect(() => {
     // Initialize online status
     setIsOnline(checkOnline())
+
+    // Check if we should show mobile app download notification
+    const shouldShowMobileDownload = localStorage.getItem("showMobileAppDownload") === "true"
+    if (shouldShowMobileDownload) {
+      setShowMobileDownload(true)
+      // Clear the flag so it only shows once after login
+      localStorage.removeItem("showMobileAppDownload")
+    }
 
     // Setup connectivity listeners
     const cleanup = setupConnectivityListeners(
@@ -75,6 +85,19 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
         <div className="p-4">
           <PWAInstall />
         </div>
+
+        {/* Mobile App Download Notification */}
+        {showMobileDownload && (
+          <div className="px-4 pb-4">
+            <MobileAppDownload 
+              showOnLogin={true} 
+              autoShow={true}
+            />
+          </div>
+        )}
+
+        {/* Always Available Mobile Download Component (hidden) */}
+        <MobileAppDownload showOnLogin={false} />
 
         {/* Top Header */}
         <header className="sticky top-0 z-30 flex h-20 items-center gap-4 border-b border-orange-200/50 bg-white/95 backdrop-blur-xl px-4 sm:px-6 lg:px-8 shadow-sm dark:bg-orange-950/95 dark:border-orange-800/50 flex-shrink-0">
