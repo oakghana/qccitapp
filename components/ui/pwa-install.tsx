@@ -93,9 +93,9 @@ export function PWAInstall({ className }: PWAInstallProps) {
 
   if (isInstalled) {
     return (
-      <Card className={cn("border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950", className)}>
+      <Card className={cn("border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950", className)}>
         <CardContent className="flex items-center justify-center p-6">
-          <div className="flex items-center space-x-2 text-green-700 dark:text-green-300">
+          <div className="flex items-center space-x-2 text-orange-700 dark:text-orange-300">
             <Check className="h-5 w-5" />
             <span className="font-medium">App installed successfully!</span>
           </div>
@@ -136,15 +136,15 @@ export function PWAInstall({ className }: PWAInstallProps) {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
               <span>Works offline</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
               <span>Fast loading</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+              <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
               <span>Push notifications</span>
             </div>
             <div className="flex items-center space-x-2">

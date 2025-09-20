@@ -239,13 +239,13 @@ export function DashboardOverview() {
                       </div>
                     )}
                     {(activity.type === "device_transfer" || activity.type === "repair_in_progress") && (
-                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                        <Monitor className="h-4 w-4 text-blue-600" />
+                      <div className="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center">
+                        <Monitor className="h-4 w-4 text-amber-600" />
                       </div>
                     )}
                     {activity.type === "repair_completed" && (
-                      <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
+                      <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
+                        <CheckCircle className="h-4 w-4 text-orange-600" />
                       </div>
                     )}
                   </div>
@@ -305,8 +305,8 @@ export function DashboardOverview() {
                               alert.type === "warning"
                                 ? "bg-orange-500"
                                 : alert.type === "success"
-                                  ? "bg-green-500"
-                                  : "bg-blue-500"
+                                  ? "bg-orange-600"
+                                  : "bg-amber-500"
                             }`}
                           />
                           <div className="flex-1">
@@ -374,7 +374,7 @@ export function DashboardOverview() {
                   </>
                 )}
 
-                {(user?.role === "service_desk_admin" || user?.role === "service_desk_head") && (
+                {(user?.role === "service_desk_head") && (
                   <Button
                     variant="outline"
                     className="w-full justify-start bg-transparent"

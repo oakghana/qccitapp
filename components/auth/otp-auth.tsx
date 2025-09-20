@@ -161,13 +161,13 @@ export function OTPAuth({ onVerifySuccess, onCancel, phoneNumber, email, method 
 
   if (state.success) {
     return (
-      <Card className="w-full max-w-md mx-auto border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
+      <Card className="w-full max-w-md mx-auto border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
         <CardContent className="flex flex-col items-center justify-center p-8">
-          <CheckCircle className="h-16 w-16 text-green-600 dark:text-green-400 mb-4" />
-          <h3 className="text-lg font-semibold text-green-800 dark:text-green-200 mb-2">
+          <CheckCircle className="h-16 w-16 text-orange-600 dark:text-orange-400 mb-4" />
+          <h3 className="text-lg font-semibold text-orange-800 dark:text-orange-200 mb-2">
             Verification Successful!
           </h3>
-          <p className="text-green-600 dark:text-green-400 text-center">
+          <p className="text-orange-600 dark:text-orange-400 text-center">
             You will be redirected to your dashboard shortly.
           </p>
         </CardContent>
@@ -243,7 +243,7 @@ export function OTPAuth({ onVerifySuccess, onCancel, phoneNumber, email, method 
               <div className="flex justify-center">
                 <InputOTP
                   value={state.otpCode}
-                  onChange={(value) => setState(prev => ({ ...prev, otpCode: value, error: null }))}
+                  onChange={(value: string) => setState(prev => ({ ...prev, otpCode: value, error: null }))}
                   maxLength={6}
                 >
                   <InputOTPGroup>

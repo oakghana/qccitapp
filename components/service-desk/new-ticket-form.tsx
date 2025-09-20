@@ -50,7 +50,7 @@ export function NewTicketForm({ onClose }: NewTicketFormProps) {
   ]
 
   const priorities = [
-    { value: "low", label: "Low", icon: Clock, color: "text-green-600", description: "Non-urgent, can wait" },
+    { value: "low", label: "Low", icon: Clock, color: "text-orange-600", description: "Non-urgent, can wait" },
     {
       value: "medium",
       label: "Medium",

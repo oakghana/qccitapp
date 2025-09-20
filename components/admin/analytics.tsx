@@ -213,7 +213,7 @@ export function Analytics() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }: any) => `${name} ${(Number(percent) * 100).toFixed(0)}%`}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
@@ -372,9 +372,9 @@ export function Analytics() {
                   <Badge variant="outline">Medium Priority</Badge>
                 </div>
 
-                <div className="flex items-center justify-between p-4 border rounded-lg border-blue-200 bg-blue-50">
+                <div className="flex items-center justify-between p-4 border rounded-lg border-orange-200 bg-orange-50">
                   <div className="flex items-center gap-3">
-                    <CheckCircle className="h-5 w-5 text-blue-600" />
+                    <CheckCircle className="h-5 w-5 text-orange-600" />
                     <div>
                       <h4 className="font-medium">Monitor Cables</h4>
                       <p className="text-sm text-muted-foreground">Consider preventive replacement program</p>
