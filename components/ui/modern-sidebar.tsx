@@ -135,16 +135,16 @@ export function ModernSidebar({ isOpen, setIsOpen, className }: ModernSidebarPro
       >
         <div className="flex h-full flex-col">
           {/* Header */}
-          <div className="flex h-20 items-center justify-between px-6 border-b border-gray-200/50 bg-gradient-to-r from-green-50 to-blue-50 dark:from-gray-800 dark:to-gray-900 dark:border-gray-800/50">
+          <div className="flex h-20 items-center justify-between px-6 border-b border-orange-200/50 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 dark:border-orange-800/50">
             <div className="flex items-center space-x-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-500 via-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-600 rounded-xl flex items-center justify-center shadow-lg">
                 <span className="text-white font-bold text-lg">Q</span>
               </div>
               <div className="flex flex-col">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                <h2 className="text-xl font-bold text-orange-900 dark:text-orange-100">
                   {user?.role === "service_provider" ? "Natland Repairs" : "QCC IT Tracker"}
                 </h2>
-                <span className="text-xs text-gray-600 dark:text-gray-400 capitalize font-medium">
+                <span className="text-xs text-orange-700 dark:text-orange-300 capitalize font-medium">
                   {user?.role?.replace('_', ' ')} Portal
                 </span>
               </div>
@@ -160,11 +160,11 @@ export function ModernSidebar({ isOpen, setIsOpen, className }: ModernSidebarPro
           </div>
 
           {/* User Profile */}
-          <div className="p-6 border-b border-gray-200/50 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 dark:border-gray-800/50">
+          <div className="p-6 border-b border-orange-200/50 bg-gradient-to-r from-orange-50/50 to-white dark:from-orange-900/10 dark:to-gray-900 dark:border-orange-800/50">
             <div className="flex items-center space-x-4">
-              <Avatar className="h-12 w-12 ring-2 ring-green-500/20 shadow-lg">
+              <Avatar className="h-12 w-12 ring-2 ring-orange-500/20 shadow-lg">
                 <AvatarImage src="/placeholder-user.jpg" />
-                <AvatarFallback className="bg-gradient-to-br from-green-400 to-blue-500 text-white font-bold text-lg">
+                <AvatarFallback className="bg-gradient-to-br from-orange-400 to-amber-500 text-white font-bold text-lg">
                   {user?.name
                     ?.split(" ")
                     .map((n) => n[0])
@@ -172,27 +172,27 @@ export function ModernSidebar({ isOpen, setIsOpen, className }: ModernSidebarPro
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-lg font-bold text-gray-900 dark:text-white truncate">
+                <p className="text-lg font-bold text-orange-900 dark:text-orange-100 truncate">
                   {user?.name || "User"}
                 </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                <p className="text-sm text-orange-700 dark:text-orange-300 truncate">
                   {user?.email || "user@qcc.com.gh"}
                 </p>
               </div>
-              <Badge variant="outline" className="text-xs font-medium bg-green-100 text-green-700 border-green-300">
+              <Badge variant="outline" className="text-xs font-medium bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700">
                 {user?.location?.replace('_', ' ')}
               </Badge>
             </div>
           </div>
 
           {/* Quick Actions */}
-          <div className="p-6 border-b border-gray-200/50 dark:border-gray-800/50">
+          <div className="p-6 border-b border-orange-200/50 dark:border-orange-800/50">
             <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" size="sm" className="h-10 bg-gradient-to-r from-green-500 to-blue-500 text-white border-none hover:from-green-600 hover:to-blue-600 shadow-md">
+              <Button variant="outline" size="sm" className="h-10 bg-gradient-to-r from-orange-500 to-amber-500 text-white border-none hover:from-orange-600 hover:to-amber-600 shadow-md">
                 <Plus className="h-4 w-4 mr-2" />
                 New
               </Button>
-              <Button variant="outline" size="sm" className="h-10 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-none hover:from-purple-600 hover:to-pink-600 shadow-md">
+              <Button variant="outline" size="sm" className="h-10 bg-gradient-to-r from-amber-500 to-yellow-500 text-white border-none hover:from-amber-600 hover:to-yellow-600 shadow-md">
                 <Search className="h-4 w-4 mr-2" />
                 Search
               </Button>
@@ -208,18 +208,18 @@ export function ModernSidebar({ isOpen, setIsOpen, className }: ModernSidebarPro
                     href={item.href}
                     className={cn(
                       "flex items-center justify-between px-4 py-4 text-base font-medium rounded-xl transition-all duration-200",
-                      "text-gray-700 dark:text-gray-300 hover:bg-gradient-to-r hover:from-green-500/10 hover:to-blue-500/10",
-                      "hover:text-gray-900 dark:hover:text-white hover:shadow-md",
-                      "group relative overflow-hidden border border-transparent hover:border-green-200/50",
-                      "dark:hover:border-green-800/50"
+                      "text-orange-800 dark:text-orange-200 hover:bg-gradient-to-r hover:from-orange-500/10 hover:to-amber-500/10",
+                      "hover:text-orange-900 dark:hover:text-orange-100 hover:shadow-md",
+                      "group relative overflow-hidden border border-transparent hover:border-orange-200/50",
+                      "dark:hover:border-orange-800/50"
                     )}
                     style={{
                       animationDelay: `${index * 50}ms`
                     }}
                   >
                     <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 group-hover:from-green-100 group-hover:to-blue-100 dark:group-hover:from-green-800 dark:group-hover:to-blue-800 transition-all duration-200">
-                        <item.icon className="h-5 w-5 text-gray-600 dark:text-gray-400 group-hover:text-green-600 dark:group-hover:text-green-400 transition-all duration-200" />
+                      <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-800 dark:to-amber-800 group-hover:from-orange-200 group-hover:to-amber-200 dark:group-hover:from-orange-700 dark:group-hover:to-amber-700 transition-all duration-200">
+                        <item.icon className="h-5 w-5 text-orange-600 dark:text-orange-400 group-hover:text-orange-700 dark:group-hover:text-orange-300 transition-all duration-200" />
                       </div>
                       <span className="font-semibold">{item.name}</span>
                     </div>
@@ -231,7 +231,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className }: ModernSidebarPro
                         {item.badge}
                       </Badge>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-r from-green-500/5 via-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-orange-500/5 via-amber-500/5 to-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
                   </a>
                 </div>
               ))}
@@ -239,13 +239,13 @@ export function ModernSidebar({ isOpen, setIsOpen, className }: ModernSidebarPro
           </ScrollArea>
 
           {/* Footer */}
-          <div className="border-t border-gray-200/50 dark:border-gray-800/50 p-6 space-y-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900">
+          <div className="border-t border-orange-200/50 dark:border-orange-800/50 p-6 space-y-3 bg-gradient-to-r from-orange-50/50 to-white dark:from-orange-900/10 dark:to-gray-900">
             <Button
               variant="ghost"
-              className="w-full justify-start text-base font-medium h-12 rounded-xl hover:bg-gradient-to-r hover:from-blue-500/10 hover:to-purple-500/10 hover:shadow-md transition-all duration-200"
+              className="w-full justify-start text-base font-medium h-12 rounded-xl hover:bg-gradient-to-r hover:from-orange-500/10 hover:to-amber-500/10 hover:shadow-md transition-all duration-200"
             >
-              <Settings className="mr-4 h-5 w-5 text-gray-600 dark:text-gray-400" />
-              <span className="text-gray-700 dark:text-gray-300">Settings</span>
+              <Settings className="mr-4 h-5 w-5 text-orange-600 dark:text-orange-400" />
+              <span className="text-orange-700 dark:text-orange-300">Settings</span>
             </Button>
             <Separator className="my-3" />
             <Button
