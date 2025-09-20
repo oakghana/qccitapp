@@ -1,0 +1,95 @@
+{
+  "name": "QCC IT Device Tracker",
+  "short_name": "QCC IT Tracker",
+  "description": "Quality Control Company Limited - IT Device Management and Repair Tracking System",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "categories": ["business", "productivity", "utilities"],
+  "lang": "en",
+  "dir": "ltr",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/images/qcc-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/images/qcc-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/qcc-logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/qcc-logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View your dashboard",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "/images/qcc-logo.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Devices",
+      "short_name": "Devices",
+      "description": "Manage IT devices",
+      "url": "/dashboard/devices",
+      "icons": [
+        {
+          "src": "/images/qcc-logo.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Repairs",
+      "short_name": "Repairs",
+      "description": "Track repair requests",
+      "url": "/dashboard/repairs",
+      "icons": [
+        {
+          "src": "/images/qcc-logo.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/images/screenshot-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/images/screenshot-narrow.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "edge_side_panel": {
+    "preferred_width": 400
+  }
+}

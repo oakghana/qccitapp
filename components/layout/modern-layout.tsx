@@ -2,6 +2,7 @@
 
 import React, { useState } from "react"
 import { ModernSidebar, MobileMenuButton } from "@/components/ui/modern-sidebar"
+import { PWAInstall } from "@/components/ui/pwa-install"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Bell, Search, User, Settings, LogOut, ChevronDown } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { useNotifications } from "@/lib/notification-context"
 import { cn } from "@/lib/utils"
 
 interface ModernLayoutProps {
@@ -25,16 +27,14 @@ interface ModernLayoutProps {
 export function ModernLayout({ children, className }: ModernLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { user, logout } = useAuth()
-  const [notifications] = useState([
-    { id: 1, title: "New repair request", type: "info", time: "5 min ago" },
-    { id: 2, title: "Device transfer approved", type: "success", time: "1 hour ago" },
-    { id: 3, title: "System maintenance", type: "warning", time: "2 hours ago" },
-  ])
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
 
   const handleLogout = () => {
     logout()
     window.location.href = "/"
   }
+
+  const recentNotifications = notifications.slice(0, 5)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
@@ -47,6 +47,11 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
 
       {/* Main Content */}
       <div className="lg:pl-80">
+        {/* PWA Install Banner */}
+        <div className="p-4">
+          <PWAInstall />
+        </div>
+
         {/* Top Header */}
         <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border/50 bg-background/95 backdrop-blur-md px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
@@ -74,12 +79,12 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
                   <Bell className="h-5 w-5" />
-                  {notifications.length > 0 && (
+                  {unreadCount > 0 && (
                     <Badge 
                       variant="destructive" 
                       className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center"
                     >
-                      {notifications.length}
+                      {unreadCount}
                     </Badge>
                   )}
                 </Button>
@@ -87,27 +92,71 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
               <DropdownMenuContent align="end" className="w-80">
                 <DropdownMenuLabel className="flex items-center justify-between">
                   Notifications
-                  <Badge variant="outline">{notifications.length}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">{unreadCount}</Badge>
+                    {unreadCount > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={markAllAsRead}
+                        className="h-6 text-xs"
+                      >
+                        Mark all read
+                      </Button>
+                    )}
+                  </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {notifications.map((notification) => (
-                  <DropdownMenuItem key={notification.id} className="flex flex-col items-start p-4">
-                    <div className="flex w-full items-center justify-between">
-                      <span className="font-medium text-sm">{notification.title}</span>
-                      <Badge 
-                        variant={notification.type === "success" ? "default" : 
-                                notification.type === "warning" ? "secondary" : "outline"}
-                        className="text-xs"
-                      >
-                        {notification.type}
-                      </Badge>
-                    </div>
-                    <span className="text-xs text-muted-foreground mt-1">{notification.time}</span>
+                {recentNotifications.length > 0 ? (
+                  recentNotifications.map((notification) => (
+                    <DropdownMenuItem 
+                      key={notification.id} 
+                      className="flex flex-col items-start p-4 cursor-pointer"
+                      onClick={() => !notification.isRead && markAsRead(notification.id)}
+                    >
+                      <div className="flex w-full items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className={cn(
+                              "font-medium text-sm",
+                              !notification.isRead && "text-primary"
+                            )}>
+                              {notification.title}
+                            </span>
+                            {!notification.isRead && (
+                              <div className="w-2 h-2 bg-primary rounded-full"></div>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                            {notification.message}
+                          </p>
+                          <span className="text-xs text-muted-foreground mt-1">
+                            {new Date(notification.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <Badge 
+                          variant={
+                            notification.type === "success" ? "default" : 
+                            notification.type === "warning" ? "secondary" : 
+                            notification.type === "error" ? "destructive" : "outline"
+                          }
+                          className="text-xs ml-2"
+                        >
+                          {notification.type}
+                        </Badge>
+                      </div>
+                    </DropdownMenuItem>
+                  ))
+                ) : (
+                  <DropdownMenuItem className="text-center text-muted-foreground py-8">
+                    No notifications
                   </DropdownMenuItem>
-                ))}
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-center text-primary">
-                  View all notifications
+                  <a href="/dashboard/notifications" className="w-full">
+                    View all notifications
+                  </a>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
