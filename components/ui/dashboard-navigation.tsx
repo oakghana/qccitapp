@@ -64,17 +64,13 @@ export function DashboardNavigation() {
       items.push({ name: "Repairs", path: "/dashboard/repairs", icon: Wrench, description: "Handle repair requests" })
     }
 
-    if (
-      user?.role === "service_desk_admin" ||
-      user?.role === "service_desk_head" ||
-      user?.role === "it_head" ||
-      user?.role === "admin"
-    ) {
+    // Service Desk is available to all users for complaint submission and IT staff for management
+    if (user?.role) {
       items.push({
         name: "Service Desk",
         path: "/dashboard/service-desk",
         icon: HeadphonesIcon,
-        description: "Manage support tickets",
+        description: user?.role === "user" ? "Submit support requests" : "Manage support tickets",
       })
     }
 

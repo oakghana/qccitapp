@@ -110,7 +110,7 @@ export function ServiceDeskDashboard() {
               : `Manage IT support requests for ${getUserLocation() === "head_office" ? "Head Office" : "Kumasi District Office"}`}
           </p>
         </div>
-        <Button onClick={() => setShowNewTicketForm(true)} className="bg-primary hover:bg-primary/90">
+        <Button onClick={() => setShowNewTicketForm(true)} className="bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-600">
           <Plus className="mr-2 h-4 w-4" />
           New Ticket
         </Button>
@@ -211,8 +211,8 @@ export function ServiceDeskDashboard() {
                   return (
                     <div key={ticket.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center space-x-4">
-                        <div className="p-2 bg-primary/10 rounded-lg">
-                          <IconComponent className="h-5 w-5 text-primary" />
+                        <div className="p-2 bg-green-100 dark:bg-green-950/30 rounded-lg">
+                          <IconComponent className="h-5 w-5 text-green-600 dark:text-green-400" />
                         </div>
                         <div>
                           <h4 className="font-medium">{ticket.title}</h4>

@@ -44,7 +44,7 @@ const navigationItems: NavigationItem[] = [
     name: "Service Desk",
     href: "/dashboard/service-desk",
     icon: MessageSquare,
-    roles: ["admin", "it_head", "service_desk_head", "service_desk_staff"],
+    roles: ["admin", "it_head", "service_desk_head", "service_desk_staff", "user"],
   },
   {
     name: "My Complaints",

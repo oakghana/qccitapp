@@ -185,7 +185,7 @@ export function TicketList() {
       case "Resolved":
         return "secondary"
       case "Escalated":
-        return "orange"
+        return "default"
       default:
         return "outline"
     }
@@ -412,8 +412,8 @@ export function TicketList() {
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start space-x-4 flex-1">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <IconComponent className="h-5 w-5 text-primary" />
+                    <div className="p-2 bg-green-100 dark:bg-green-950/30 rounded-lg">
+                      <IconComponent className="h-5 w-5 text-green-600 dark:text-green-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2 mb-2">
@@ -553,7 +553,7 @@ export function TicketList() {
                       setSelectedTicket(selectedTicket)
                       setEscalationDialogOpen(true)
                     }}
-                    className="bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
+                    className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100 dark:bg-green-950/30 dark:border-green-800 dark:text-green-300 dark:hover:bg-green-900/40"
                   >
                     <ArrowUp className="h-4 w-4 mr-2" />
                     Escalate to Repair Team
@@ -633,7 +633,7 @@ export function TicketList() {
                 <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleUpdateTicket}>Update Ticket</Button>
+                <Button onClick={handleUpdateTicket} className="bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-600">Update Ticket</Button>
               </div>
             </div>
           )}
@@ -657,7 +657,7 @@ export function TicketList() {
               <Button variant="outline" onClick={() => setCommentDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleAddComment}>Add Comment</Button>
+              <Button onClick={handleAddComment} className="bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-600">Add Comment</Button>
             </div>
           </div>
         </DialogContent>
@@ -667,7 +667,7 @@ export function TicketList() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Wrench className="h-5 w-5 text-orange-600" />
+              <Wrench className="h-5 w-5 text-green-600 dark:text-green-400" />
               Escalate to Repair Team
             </DialogTitle>
             <DialogDescription>
@@ -675,9 +675,9 @@ export function TicketList() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Alert className="border-orange-200 bg-orange-50">
-              <AlertTriangle className="h-4 w-4 text-orange-600" />
-              <AlertDescription className="text-orange-800">
+            <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30">
+              <AlertTriangle className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <AlertDescription className="text-green-800 dark:text-green-200">
                 <strong>Ticket:</strong> {selectedTicket?.id} - {selectedTicket?.title}
               </AlertDescription>
             </Alert>
@@ -711,7 +711,7 @@ export function TicketList() {
               <Button
                 onClick={handleEscalateToRepair}
                 disabled={!escalationReason.trim()}
-                className="bg-orange-600 hover:bg-orange-700"
+                className="bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-600"
               >
                 <Wrench className="h-4 w-4 mr-2" />
                 Escalate to Repair Team

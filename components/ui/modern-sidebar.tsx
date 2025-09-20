@@ -60,6 +60,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className }: ModernSidebarPro
     if (user?.role === "user") {
       return [
         ...baseItems,
+        { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones, badge: "New" },
         { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare }
       ]
     }

@@ -50,12 +50,12 @@ export function NewTicketForm({ onClose }: NewTicketFormProps) {
   ]
 
   const priorities = [
-    { value: "low", label: "Low", icon: Clock, color: "text-orange-600", description: "Non-urgent, can wait" },
+    { value: "low", label: "Low", icon: Clock, color: "text-green-600", description: "Non-urgent, can wait" },
     {
       value: "medium",
       label: "Medium",
       icon: AlertTriangle,
-      color: "text-yellow-600",
+      color: "text-orange-600",
       description: "Important, needs attention",
     },
     { value: "high", label: "High", icon: Zap, color: "text-red-600", description: "Urgent, affects work" },
@@ -207,8 +207,8 @@ export function NewTicketForm({ onClose }: NewTicketFormProps) {
                       key={category.value}
                       className={`p-3 border rounded-lg cursor-pointer transition-colors ${
                         formData.category === category.value
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/50"
+                          ? "border-green-300 bg-green-50 dark:bg-green-950/30 dark:border-green-700"
+                          : "border-border hover:border-green-200 hover:bg-green-50/50 dark:hover:bg-green-950/10"
                       }`}
                       onClick={() => setFormData({ ...formData, category: category.value })}
                     >
@@ -229,8 +229,8 @@ export function NewTicketForm({ onClose }: NewTicketFormProps) {
                         key={priority.value}
                         className={`p-3 border rounded-lg cursor-pointer transition-colors ${
                           formData.priority === priority.value
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
+                            ? "border-green-300 bg-green-50 dark:bg-green-950/30 dark:border-green-700"
+                            : "border-border hover:border-green-200 hover:bg-green-50/50 dark:hover:bg-green-950/10"
                         }`}
                         onClick={() => setFormData({ ...formData, priority: priority.value })}
                       >
@@ -272,7 +272,7 @@ export function NewTicketForm({ onClose }: NewTicketFormProps) {
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-primary hover:bg-primary/90">
+              <Button type="submit" className="bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-600">
                 Submit Ticket
               </Button>
             </div>
