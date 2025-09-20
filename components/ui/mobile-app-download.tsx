@@ -96,7 +96,28 @@ export function MobileAppDownload({ className, showOnLogin = false, autoShow = f
   }, [showOnLogin, autoShow])
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return
+    if (!deferredPrompt) {
+      // If no prompt available, provide device-specific instructions
+      const userAgent = navigator.userAgent.toLowerCase()
+      let message = ''
+      
+      if (userAgent.includes('android')) {
+        message = '📱 Android: Open Chrome menu (⋮) → "Add to Home Screen" or "Install App"'
+      } else if (userAgent.includes('iphone') || userAgent.includes('ipad')) {
+        message = '📱 iOS: Open in Safari → Share button (⬆️) → "Add to Home Screen"'
+      } else if (userAgent.includes('chrome')) {
+        message = '💻 Desktop: Look for install icon (⊞) in address bar or Chrome menu → "Install QCC IT Tracker"'
+      } else if (userAgent.includes('firefox')) {
+        message = '💻 Firefox: Click address bar icon or menu → "Install QCC IT Tracker"'
+      } else if (userAgent.includes('edge')) {
+        message = '💻 Edge: Click install icon in address bar or menu → "Apps" → "Install QCC IT Tracker"'
+      } else {
+        message = '💻 Look for install icon in browser address bar or check browser menu for "Install" option'
+      }
+      
+      alert(message)
+      return
+    }
 
     try {
       deferredPrompt.prompt()
@@ -144,20 +165,30 @@ export function MobileAppDownload({ className, showOnLogin = false, autoShow = f
                 </div>
                 <div>
                   <h4 className="font-semibold text-green-900 dark:text-green-100">
-                    Install QCC IT Tracker App
+                    📱 Get the QCC IT Tracker App
                   </h4>
                   <p className="text-sm text-green-700 dark:text-green-300">
-                    Get offline access and push notifications
+                    Install for offline access & notifications
                   </p>
                 </div>
               </div>
               <div className="flex items-center space-x-2">
                 <Button 
-                  onClick={handleOpenDialog}
+                  onClick={isInstallable ? handleInstallClick : handleOpenDialog}
                   size="sm"
                   className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white"
                 >
-                  Learn More
+                  {isInstallable ? (
+                    <>
+                      <Download className="mr-1 h-3 w-3" />
+                      Install Now
+                    </>
+                  ) : (
+                    <>
+                      <Smartphone className="mr-1 h-3 w-3" />
+                      Get App
+                    </>
+                  )}
                 </Button>
                 <Button
                   variant="ghost"
@@ -276,30 +307,43 @@ export function MobileAppDownload({ className, showOnLogin = false, autoShow = f
             {/* Installation Instructions */}
             <div className="space-y-3">
               <h3 className="text-lg font-semibold text-green-900 dark:text-green-100">
-                How to Install:
+                Quick Installation:
               </h3>
               
               <div className="space-y-2">
                 {isInstallable ? (
-                  <div className="flex items-center space-x-2 p-2 bg-green-50 dark:bg-green-950/30 rounded-lg">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <span className="text-sm text-green-700 dark:text-green-300">
-                      Your browser supports one-click installation!
+                  <div className="flex items-center space-x-2 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <span className="text-sm text-green-700 dark:text-green-300 font-medium">
+                      Ready to install! Click the button below to add to your device.
                     </span>
                   </div>
                 ) : (
-                  <div className="space-y-2 text-sm text-green-700 dark:text-green-300">
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline" className="w-6 h-6 p-0 flex items-center justify-center border-green-300 text-green-700">1</Badge>
-                      <span>Look for the install icon in your browser's address bar</span>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="flex flex-col items-center text-center p-3 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                        <Smartphone className="h-8 w-8 text-green-600 mb-2" />
+                        <h4 className="font-medium text-green-900 dark:text-green-100 text-sm">Android</h4>
+                        <p className="text-xs text-green-700 dark:text-green-300">Chrome Menu → "Add to Home Screen"</p>
+                      </div>
+                      
+                      <div className="flex flex-col items-center text-center p-3 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                        <Monitor className="h-8 w-8 text-green-600 mb-2" />
+                        <h4 className="font-medium text-green-900 dark:text-green-100 text-sm">Desktop</h4>
+                        <p className="text-xs text-green-700 dark:text-green-300">Look for install icon (⊞) in address bar</p>
+                      </div>
+                      
+                      <div className="flex flex-col items-center text-center p-3 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                        <Tablet className="h-8 w-8 text-green-600 mb-2" />
+                        <h4 className="font-medium text-green-900 dark:text-green-100 text-sm">iOS Safari</h4>
+                        <p className="text-xs text-green-700 dark:text-green-300">Share → "Add to Home Screen"</p>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline" className="w-6 h-6 p-0 flex items-center justify-center border-green-300 text-green-700">2</Badge>
-                      <span>Or use browser menu → "Install QCC IT Tracker"</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline" className="w-6 h-6 p-0 flex items-center justify-center border-green-300 text-green-700">3</Badge>
-                      <span>The app will be added to your home screen/desktop</span>
+                    
+                    <div className="text-center">
+                      <p className="text-sm text-green-600 dark:text-green-400">
+                        Don't see the install option? Try the "Download App" button below for device-specific instructions.
+                      </p>
                     </div>
                   </div>
                 )}
@@ -336,16 +380,45 @@ export function MobileAppDownload({ className, showOnLogin = false, autoShow = f
                 className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white order-1 sm:order-2"
               >
                 <Download className="mr-2 h-4 w-4" />
-                Install Now
+                Install App
               </Button>
             ) : (
-              <Button 
-                onClick={() => window.open(window.location.href, '_blank')}
-                className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white order-1 sm:order-2"
-              >
-                <ArrowRight className="mr-2 h-4 w-4" />
-                Open Installation Guide
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-2 order-1 sm:order-2">
+                <Button 
+                  onClick={() => {
+                    // Try to trigger install prompt manually
+                    if ('beforeinstallprompt' in window) {
+                      window.location.reload()
+                    } else {
+                      // For browsers that don't support PWA, provide direct options
+                      const userAgent = navigator.userAgent.toLowerCase()
+                      if (userAgent.includes('android')) {
+                        alert('To install: Open in Chrome → Menu (⋮) → "Add to Home Screen" or "Install App"')
+                      } else if (userAgent.includes('iphone') || userAgent.includes('ipad')) {
+                        alert('To install: Open in Safari → Share (⬆️) → "Add to Home Screen"')
+                      } else {
+                        alert('To install: Look for install icon (⊞) in your browser\'s address bar, or use browser menu → "Install QCC IT Tracker"')
+                      }
+                    }
+                  }}
+                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download App
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    // Copy current URL to clipboard for easy sharing/bookmarking
+                    navigator.clipboard?.writeText(window.location.href)
+                    alert('App link copied! You can bookmark this page or share it to install later.')
+                  }}
+                  className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                >
+                  <ArrowRight className="mr-2 h-4 w-4" />
+                  Get Install Link
+                </Button>
+              </div>
             )}
           </DialogFooter>
         </DialogContent>
