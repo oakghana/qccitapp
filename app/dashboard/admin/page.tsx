@@ -1,5 +1,10 @@
+import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { AdminDashboard } from "@/components/admin/admin-dashboard"
 
 export default function AdminPage() {
-  return <AdminDashboard />
+  return (
+    <DashboardLayout>
+      <AdminDashboard />
+    </DashboardLayout>
+  )
 }
