@@ -81,12 +81,10 @@ export function ModernSidebar({ isOpen, setIsOpen, className }: ModernSidebarPro
       ]
     }
 
-    // IT Staff role - service desk and repair management + assigned tasks
+    // IT Staff role - service desk and repair management + assigned tasks (BSC access via separate component)
     if (user?.role === "it_staff") {
       return [
         ...baseItems,
-        { name: "My Performance", href: "/dashboard/my-performance", icon: Activity },
-        { name: "Task Verification", href: "/dashboard/task-verification", icon: CheckSquare, badge: "3" },
         { name: "Assigned Tasks", href: "/dashboard/assigned-tasks", icon: ClipboardList, badge: "6" },
         { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones, badge: "8" },
         { name: "Repairs", href: "/dashboard/repairs", icon: Wrench, badge: "5" },
@@ -101,9 +99,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className }: ModernSidebarPro
     if (user?.role === "it_head") {
       const itHeadNavigation: NavigationItem[] = [
         ...baseItems,
-        { name: "Staff Performance", href: "/dashboard/my-performance", icon: Activity, badge: "Manage" },
-        { name: "Scorecard Manager", href: "/dashboard/scorecard-manager", icon: Sliders, badge: "New" },
-        { name: "Task Verification", href: "/dashboard/task-verification", icon: CheckSquare, badge: "12" },
         { name: "IT Staff Status", href: "/dashboard/it-staff-status", icon: UserPlus, badge: "6" },
         { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones, badge: "5" },
         { name: "Repairs", href: "/dashboard/repairs", icon: Wrench, badge: "12" },
@@ -122,9 +117,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className }: ModernSidebarPro
     if (user?.role === "regional_it_head") {
       const regionalNavigation: NavigationItem[] = [
         ...baseItems,
-        { name: "Staff Performance", href: "/dashboard/my-performance", icon: Activity, badge: "Manage" },
-        { name: "Scorecard Manager", href: "/dashboard/scorecard-manager", icon: Sliders, badge: "New" },
-        { name: "Task Verification", href: "/dashboard/task-verification", icon: CheckSquare, badge: "8" },
         { name: "IT Staff Status", href: "/dashboard/it-staff-status", icon: Users, badge: "4" },
         { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones, badge: "3" },
         { name: "Repairs", href: "/dashboard/repairs", icon: Wrench, badge: "8" },
@@ -143,8 +135,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className }: ModernSidebarPro
     if (user?.role === "admin") {
       const fullNavigation: NavigationItem[] = [
         ...baseItems,
-        { name: "Staff Performance", href: "/dashboard/my-performance", icon: Activity, badge: "Manage" },
-        { name: "Task Verification", href: "/dashboard/task-verification", icon: CheckSquare, badge: "15" },
         { name: "IT Staff Status", href: "/dashboard/it-staff-status", icon: Building2, badge: "8" },
         { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones, badge: "5" },
         { name: "Repairs", href: "/dashboard/repairs", icon: Wrench, badge: "12" },
@@ -336,6 +326,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className }: ModernSidebarPro
                       "flex items-center space-x-3 px-3 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100 transition-all duration-200 group relative",
                       isCollapsed ? "justify-center" : "justify-between"
                     )}
+                    title={isCollapsed ? item.name : undefined}
                   >
                     <div className={cn(
                       "flex items-center",
