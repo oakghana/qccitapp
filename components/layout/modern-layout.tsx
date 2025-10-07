@@ -1,6 +1,7 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import type React from "react"
+import { useState, useEffect } from "react"
 import { ModernSidebar, MobileMenuButton } from "@/components/ui/modern-sidebar"
 import { PWAInstall } from "@/components/ui/pwa-install"
 import { MobileAppDownload } from "@/components/ui/mobile-app-download"
@@ -16,7 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Bell, Search, User, Settings, LogOut, ChevronDown, WifiOff, Zap } from "lucide-react"
+import { Bell, Search, User, LogOut, ChevronDown, WifiOff, Zap } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useNotifications } from "@/lib/notification-context"
 import { useOfflineCache } from "@/lib/offline-cache"
@@ -29,6 +30,7 @@ interface ModernLayoutProps {
 
 export function ModernLayout({ children, className }: ModernLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [isOnline, setIsOnline] = useState(true)
   const [isMounted, setIsMounted] = useState(false)
   const [showMobileDownload, setShowMobileDownload] = useState(false)
@@ -58,7 +60,7 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
         setIsOnline(true)
         preloadCriticalData() // Preload data when connection is restored
       },
-      () => setIsOnline(false)
+      () => setIsOnline(false),
     )
 
     // Preload critical data on mount if online
@@ -89,14 +91,15 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 dark:from-orange-950 dark:via-amber-950 dark:to-yellow-950">
       {/* Sidebar */}
-      <ModernSidebar 
-        isOpen={sidebarOpen} 
+      <ModernSidebar
+        isOpen={sidebarOpen}
         setIsOpen={setSidebarOpen}
-        className="w-80 flex-shrink-0"
+        onCollapseChange={setSidebarCollapsed}
+        className="flex-shrink-0"
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
         {/* PWA Install Banner */}
         <div className="p-4">
           <PWAInstall />
@@ -105,10 +108,7 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
         {/* Mobile App Download Notification */}
         {showMobileDownload && (
           <div className="px-4 pb-4">
-            <MobileAppDownload 
-              showOnLogin={true} 
-              autoShow={true}
-            />
+            <MobileAppDownload showOnLogin={true} autoShow={true} />
           </div>
         )}
 
@@ -119,10 +119,12 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
         <header className="sticky top-0 z-30 flex h-20 items-center gap-4 border-b border-orange-200/50 bg-white/95 backdrop-blur-xl px-4 sm:px-6 lg:px-8 shadow-sm dark:bg-orange-950/95 dark:border-orange-800/50 flex-shrink-0">
           <div className="flex items-center gap-4">
             <MobileMenuButton onClick={() => setSidebarOpen(true)} />
-            
+
             {/* Breadcrumb */}
             <div className="hidden sm:flex items-center space-x-2 text-base font-medium text-orange-600 dark:text-orange-400">
-              <span className="px-3 py-1 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 rounded-lg dark:from-orange-900/30 dark:to-amber-900/30 dark:text-orange-300">Dashboard</span>
+              <span className="px-3 py-1 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 rounded-lg dark:from-orange-900/30 dark:to-amber-900/30 dark:text-orange-300">
+                Dashboard
+              </span>
               <span>/</span>
               <span className="text-orange-900 dark:text-orange-100 font-semibold">Overview</span>
             </div>
@@ -131,10 +133,16 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
           {/* Right side */}
           <div className="flex flex-1 items-center justify-end gap-4">
             {/* Search */}
-            <Button variant="ghost" size="sm" className="hidden md:flex h-12 px-4 bg-gradient-to-r from-orange-100 to-amber-100 hover:from-orange-200 hover:to-amber-200 text-orange-700 border-none rounded-xl shadow-sm dark:from-orange-900/30 dark:to-amber-900/30 dark:text-orange-300">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hidden md:flex h-12 px-4 bg-gradient-to-r from-orange-100 to-amber-100 hover:from-orange-200 hover:to-amber-200 text-orange-700 border-none rounded-xl shadow-sm dark:from-orange-900/30 dark:to-amber-900/30 dark:text-orange-300"
+            >
               <Search className="h-5 w-5 mr-3" />
               Search...
-              <span className="ml-3 text-sm text-orange-500 bg-white px-2 py-1 rounded-md dark:bg-orange-900/50">⌘K</span>
+              <span className="ml-3 text-sm text-orange-500 bg-white px-2 py-1 rounded-md dark:bg-orange-900/50">
+                ⌘K
+              </span>
             </Button>
 
             {/* Offline Indicator */}
@@ -158,8 +166,8 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
                 <Button variant="ghost" size="icon" className="relative">
                   <Bell className="h-5 w-5" />
                   {unreadCount > 0 && (
-                    <Badge 
-                      variant="destructive" 
+                    <Badge
+                      variant="destructive"
                       className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center"
                     >
                       {unreadCount}
@@ -173,12 +181,7 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">{unreadCount}</Badge>
                     {unreadCount > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={markAllAsRead}
-                        className="h-6 text-xs"
-                      >
+                      <Button variant="ghost" size="sm" onClick={markAllAsRead} className="h-6 text-xs">
                         Mark all read
                       </Button>
                     )}
@@ -187,36 +190,33 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
                 <DropdownMenuSeparator />
                 {recentNotifications.length > 0 ? (
                   recentNotifications.map((notification) => (
-                    <DropdownMenuItem 
-                      key={notification.id} 
+                    <DropdownMenuItem
+                      key={notification.id}
                       className="flex flex-col items-start p-4 cursor-pointer"
                       onClick={() => !notification.isRead && markAsRead(notification.id)}
                     >
                       <div className="flex w-full items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <span className={cn(
-                              "font-medium text-sm",
-                              !notification.isRead && "text-primary"
-                            )}>
+                            <span className={cn("font-medium text-sm", !notification.isRead && "text-primary")}>
                               {notification.title}
                             </span>
-                            {!notification.isRead && (
-                              <div className="w-2 h-2 bg-primary rounded-full"></div>
-                            )}
+                            {!notification.isRead && <div className="w-2 h-2 bg-primary rounded-full"></div>}
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                            {notification.message}
-                          </p>
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{notification.message}</p>
                           <span className="text-xs text-muted-foreground mt-1">
                             {new Date(notification.timestamp).toLocaleTimeString()}
                           </span>
                         </div>
-                        <Badge 
+                        <Badge
                           variant={
-                            notification.type === "success" ? "default" : 
-                            notification.type === "warning" ? "secondary" : 
-                            notification.type === "error" ? "destructive" : "outline"
+                            notification.type === "success"
+                              ? "default"
+                              : notification.type === "warning"
+                                ? "secondary"
+                                : notification.type === "error"
+                                  ? "destructive"
+                                  : "outline"
                           }
                           className="text-xs ml-2"
                         >
@@ -254,9 +254,7 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
                   </Avatar>
                   <div className="hidden sm:flex flex-col items-start">
                     <span className="text-sm font-medium">{user?.name || "User"}</span>
-                    <span className="text-xs text-muted-foreground capitalize">
-                      {user?.role?.replace('_', ' ')}
-                    </span>
+                    <span className="text-xs text-muted-foreground capitalize">{user?.role?.replace("_", " ")}</span>
                   </div>
                   <ChevronDown className="h-4 w-4" />
                 </Button>
