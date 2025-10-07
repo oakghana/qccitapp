@@ -5,7 +5,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from "
 interface User {
   id: string
   username: string
-  role: "admin" | "it_head" | "it_staff" | "service_desk_head" | "service_desk_staff" | "service_provider" | "user"
+  role: "admin" | "regional_it_head" | "it_head" | "it_staff" | "staff" | "service_provider"
   location: "head_office" | "kumasi" | "accra" | "kaase_inland_port" | "cape_coast"
   name: string
   email: string
@@ -17,135 +17,128 @@ interface AuthContextType {
   logout: () => void
   canViewAllLocations: () => boolean
   getUserLocation: () => string
+  isHydrated: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 const userMapping: Record<string, User> = {
-  "admin.headoffice": {
+  "admin": {
     id: "ADM-001",
-    username: "admin.headoffice",
+    username: "admin",
     role: "admin",
     location: "head_office",
-    name: "Head Office Admin",
+    name: "System Administrator",
     email: "admin@qcc.com.gh",
   },
-  "admin.kumasi": {
-    id: "ADM-002",
-    username: "admin.kumasi",
-    role: "admin",
+  "regionalhead.kumasi": {
+    id: "RIH-001",
+    username: "regionalhead.kumasi",
+    role: "regional_it_head",
     location: "kumasi",
-    name: "Kumasi Admin",
-    email: "admin.kumasi@qcc.com.gh",
+    name: "Kumasi Regional IT Head",
+    email: "regionalhead.kumasi@qcc.com.gh",
   },
-  "ithead.headoffice": {
+  "regionalhead.accra": {
+    id: "RIH-002",
+    username: "regionalhead.accra",
+    role: "regional_it_head",
+    location: "accra",
+    name: "Accra Regional IT Head",
+    email: "regionalhead.accra@qcc.com.gh",
+  },
+  "regionalhead.kaase": {
+    id: "RIH-003",
+    username: "regionalhead.kaase",
+    role: "regional_it_head",
+    location: "kaase_inland_port",
+    name: "Kaase Regional IT Head",
+    email: "regionalhead.kaase@qcc.com.gh",
+  },
+  "regionalhead.capecoast": {
+    id: "RIH-004",
+    username: "regionalhead.capecoast",
+    role: "regional_it_head",
+    location: "cape_coast",
+    name: "Cape Coast Regional IT Head",
+    email: "regionalhead.capecoast@qcc.com.gh",
+  },
+  "ithead": {
     id: "ITH-001",
-    username: "ithead.headoffice",
+    username: "ithead",
     role: "it_head",
     location: "head_office",
     name: "Head Office IT Head",
     email: "ithead@qcc.com.gh",
   },
-  "ithead.kumasi": {
-    id: "ITH-002",
-    username: "ithead.kumasi",
-    role: "it_head",
-    location: "kumasi",
-    name: "Kumasi IT Head",
-    email: "ithead.kumasi@qcc.com.gh",
-  },
-  "deskhead.headoffice": {
-    id: "DSH-001",
-    username: "deskhead.headoffice",
-    role: "service_desk_head",
+  "serviceprovider": {
+    id: "SP-001",
+    username: "serviceprovider",
+    role: "service_provider",
     location: "head_office",
-    name: "Head Office Service Desk Head",
-    email: "deskhead@qcc.com.gh",
+    name: "Natland IT Services",
+    email: "services@natland.com.gh",
   },
-  "deskhead.kumasi": {
-    id: "DSH-002",
-    username: "deskhead.kumasi",
-    role: "service_desk_head",
-    location: "kumasi",
-    name: "Kumasi Service Desk Head",
-    email: "deskhead.kumasi@qcc.com.gh",
-  },
-  "desk.headoffice": {
-    id: "DSS-001",
-    username: "desk.headoffice",
-    role: "service_desk_staff",
-    location: "head_office",
-    name: "Head Office Service Desk Staff",
-    email: "desk@qcc.com.gh",
-  },
-  "desk.kumasi": {
-    id: "DSS-002",
-    username: "desk.kumasi",
-    role: "service_desk_staff",
-    location: "kumasi",
-    name: "Kumasi Service Desk Staff",
-    email: "desk.kumasi@qcc.com.gh",
-  },
-  "staff.headoffice": {
+  "itstaff.headoffice": {
     id: "ITS-001",
-    username: "staff.headoffice",
+    username: "itstaff.headoffice",
     role: "it_staff",
     location: "head_office",
     name: "Head Office IT Staff",
-    email: "staff@qcc.com.gh",
+    email: "itstaff@qcc.com.gh",
   },
-  "staff.kumasi": {
+  "itstaff.kumasi": {
     id: "ITS-002",
-    username: "staff.kumasi",
+    username: "itstaff.kumasi",
     role: "it_staff",
     location: "kumasi",
     name: "Kumasi IT Staff",
-    email: "staff.kumasi@qcc.com.gh",
+    email: "itstaff.kumasi@qcc.com.gh",
   },
-  "natland.provider": {
-    id: "SP-001",
-    username: "natland.provider",
-    role: "service_provider",
-    location: "head_office",
-    name: "Natland Computers",
-    email: "support@natlandcomputers.com.gh",
+  "itstaff.accra": {
+    id: "ITS-003",
+    username: "itstaff.accra",
+    role: "it_staff",
+    location: "accra",
+    name: "Accra IT Staff",
+    email: "itstaff.accra@qcc.com.gh",
   },
-  "user.headoffice": {
-    id: "USR-001",
-    username: "user.headoffice",
-    role: "user",
+  "staff.headoffice": {
+    id: "STF-001",
+    username: "staff.headoffice",
+    role: "staff",
     location: "head_office",
     name: "John Mensah",
     email: "john.mensah@qcc.com.gh",
   },
-  "user.kumasi": {
-    id: "USR-002",
-    username: "user.kumasi",
-    role: "user",
+  "staff.kumasi": {
+    id: "STF-002",
+    username: "staff.kumasi",
+    role: "staff",
     location: "kumasi",
     name: "Akosua Asante",
     email: "akosua.asante@qcc.com.gh",
   },
-  "user.accra": {
-    id: "USR-003",
-    username: "user.accra",
-    role: "user",
+  "staff.accra": {
+    id: "STF-003",
+    username: "staff.accra",
+    role: "staff",
     location: "accra",
     name: "Kwame Osei",
     email: "kwame.osei@qcc.com.gh",
   },
-  "user.kaase": {
-    id: "USR-004",
-    username: "user.kaase",
-    role: "user",
+  "staff.kaase": {
+    id: "STF-004",
+    username: "staff.kaase",
+    role: "staff",
     location: "kaase_inland_port",
     name: "Fatima Ibrahim",
     email: "fatima.ibrahim@qcc.com.gh",
   },
-  "user.capecoast": {
-    id: "USR-005",
-    username: "user.capecoast",
-    role: "user",
+  "staff.capecoast": {
+    id: "STF-005",
+    username: "staff.capecoast",
+    role: "staff",
     location: "cape_coast",
     name: "Kofi Adjei",
     email: "kofi.adjei@qcc.com.gh",
@@ -154,8 +147,12 @@ const userMapping: Record<string, User> = {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [isHydrated, setIsHydrated] = useState(false)
 
   useEffect(() => {
+    // Prevent hydration mismatch by marking as hydrated
+    setIsHydrated(true)
+    
     // Check for existing session
     const savedUser = localStorage.getItem("currentUser")
     if (savedUser) {
@@ -183,7 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const canViewAllLocations = () => {
-    return user?.location === "head_office" && (user?.role === "admin" || user?.role === "it_head")
+    return user?.role === "admin" || (user?.location === "head_office" && user?.role === "it_head")
   }
 
   const getUserLocation = () => {
@@ -191,7 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, canViewAllLocations, getUserLocation }}>
+    <AuthContext.Provider value={{ user, login, logout, canViewAllLocations, getUserLocation, isHydrated }}>
       {children}
     </AuthContext.Provider>
   )

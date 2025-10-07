@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Shield, User, Lock, Users, UserCheck, Crown } from "lucide-react"
+import { Loader2, Shield, User, Lock, Users, UserCheck, Crown, UserPlus } from "lucide-react"
 
 interface LoginFormData {
   username: string
@@ -20,108 +20,108 @@ interface LoginFormData {
 const demoCredentials = [
   {
     type: "Admin (Head Office)",
-    username: "admin.headoffice",
+    username: "admin",
     password: "admin123",
     icon: Crown,
     description: "Full system access - all locations",
   },
   {
+    type: "Regional IT Head (Kumasi)",
+    username: "regionalhead.kumasi",
+    password: "regional123",
+    icon: UserCheck,
+    description: "Kumasi regional IT management",
+  },
+  {
+    type: "Regional IT Head (Accra)",
+    username: "regionalhead.accra",
+    password: "regional123",
+    icon: UserCheck,
+    description: "Accra regional IT management",
+  },
+  {
+    type: "Regional IT Head (Kaase)",
+    username: "regionalhead.kaase",
+    password: "regional123",
+    icon: UserCheck,
+    description: "Kaase regional IT management",
+  },
+  {
+    type: "Regional IT Head (Cape Coast)",
+    username: "regionalhead.capecoast",
+    password: "regional123",
+    icon: UserCheck,
+    description: "Cape Coast regional IT management",
+  },
+  {
     type: "IT Head (Head Office)",
-    username: "ithead.headoffice",
+    username: "ithead",
     password: "ithead123",
-    icon: UserCheck,
-    description: "Head office IT management & approvals",
-  },
-  {
-    type: "IT Head (Kumasi)",
-    username: "ithead.kumasi",
-    password: "ithead123",
-    icon: UserCheck,
-    description: "Kumasi IT management & approvals",
-  },
-  {
-    type: "Service Desk Head (Head Office)",
-    username: "deskhead.headoffice",
-    password: "desk123",
     icon: Users,
-    description: "Head office service desk management",
+    description: "Head office IT operations management",
   },
   {
-    type: "Service Desk Head (Kumasi)",
-    username: "deskhead.kumasi",
-    password: "desk123",
-    icon: Users,
-    description: "Kumasi service desk management",
-  },
-  {
-    type: "Service Desk Staff (Head Office)",
-    username: "desk.headoffice",
-    password: "staff123",
-    icon: User,
-    description: "Head office service desk support",
-  },
-  {
-    type: "Service Desk Staff (Kumasi)",
-    username: "desk.kumasi",
-    password: "staff123",
-    icon: User,
-    description: "Kumasi service desk support",
+    type: "IT Service Provider",
+    username: "serviceprovider",
+    password: "provider123",
+    icon: UserPlus,
+    description: "External service provider - repair management",
   },
   {
     type: "IT Staff (Head Office)",
-    username: "staff.headoffice",
-    password: "staff123",
-    icon: Users,
-    description: "Head office device tracking & repairs",
+    username: "itstaff.headoffice",
+    password: "itstaff123",
+    icon: User,
+    description: "Head office IT support & repairs",
   },
   {
     type: "IT Staff (Kumasi)",
-    username: "staff.kumasi",
-    password: "staff123",
-    icon: Users,
-    description: "Kumasi device tracking & repairs",
+    username: "itstaff.kumasi",
+    password: "itstaff123",
+    icon: User,
+    description: "Kumasi IT support & repairs",
   },
   {
-    type: "Natland Computers",
-    username: "natland.provider",
-    password: "natland123",
+    type: "IT Staff (Accra)",
+    username: "itstaff.accra",
+    password: "itstaff123",
     icon: User,
-    description: "Natland Computers service provider",
+    description: "Accra IT support & repairs",
   },
   {
     type: "Staff (Head Office)",
-    username: "user.headoffice",
-    password: "user123",
+    username: "staff.headoffice",
+    password: "staff123",
     icon: User,
-    description: "Regular staff - submit IT complaints",
+    description: "Regular staff - submit requests",
   },
   {
     type: "Staff (Kumasi)",
-    username: "user.kumasi",
-    password: "user123",
+    username: "staff.kumasi",
+    password: "staff123",
     icon: User,
-    description: "Regular staff - submit IT complaints",
+    description: "Regular staff - submit requests",
   },
   {
     type: "Staff (Accra)",
-    username: "user.accra",
-    password: "user123",
+    username: "staff.accra",
+    password: "staff123",
     icon: User,
-    description: "Regular staff - submit IT complaints",
+    description: "Regular staff - submit requests",
   },
   {
     type: "Staff (Kaase Inland Port)",
-    username: "user.kaase",
-    password: "user123",
+    username: "staff.kaase",
+    password: "staff123",
     icon: User,
-    description: "Regular staff - submit IT complaints",
+    description: "Regular staff - submit requests",
   },
   {
     type: "Staff (Cape Coast)",
-    username: "user.capecoast",
-    password: "user123",
+    username: "staff.capecoast",
+    password: "staff123",
     icon: User,
-    description: "Regular staff - submit IT complaints",
+    description: "Regular staff - submit requests",
   },
 ]
 
@@ -135,6 +135,7 @@ export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [selectedCredential, setSelectedCredential] = useState("")
+  const [showCreateAccount, setShowCreateAccount] = useState(false)
 
   const fillDemoCredentials = (credentialKey: string) => {
     const credential = demoCredentials.find((cred) => `${cred.username}:${cred.password}` === credentialKey)
@@ -177,10 +178,8 @@ export function LoginForm() {
 
       // Mock OTP validation
       if (formData.otp.length === 6) {
-        const { login } = await import("@/lib/auth-context")
         // Set user context based on username
         if (typeof window !== "undefined") {
-          const authModule = await import("@/lib/auth-context")
           // Store login info for context pickup
           localStorage.setItem("pendingLogin", formData.username)
           // Flag to show mobile app download notification
@@ -387,6 +386,38 @@ export function LoginForm() {
           )}
         </CardContent>
       </Card>
+
+      {/* Create Account Section */}
+      {step === "credentials" && (
+        <Card className="w-full border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+          <CardContent className="p-6">
+            <div className="text-center space-y-4">
+              <div className="w-12 h-12 mx-auto bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center">
+                <UserPlus className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+                  New to QCC IT System?
+                </h3>
+                <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                  Staff members can request new user accounts for system access
+                </p>
+              </div>
+              <Button
+                onClick={() => window.location.href = "/create-account"}
+                variant="outline"
+                className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-800"
+              >
+                <UserPlus className="mr-2 h-4 w-4" />
+                Create Account Request
+              </Button>
+              <p className="text-xs text-blue-600 dark:text-blue-400">
+                All account requests require administrator approval
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

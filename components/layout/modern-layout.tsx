@@ -29,10 +29,15 @@ interface ModernLayoutProps {
 export function ModernLayout({ children, className }: ModernLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isOnline, setIsOnline] = useState(true)
+  const [isMounted, setIsMounted] = useState(false)
   const [showMobileDownload, setShowMobileDownload] = useState(false)
   const { user, logout } = useAuth()
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
   const { setupConnectivityListeners, preloadCriticalData, isOnline: checkOnline } = useOfflineCache()
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   useEffect(() => {
     // Initialize online status
@@ -69,6 +74,16 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
   }
 
   const recentNotifications = notifications.slice(0, 5)
+
+  if (!isMounted) {
+    return (
+      <div className="flex min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 dark:from-orange-950 dark:via-amber-950 dark:to-yellow-950">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-orange-600 dark:text-orange-400">Loading...</div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 dark:from-orange-950 dark:via-amber-950 dark:to-yellow-950">

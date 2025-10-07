@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,16 +15,19 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Plus, MoreHorizontal, User, MapPin, Mail, Phone } from "lucide-react"
+import { Search, Plus, MoreHorizontal, User, MapPin, Mail, Phone, Smartphone, Download } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { FormNavigation } from "@/components/ui/form-navigation"
+import { usePWAInstall } from "@/components/ui/pwa-install"
+import { getRoleColorScheme } from "@/lib/role-colors"
+import { cn } from "@/lib/utils"
 
 interface SystemUser {
   id: string
   name: string
   email: string
   phone: string
-  role: "admin" | "it_head" | "it_staff" | "user"
+  role: "admin" | "regional_it_head" | "it_head" | "it_staff" | "staff"
   location: "head_office" | "accra" | "kumasi" | "kaase_inland_port" | "cape_coast"
   status: "active" | "inactive" | "suspended"
   lastLogin: string
@@ -38,7 +39,7 @@ const mockUsers: SystemUser[] = [
   {
     id: "USR-001",
     name: "John Doe",
-    email: "john.doe@company.com",
+    email: "john.doe@qcc.com.gh",
     phone: "+233241234567",
     role: "admin",
     location: "head_office",
@@ -50,9 +51,9 @@ const mockUsers: SystemUser[] = [
   {
     id: "USR-002",
     name: "Kwame Asante",
-    email: "kwame.asante@company.com",
+    email: "kwame.asante@qcc.com.gh",
     phone: "+233241234568",
-    role: "user",
+    role: "staff",
     location: "accra",
     status: "active",
     lastLogin: "2024-03-01T14:20:00Z",
@@ -62,9 +63,9 @@ const mockUsers: SystemUser[] = [
   {
     id: "USR-003",
     name: "Ama Osei",
-    email: "ama.osei@company.com",
+    email: "ama.osei@qcc.com.gh",
     phone: "+233241234569",
-    role: "it_head",
+    role: "regional_it_head",
     location: "kumasi",
     status: "active",
     lastLogin: "2024-03-02T09:15:00Z",
@@ -74,22 +75,35 @@ const mockUsers: SystemUser[] = [
   {
     id: "USR-004",
     name: "Kofi Mensah",
-    email: "kofi.mensah@company.com",
+    email: "kofi.mensah@qcc.com.gh",
     phone: "+233241234570",
     role: "it_staff",
     location: "kaase_inland_port",
-    status: "inactive",
+    status: "active",
     lastLogin: "2024-02-28T16:45:00Z",
     createdDate: "2024-02-01",
     deviceCount: 1,
   },
+  {
+    id: "USR-005",
+    name: "Akosua Frimpong",
+    email: "akosua.frimpong@qcc.com.gh",
+    phone: "+233241234571",
+    role: "it_head",
+    location: "head_office",
+    status: "active",
+    lastLogin: "2024-03-02T08:45:00Z",
+    createdDate: "2024-01-10",
+    deviceCount: 2,
+  },
 ]
 
-const roleColors = {
+const roleBadgeColors = {
   admin: "destructive",
-  it_head: "default",
+  regional_it_head: "default",
+  it_head: "default", 
   it_staff: "secondary",
-  user: "outline",
+  staff: "outline",
 } as const
 
 const statusColors = {
@@ -108,16 +122,47 @@ const locationNames = {
 
 export function UserManagement() {
   const { user } = useAuth()
+  const { isInstalled, isInstallable } = usePWAInstall()
   const [users, setUsers] = useState<SystemUser[]>(mockUsers)
   const [searchTerm, setSearchTerm] = useState("")
   const [roleFilter, setRoleFilter] = useState<string>("all")
   const [locationFilter, setLocationFilter] = useState<string>("all")
   const [addUserOpen, setAddUserOpen] = useState(false)
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  const roleColors = user?.role ? getRoleColorScheme(user.role) : null
+
+  // PWA Install functionality
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault()
+      setDeferredPrompt(e)
+    }
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    }
+  }, [])
+
+  const handleInstallPWA = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt()
+      const { outcome } = await deferredPrompt.userChoice
+      
+      if (outcome === 'accepted') {
+        console.log('User accepted the install prompt')
+      }
+      
+      setDeferredPrompt(null)
+    }
+  }
 
   const getFilteredUsers = () => {
     let filteredByAccess = users
 
-    if (user?.role === "it_head" && user?.location !== "head_office") {
+    // Regional IT Head and IT Head (non-head office) can only see users from their location
+    if ((user?.role === "regional_it_head" || (user?.role === "it_head" && user?.location !== "head_office")) && user?.location) {
       filteredByAccess = users.filter((u) => u.location === user.location)
     }
 
@@ -184,6 +229,56 @@ export function UserManagement() {
     <div className="space-y-6">
       <FormNavigation currentPage="/dashboard/users" />
 
+      {/* PWA Install Badge */}
+      {!isInstalled && isInstallable && deferredPrompt && (
+        <Card className={cn(
+          "border-primary/20",
+          roleColors ? `${roleColors.background}` : "bg-gradient-to-br from-orange-50 to-amber-50 dark:bg-gradient-to-br dark:from-orange-950 dark:to-amber-950"
+        )}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className={cn(
+                  "p-2 rounded-lg",
+                  roleColors ? `${roleColors.background}` : "bg-orange-100 dark:bg-orange-800"
+                )}>
+                  <Smartphone className={cn(
+                    "h-5 w-5",
+                    roleColors ? roleColors.textSecondary : "text-orange-600 dark:text-orange-400"
+                  )} />
+                </div>
+                <div>
+                  <h3 className={cn(
+                    "font-semibold",
+                    roleColors ? roleColors.textPrimary : "text-orange-900 dark:text-orange-100"
+                  )}>Install Mobile App</h3>
+                  <p className={cn(
+                    "text-sm",
+                    roleColors ? roleColors.textSecondary : "text-orange-700 dark:text-orange-300"
+                  )}>
+                    Install QCC IT Tracker as a mobile app for quick access and offline functionality
+                  </p>
+                </div>
+                <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100 text-xs">
+                  PWA
+                </Badge>
+              </div>
+              <Button
+                onClick={handleInstallPWA}
+                size="sm"
+                className={cn(
+                  "text-white",
+                  roleColors ? `bg-gradient-to-r ${roleColors.gradient} ${roleColors.hoverGradient}` : "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
+                )}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Install
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-foreground">User Management</h2>
@@ -193,27 +288,42 @@ export function UserManagement() {
               : "Manage system users and access permissions"}
           </p>
         </div>
-        <Dialog open={addUserOpen} onOpenChange={setAddUserOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add User
+        
+        <div className="flex gap-2">
+          {user?.role === "admin" && (
+            <Button 
+              variant="outline" 
+              onClick={() => window.location.href = "/dashboard/user-accounts"}
+              className="hover:bg-blue-50 hover:border-blue-300"
+            >
+              <User className="mr-2 h-4 w-4" />
+              Account Requests
+              <Badge variant="secondary" className="ml-2 bg-yellow-100 text-yellow-800">3</Badge>
             </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Add New User</DialogTitle>
-              <DialogDescription>Create a new system user account</DialogDescription>
-            </DialogHeader>
-            <AddUserForm
-              onClose={() => setAddUserOpen(false)}
-              onUserAdded={(newUser) => {
-                setUsers([...users, newUser])
-                setAddUserOpen(false)
-              }}
-            />
-          </DialogContent>
-        </Dialog>
+          )}
+          
+          <Dialog open={addUserOpen} onOpenChange={setAddUserOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white">
+                <Plus className="mr-2 h-4 w-4" />
+                Add User
+              </Button>
+              </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Add New User</DialogTitle>
+                <DialogDescription>Create a new system user account</DialogDescription>
+              </DialogHeader>
+              <AddUserForm
+                onClose={() => setAddUserOpen(false)}
+                onUserAdded={(newUser) => {
+                  setUsers([...users, newUser])
+                  setAddUserOpen(false)
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Filters */}
@@ -241,9 +351,10 @@ export function UserManagement() {
               <SelectContent>
                 <SelectItem value="all">All Roles</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="regional_it_head">Regional IT Head</SelectItem>
                 <SelectItem value="it_head">IT Head</SelectItem>
                 <SelectItem value="it_staff">IT Staff</SelectItem>
-                <SelectItem value="user">User</SelectItem>
+                <SelectItem value="staff">Staff</SelectItem>
               </SelectContent>
             </Select>
             <Select value={locationFilter} onValueChange={setLocationFilter}>
@@ -283,7 +394,7 @@ export function UserManagement() {
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Badge variant={roleColors[user.role]}>
+                  <Badge variant={roleBadgeColors[user.role]}>
                     {user.role.replace("_", " ").charAt(0).toUpperCase() + user.role.replace("_", " ").slice(1)}
                   </Badge>
                   <Badge variant={statusColors[user.status]}>
@@ -297,21 +408,34 @@ export function UserManagement() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       {user.status !== "active" && (
-                        <DropdownMenuItem onClick={() => handleUserAction(user.id, "activate")}>
+                        <DropdownMenuItem 
+                          onClick={() => handleUserAction(user.id, "activate")}
+                          className="hover:bg-green-50 hover:text-green-700 cursor-pointer"
+                        >
                           Activate User
                         </DropdownMenuItem>
                       )}
                       {user.status === "active" && (
-                        <DropdownMenuItem onClick={() => handleUserAction(user.id, "deactivate")}>
+                        <DropdownMenuItem 
+                          onClick={() => handleUserAction(user.id, "deactivate")}
+                          className="hover:bg-yellow-50 hover:text-yellow-700 cursor-pointer"
+                        >
                           Deactivate User
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem onClick={() => handleUserAction(user.id, "suspend")}>
+                      <DropdownMenuItem 
+                        onClick={() => handleUserAction(user.id, "suspend")}
+                        className="hover:bg-orange-50 hover:text-orange-700 cursor-pointer"
+                      >
                         Suspend User
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => handleUserAction(user.id, "delete")}
-                        className="text-destructive"
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to delete ${user.name}? This action cannot be undone.`)) {
+                            handleUserAction(user.id, "delete")
+                          }
+                        }}
+                        className="text-destructive hover:bg-red-50 hover:text-red-700 cursor-pointer"
                       >
                         Delete User
                       </DropdownMenuItem>
@@ -366,11 +490,13 @@ export function UserManagement() {
 }
 
 function AddUserForm({ onClose, onUserAdded }: { onClose: () => void; onUserAdded: (user: SystemUser) => void }) {
+  const { user } = useAuth()
+  const roleColors = user?.role ? getRoleColorScheme(user.role) : null
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
-    role: "user" as SystemUser["role"],
+    role: "staff" as SystemUser["role"],
     location: "head_office" as SystemUser["location"],
   })
 
@@ -430,9 +556,10 @@ function AddUserForm({ onClose, onUserAdded }: { onClose: () => void; onUserAdde
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="user">User</SelectItem>
+                <SelectItem value="staff">Staff</SelectItem>
                 <SelectItem value="it_staff">IT Staff</SelectItem>
                 <SelectItem value="it_head">IT Head</SelectItem>
+                <SelectItem value="regional_it_head">Regional IT Head</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
             </Select>
@@ -457,10 +584,15 @@ function AddUserForm({ onClose, onUserAdded }: { onClose: () => void; onUserAdde
           </div>
         </div>
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose} className="hover:bg-gray-50">
             Cancel
           </Button>
-          <Button type="submit">Create User</Button>
+          <Button type="submit" className={cn(
+            "text-white",
+            roleColors ? `bg-gradient-to-r ${roleColors.gradient} ${roleColors.hoverGradient}` : "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
+          )}>
+            Create User
+          </Button>
         </div>
       </form>
     </div>

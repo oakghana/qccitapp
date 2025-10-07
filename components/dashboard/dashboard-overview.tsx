@@ -8,11 +8,14 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { getRoleColorScheme } from "@/lib/role-colors"
+import { cn } from "@/lib/utils"
 
 export function DashboardOverview() {
   const router = useRouter()
   const { user } = useAuth()
   const [showAlerts, setShowAlerts] = useState(false)
+  const roleColors = user?.role ? getRoleColorScheme(user.role) : null
 
   const handleNewRepairRequest = () => {
     router.push("/dashboard/repairs")
@@ -55,7 +58,7 @@ export function DashboardOverview() {
   ]
 
   const getStats = () => {
-    if (user?.role === "service_provider") {
+    if (user?.role === "it_staff") {
       return [
         {
           title: "Assigned Tasks",
@@ -79,9 +82,9 @@ export function DashboardOverview() {
           trend: "+15 from last month",
         },
         {
-          title: "Ready for Return",
+          title: "Pending Review",
           value: "3",
-          description: "Awaiting pickup",
+          description: "Awaiting approval",
           icon: Calendar,
           trend: "+1 today",
         },
@@ -121,7 +124,7 @@ export function DashboardOverview() {
   }
 
   const getRecentActivity = () => {
-    if (user?.role === "service_provider") {
+    if (user?.role === "it_staff") {
       return [
         {
           id: 1,
@@ -136,7 +139,7 @@ export function DashboardOverview() {
           id: 2,
           type: "repair_completed",
           device: "HP Printer #HP-2024-045",
-          user: "Natland Computers",
+          user: "IT Staff",
           region: "Ready for Return",
           status: "completed",
           time: "4 hours ago",
@@ -145,7 +148,7 @@ export function DashboardOverview() {
           id: 3,
           type: "repair_in_progress",
           device: "Lenovo Desktop #LD-2024-012",
-          user: "Natland Computers",
+          user: "IT Staff",
           region: "In Progress",
           status: "in_progress",
           time: "1 day ago",
@@ -191,12 +194,12 @@ export function DashboardOverview() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">
-          {user?.role === "service_provider" ? "Natland Repairs Dashboard" : "Dashboard"}
+          Dashboard
         </h1>
         <p className="text-muted-foreground">
-          {user?.role === "service_provider"
+          {user?.role === "it_staff"
             ? "Manage your assigned repair tasks and track progress"
-            : "Welcome to the IT Device Tracking System"}
+            : "Welcome to the QCC IT Device Tracking System"}
         </p>
       </div>
 
@@ -223,7 +226,7 @@ export function DashboardOverview() {
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
             <CardDescription>
-              {user?.role === "service_provider"
+              {user?.role === "it_staff"
                 ? "Latest repair assignments and updates"
                 : "Latest device movements and repair requests"}
             </CardDescription>
@@ -271,25 +274,25 @@ export function DashboardOverview() {
             <CardDescription>Common tasks and shortcuts</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {user?.role === "service_provider" ? (
+            {(user?.role === "it_staff" || user?.role === "it_head" || user?.role === "regional_it_head") ? (
               <>
                 <Button
                   variant="outline"
-                  className="w-full justify-start bg-transparent"
-                  onClick={() => router.push("/dashboard/assigned-repairs")}
+                  className="w-full justify-start bg-transparent hover:bg-green-50 hover:border-green-200 transition-colors"
+                  onClick={() => router.push("/dashboard/repairs")}
                 >
-                  <Wrench className="h-5 w-5 mr-3 text-primary" />
-                  <span className="text-sm font-medium">View Assigned Repairs</span>
+                  <Wrench className="h-5 w-5 mr-3 text-green-600" />
+                  <span className="text-sm font-medium">View Repair Requests</span>
                 </Button>
 
                 <Dialog open={showAlerts} onOpenChange={setShowAlerts}>
                   <DialogTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full justify-start bg-transparent"
+                      className="w-full justify-start bg-transparent hover:bg-green-50 hover:border-green-200 transition-colors"
                       onClick={handleViewAlerts}
                     >
-                      <AlertTriangle className="h-5 w-5 mr-3 text-primary" />
+                      <AlertTriangle className="h-5 w-5 mr-3 text-green-600" />
                       <span className="text-sm font-medium">View Notifications</span>
                     </Button>
                   </DialogTrigger>
@@ -322,66 +325,82 @@ export function DashboardOverview() {
               </>
             ) : (
               <>
-                {/* Regular user quick actions */}
-                {user?.role !== "user" && (
+                {/* IT roles quick actions */}
+                {(user?.role === "it_staff" || user?.role === "it_head" || user?.role === "regional_it_head" || user?.role === "admin") && (
                   <>
                     <Button
                       variant="outline"
-                      className="w-full justify-start bg-transparent"
+                      className={cn(
+                        "w-full justify-start bg-transparent transition-colors",
+                        roleColors ? `hover:${roleColors.background} hover:${roleColors.border}` : "hover:bg-green-50 hover:border-green-200"
+                      )}
                       onClick={handleNewRepairRequest}
                     >
-                      <Wrench className="h-5 w-5 mr-3 text-primary" />
+                      <Wrench className={cn(
+                        "h-5 w-5 mr-3",
+                        roleColors ? roleColors.textSecondary : "text-green-600"
+                      )} />
                       <span className="text-sm font-medium">New Repair Request</span>
                     </Button>
 
                     <Button
                       variant="outline"
-                      className="w-full justify-start bg-transparent"
+                      className={cn(
+                        "w-full justify-start bg-transparent transition-colors",
+                        roleColors ? `hover:${roleColors.background} hover:${roleColors.border}` : "hover:bg-green-50 hover:border-green-200"
+                      )}
                       onClick={handleAddNewDevice}
                     >
-                      <Monitor className="h-5 w-5 mr-3 text-primary" />
+                      <Monitor className={cn(
+                        "h-5 w-5 mr-3",
+                        roleColors ? roleColors.textSecondary : "text-green-600"
+                      )} />
                       <span className="text-sm font-medium">Add New Device</span>
                     </Button>
                   </>
                 )}
 
-                {(user?.role === "admin" || user?.role === "it_head") && (
-                  <Button variant="outline" className="w-full justify-start bg-transparent" onClick={handleManageUsers}>
-                    <Users className="h-5 w-5 mr-3 text-primary" />
+                {(user?.role === "admin" || user?.role === "it_head" || user?.role === "regional_it_head") && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start bg-transparent hover:bg-green-50 hover:border-green-200 transition-colors" 
+                    onClick={handleManageUsers}
+                  >
+                    <Users className="h-5 w-5 mr-3 text-green-600" />
                     <span className="text-sm font-medium">Manage Users</span>
                   </Button>
                 )}
 
-                {user?.role === "user" && (
+                {user?.role === "staff" && (
                   <>
                     <Button
                       variant="outline"
-                      className="w-full justify-start bg-transparent"
+                      className="w-full justify-start bg-transparent hover:bg-green-50 hover:border-green-200 transition-colors"
                       onClick={() => router.push("/dashboard/complaints")}
                     >
-                      <Plus className="h-5 w-5 mr-3 text-primary" />
+                      <Plus className="h-5 w-5 mr-3 text-green-600" />
                       <span className="text-sm font-medium">Submit Complaint</span>
                     </Button>
 
                     <Button
                       variant="outline"
-                      className="w-full justify-start bg-transparent"
+                      className="w-full justify-start bg-transparent hover:bg-green-50 hover:border-green-200 transition-colors"
                       onClick={() => router.push("/dashboard/service-desk")}
                     >
-                      <Settings className="h-5 w-5 mr-3 text-primary" />
+                      <Settings className="h-5 w-5 mr-3 text-green-600" />
                       <span className="text-sm font-medium">My Service Requests</span>
                     </Button>
                   </>
                 )}
 
-                {(user?.role === "service_desk_head") && (
+                {user?.role === "admin" && (
                   <Button
                     variant="outline"
-                    className="w-full justify-start bg-transparent"
-                    onClick={() => router.push("/dashboard/service-desk")}
+                    className="w-full justify-start bg-transparent hover:bg-green-50 hover:border-green-200 transition-colors"
+                    onClick={() => router.push("/dashboard/system-settings")}
                   >
-                    <Settings className="h-5 w-5 mr-3 text-primary" />
-                    <span className="text-sm font-medium">Service Desk</span>
+                    <Settings className="h-5 w-5 mr-3 text-green-600" />
+                    <span className="text-sm font-medium">System Settings</span>
                   </Button>
                 )}
               </>

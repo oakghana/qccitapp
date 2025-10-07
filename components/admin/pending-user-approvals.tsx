@@ -1,0 +1,568 @@
+"use client"
+
+import React, { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { 
+  Search, 
+  Plus, 
+  MoreHorizontal, 
+  User, 
+  MapPin, 
+  Mail, 
+  Phone, 
+  Shield, 
+  Clock, 
+  CheckCircle, 
+  XCircle,
+  Eye,
+  UserCheck,
+  UserX,
+  AlertTriangle,
+  Calendar
+} from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
+import { FormNavigation } from "@/components/ui/form-navigation"
+import { getRoleColorScheme } from "@/lib/role-colors"
+import { cn } from "@/lib/utils"
+import { PendingUser } from "../auth/create-user-form"
+
+interface SystemUser {
+  id: string
+  name: string
+  email: string
+  phone: string
+  role: "admin" | "regional_it_head" | "it_head" | "it_staff" | "staff"
+  location: "head_office" | "accra" | "kumasi" | "kaase_inland_port" | "cape_coast"
+  status: "active" | "inactive" | "suspended"
+  lastLogin: string
+  createdDate: string
+  deviceCount: number
+  isApproved: boolean
+}
+
+// Mock pending user requests
+const mockPendingUsers: PendingUser[] = [
+  {
+    id: "PND-001",
+    name: "Mary Adjei",
+    email: "mary.adjei@qcc.com.gh",
+    phone: "+233241234571",
+    location: "accra",
+    department: "administration",
+    supervisor: "John Mensah",
+    jobTitle: "Administrative Assistant", 
+    reason: "New employee needs access to track IT equipment and submit repair requests for office devices.",
+    requestedBy: "John Mensah",
+    requestedDate: "2024-03-01T10:30:00Z",
+    status: "pending",
+    temporaryPassword: "TEMP123A"
+  },
+  {
+    id: "PND-002",
+    name: "Ibrahim Yakubu",
+    email: "ibrahim.yakubu@qcc.com.gh",
+    phone: "+233241234572",
+    location: "kumasi",
+    department: "operations",
+    supervisor: "Akosua Asante",
+    jobTitle: "Operations Officer",
+    reason: "Requires access to monitor equipment status and coordinate with IT staff for maintenance activities.",
+    requestedBy: "Akosua Asante",
+    requestedDate: "2024-02-28T14:15:00Z",
+    status: "pending",
+    temporaryPassword: "TEMP456B"
+  },
+  {
+    id: "PND-003",
+    name: "Sarah Ofosu",
+    email: "sarah.ofosu@qcc.com.gh",
+    phone: "+233241234573",
+    location: "cape_coast",
+    department: "customs",
+    supervisor: "Kofi Adjei",
+    jobTitle: "Customs Officer",
+    reason: "New transfer from Tema office. Needs system access to continue managing customs IT equipment and requests.",
+    requestedBy: "Kofi Adjei",
+    requestedDate: "2024-03-02T09:00:00Z",
+    status: "approved",
+    notes: "Approved by Admin - Transfer from Tema office confirmed"
+  }
+]
+
+const locationNames = {
+  head_office: "Head Office",
+  accra: "Accra", 
+  kumasi: "Kumasi",
+  kaase_inland_port: "Kaase Inland Port",
+  cape_coast: "Cape Coast",
+}
+
+const departmentNames = {
+  administration: "Administration",
+  it: "Information Technology",
+  operations: "Operations", 
+  customs: "Customs",
+  security: "Security",
+  finance: "Finance",
+  hr: "Human Resources",
+  maintenance: "Maintenance",
+}
+
+const statusColors = {
+  pending: { bg: "bg-yellow-50 dark:bg-yellow-950", text: "text-yellow-800 dark:text-yellow-200", border: "border-yellow-200 dark:border-yellow-800" },
+  approved: { bg: "bg-green-50 dark:bg-green-950", text: "text-green-800 dark:text-green-200", border: "border-green-200 dark:border-green-800" },
+  rejected: { bg: "bg-red-50 dark:bg-red-950", text: "text-red-800 dark:text-red-200", border: "border-red-200 dark:border-red-800" },
+}
+
+interface ApprovalDialogProps {
+  user: PendingUser
+  isOpen: boolean
+  onClose: () => void
+  onApprove: (userId: string, role: string, notes: string) => void
+  onReject: (userId: string, reason: string) => void
+}
+
+function ApprovalDialog({ user, isOpen, onClose, onApprove, onReject }: ApprovalDialogProps) {
+  const { user: currentUser } = useAuth()
+  const roleColors = currentUser?.role ? getRoleColorScheme(currentUser.role) : null
+  const [selectedRole, setSelectedRole] = useState<string>("staff")
+  const [notes, setNotes] = useState("")
+  const [rejectionReason, setRejectionReason] = useState("")
+  const [action, setAction] = useState<"approve" | "reject" | null>(null)
+
+  const handleApproval = () => {
+    if (selectedRole && notes.trim()) {
+      onApprove(user.id, selectedRole, notes)
+      onClose()
+    }
+  }
+
+  const handleRejection = () => {
+    if (rejectionReason.trim()) {
+      onReject(user.id, rejectionReason)
+      onClose()
+    }
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center">
+            <UserCheck className="mr-2 h-5 w-5" />
+            Review User Request
+          </DialogTitle>
+          <DialogDescription>
+            Review and process the user account request for {user.name}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* User Details */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Request Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Name</p>
+                  <p className="font-medium">{user.name}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Email</p>
+                  <p className="font-medium">{user.email}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Phone</p>
+                  <p className="font-medium">{user.phone}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Location</p>
+                  <p className="font-medium">{locationNames[user.location]}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Department</p>
+                  <p className="font-medium">{departmentNames[user.department as keyof typeof departmentNames]}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Job Title</p>
+                  <p className="font-medium">{user.jobTitle}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Supervisor</p>
+                  <p className="font-medium">{user.supervisor}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Requested By</p>
+                  <p className="font-medium">{user.requestedBy}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Reason for Request</p>
+                <p className="text-sm bg-muted/50 p-3 rounded-lg mt-1">{user.reason}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Action Selection */}
+          <div className="flex space-x-2">
+            <Button
+              variant={action === "approve" ? "default" : "outline"}
+              onClick={() => setAction("approve")}
+              className={cn(
+                "flex-1",
+                action === "approve" && roleColors ? `bg-gradient-to-r ${roleColors.gradient} ${roleColors.hoverGradient} text-white` : ""
+              )}
+            >
+              <UserCheck className="mr-2 h-4 w-4" />
+              Approve Request
+            </Button>
+            <Button
+              variant={action === "reject" ? "destructive" : "outline"}
+              onClick={() => setAction("reject")}
+              className="flex-1"
+            >
+              <UserX className="mr-2 h-4 w-4" />
+              Reject Request
+            </Button>
+          </div>
+
+          {/* Approval Form */}
+          {action === "approve" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg text-green-700 dark:text-green-300">Approve User Account</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="role">Assign Role *</Label>
+                  <Select value={selectedRole} onValueChange={setSelectedRole}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="staff">Staff</SelectItem>
+                      <SelectItem value="it_staff">IT Staff</SelectItem>
+                      <SelectItem value="it_head">IT Head</SelectItem>
+                      <SelectItem value="regional_it_head">Regional IT Head</SelectItem>
+                      {currentUser?.role === "admin" && (
+                        <SelectItem value="admin">Admin</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="notes">Approval Notes *</Label>
+                  <Textarea
+                    id="notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Add any notes about the approval..."
+                    className="min-h-[80px]"
+                    required
+                  />
+                </div>
+                <Button 
+                  onClick={handleApproval}
+                  disabled={!selectedRole || !notes.trim()}
+                  className={cn(
+                    "w-full text-white",
+                    roleColors ? `bg-gradient-to-r ${roleColors.gradient} ${roleColors.hoverGradient}` : "bg-green-600 hover:bg-green-700"
+                  )}
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Approve & Create Account
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Rejection Form */}
+          {action === "reject" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg text-red-700 dark:text-red-300">Reject User Request</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="rejectionReason">Reason for Rejection *</Label>
+                  <Textarea
+                    id="rejectionReason"
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="Explain why this request is being rejected..."
+                    className="min-h-[80px]"
+                    required
+                  />
+                </div>
+                <Button 
+                  onClick={handleRejection}
+                  disabled={!rejectionReason.trim()}
+                  variant="destructive"
+                  className="w-full"
+                >
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Reject Request
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export function PendingUserApprovals() {
+  const { user } = useAuth()
+  const roleColors = user?.role ? getRoleColorScheme(user.role) : null
+  const [pendingUsers, setPendingUsers] = useState<PendingUser[]>(mockPendingUsers)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [selectedUser, setSelectedUser] = useState<PendingUser | null>(null)
+  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false)
+
+  // Only admins can see all pending requests
+  const isAdmin = user?.role === "admin"
+
+  const handleApprove = (userId: string, role: string, notes: string) => {
+    setPendingUsers(prev => 
+      prev.map(u => 
+        u.id === userId 
+          ? { ...u, status: "approved" as const, notes }
+          : u
+      )
+    )
+  }
+
+  const handleReject = (userId: string, reason: string) => {
+    setPendingUsers(prev => 
+      prev.map(u => 
+        u.id === userId 
+          ? { ...u, status: "rejected" as const, notes: reason }
+          : u
+      )
+    )
+  }
+
+  const filteredUsers = pendingUsers.filter(user => {
+    const matchesSearch = 
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.id.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchesStatus = statusFilter === "all" || user.status === statusFilter
+    
+    return matchesSearch && matchesStatus
+  })
+
+  if (!isAdmin) {
+    return (
+      <Card className="max-w-2xl mx-auto">
+        <CardContent className="p-8 text-center">
+          <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Access Restricted</h3>
+          <p className="text-muted-foreground">
+            Only administrators can view and approve pending user requests.
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <FormNavigation currentPage="/dashboard/users/approvals" />
+      
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-foreground">Pending User Approvals</h2>
+          <p className="text-muted-foreground">
+            Review and approve user account requests from staff members
+          </p>
+        </div>
+        <Badge variant="secondary" className="w-fit">
+          {filteredUsers.filter(u => u.status === "pending").length} Pending Reviews
+        </Badge>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search requests by name, email, or ID..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Pending Requests List */}
+      <div className="grid gap-4">
+        {filteredUsers.map((pendingUser) => (
+          <Card key={pendingUser.id} className="hover:shadow-md transition-shadow">
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div className="flex items-start space-x-4">
+                  <div className="p-3 bg-primary/10 rounded-lg">
+                    <User className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">{pendingUser.name}</CardTitle>
+                    <CardDescription className="flex items-center gap-2 mt-1">
+                      <span>{pendingUser.id}</span>
+                      <span>•</span>
+                      <Mail className="h-3 w-3" />
+                      <span>{pendingUser.email}</span>
+                    </CardDescription>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Badge 
+                    variant="outline" 
+                    className={cn(
+                      "font-medium",
+                      statusColors[pendingUser.status].bg,
+                      statusColors[pendingUser.status].text,
+                      statusColors[pendingUser.status].border
+                    )}
+                  >
+                    {pendingUser.status === "pending" && <Clock className="mr-1 h-3 w-3" />}
+                    {pendingUser.status === "approved" && <CheckCircle className="mr-1 h-3 w-3" />}
+                    {pendingUser.status === "rejected" && <XCircle className="mr-1 h-3 w-3" />}
+                    {pendingUser.status.charAt(0).toUpperCase() + pendingUser.status.slice(1)}
+                  </Badge>
+                  
+                  {pendingUser.status === "pending" && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            setSelectedUser(pendingUser)
+                            setApprovalDialogOpen(true)
+                          }}
+                          className="cursor-pointer"
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          Review Request
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="flex items-center space-x-2">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-muted-foreground">Location</p>
+                    <p className="font-medium">{locationNames[pendingUser.location]}</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-muted-foreground">Department</p>
+                    <p className="font-medium">{departmentNames[pendingUser.department as keyof typeof departmentNames]}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Job Title</p>
+                  <p className="font-medium">{pendingUser.jobTitle}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Requested</p>
+                  <p className="font-medium">{new Date(pendingUser.requestedDate).toLocaleDateString()}</p>
+                </div>
+              </div>
+              
+              <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">Request Reason:</p>
+                <p className="text-sm">{pendingUser.reason}</p>
+              </div>
+
+              {pendingUser.notes && (
+                <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    <strong>Admin Notes:</strong> {pendingUser.notes}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {filteredUsers.length === 0 && (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <User className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">No requests found</h3>
+            <p className="text-muted-foreground text-center">
+              No user account requests match your current filters.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Approval Dialog */}
+      {selectedUser && (
+        <ApprovalDialog
+          user={selectedUser}
+          isOpen={approvalDialogOpen}
+          onClose={() => {
+            setApprovalDialogOpen(false)
+            setSelectedUser(null)
+          }}
+          onApprove={handleApprove}
+          onReject={handleReject}
+        />
+      )}
+    </div>
+  )
+}

@@ -29,7 +29,11 @@ import {
   ArrowUp,
   Wrench,
   AlertTriangle,
+  Users,
+  Send,
 } from "lucide-react"
+import { AssignTicketDialog } from "./assign-ticket-dialog"
+import { useAuth } from "@/lib/auth-context"
 
 interface Ticket {
   id: string
@@ -52,6 +56,7 @@ interface Ticket {
 }
 
 export function TicketList() {
+  const { user } = useAuth()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
@@ -65,6 +70,7 @@ export function TicketList() {
   const [escalationDialogOpen, setEscalationDialogOpen] = useState(false)
   const [escalationReason, setEscalationReason] = useState("")
   const [escalationSuccess, setEscalationSuccess] = useState(false)
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false)
 
   const [tickets, setTickets] = useState<Ticket[]>([
     {
@@ -309,6 +315,34 @@ export function TicketList() {
     }
   }
 
+  const handleAssignTicket = (assignment: any) => {
+    if (selectedTicket) {
+      const updatedTicket = {
+        ...selectedTicket,
+        assignee: assignment.assignee,
+        status: "In Progress",
+        comments: [
+          ...selectedTicket.comments,
+          {
+            id: `c${Date.now()}`,
+            author: user?.name || "IT Head",
+            message: `Ticket assigned to ${assignment.assignee} with ${assignment.priority} priority. Instructions: ${assignment.instructions}`,
+            timestamp: new Date().toISOString().slice(0, 16).replace("T", " "),
+          },
+        ],
+        updated: new Date().toISOString().slice(0, 16).replace("T", " "),
+      }
+
+      setTickets(tickets.map((t) => (t.id === selectedTicket.id ? updatedTicket : t)))
+      setSelectedTicket(updatedTicket)
+      
+      // Simulate email notification
+      console.log(`Email notification sent to ${assignment.assignee} for ticket ${selectedTicket.id}`)
+    }
+  }
+
+  const isItHeadOrAdmin = user?.role === "it_head" || user?.role === "admin" || user?.role === "regional_it_head"
+
   const clearFilters = () => {
     setSearchTerm("")
     setStatusFilter("all")
@@ -474,6 +508,20 @@ export function TicketList() {
                         <MessageSquare className="h-4 w-4 mr-1" />
                         Comment
                       </Button>
+                      {isItHeadOrAdmin && ticket.status !== "Resolved" && ticket.status !== "Escalated" && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => {
+                            setSelectedTicket(ticket)
+                            setAssignDialogOpen(true)
+                          }}
+                          className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                        >
+                          <Send className="h-4 w-4 mr-1" />
+                          Assign
+                        </Button>
+                      )}
                       {ticket.status !== "Resolved" && ticket.status !== "Escalated" && (
                         <Button variant="ghost" size="sm" onClick={() => handleStatusChange(ticket.id, "Resolved")}>
                           <CheckCircle className="h-4 w-4 mr-1" />
@@ -720,6 +768,17 @@ export function TicketList() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Assign Ticket Dialog */}
+      {selectedTicket && (
+        <AssignTicketDialog
+          ticketId={selectedTicket.id}
+          ticketTitle={selectedTicket.title}
+          isOpen={assignDialogOpen}
+          onClose={() => setAssignDialogOpen(false)}
+          onAssign={handleAssignTicket}
+        />
+      )}
     </div>
   )
 }

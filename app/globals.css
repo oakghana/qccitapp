@@ -4,98 +4,232 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.99 0.01 85); /* Very light warm white */
-  --foreground: oklch(0.15 0.02 45); /* Dark brown-gray */
-  --card: oklch(0.98 0.01 45); /* Light warm card background */
-  --card-foreground: oklch(0.15 0.02 45); /* Dark text on cards */
-  --popover: oklch(0.99 0.01 85); /* Light popover background */
-  --popover-foreground: oklch(0.15 0.02 45); /* Dark popover text */
-  --primary: oklch(0.55 0.18 45); /* QCC Orange primary */
+  --background: oklch(0.99 0.01 140); /* Very light green-white */
+  --foreground: oklch(0.15 0.02 30); /* Dark brown */
+  --card: oklch(0.98 0.01 140); /* Light green-tinted card background */
+  --card-foreground: oklch(0.15 0.02 30); /* Dark brown text on cards */
+  --popover: oklch(0.99 0.01 140); /* Light green popover background */
+  --popover-foreground: oklch(0.15 0.02 30); /* Dark brown popover text */
+  --primary: oklch(0.45 0.15 140); /* QCC Green primary */
   --primary-foreground: oklch(0.99 0.01 85); /* Light text on primary */
-  --secondary: oklch(0.85 0.05 45); /* Light orange secondary */
-  --secondary-foreground: oklch(0.25 0.02 45); /* Dark text on secondary */
-  --muted: oklch(0.95 0.02 45); /* Light muted background */
-  --muted-foreground: oklch(0.45 0.02 45); /* Muted text */
-  --accent: oklch(0.65 0.15 30); /* Dark orange accent */
-  --accent-foreground: oklch(0.99 0.01 85); /* Light text on accent */
+  --secondary: oklch(0.75 0.12 65); /* Gold/Yellow secondary */
+  --secondary-foreground: oklch(0.15 0.02 30); /* Dark brown text on secondary */
+  --muted: oklch(0.95 0.02 140); /* Light green muted background */
+  --muted-foreground: oklch(0.45 0.02 30); /* Brown muted text */
+  --accent: oklch(0.65 0.15 65); /* Gold accent */
+  --accent-foreground: oklch(0.15 0.02 30); /* Dark brown text on accent */
   --destructive: oklch(0.55 0.22 25); /* Red for destructive actions */
   --destructive-foreground: oklch(0.99 0.01 85); /* Light text on destructive */
-  --border: oklch(0.9 0.02 45); /* Light orange-tinted borders */
-  --input: oklch(0.96 0.01 45); /* Light input background */
-  --ring: oklch(0.55 0.18 45 / 0.5); /* Orange focus ring with transparency */
-  --chart-1: oklch(0.65 0.15 50); /* Orange for charts */
-  --chart-2: oklch(0.55 0.22 200); /* Blue for charts */
-  --chart-3: oklch(0.5 0.25 280); /* Purple for charts */
-  --chart-4: oklch(0.65 0.25 320); /* Pink for charts */
-  --chart-5: oklch(0.6 0.15 120); /* Green for charts */
+  --border: oklch(0.9 0.02 140); /* Light green-tinted borders */
+  --input: oklch(0.96 0.01 140); /* Light green input background */
+  --ring: oklch(0.45 0.15 140 / 0.5); /* Green focus ring with transparency */
+  --chart-1: oklch(0.45 0.15 140); /* Green for charts */
+  --chart-2: oklch(0.65 0.15 65); /* Gold for charts */
+  --chart-3: oklch(0.35 0.1 30); /* Brown for charts */
+  --chart-4: oklch(0.55 0.12 100); /* Light green for charts */
+  --chart-5: oklch(0.75 0.12 65); /* Light gold for charts */
   --radius: 0.75rem; /* Increased radius for modern look */
-  --sidebar: oklch(0.97 0.02 45); /* Light orange sidebar */
-  --sidebar-foreground: oklch(0.15 0.02 45); /* Dark sidebar text */
-  --sidebar-primary: oklch(0.55 0.18 45); /* Orange sidebar primary */
+  --sidebar: oklch(0.97 0.02 140); /* Light green sidebar */
+  --sidebar-foreground: oklch(0.15 0.02 30); /* Dark brown sidebar text */
+  --sidebar-primary: oklch(0.45 0.15 140); /* Green sidebar primary */
   --sidebar-primary-foreground: oklch(0.99 0.01 85); /* Light sidebar primary text */
-  --sidebar-accent: oklch(0.85 0.05 45); /* Light orange sidebar accent */
-  --sidebar-accent-foreground: oklch(0.25 0.02 45); /* Dark sidebar accent text */
-  --sidebar-border: oklch(0.9 0.02 45); /* Light orange sidebar border */
-  --sidebar-ring: oklch(0.55 0.18 45 / 0.5); /* Orange sidebar focus ring */
+  --sidebar-accent: oklch(0.85 0.05 140); /* Light green sidebar accent */
+  --sidebar-accent-foreground: oklch(0.25 0.02 30); /* Dark brown sidebar accent text */
+  --sidebar-border: oklch(0.9 0.02 140); /* Light green sidebar border */
+  --sidebar-ring: oklch(0.45 0.15 140 / 0.5); /* Green sidebar focus ring */
   
-  /* Light Green Accent Colors */
-  --success: oklch(0.65 0.15 140); /* Light green for success states */
+  /* Company Theme Colors - Green, Gold, Brown */
+  --success: oklch(0.45 0.15 140); /* Company green for success states */
   --success-foreground: oklch(0.99 0.01 85); /* Light text on success */
   --green-50: oklch(0.96 0.03 140); /* Very light green background */
   --green-100: oklch(0.92 0.05 140); /* Light green background */
   --green-200: oklch(0.85 0.08 140); /* Light green border */
   --green-300: oklch(0.75 0.12 140); /* Light green accent */
-  --green-500: oklch(0.65 0.15 140); /* Standard green */
-  --green-600: oklch(0.55 0.18 140); /* Dark green */
-  --green-700: oklch(0.45 0.2 140); /* Darker green */
-  --green-800: oklch(0.35 0.18 140); /* Very dark green */
+  --green-500: oklch(0.45 0.15 140); /* Company green */
+  --green-600: oklch(0.35 0.18 140); /* Dark green */
+  --green-700: oklch(0.25 0.2 140); /* Darker green */
+  --green-800: oklch(0.15 0.18 140); /* Very dark green */
+  --gold-50: oklch(0.96 0.03 65); /* Very light gold background */
+  --gold-100: oklch(0.92 0.05 65); /* Light gold background */
+  --gold-200: oklch(0.85 0.08 65); /* Light gold border */
+  --gold-300: oklch(0.75 0.12 65); /* Light gold accent */
+  --gold-500: oklch(0.65 0.15 65); /* Company gold */
+  --gold-600: oklch(0.55 0.18 65); /* Dark gold */
+  --gold-700: oklch(0.45 0.2 65); /* Darker gold */
+  --gold-800: oklch(0.35 0.18 65); /* Very dark gold */
+  --brown-50: oklch(0.96 0.03 30); /* Very light brown background */
+  --brown-100: oklch(0.92 0.05 30); /* Light brown background */
+  --brown-200: oklch(0.85 0.08 30); /* Light brown border */
+  --brown-300: oklch(0.75 0.12 30); /* Light brown accent */
+  --brown-500: oklch(0.35 0.1 30); /* Company brown */
+  --brown-600: oklch(0.25 0.12 30); /* Dark brown */
+  --brown-700: oklch(0.15 0.15 30); /* Darker brown */
+  --brown-800: oklch(0.1 0.1 30); /* Very dark brown */
+
+  /* Role-specific color schemes */
+  /* Admin - Deep Red/Crimson */
+  --admin-50: oklch(0.96 0.03 20); 
+  --admin-100: oklch(0.92 0.05 20);
+  --admin-200: oklch(0.85 0.08 20);
+  --admin-300: oklch(0.75 0.12 20);
+  --admin-500: oklch(0.55 0.18 20);
+  --admin-600: oklch(0.45 0.2 20);
+  --admin-700: oklch(0.35 0.22 20);
+  --admin-800: oklch(0.25 0.2 20);
+
+  /* Regional IT Head - Royal Blue */
+  --regional-50: oklch(0.96 0.03 240);
+  --regional-100: oklch(0.92 0.05 240);
+  --regional-200: oklch(0.85 0.08 240);
+  --regional-300: oklch(0.75 0.12 240);
+  --regional-500: oklch(0.55 0.18 240);
+  --regional-600: oklch(0.45 0.2 240);
+  --regional-700: oklch(0.35 0.22 240);
+  --regional-800: oklch(0.25 0.2 240);
+
+  /* IT Head - Purple */
+  --ithead-50: oklch(0.96 0.03 270);
+  --ithead-100: oklch(0.92 0.05 270);
+  --ithead-200: oklch(0.85 0.08 270);
+  --ithead-300: oklch(0.75 0.12 270);
+  --ithead-500: oklch(0.55 0.18 270);
+  --ithead-600: oklch(0.45 0.2 270);
+  --ithead-700: oklch(0.35 0.22 270);
+  --ithead-800: oklch(0.25 0.2 270);
+
+  /* IT Staff - Teal */
+  --itstaff-50: oklch(0.96 0.03 180);
+  --itstaff-100: oklch(0.92 0.05 180);
+  --itstaff-200: oklch(0.85 0.08 180);
+  --itstaff-300: oklch(0.75 0.12 180);
+  --itstaff-500: oklch(0.45 0.15 180);
+  --itstaff-600: oklch(0.35 0.18 180);
+  --itstaff-700: oklch(0.25 0.2 180);
+  --itstaff-800: oklch(0.15 0.18 180);
+
+  /* Staff - Soft Orange */
+  --staff-50: oklch(0.96 0.03 40);
+  --staff-100: oklch(0.92 0.05 40);
+  --staff-200: oklch(0.85 0.08 40);
+  --staff-300: oklch(0.75 0.12 40);
+  --staff-500: oklch(0.65 0.15 40);
+  --staff-600: oklch(0.55 0.18 40);
+  --staff-700: oklch(0.45 0.2 40);
+  --staff-800: oklch(0.35 0.18 40);
 }
 
 .dark {
-  --background: oklch(0.08 0.01 45); /* Very dark warm background */
-  --foreground: oklch(0.95 0.01 45); /* Light warm foreground */
-  --card: oklch(0.12 0.01 45); /* Dark warm card background */
-  --card-foreground: oklch(0.95 0.01 45); /* Light card text */
-  --popover: oklch(0.08 0.01 45); /* Dark popover */
-  --popover-foreground: oklch(0.95 0.01 45); /* Light popover text */
-  --primary: oklch(0.65 0.18 45); /* Brighter orange primary in dark mode */
-  --primary-foreground: oklch(0.08 0.01 45); /* Dark text on primary */
-  --secondary: oklch(0.18 0.02 45); /* Dark orange secondary */
-  --secondary-foreground: oklch(0.95 0.01 45); /* Light secondary text */
-  --muted: oklch(0.15 0.01 45); /* Dark muted */
-  --muted-foreground: oklch(0.65 0.01 45); /* Muted text */
-  --accent: oklch(0.18 0.02 45); /* Dark accent */
-  --accent-foreground: oklch(0.95 0.01 45); /* Light accent text */
+  --background: oklch(0.08 0.01 30); /* Very dark brown background */
+  --foreground: oklch(0.95 0.01 140); /* Light green-tinted foreground */
+  --card: oklch(0.12 0.01 30); /* Dark brown card background */
+  --card-foreground: oklch(0.95 0.01 140); /* Light card text */
+  --popover: oklch(0.08 0.01 30); /* Dark popover */
+  --popover-foreground: oklch(0.95 0.01 140); /* Light popover text */
+  --primary: oklch(0.55 0.18 140); /* Brighter green primary in dark mode */
+  --primary-foreground: oklch(0.08 0.01 30); /* Dark text on primary */
+  --secondary: oklch(0.18 0.02 65); /* Dark gold secondary */
+  --secondary-foreground: oklch(0.95 0.01 140); /* Light secondary text */
+  --muted: oklch(0.15 0.01 30); /* Dark muted */
+  --muted-foreground: oklch(0.65 0.01 140); /* Muted text */
+  --accent: oklch(0.18 0.02 65); /* Dark gold accent */
+  --accent-foreground: oklch(0.95 0.01 140); /* Light accent text */
   --destructive: oklch(0.55 0.18 25); /* Darker red */
-  --destructive-foreground: oklch(0.95 0.01 45); /* Light destructive text */
-  --border: oklch(0.18 0.01 45); /* Dark orange-tinted border */
-  --input: oklch(0.15 0.01 45); /* Dark input */
-  --ring: oklch(0.65 0.18 45 / 0.5); /* Brighter orange ring in dark mode */
-  --chart-1: oklch(0.7 0.15 50); /* Brighter orange for dark charts */
-  --chart-2: oklch(0.6 0.2 200); /* Blue for dark charts */
-  --chart-3: oklch(0.65 0.25 280); /* Purple for dark charts */
-  --chart-4: oklch(0.7 0.25 320); /* Pink for dark charts */
-  --chart-5: oklch(0.65 0.15 120); /* Green for dark charts */
-  --sidebar: oklch(0.1 0.01 45); /* Dark orange sidebar */
-  --sidebar-foreground: oklch(0.95 0.01 45); /* Light sidebar text */
-  --sidebar-primary: oklch(0.65 0.18 45); /* Orange sidebar primary */
-  --sidebar-primary-foreground: oklch(0.08 0.01 45); /* Dark sidebar primary text */
-  --sidebar-accent: oklch(0.18 0.02 45); /* Dark sidebar accent */
-  --sidebar-accent-foreground: oklch(0.95 0.01 45); /* Light sidebar accent text */
-  --sidebar-border: oklch(0.18 0.01 45); /* Dark sidebar border */
-  --sidebar-ring: oklch(0.65 0.18 45 / 0.5); /* Bright sidebar ring */
+  --destructive-foreground: oklch(0.95 0.01 140); /* Light destructive text */
+  --border: oklch(0.18 0.01 30); /* Dark brown border */
+  --input: oklch(0.15 0.01 30); /* Dark input */
+  --ring: oklch(0.55 0.18 140 / 0.5); /* Brighter green ring in dark mode */
+  --chart-1: oklch(0.55 0.18 140); /* Brighter green for dark charts */
+  --chart-2: oklch(0.7 0.15 65); /* Gold for dark charts */
+  --chart-3: oklch(0.35 0.1 30); /* Brown for dark charts */
+  --chart-4: oklch(0.65 0.12 100); /* Light green for dark charts */
+  --chart-5: oklch(0.75 0.12 65); /* Light gold for dark charts */
+  --sidebar: oklch(0.1 0.01 30); /* Dark brown sidebar */
+  --sidebar-foreground: oklch(0.95 0.01 140); /* Light green sidebar text */
+  --sidebar-primary: oklch(0.55 0.18 140); /* Green sidebar primary */
+  --sidebar-primary-foreground: oklch(0.08 0.01 30); /* Dark sidebar primary text */
+  --sidebar-accent: oklch(0.18 0.02 65); /* Dark gold sidebar accent */
+  --sidebar-accent-foreground: oklch(0.95 0.01 140); /* Light sidebar accent text */
+  --sidebar-border: oklch(0.18 0.01 30); /* Dark brown sidebar border */
+  --sidebar-ring: oklch(0.55 0.18 140 / 0.5); /* Bright green sidebar ring */
   
-  /* Dark Theme Green Colors */
-  --success: oklch(0.7 0.15 140); /* Brighter green for success in dark mode */
-  --success-foreground: oklch(0.08 0.01 45); /* Dark text on success */
+  /* Dark Theme Company Colors */
+  --success: oklch(0.55 0.18 140); /* Brighter green for success in dark mode */
+  --success-foreground: oklch(0.08 0.01 30); /* Dark text on success */
   --green-50: oklch(0.15 0.02 140); /* Dark green background */
   --green-100: oklch(0.2 0.04 140); /* Dark green background */
   --green-200: oklch(0.25 0.06 140); /* Dark green border */
   --green-300: oklch(0.35 0.1 140); /* Dark green accent */
-  --green-500: oklch(0.65 0.15 140); /* Standard green */
-  --green-600: oklch(0.7 0.18 140); /* Brighter green */
-  --green-700: oklch(0.75 0.2 140); /* Even brighter green */
-  --green-800: oklch(0.8 0.18 140); /* Very bright green */
+  --green-500: oklch(0.55 0.18 140); /* Company green */
+  --green-600: oklch(0.65 0.2 140); /* Brighter green */
+  --green-700: oklch(0.75 0.22 140); /* Even brighter green */
+  --green-800: oklch(0.85 0.2 140); /* Very bright green */
+  --gold-50: oklch(0.15 0.02 65); /* Dark gold background */
+  --gold-100: oklch(0.2 0.04 65); /* Dark gold background */
+  --gold-200: oklch(0.25 0.06 65); /* Dark gold border */
+  --gold-300: oklch(0.35 0.1 65); /* Dark gold accent */
+  --gold-500: oklch(0.7 0.15 65); /* Company gold */
+  --gold-600: oklch(0.75 0.18 65); /* Brighter gold */
+  --gold-700: oklch(0.8 0.2 65); /* Even brighter gold */
+  --gold-800: oklch(0.85 0.18 65); /* Very bright gold */
+  --brown-50: oklch(0.15 0.02 30); /* Dark brown background */
+  --brown-100: oklch(0.2 0.04 30); /* Dark brown background */
+  --brown-200: oklch(0.25 0.06 30); /* Dark brown border */
+  --brown-300: oklch(0.35 0.1 30); /* Dark brown accent */
+  --brown-500: oklch(0.45 0.12 30); /* Company brown */
+  --brown-600: oklch(0.55 0.15 30); /* Brighter brown */
+  --brown-700: oklch(0.65 0.18 30); /* Even brighter brown */
+  --brown-800: oklch(0.75 0.15 30); /* Very bright brown */
+
+  /* Dark theme role-specific colors */
+  /* Admin - Deep Red/Crimson Dark */
+  --admin-50: oklch(0.15 0.02 20);
+  --admin-100: oklch(0.2 0.04 20);
+  --admin-200: oklch(0.25 0.06 20);
+  --admin-300: oklch(0.35 0.1 20);
+  --admin-500: oklch(0.65 0.18 20);
+  --admin-600: oklch(0.7 0.2 20);
+  --admin-700: oklch(0.75 0.22 20);
+  --admin-800: oklch(0.8 0.2 20);
+
+  /* Regional IT Head - Royal Blue Dark */
+  --regional-50: oklch(0.15 0.02 240);
+  --regional-100: oklch(0.2 0.04 240);
+  --regional-200: oklch(0.25 0.06 240);
+  --regional-300: oklch(0.35 0.1 240);
+  --regional-500: oklch(0.65 0.18 240);
+  --regional-600: oklch(0.7 0.2 240);
+  --regional-700: oklch(0.75 0.22 240);
+  --regional-800: oklch(0.8 0.2 240);
+
+  /* IT Head - Purple Dark */
+  --ithead-50: oklch(0.15 0.02 270);
+  --ithead-100: oklch(0.2 0.04 270);
+  --ithead-200: oklch(0.25 0.06 270);
+  --ithead-300: oklch(0.35 0.1 270);
+  --ithead-500: oklch(0.65 0.18 270);
+  --ithead-600: oklch(0.7 0.2 270);
+  --ithead-700: oklch(0.75 0.22 270);
+  --ithead-800: oklch(0.8 0.2 270);
+
+  /* IT Staff - Teal Dark */
+  --itstaff-50: oklch(0.15 0.02 180);
+  --itstaff-100: oklch(0.2 0.04 180);
+  --itstaff-200: oklch(0.25 0.06 180);
+  --itstaff-300: oklch(0.35 0.1 180);
+  --itstaff-500: oklch(0.55 0.18 180);
+  --itstaff-600: oklch(0.65 0.2 180);
+  --itstaff-700: oklch(0.75 0.22 180);
+  --itstaff-800: oklch(0.85 0.2 180);
+
+  /* Staff - Soft Orange Dark */
+  --staff-50: oklch(0.15 0.02 40);
+  --staff-100: oklch(0.2 0.04 40);
+  --staff-200: oklch(0.25 0.06 40);
+  --staff-300: oklch(0.35 0.1 40);
+  --staff-500: oklch(0.65 0.18 40);
+  --staff-600: oklch(0.7 0.2 40);
+  --staff-700: oklch(0.75 0.22 40);
+  --staff-800: oklch(0.8 0.2 40);
 }
 
 @theme inline {
@@ -145,5 +279,42 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Ensure proper text contrast for readability */
+@layer components {
+  .text-readable-primary {
+    @apply text-gray-900 dark:text-gray-100;
+  }
+  
+  .text-readable-secondary {
+    @apply text-gray-700 dark:text-gray-300;
+  }
+  
+  .text-readable-muted {
+    @apply text-gray-600 dark:text-gray-400;
+  }
+  
+  .bg-role-safe {
+    @apply bg-gray-50/80 dark:bg-gray-900/80;
+  }
+  
+  .border-role-safe {
+    @apply border-gray-200 dark:border-gray-800;
+  }
+  
+  /* Override any potentially problematic text combinations */
+  .text-white {
+    color: #ffffff !important;
+  }
+  
+  .text-black {
+    color: #000000 !important;
+  }
+  
+  /* Ensure badges have proper contrast */
+  .badge-readable {
+    @apply bg-gray-100 text-gray-900 border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600;
   }
 }

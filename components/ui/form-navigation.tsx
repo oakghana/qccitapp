@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useRouter } from "next/navigation"
-import { Home, Laptop, Wrench, MessageSquare, Users, Bell, Settings, BarChart3, FileText } from "lucide-react"
+import { Home, Laptop, Wrench, MessageSquare, Users, UserPlus, Bell, Settings, BarChart3, FileText } from "lucide-react"
 
 interface NavigationItem {
   name: string
@@ -59,6 +59,12 @@ const navigationItems: NavigationItem[] = [
     roles: ["admin", "it_head"],
   },
   {
+    name: "User Accounts",
+    href: "/dashboard/user-accounts", 
+    icon: UserPlus,
+    roles: ["admin", "it_head", "it_staff", "service_desk_head", "service_desk_staff", "user", "service_provider"],
+  },
+  {
     name: "Notifications",
     href: "/dashboard/notifications",
     icon: Bell,
@@ -100,8 +106,8 @@ export function FormNavigation({ currentPage, className = "" }: FormNavigationPr
     <Card className={`mb-6 ${className}`}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-muted-foreground">Quick Navigation</h3>
-          <span className="text-xs text-muted-foreground capitalize">
+          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Quick Navigation</h3>
+          <span className="text-xs text-gray-600 dark:text-gray-400 capitalize">
             {user.role.replace("_", " ")} • {user.location.replace("_", " ")}
           </span>
         </div>
