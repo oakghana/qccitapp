@@ -14,7 +14,7 @@ interface CacheData {
 
 export class OfflineCacheManager {
   private static instance: OfflineCacheManager
-  private cacheKey = 'qcc-offline-data'
+  private cacheKey = "qcc-offline-data"
   private maxCacheAge = 24 * 60 * 60 * 1000 // 24 hours
 
   private constructor() {}
@@ -35,13 +35,13 @@ export class OfflineCacheManager {
       const updatedData: CacheData = {
         ...existingData,
         ...data,
-        lastSync: new Date().toISOString()
+        lastSync: new Date().toISOString(),
       }
 
       localStorage.setItem(this.cacheKey, JSON.stringify(updatedData))
-      console.log('Data cached successfully for offline use')
+      console.log("Data cached successfully for offline use")
     } catch (error) {
-      console.error('Failed to cache data:', error)
+      console.error("Failed to cache data:", error)
     }
   }
 
@@ -53,19 +53,19 @@ export class OfflineCacheManager {
       const cached = localStorage.getItem(this.cacheKey)
       if (cached) {
         const data = JSON.parse(cached)
-        
+
         // Check if cache is still valid
         if (this.isCacheValid(data.lastSync)) {
           return data
         } else {
-          console.log('Cache expired, returning default data')
+          console.log("Cache expired, returning default data")
           return this.getDefaultData()
         }
       }
-      
+
       return this.getDefaultData()
     } catch (error) {
-      console.error('Failed to retrieve cached data:', error)
+      console.error("Failed to retrieve cached data:", error)
       return this.getDefaultData()
     }
   }
@@ -84,9 +84,9 @@ export class OfflineCacheManager {
   public clearCache(): void {
     try {
       localStorage.removeItem(this.cacheKey)
-      console.log('Cache cleared successfully')
+      console.log("Cache cleared successfully")
     } catch (error) {
-      console.error('Failed to clear cache:', error)
+      console.error("Failed to clear cache:", error)
     }
   }
 
@@ -100,28 +100,25 @@ export class OfflineCacheManager {
   /**
    * Setup online/offline event listeners
    */
-  public setupConnectivityListeners(
-    onOnline?: () => void,
-    onOffline?: () => void
-  ): () => void {
+  public setupConnectivityListeners(onOnline?: () => void, onOffline?: () => void): () => void {
     const handleOnline = () => {
-      console.log('Connection restored')
+      console.log("Connection restored")
       this.syncOfflineData()
       onOnline?.()
     }
 
     const handleOffline = () => {
-      console.log('Connection lost, switching to offline mode')
+      console.log("Connection lost, switching to offline mode")
       onOffline?.()
     }
 
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
+    window.addEventListener("online", handleOnline)
+    window.addEventListener("offline", handleOffline)
 
     // Return cleanup function
     return () => {
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
+      window.removeEventListener("online", handleOnline)
+      window.removeEventListener("offline", handleOffline)
     }
   }
 
@@ -132,21 +129,21 @@ export class OfflineCacheManager {
     try {
       // Get pending offline actions
       const pendingActions = this.getPendingActions()
-      
+
       if (pendingActions.length > 0) {
         console.log(`Syncing ${pendingActions.length} offline actions`)
-        
+
         // Process each pending action
         for (const action of pendingActions) {
           await this.processPendingAction(action)
         }
-        
+
         // Clear pending actions after successful sync
         this.clearPendingActions()
-        console.log('Offline data synced successfully')
+        console.log("Offline data synced successfully")
       }
     } catch (error) {
-      console.error('Failed to sync offline data:', error)
+      console.error("Failed to sync offline data:", error)
     }
   }
 
@@ -162,10 +159,10 @@ export class OfflineCacheManager {
     try {
       const pending = this.getPendingActions()
       pending.push(action)
-      localStorage.setItem('qcc-pending-actions', JSON.stringify(pending))
-      console.log('Offline action stored for later sync')
+      localStorage.setItem("qcc-pending-actions", JSON.stringify(pending))
+      console.log("Offline action stored for later sync")
     } catch (error) {
-      console.error('Failed to store offline action:', error)
+      console.error("Failed to store offline action:", error)
     }
   }
 
@@ -174,10 +171,10 @@ export class OfflineCacheManager {
    */
   private getPendingActions(): any[] {
     try {
-      const pending = localStorage.getItem('qcc-pending-actions')
+      const pending = localStorage.getItem("qcc-pending-actions")
       return pending ? JSON.parse(pending) : []
     } catch (error) {
-      console.error('Failed to get pending actions:', error)
+      console.error("Failed to get pending actions:", error)
       return []
     }
   }
@@ -189,20 +186,20 @@ export class OfflineCacheManager {
     try {
       // Implement specific action processing based on type
       switch (action.type) {
-        case 'repair_request':
+        case "repair_request":
           // Sync repair request
           break
-        case 'device_update':
+        case "device_update":
           // Sync device update
           break
-        case 'notification_read':
+        case "notification_read":
           // Sync notification status
           break
         default:
-          console.log('Unknown action type:', action.type)
+          console.log("Unknown action type:", action.type)
       }
     } catch (error) {
-      console.error('Failed to process pending action:', error)
+      console.error("Failed to process pending action:", error)
       throw error
     }
   }
@@ -211,7 +208,7 @@ export class OfflineCacheManager {
    * Clear pending actions
    */
   private clearPendingActions(): void {
-    localStorage.removeItem('qcc-pending-actions')
+    localStorage.removeItem("qcc-pending-actions")
   }
 
   /**
@@ -219,11 +216,11 @@ export class OfflineCacheManager {
    */
   private isCacheValid(lastSync: string): boolean {
     if (!lastSync) return false
-    
+
     const cacheTime = new Date(lastSync).getTime()
     const currentTime = new Date().getTime()
-    
-    return (currentTime - cacheTime) < this.maxCacheAge
+
+    return currentTime - cacheTime < this.maxCacheAge
   }
 
   /**
@@ -235,8 +232,8 @@ export class OfflineCacheManager {
       repairRequests: [],
       users: [],
       notifications: [],
-      lastSync: '',
-      userPreferences: {}
+      lastSync: "",
+      userPreferences: {},
     }
   }
 
@@ -245,7 +242,7 @@ export class OfflineCacheManager {
    */
   public async preloadCriticalData(): Promise<void> {
     if (!this.isOnline()) {
-      console.log('Offline - skipping data preload')
+      console.log("Offline - skipping data preload")
       return
     }
 
@@ -258,9 +255,9 @@ export class OfflineCacheManager {
       }
 
       await this.cacheData(criticalData)
-      console.log('Critical data preloaded for offline use')
+      console.log("Critical data preloaded for offline use")
     } catch (error) {
-      console.error('Failed to preload critical data:', error)
+      console.error("Failed to preload critical data:", error)
     }
   }
 
@@ -270,24 +267,24 @@ export class OfflineCacheManager {
   private async fetchDevicesData(): Promise<any[]> {
     // Replace with actual API call
     return [
-      { id: 1, name: 'Dell Laptop', status: 'active' },
-      { id: 2, name: 'HP Printer', status: 'maintenance' }
+      { id: 1, name: "Dell Laptop", status: "active" },
+      { id: 2, name: "HP Printer", status: "maintenance" },
     ]
   }
 
   private async fetchRepairRequestsData(): Promise<any[]> {
     // Replace with actual API call
     return [
-      { id: 1, device: 'Dell Laptop', status: 'pending' },
-      { id: 2, device: 'HP Printer', status: 'in_progress' }
+      { id: 1, device: "Dell Laptop", status: "pending" },
+      { id: 2, device: "HP Printer", status: "in_progress" },
     ]
   }
 
   private async fetchNotificationsData(): Promise<any[]> {
     // Replace with actual API call
     return [
-      { id: 1, message: 'Repair completed', read: false },
-      { id: 2, message: 'New device added', read: true }
+      { id: 1, message: "Repair completed", read: false },
+      { id: 2, message: "New device added", read: true },
     ]
   }
 }
@@ -302,12 +299,12 @@ export function useOfflineCache() {
   return {
     cacheData: (data: Partial<CacheData>) => cacheManager.cacheData(data),
     getCachedData: () => cacheManager.getCachedData(),
-    getCachedDataType: <T>(type: keyof CacheData) => cacheManager.getCachedDataType<T>(type),
+    getCachedDataType: <T = any>(type: keyof CacheData) => cacheManager.getCachedDataType<T>(type),
     clearCache: () => cacheManager.clearCache(),
     isOnline: () => cacheManager.isOnline(),
     storeOfflineAction: (action: any) => cacheManager.storeOfflineAction(action),
     preloadCriticalData: () => cacheManager.preloadCriticalData(),
     setupConnectivityListeners: (onOnline?: () => void, onOffline?: () => void) =>
-      cacheManager.setupConnectivityListeners(onOnline, onOffline)
+      cacheManager.setupConnectivityListeners(onOnline, onOffline),
   }
 }
