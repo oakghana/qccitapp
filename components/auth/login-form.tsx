@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,14 +13,21 @@ import { loginAction } from "@/app/actions/auth"
 export function LoginForm() {
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
 
   async function handleSubmit(formData: FormData) {
     setError("")
 
     startTransition(async () => {
       const result = await loginAction(formData)
+
       if (result?.error) {
         setError(result.error)
+      } else if (result?.success && result?.redirectUrl) {
+        const username = formData.get("username") as string
+        localStorage.setItem("qcc_user_email", username)
+
+        window.location.href = result.redirectUrl
       }
     })
   }

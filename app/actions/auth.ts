@@ -58,7 +58,6 @@ export async function loginAction(formData: FormData) {
       path: "/",
     })
 
-    // Determine redirect URL based on role
     let redirectUrl = "/dashboard"
     if (user.role === "admin") {
       redirectUrl = "/dashboard/admin"
@@ -70,7 +69,7 @@ export async function loginAction(formData: FormData) {
       redirectUrl = "/dashboard/service-desk"
     }
 
-    redirect(redirectUrl)
+    return { success: true, redirectUrl }
   } catch (error) {
     console.error("Login error:", error)
     return { error: "Authentication failed. Please try again." }
