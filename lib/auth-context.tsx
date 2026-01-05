@@ -30,24 +30,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false)
 
   useEffect(() => {
-    setIsHydrated(true)
-
+    console.log("[v0] AuthContext: Initializing and reading localStorage")
     // Check for existing session
     const savedUser = localStorage.getItem("qcc_current_user")
+    console.log("[v0] AuthContext: Found savedUser:", savedUser ? "yes" : "no")
     if (savedUser) {
       try {
-        setUser(JSON.parse(savedUser))
+        const parsedUser = JSON.parse(savedUser)
+        console.log("[v0] AuthContext: Parsed user role:", parsedUser.role)
+        setUser(parsedUser)
       } catch (e) {
         console.error("[v0] Failed to parse saved user:", e)
         localStorage.removeItem("qcc_current_user")
       }
     }
+    setIsHydrated(true)
+    console.log("[v0] AuthContext: Hydration complete")
   }, [])
 
   const login = (userData: User) => {
-    console.log("[v0] Logging in user:", userData)
+    console.log("[v0] AuthContext: Logging in user:", userData.username, "role:", userData.role)
     setUser(userData)
     localStorage.setItem("qcc_current_user", JSON.stringify(userData))
+    console.log("[v0] AuthContext: User saved to localStorage")
   }
 
   const logout = () => {

@@ -16,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Bell, Search, User, LogOut, ChevronDown, WifiOff, Zap } from "lucide-react"
+import { Bell, Search, User, LogOut, ChevronDown, WifiOff, Zap, Loader2 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useNotifications } from "@/lib/notification-context"
 import { useOfflineCache } from "@/lib/offline-cache"
@@ -33,7 +33,7 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
   const [isOnline, setIsOnline] = useState(true)
   const [isMounted, setIsMounted] = useState(false)
   const [showMobileDownload, setShowMobileDownload] = useState(false)
-  const { user, logout } = useAuth()
+  const { user, logout, isHydrated } = useAuth()
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
   const { setupConnectivityListeners, preloadCriticalData, isOnline: checkOnline } = useOfflineCache()
 
@@ -77,11 +77,29 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
 
   const recentNotifications = notifications.slice(0, 5)
 
-  if (!isMounted) {
+  if (!isMounted || !isHydrated) {
     return (
       <div className="flex min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 dark:from-orange-950 dark:via-amber-950 dark:to-yellow-950">
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-orange-600 dark:text-orange-400">Loading...</div>
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-orange-600 dark:text-orange-400" />
+            <div className="text-orange-600 dark:text-orange-400">Loading your dashboard...</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    if (typeof window !== "undefined") {
+      setTimeout(() => {
+        window.location.href = "/"
+      }, 100)
+    }
+    return (
+      <div className="flex min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 dark:from-orange-950 dark:via-amber-950 dark:to-yellow-950">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-orange-600 dark:text-orange-400">Redirecting to login...</div>
         </div>
       </div>
     )
