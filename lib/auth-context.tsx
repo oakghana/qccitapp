@@ -31,10 +31,19 @@ const userMapping: Record<string, User> = {
     name: "Ohemeng Appiah",
     email: "ohemengappiah@qccgh.com",
   },
+  "servicedesk@qccgh.com": {
+    id: "TEMP-SD-001",
+    username: "servicedesk@qccgh.com",
+    role: "it_head",
+    location: "head_office",
+    name: "Service Desk Manager",
+    email: "servicedesk@qccgh.com",
+  },
 }
 
 const validCredentials: Record<string, string> = {
   "ohemengappiah@qccgh.com": "ghana",
+  "servicedesk@qccgh.com": "servicedesk123",
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
