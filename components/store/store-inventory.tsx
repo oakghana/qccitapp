@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,6 +17,7 @@ import {
 import { Search, Plus, Package, AlertTriangle, TrendingDown, TrendingUp, Download } from "lucide-react"
 import { AddStoreItemForm } from "./add-store-item-form"
 import { StoreReceiptForm } from "./store-receipt-form"
+import { createClient } from "@/lib/supabase/client"
 
 interface StoreItem {
   id: string
@@ -29,39 +30,6 @@ interface StoreItem {
   lastUpdated: string
 }
 
-const mockInventory: StoreItem[] = [
-  {
-    id: "ST-2024-001",
-    itemName: "HP Laptop Battery",
-    category: "hardware",
-    quantity: 15,
-    reorderLevel: 10,
-    unit: "pcs",
-    location: "Head Office",
-    lastUpdated: "2024-01-15",
-  },
-  {
-    id: "ST-2024-002",
-    itemName: "HP Printer Toner (Black)",
-    category: "consumables",
-    quantity: 8,
-    reorderLevel: 12,
-    unit: "pcs",
-    location: "Head Office",
-    lastUpdated: "2024-01-20",
-  },
-  {
-    id: "ST-2024-003",
-    itemName: "HDMI Cables",
-    category: "accessories",
-    quantity: 25,
-    reorderLevel: 15,
-    unit: "pcs",
-    location: "Kumasi",
-    lastUpdated: "2024-01-18",
-  },
-]
-
 const categoryIcons = {
   hardware: Package,
   software: Package,
@@ -71,11 +39,48 @@ const categoryIcons = {
 }
 
 export function StoreInventory() {
-  const [inventory, setInventory] = useState<StoreItem[]>(mockInventory)
+  const [inventory, setInventory] = useState<StoreItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [addItemOpen, setAddItemOpen] = useState(false)
   const [receiptOpen, setReceiptOpen] = useState(false)
+  const supabase = createClient()
+
+  useEffect(() => {
+    loadInventory()
+  }, [])
+
+  const loadInventory = async () => {
+    try {
+      setLoading(true)
+      const { data, error } = await supabase.from("store_items").select("*").order("created_at", { ascending: false })
+
+      if (error) {
+        console.error("[v0] Error loading inventory:", error)
+        return
+      }
+
+      console.log("[v0] Loaded inventory from Supabase:", data)
+
+      const mappedInventory: StoreItem[] = data.map((item: any) => ({
+        id: item.id,
+        itemName: item.name,
+        category: item.category || "hardware",
+        quantity: item.quantity || 0,
+        reorderLevel: item.reorder_level || 0,
+        unit: item.unit || "pcs",
+        location: item.location || "Head Office",
+        lastUpdated: item.updated_at || item.created_at,
+      }))
+
+      setInventory(mappedInventory)
+    } catch (error) {
+      console.error("[v0] Error loading inventory:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filteredInventory = inventory.filter((item) => {
     const matchesSearch = item.itemName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -84,6 +89,14 @@ export function StoreInventory() {
   })
 
   const lowStockItems = inventory.filter((item) => item.quantity <= item.reorderLevel)
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Loading inventory...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

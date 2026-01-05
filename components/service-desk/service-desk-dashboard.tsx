@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -10,58 +10,54 @@ import { NewTicketForm } from "./new-ticket-form"
 import { TicketList } from "./ticket-list"
 import { KnowledgeBase } from "./knowledge-base"
 import { useAuth } from "@/lib/auth-context"
+import { createClient } from "@/lib/supabase/client"
 
 export function ServiceDeskDashboard() {
   const [activeTab, setActiveTab] = useState("overview")
   const [showNewTicketForm, setShowNewTicketForm] = useState(false)
   const { canViewAllLocations, getUserLocation } = useAuth()
+  const [allTickets, setAllTickets] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const supabase = createClient()
 
-  const allTickets = [
-    {
-      id: "TKT-001",
-      title: "Computer won't start - Head Office",
-      category: "Hardware",
-      priority: "High",
-      status: "Open",
-      location: "head_office",
-      locationName: "Head Office - Accra",
-      requester: "Kwame Asante",
-      created: "2 hours ago",
-    },
-    {
-      id: "TKT-002",
-      title: "Email not working - Kumasi District",
-      category: "Software",
-      priority: "Medium",
-      status: "In Progress",
-      location: "kumasi",
-      locationName: "Kumasi District Office",
-      requester: "Ama Osei",
-      created: "4 hours ago",
-    },
-    {
-      id: "TKT-003",
-      title: "Internet connection slow - Head Office",
-      category: "Network",
-      priority: "Low",
-      status: "Open",
-      location: "head_office",
-      locationName: "Head Office - Accra",
-      requester: "Abdul Rahman",
-      created: "1 day ago",
-    },
-    {
-      id: "TKT-004",
-      title: "Printer not responding - Kumasi",
-      category: "Hardware",
-      priority: "Medium",
-      status: "Resolved",
-      location: "kumasi",
-      locationName: "Kumasi District Office",
-      requester: "Kofi Mensah",
-      created: "3 days ago",
-    },
-  ]
+  useEffect(() => {
+    loadTickets()
+  }, [])
+
+  const loadTickets = async () => {
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from("service_tickets")
+        .select("*")
+        .order("created_at", { ascending: false })
+
+      if (error) {
+        console.error("[v0] Error loading tickets:", error)
+        return
+      }
+
+      console.log("[v0] Loaded tickets from Supabase:", data)
+
+      const mappedTickets = data.map((ticket: any) => ({
+        id: ticket.ticket_number || ticket.id,
+        title: ticket.title,
+        category: ticket.category || "Other",
+        priority: ticket.priority || "Medium",
+        status: ticket.status || "Open",
+        location: ticket.location || "head_office",
+        locationName: ticket.location || "Unknown Location",
+        requester: ticket.requested_by || "Unknown",
+        created: new Date(ticket.created_at).toLocaleString(),
+      }))
+
+      setAllTickets(mappedTickets)
+    } catch (error) {
+      console.error("[v0] Error loading tickets:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filteredTickets = canViewAllLocations()
     ? allTickets
@@ -71,9 +67,9 @@ export function ServiceDeskDashboard() {
 
   const stats = {
     totalTickets: filteredTickets.length,
-    openTickets: filteredTickets.filter((t) => t.status === "Open").length,
-    inProgress: filteredTickets.filter((t) => t.status === "In Progress").length,
-    resolved: filteredTickets.filter((t) => t.status === "Resolved").length,
+    openTickets: filteredTickets.filter((t) => t.status === "Open" || t.status === "open").length,
+    inProgress: filteredTickets.filter((t) => t.status === "In Progress" || t.status === "in_progress").length,
+    resolved: filteredTickets.filter((t) => t.status === "Resolved" || t.status === "resolved").length,
     avgResolutionTime: "2.3 hours",
     satisfaction: "94%",
   }
@@ -83,6 +79,14 @@ export function ServiceDeskDashboard() {
     Software: Smartphone,
     Network: Wifi,
     Printer: Printer,
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Loading service desk...</p>
+      </div>
+    )
   }
 
   return (
@@ -209,7 +213,7 @@ export function ServiceDeskDashboard() {
         </TabsContent>
 
         <TabsContent value="tickets">
-          <TicketList />
+          <TicketList tickets={filteredTickets} />
         </TabsContent>
 
         <TabsContent value="knowledge">

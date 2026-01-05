@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -29,11 +29,11 @@ import {
   ArrowUp,
   Wrench,
   AlertTriangle,
-  Users,
   Send,
 } from "lucide-react"
 import { AssignTicketDialog } from "./assign-ticket-dialog"
 import { useAuth } from "@/lib/auth-context"
+import { createClient } from "@/lib/supabase/client"
 
 interface Ticket {
   id: string
@@ -71,107 +71,75 @@ export function TicketList() {
   const [escalationReason, setEscalationReason] = useState("")
   const [escalationSuccess, setEscalationSuccess] = useState(false)
   const [assignDialogOpen, setAssignDialogOpen] = useState(false)
+  const [tickets, setTickets] = useState<Ticket[]>([])
+  const [loading, setLoading] = useState(true)
+  const supabase = createClient()
 
-  const [tickets, setTickets] = useState<Ticket[]>([
-    {
-      id: "TKT-001",
-      title: "Computer won't start - Blue screen error",
-      category: "Hardware",
-      priority: "High",
-      status: "Open",
-      location: "Head Office - Accra",
-      requester: "Kwame Asante",
-      assignee: "IT Team Accra",
-      created: "2024-01-15 09:30",
-      updated: "2024-01-15 10:15",
-      description: "Computer shows blue screen on startup. Error code: 0x0000007B",
-      comments: [
-        {
-          id: "c1",
-          author: "IT Team Accra",
-          message: "We've received your ticket and will investigate the blue screen error.",
-          timestamp: "2024-01-15 10:15",
-        },
-      ],
-    },
-    {
-      id: "TKT-002",
-      title: "Email not receiving messages",
-      category: "Software",
-      priority: "Medium",
-      status: "In Progress",
-      location: "Kumasi District Office",
-      requester: "Ama Osei",
-      assignee: "Regional IT Support",
-      created: "2024-01-15 08:45",
-      updated: "2024-01-15 11:20",
-      description: "Outlook not receiving new emails since yesterday morning",
-      comments: [
-        {
-          id: "c2",
-          author: "Regional IT Support",
-          message: "Checking email server configuration. Please try restarting Outlook.",
-          timestamp: "2024-01-15 11:20",
-        },
-      ],
-    },
-    {
-      id: "TKT-003",
-      title: "Internet connection very slow",
-      category: "Network",
-      priority: "Low",
-      status: "Open",
-      location: "Tamale District Office",
-      requester: "Abdul Rahman",
-      assignee: "Unassigned",
-      created: "2024-01-14 14:20",
-      updated: "2024-01-14 14:20",
-      description: "Internet speed very slow, affecting daily work productivity",
-      comments: [],
-    },
-    {
-      id: "TKT-004",
-      title: "Printer not working - Paper jam error",
-      category: "Hardware",
-      priority: "Medium",
-      status: "Resolved",
-      location: "Cape Coast District Office",
-      requester: "Efua Mensah",
-      assignee: "Local IT Support",
-      created: "2024-01-14 11:00",
-      updated: "2024-01-15 09:00",
-      description: "Office printer showing paper jam error even after clearing paper",
-      comments: [
-        {
-          id: "c3",
-          author: "Local IT Support",
-          message: "Printer mechanism was cleaned and paper path cleared. Issue resolved.",
-          timestamp: "2024-01-15 09:00",
-        },
-      ],
-    },
-    {
-      id: "TKT-005",
-      title: "Password reset request",
-      category: "Account",
-      priority: "Low",
-      status: "Resolved",
-      location: "Ho District Office",
-      requester: "Kojo Mensah",
-      assignee: "IT Help Desk",
-      created: "2024-01-14 16:30",
-      updated: "2024-01-14 17:00",
-      description: "Unable to login to system, need password reset",
-      comments: [
-        {
-          id: "c4",
-          author: "IT Help Desk",
-          message: "Password has been reset. New temporary password sent via SMS.",
-          timestamp: "2024-01-14 17:00",
-        },
-      ],
-    },
-  ])
+  useEffect(() => {
+    loadTickets()
+  }, [])
+
+  const loadTickets = async () => {
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from("service_tickets")
+        .select("*")
+        .order("created_at", { ascending: false })
+
+      if (error) {
+        console.error("[v0] Error loading tickets:", error)
+        return
+      }
+
+      console.log("[v0] Loaded tickets from Supabase:", data)
+
+      const mappedTickets: Ticket[] = data.map((ticket: any) => ({
+        id: ticket.ticket_number || ticket.id,
+        title: ticket.title,
+        category: ticket.category || "Other",
+        priority: ticket.priority || "Medium",
+        status: ticket.status || "Open",
+        location: ticket.location || "Unknown",
+        requester: ticket.requested_by || "Unknown",
+        assignee: ticket.assigned_to || "Unassigned",
+        created: new Date(ticket.created_at).toLocaleString(),
+        updated: new Date(ticket.updated_at || ticket.created_at).toLocaleString(),
+        description: ticket.description || "",
+        comments: [],
+      }))
+
+      setTickets(mappedTickets)
+    } catch (error) {
+      console.error("[v0] Error loading tickets:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const updateTicketInDatabase = async (ticketId: string, updates: any) => {
+    try {
+      const { error } = await supabase
+        .from("service_tickets")
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("ticket_number", ticketId)
+        .eq("id", ticketId)
+
+      if (error) {
+        console.error("[v0] Error updating ticket:", error)
+        return false
+      }
+
+      await loadTickets()
+      return true
+    } catch (error) {
+      console.error("[v0] Error updating ticket:", error)
+      return false
+    }
+  }
 
   const categoryIcons = {
     Hardware: Monitor,
@@ -220,21 +188,24 @@ export function TicketList() {
     setEditDialogOpen(true)
   }
 
-  const handleUpdateTicket = () => {
+  const handleUpdateTicket = async () => {
     if (editingTicket) {
-      setTickets(
-        tickets.map((t) =>
-          t.id === editingTicket.id
-            ? { ...editingTicket, updated: new Date().toISOString().slice(0, 16).replace("T", " ") }
-            : t,
-        ),
-      )
-      setEditDialogOpen(false)
-      setEditingTicket(null)
+      const updateSuccess = await updateTicketInDatabase(editingTicket.id, {
+        title: editingTicket.title,
+        status: editingTicket.status,
+        priority: editingTicket.priority,
+        assignee: editingTicket.assignee,
+        description: editingTicket.description,
+      })
+
+      if (updateSuccess) {
+        setEditDialogOpen(false)
+        setEditingTicket(null)
+      }
     }
   }
 
-  const handleAddComment = () => {
+  const handleAddComment = async () => {
     if (selectedTicket && newComment.trim()) {
       const updatedTicket = {
         ...selectedTicket,
@@ -247,27 +218,25 @@ export function TicketList() {
             timestamp: new Date().toISOString().slice(0, 16).replace("T", " "),
           },
         ],
-        updated: new Date().toISOString().slice(0, 16).replace("T", " "),
       }
 
-      setTickets(tickets.map((t) => (t.id === selectedTicket.id ? updatedTicket : t)))
-      setSelectedTicket(updatedTicket)
-      setNewComment("")
-      setCommentDialogOpen(false)
+      const updateSuccess = await updateTicketInDatabase(selectedTicket.id, {
+        comments: updatedTicket.comments,
+      })
+
+      if (updateSuccess) {
+        setSelectedTicket(updatedTicket)
+        setNewComment("")
+        setCommentDialogOpen(false)
+      }
     }
   }
 
-  const handleStatusChange = (ticketId: string, newStatus: string) => {
-    setTickets(
-      tickets.map((t) =>
-        t.id === ticketId
-          ? { ...t, status: newStatus, updated: new Date().toISOString().slice(0, 16).replace("T", " ") }
-          : t,
-      ),
-    )
+  const handleStatusChange = async (ticketId: string, newStatus: string) => {
+    await updateTicketInDatabase(ticketId, { status: newStatus })
   }
 
-  const handleEscalateToRepair = () => {
+  const handleEscalateToRepair = async () => {
     if (selectedTicket && escalationReason.trim()) {
       const repairRequest = {
         id: `REP-${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`,
@@ -295,27 +264,31 @@ export function TicketList() {
             timestamp: new Date().toISOString().slice(0, 16).replace("T", " "),
           },
         ],
-        updated: new Date().toISOString().slice(0, 16).replace("T", " "),
       }
 
-      setTickets(tickets.map((t) => (t.id === selectedTicket.id ? updatedTicket : t)))
+      const updateSuccess = await updateTicketInDatabase(selectedTicket.id, {
+        status: updatedTicket.status,
+        comments: updatedTicket.comments,
+      })
 
-      const existingRepairs = JSON.parse(localStorage.getItem("repairRequests") || "[]")
-      existingRepairs.push(repairRequest)
-      localStorage.setItem("repairRequests", JSON.stringify(existingRepairs))
+      if (updateSuccess) {
+        const existingRepairs = JSON.parse(localStorage.getItem("repairRequests") || "[]")
+        existingRepairs.push(repairRequest)
+        localStorage.setItem("repairRequests", JSON.stringify(existingRepairs))
 
-      setEscalationSuccess(true)
-      setEscalationReason("")
-      setEscalationDialogOpen(false)
+        setEscalationSuccess(true)
+        setEscalationReason("")
+        setEscalationDialogOpen(false)
 
-      setTimeout(() => {
-        setEscalationSuccess(false)
-        setViewDetailsOpen(false)
-      }, 3000)
+        setTimeout(() => {
+          setEscalationSuccess(false)
+          setViewDetailsOpen(false)
+        }, 3000)
+      }
     }
   }
 
-  const handleAssignTicket = (assignment: any) => {
+  const handleAssignTicket = async (assignment: any) => {
     if (selectedTicket) {
       const updatedTicket = {
         ...selectedTicket,
@@ -330,14 +303,21 @@ export function TicketList() {
             timestamp: new Date().toISOString().slice(0, 16).replace("T", " "),
           },
         ],
-        updated: new Date().toISOString().slice(0, 16).replace("T", " "),
       }
 
-      setTickets(tickets.map((t) => (t.id === selectedTicket.id ? updatedTicket : t)))
-      setSelectedTicket(updatedTicket)
-      
-      // Simulate email notification
-      console.log(`Email notification sent to ${assignment.assignee} for ticket ${selectedTicket.id}`)
+      const updateSuccess = await updateTicketInDatabase(selectedTicket.id, {
+        assignee: updatedTicket.assignee,
+        status: updatedTicket.status,
+        comments: updatedTicket.comments,
+      })
+
+      if (updateSuccess) {
+        setSelectedTicket(updatedTicket)
+        setAssignDialogOpen(false)
+
+        // Simulate email notification
+        console.log(`Email notification sent to ${assignment.assignee} for ticket ${selectedTicket.id}`)
+      }
     }
   }
 
@@ -361,6 +341,14 @@ export function TicketList() {
 
     return matchesSearch && matchesStatus && matchesPriority && matchesLocation
   })
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Loading tickets...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -509,9 +497,9 @@ export function TicketList() {
                         Comment
                       </Button>
                       {isItHeadOrAdmin && ticket.status !== "Resolved" && ticket.status !== "Escalated" && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => {
                             setSelectedTicket(ticket)
                             setAssignDialogOpen(true)
@@ -681,7 +669,12 @@ export function TicketList() {
                 <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleUpdateTicket} className="bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-600">Update Ticket</Button>
+                <Button
+                  onClick={handleUpdateTicket}
+                  className="bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-600"
+                >
+                  Update Ticket
+                </Button>
               </div>
             </div>
           )}
@@ -705,7 +698,12 @@ export function TicketList() {
               <Button variant="outline" onClick={() => setCommentDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleAddComment} className="bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-600">Add Comment</Button>
+              <Button
+                onClick={handleAddComment}
+                className="bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-600"
+              >
+                Add Comment
+              </Button>
             </div>
           </div>
         </DialogContent>

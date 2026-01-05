@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,6 +18,7 @@ import { AddDeviceForm } from "./add-device-form"
 import { DeviceTransferForm } from "./device-transfer-form"
 import { Search, Plus, Monitor, Smartphone, Printer, HardDrive, ArrowRightLeft, MoreHorizontal } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { createClient } from "@/lib/supabase/client"
 
 interface Device {
   id: string
@@ -32,61 +33,6 @@ interface Device {
   assignedDate: string
   lastUpdated: string
 }
-
-const mockDevices: Device[] = [
-  {
-    id: "DL-2024-001",
-    name: "Dell Latitude 5520",
-    type: "laptop",
-    serialNumber: "DL5520001",
-    model: "Latitude 5520",
-    brand: "Dell",
-    status: "active",
-    location: "accra",
-    assignedTo: "Kwame Asante",
-    assignedDate: "2024-01-15",
-    lastUpdated: "2024-01-15",
-  },
-  {
-    id: "HP-2024-045",
-    name: "HP LaserJet Pro",
-    type: "printer",
-    serialNumber: "HP45LJ001",
-    model: "LaserJet Pro M404n",
-    brand: "HP",
-    status: "repair",
-    location: "head_office",
-    assignedTo: "IT Department",
-    assignedDate: "2024-02-01",
-    lastUpdated: "2024-02-28",
-  },
-  {
-    id: "LD-2024-012",
-    name: "Lenovo ThinkCentre",
-    type: "desktop",
-    serialNumber: "TC2024012",
-    model: "ThinkCentre M720q",
-    brand: "Lenovo",
-    status: "active",
-    location: "kumasi",
-    assignedTo: "Ama Osei",
-    assignedDate: "2024-01-20",
-    lastUpdated: "2024-01-20",
-  },
-  {
-    id: "IP-2024-008",
-    name: "iPhone 13",
-    type: "mobile",
-    serialNumber: "IP13008",
-    model: "iPhone 13",
-    brand: "Apple",
-    status: "active",
-    location: "tamale",
-    assignedTo: "Kofi Mensah",
-    assignedDate: "2024-02-10",
-    lastUpdated: "2024-02-10",
-  },
-]
 
 const deviceTypeIcons = {
   laptop: Monitor,
@@ -113,13 +59,53 @@ const locationNames = {
 }
 
 export function DeviceInventory() {
-  const [devices, setDevices] = useState<Device[]>(mockDevices)
+  const [devices, setDevices] = useState<Device[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [locationFilter, setLocationFilter] = useState<string>("all")
   const [addDeviceOpen, setAddDeviceOpen] = useState(false)
   const [transferDeviceOpen, setTransferDeviceOpen] = useState(false)
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null)
+  const supabase = createClient()
+
+  useEffect(() => {
+    loadDevices()
+  }, [])
+
+  const loadDevices = async () => {
+    try {
+      setLoading(true)
+      const { data, error } = await supabase.from("devices").select("*").order("created_at", { ascending: false })
+
+      if (error) {
+        console.error("[v0] Error loading devices:", error)
+        return
+      }
+
+      console.log("[v0] Loaded devices from Supabase:", data)
+
+      const mappedDevices: Device[] = data.map((device: any) => ({
+        id: device.id,
+        name: `${device.brand} ${device.model}`,
+        type: device.device_type?.toLowerCase() || "other",
+        serialNumber: device.serial_number,
+        model: device.model,
+        brand: device.brand,
+        status: device.status || "active",
+        location: device.location?.toLowerCase().replace(/ /g, "_") || "head_office",
+        assignedTo: device.assigned_to || "Unassigned",
+        assignedDate: device.purchase_date || device.created_at,
+        lastUpdated: device.updated_at || device.created_at,
+      }))
+
+      setDevices(mappedDevices)
+    } catch (error) {
+      console.error("[v0] Error loading devices:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filteredDevices = devices.filter((device) => {
     const matchesSearch =
@@ -158,6 +144,14 @@ export function DeviceInventory() {
     )
     setTransferDeviceOpen(false)
     setSelectedDevice(null)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Loading devices...</p>
+      </div>
+    )
   }
 
   return (
