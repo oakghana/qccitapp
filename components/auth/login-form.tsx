@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import type React from "react"
+
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,28 +10,46 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Shield, Lock, Mail, ArrowRight } from "lucide-react"
-import { loginAction } from "@/app/actions/auth"
 
 export function LoginForm() {
   const [error, setError] = useState("")
-  const [isPending, startTransition] = useTransition()
+  const [isPending, setIsPending] = useState(false)
   const router = useRouter()
 
-  async function handleSubmit(formData: FormData) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
     setError("")
+    setIsPending(true)
 
-    startTransition(async () => {
-      const result = await loginAction(formData)
+    const formData = new FormData(e.currentTarget)
+    const username = formData.get("username") as string
+    const password = formData.get("password") as string
 
-      if (result?.error) {
-        setError(result.error)
-      } else if (result?.success && result?.redirectUrl) {
-        const username = formData.get("username") as string
-        localStorage.setItem("qcc_user_email", username)
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      })
 
-        window.location.href = result.redirectUrl
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        setError(data.error || "Invalid credentials")
+        setIsPending(false)
+        return
       }
-    })
+
+      // Save user data to localStorage for client-side auth context
+      localStorage.setItem("qcc_current_user", JSON.stringify(data.user))
+
+      // Redirect to dashboard
+      window.location.href = data.redirectUrl
+    } catch (err) {
+      console.error("Login error:", err)
+      setError("Authentication failed. Please try again.")
+      setIsPending(false)
+    }
   }
 
   return (
@@ -51,7 +71,7 @@ export function LoginForm() {
             </Alert>
           )}
 
-          <form action={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="username" className="text-sm font-semibold">
                 Email Address

@@ -1,7 +1,48 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import { LoginForm } from "@/components/auth/login-form"
 import Image from "next/image"
 
 export default function HomePage() {
+  const [isChecking, setIsChecking] = useState(true)
+
+  useEffect(() => {
+    // Check if user is already logged in
+    const savedUser = localStorage.getItem("qcc_current_user")
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser)
+        // Redirect to appropriate dashboard
+        let redirectUrl = "/dashboard"
+        if (user.role === "admin") {
+          redirectUrl = "/dashboard/admin"
+        } else if (user.role === "it_store_head") {
+          redirectUrl = "/dashboard/store-inventory"
+        } else if (user.role === "it_staff") {
+          redirectUrl = "/dashboard/assigned-tasks"
+        } else if (user.role === "staff") {
+          redirectUrl = "/dashboard/service-desk"
+        }
+        window.location.href = redirectUrl
+        return
+      } catch (e) {
+        localStorage.removeItem("qcc_current_user")
+      }
+    }
+    setIsChecking(false)
+  }, [])
+
+  if (isChecking) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-lg text-muted-foreground">Loading...</div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background flex">
       {/* Left Panel - Branding */}

@@ -33,12 +33,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
     }
 
+    let redirectUrl = "/dashboard"
+    if (profiles.role === "admin") {
+      redirectUrl = "/dashboard/admin"
+    } else if (profiles.role === "it_store_head") {
+      redirectUrl = "/dashboard/store-inventory"
+    } else if (profiles.role === "it_staff") {
+      redirectUrl = "/dashboard/assigned-tasks"
+    } else if (profiles.role === "staff") {
+      redirectUrl = "/dashboard/service-desk"
+    } else if (profiles.role === "regional_it_head" || profiles.role === "it_head") {
+      redirectUrl = "/dashboard"
+    }
+
     // Return user data without password
     const { password_hash, ...userData } = profiles
 
     return NextResponse.json({
       success: true,
       user: userData,
+      redirectUrl,
     })
   } catch (error) {
     console.error("[v0] Login error:", error)
