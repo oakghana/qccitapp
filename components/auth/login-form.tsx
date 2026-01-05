@@ -31,6 +31,8 @@ export function LoginForm() {
     setIsLoading(true)
     setError("")
 
+    console.log("[v0] Login attempt for:", formData.username)
+
     try {
       const response = await fetch("/api/auth/login", {
         method: "POST",
@@ -42,31 +44,47 @@ export function LoginForm() {
       })
 
       const data = await response.json()
+      console.log("[v0] Login response:", { success: data.success, role: data.user?.role })
 
       if (!response.ok) {
+        console.log("[v0] Login failed:", data.error)
         setError(data.error || "Invalid credentials. Please try again.")
         return
       }
 
-      if (login(formData.username)) {
-        const role = data.user.role
-        if (role === "admin") {
-          router.push("/dashboard/admin")
-        } else if (role === "it_head" || role === "regional_it_head") {
-          router.push("/dashboard")
-        } else if (role === "it_store_head") {
-          router.push("/dashboard/store-inventory")
-        } else if (role === "it_staff") {
-          router.push("/dashboard/assigned-tasks")
-        } else if (role === "staff") {
-          router.push("/dashboard/service-desk")
-        } else {
-          router.push("/dashboard")
-        }
-      } else {
-        setError("Authentication failed. Please try again.")
+      const userData = {
+        id: data.user.id,
+        username: data.user.username,
+        email: data.user.email || data.user.username,
+        name: data.user.full_name || data.user.username,
+        full_name: data.user.full_name,
+        role: data.user.role,
+        location: data.user.location,
+        department: data.user.department,
+        phone: data.user.phone,
       }
+
+      login(userData)
+      console.log("[v0] User logged in, redirecting to dashboard for role:", userData.role)
+
+      let redirectUrl = "/dashboard"
+      if (userData.role === "admin") {
+        redirectUrl = "/dashboard/admin"
+      } else if (userData.role === "it_head" || userData.role === "regional_it_head") {
+        redirectUrl = "/dashboard"
+      } else if (userData.role === "it_store_head") {
+        redirectUrl = "/dashboard/store-inventory"
+      } else if (userData.role === "it_staff") {
+        redirectUrl = "/dashboard/assigned-tasks"
+      } else if (userData.role === "staff") {
+        redirectUrl = "/dashboard/service-desk"
+      }
+
+      console.log("[v0] Redirecting to:", redirectUrl)
+      // Force full page navigation
+      window.location.href = redirectUrl
     } catch (err) {
+      console.error("[v0] Login error:", err)
       setError("Connection error. Please try again.")
     } finally {
       setIsLoading(false)

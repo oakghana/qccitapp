@@ -6,14 +6,17 @@ interface User {
   id: string
   username: string
   role: "admin" | "regional_it_head" | "it_head" | "it_staff" | "it_store_head" | "staff" | "service_provider"
-  location: "head_office" | "kumasi" | "accra" | "kaase_inland_port" | "cape_coast"
+  location: string
   name: string
   email: string
+  full_name?: string
+  department?: string
+  phone?: string
 }
 
 interface AuthContextType {
   user: User | null
-  login: (username: string, password?: string) => boolean
+  login: (userData: User) => void
   logout: () => void
   canViewAllLocations: () => boolean
   getUserLocation: () => string
@@ -22,76 +25,43 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-const userMapping: Record<string, User> = {
-  "ohemengappiah@qccgh.com": {
-    id: "TEMP-ADM-001",
-    username: "ohemengappiah@qccgh.com",
-    role: "admin",
-    location: "head_office",
-    name: "Ohemeng Appiah",
-    email: "ohemengappiah@qccgh.com",
-  },
-  "servicedesk@qccgh.com": {
-    id: "TEMP-STH-001",
-    username: "servicedesk@qccgh.com",
-    role: "it_store_head",
-    location: "head_office",
-    name: "IT Store Head",
-    email: "servicedesk@qccgh.com",
-  },
-}
-
-const validCredentials: Record<string, string> = {
-  "ohemengappiah@qccgh.com": "ghana",
-  "servicedesk@qccgh.com": "servicedesk123",
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isHydrated, setIsHydrated] = useState(false)
 
   useEffect(() => {
-    // Prevent hydration mismatch by marking as hydrated
     setIsHydrated(true)
 
     // Check for existing session
-    const savedUser = localStorage.getItem("currentUser")
+    const savedUser = localStorage.getItem("qcc_current_user")
     if (savedUser) {
-      setUser(JSON.parse(savedUser))
-    }
-
-    const pendingLogin = localStorage.getItem("pendingLogin")
-    if (pendingLogin && !savedUser) {
-      login(pendingLogin)
-      localStorage.removeItem("pendingLogin")
+      try {
+        setUser(JSON.parse(savedUser))
+      } catch (e) {
+        console.error("[v0] Failed to parse saved user:", e)
+        localStorage.removeItem("qcc_current_user")
+      }
     }
   }, [])
 
-  const login = (username: string, password?: string) => {
-    if (password && validCredentials[username] !== password) {
-      return false
-    }
-
-    const userData = userMapping[username]
-    if (userData) {
-      setUser(userData)
-      localStorage.setItem("currentUser", JSON.stringify(userData))
-      return true
-    }
-    return false
+  const login = (userData: User) => {
+    console.log("[v0] Logging in user:", userData)
+    setUser(userData)
+    localStorage.setItem("qcc_current_user", JSON.stringify(userData))
   }
 
   const logout = () => {
+    console.log("[v0] Logging out user")
     setUser(null)
-    localStorage.removeItem("currentUser")
+    localStorage.removeItem("qcc_current_user")
   }
 
   const canViewAllLocations = () => {
-    return user?.role === "admin" || (user?.location === "head_office" && user?.role === "it_head")
+    return user?.role === "admin" || (user?.location === "Head Office" && user?.role === "it_head")
   }
 
   const getUserLocation = () => {
-    return user?.location || "head_office"
+    return user?.location || "Head Office"
   }
 
   return (
