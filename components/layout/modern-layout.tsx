@@ -5,7 +5,6 @@ import { useState, useEffect } from "react"
 import { ModernSidebar, MobileMenuButton } from "@/components/ui/modern-sidebar"
 import { PWAInstall } from "@/components/ui/pwa-install"
 import { MobileAppDownload } from "@/components/ui/mobile-app-download"
-import { BSCQuickAccess } from "@/components/performance/bsc-quick-access"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -285,9 +284,6 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
           </div>
         </main>
       </div>
-
-      {/* BSC Quick Access - Only visible to IT staff */}
-      <BSCQuickAccess />
     </div>
   )
 }

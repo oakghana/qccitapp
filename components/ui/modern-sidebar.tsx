@@ -30,6 +30,7 @@ import {
   Rss,
   PanelLeftClose,
   PanelLeft,
+  Package,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
@@ -71,18 +72,17 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
   const getNavigationItems = (): NavigationItem[] => {
     const baseItems: NavigationItem[] = [{ name: "Dashboard", href: "/dashboard", icon: Home }]
 
-    // Staff role - service desk access for all staff (no BSC access)
     if (user?.role === "staff") {
       return [
         ...baseItems,
         { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones, badge: "New" },
         { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
+        { name: "Store Requisition", href: "/dashboard/store-requisitions", icon: ClipboardList, badge: "New" },
         { name: "Updates", href: "/dashboard/updates", icon: Rss, badge: "2" },
         { name: "Settings", href: "/dashboard/settings", icon: Settings },
       ]
     }
 
-    // IT Staff role - service desk and repair management + assigned tasks (BSC access via separate component)
     if (user?.role === "it_staff") {
       return [
         ...baseItems,
@@ -90,13 +90,14 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
         { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones, badge: "8" },
         { name: "Repairs", href: "/dashboard/repairs", icon: Wrench, badge: "5" },
         { name: "Devices", href: "/dashboard/devices", icon: Monitor },
+        { name: "Store Inventory", href: "/dashboard/store-inventory", icon: Package },
+        { name: "Store Requisitions", href: "/dashboard/store-requisitions", icon: ClipboardList, badge: "3" },
         { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
         { name: "Updates", href: "/dashboard/updates", icon: Rss, badge: "3" },
         { name: "Settings", href: "/dashboard/settings", icon: Settings },
       ]
     }
 
-    // IT Head role - all modules access with ticket assignment capabilities
     if (user?.role === "it_head") {
       const itHeadNavigation: NavigationItem[] = [
         ...baseItems,
@@ -104,6 +105,8 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
         { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones, badge: "5" },
         { name: "Repairs", href: "/dashboard/repairs", icon: Wrench, badge: "12" },
         { name: "Devices", href: "/dashboard/devices", icon: Monitor },
+        { name: "Store Inventory", href: "/dashboard/store-inventory", icon: Package },
+        { name: "Store Requisitions", href: "/dashboard/store-requisitions", icon: ClipboardList, badge: "5" },
         { name: "IT Service Provider", href: "/dashboard/service-provider", icon: Truck, badge: "2" },
         { name: "IT Reports", href: "/dashboard/it-reports", icon: FileText, badge: "New" },
         { name: "Notifications", href: "/dashboard/notifications", icon: Bell, badge: notifications },
@@ -132,7 +135,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
       return regionalNavigation
     }
 
-    // Admin role - full system access
     if (user?.role === "admin") {
       const fullNavigation: NavigationItem[] = [
         ...baseItems,
@@ -140,6 +142,8 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
         { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones, badge: "5" },
         { name: "Repairs", href: "/dashboard/repairs", icon: Wrench, badge: "12" },
         { name: "Devices", href: "/dashboard/devices", icon: Monitor },
+        { name: "Store Inventory", href: "/dashboard/store-inventory", icon: Package },
+        { name: "Store Requisitions", href: "/dashboard/store-requisitions", icon: ClipboardList, badge: "8" },
         { name: "IT Service Provider", href: "/dashboard/service-provider", icon: Truck, badge: "4" },
         { name: "IT Reports", href: "/dashboard/it-reports", icon: FileText, badge: "New" },
         { name: "Users", href: "/dashboard/users", icon: Users },

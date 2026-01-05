@@ -1,0 +1,257 @@
+"use client"
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Search, Plus, Package, AlertTriangle, TrendingDown, TrendingUp, Download } from "lucide-react"
+import { AddStoreItemForm } from "./add-store-item-form"
+import { StoreReceiptForm } from "./store-receipt-form"
+
+interface StoreItem {
+  id: string
+  itemName: string
+  category: "hardware" | "software" | "accessories" | "consumables" | "peripherals"
+  quantity: number
+  reorderLevel: number
+  unit: string
+  location: string
+  lastUpdated: string
+}
+
+const mockInventory: StoreItem[] = [
+  {
+    id: "ST-2024-001",
+    itemName: "HP Laptop Battery",
+    category: "hardware",
+    quantity: 15,
+    reorderLevel: 10,
+    unit: "pcs",
+    location: "Head Office",
+    lastUpdated: "2024-01-15",
+  },
+  {
+    id: "ST-2024-002",
+    itemName: "HP Printer Toner (Black)",
+    category: "consumables",
+    quantity: 8,
+    reorderLevel: 12,
+    unit: "pcs",
+    location: "Head Office",
+    lastUpdated: "2024-01-20",
+  },
+  {
+    id: "ST-2024-003",
+    itemName: "HDMI Cables",
+    category: "accessories",
+    quantity: 25,
+    reorderLevel: 15,
+    unit: "pcs",
+    location: "Kumasi",
+    lastUpdated: "2024-01-18",
+  },
+]
+
+const categoryIcons = {
+  hardware: Package,
+  software: Package,
+  accessories: Package,
+  consumables: Package,
+  peripherals: Package,
+}
+
+export function StoreInventory() {
+  const [inventory, setInventory] = useState<StoreItem[]>(mockInventory)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState<string>("all")
+  const [addItemOpen, setAddItemOpen] = useState(false)
+  const [receiptOpen, setReceiptOpen] = useState(false)
+
+  const filteredInventory = inventory.filter((item) => {
+    const matchesSearch = item.itemName.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesCategory = categoryFilter === "all" || item.category === categoryFilter
+    return matchesSearch && matchesCategory
+  })
+
+  const lowStockItems = inventory.filter((item) => item.quantity <= item.reorderLevel)
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">IT Store Inventory</h1>
+          <p className="text-muted-foreground">Manage IT items, accessories, and consumables</p>
+        </div>
+        <div className="flex gap-2">
+          <Dialog open={receiptOpen} onOpenChange={setReceiptOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <TrendingUp className="mr-2 h-4 w-4" />
+                Receive Items
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Store Receipt</DialogTitle>
+                <DialogDescription>Record items received into the IT store</DialogDescription>
+              </DialogHeader>
+              <StoreReceiptForm onSubmit={() => setReceiptOpen(false)} />
+            </DialogContent>
+          </Dialog>
+          <Dialog open={addItemOpen} onOpenChange={setAddItemOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add New Item
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Add Store Item</DialogTitle>
+                <DialogDescription>Register a new item in the IT store inventory</DialogDescription>
+              </DialogHeader>
+              <AddStoreItemForm onSubmit={() => setAddItemOpen(false)} />
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      {lowStockItems.length > 0 && (
+        <Card className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2 text-orange-800 dark:text-orange-300">
+              <AlertTriangle className="h-5 w-5" />
+              Low Stock Alert
+            </CardTitle>
+            <CardDescription>{lowStockItems.length} item(s) below reorder level</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {lowStockItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-3 bg-white dark:bg-gray-900 rounded-lg"
+                >
+                  <div>
+                    <p className="font-medium">{item.itemName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Current: {item.quantity} {item.unit} | Reorder at: {item.reorderLevel} {item.unit}
+                    </p>
+                  </div>
+                  <Badge variant="destructive">Low Stock</Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search inventory items..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Filter by category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="hardware">Hardware</SelectItem>
+                <SelectItem value="software">Software</SelectItem>
+                <SelectItem value="accessories">Accessories</SelectItem>
+                <SelectItem value="consumables">Consumables</SelectItem>
+                <SelectItem value="peripherals">Peripherals</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline">
+              <Download className="mr-2 h-4 w-4" />
+              Export
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {filteredInventory.map((item) => {
+          const IconComponent = categoryIcons[item.category]
+          const isLowStock = item.quantity <= item.reorderLevel
+          return (
+            <Card key={item.id} className={isLowStock ? "border-orange-200" : ""}>
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <IconComponent className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">{item.itemName}</CardTitle>
+                      <CardDescription className="text-sm">{item.id}</CardDescription>
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Stock Level</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold">
+                      {item.quantity} {item.unit}
+                    </span>
+                    {isLowStock ? (
+                      <TrendingDown className="h-4 w-4 text-destructive" />
+                    ) : (
+                      <TrendingUp className="h-4 w-4 text-green-600" />
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Reorder Level</span>
+                  <span className="text-sm font-medium">
+                    {item.reorderLevel} {item.unit}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Category</span>
+                  <Badge variant="outline">{item.category}</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Location</span>
+                  <span className="text-sm font-medium">{item.location}</span>
+                </div>
+                {isLowStock && (
+                  <Badge variant="destructive" className="w-full justify-center">
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    Low Stock
+                  </Badge>
+                )}
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
+    </div>
+  )
+}

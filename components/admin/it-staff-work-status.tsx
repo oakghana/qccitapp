@@ -7,24 +7,19 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
-import { 
-  Users, 
-  TrendingUp, 
-  Clock, 
-  CheckCircle, 
-  AlertTriangle,
-  Filter,
+import {
+  Users,
+  TrendingUp,
+  Clock,
+  CheckCircle,
   Search,
   Download,
   BarChart3,
-  UserCheck,
   Activity,
   Target,
   Calendar,
-  Building2
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { cn } from "@/lib/utils"
@@ -77,7 +72,7 @@ export function ITStaffWorkStatus() {
     const mockStaffMembers: ITStaffMember[] = [
       {
         id: "staff-001",
-        name: "Kwame Asante", 
+        name: "Kwame Asante",
         email: "kwame.asante@qcc.com.gh",
         location: "Kumasi Branch",
         joinDate: "2023-03-15",
@@ -92,11 +87,11 @@ export function ITStaffWorkStatus() {
         specializations: ["Hardware Repair", "Network Setup"],
         monthlyStats: [
           { month: "Dec 2023", tasksCompleted: 12, averageRating: 4.8 },
-          { month: "Jan 2024", tasksCompleted: 15, averageRating: 4.9 }
-        ]
+          { month: "Jan 2024", tasksCompleted: 15, averageRating: 4.9 },
+        ],
       },
       {
-        id: "staff-002", 
+        id: "staff-002",
         name: "Ama Osei",
         email: "ama.osei@qcc.com.gh",
         location: "Kumasi Branch",
@@ -112,13 +107,13 @@ export function ITStaffWorkStatus() {
         specializations: ["Software Support", "User Training"],
         monthlyStats: [
           { month: "Dec 2023", tasksCompleted: 18, averageRating: 4.9 },
-          { month: "Jan 2024", tasksCompleted: 20, averageRating: 4.8 }
-        ]
+          { month: "Jan 2024", tasksCompleted: 20, averageRating: 4.8 },
+        ],
       },
       {
         id: "staff-003",
         name: "Kofi Mensah",
-        email: "kofi.mensah@qcc.com.gh", 
+        email: "kofi.mensah@qcc.com.gh",
         location: "Takoradi Branch",
         joinDate: "2023-11-10",
         totalTasksAssigned: 28,
@@ -132,14 +127,14 @@ export function ITStaffWorkStatus() {
         specializations: ["Printer Maintenance", "Basic Repairs"],
         monthlyStats: [
           { month: "Dec 2023", tasksCompleted: 8, averageRating: 4.2 },
-          { month: "Jan 2024", tasksCompleted: 10, averageRating: 4.4 }
-        ]
+          { month: "Jan 2024", tasksCompleted: 10, averageRating: 4.4 },
+        ],
       },
       {
         id: "staff-004",
         name: "Akosua Darko",
         email: "akosua.darko@qcc.com.gh",
-        location: "Accra Branch", 
+        location: "Accra Branch",
         joinDate: "2023-06-05",
         totalTasksAssigned: 67,
         completedTasks: 58,
@@ -152,21 +147,21 @@ export function ITStaffWorkStatus() {
         specializations: ["Advanced Diagnostics", "Server Maintenance"],
         monthlyStats: [
           { month: "Dec 2023", tasksCompleted: 22, averageRating: 4.7 },
-          { month: "Jan 2024", tasksCompleted: 25, averageRating: 4.6 }
-        ]
-      }
+          { month: "Jan 2024", tasksCompleted: 25, averageRating: 4.6 },
+        ],
+      },
     ]
 
     const mockRecentTasks: TaskSummary[] = [
       {
         id: "TSK-001",
         title: "Laptop Screen Repair",
-        type: "repair", 
+        type: "repair",
         priority: "high",
         status: "in_progress",
         assignedTo: "Kwame Asante",
         dueDate: "2024-01-18",
-        progress: 65
+        progress: 65,
       },
       {
         id: "TSK-002",
@@ -174,51 +169,56 @@ export function ITStaffWorkStatus() {
         type: "service_desk",
         priority: "medium",
         status: "completed",
-        assignedTo: "Ama Osei", 
+        assignedTo: "Ama Osei",
         dueDate: "2024-01-16",
-        progress: 100
+        progress: 100,
       },
       {
-        id: "TSK-003", 
+        id: "TSK-003",
         title: "Network Connection Problem",
         type: "service_desk",
         priority: "critical",
         status: "assigned",
         assignedTo: "Akosua Darko",
         dueDate: "2024-01-17",
-        progress: 0
-      }
+        progress: 0,
+      },
     ]
 
     setStaffMembers(mockStaffMembers)
     setRecentTasks(mockRecentTasks)
   }, [])
 
-  const filteredStaff = staffMembers.filter(staff => {
+  const filteredStaff = staffMembers.filter((staff) => {
     let matches = true
-    
+
     if (locationFilter !== "all" && staff.location !== locationFilter) {
       matches = false
     }
-    
+
     if (workloadFilter !== "all" && staff.currentWorkload !== workloadFilter) {
       matches = false
     }
-    
+
     if (searchQuery && !staff.name.toLowerCase().includes(searchQuery.toLowerCase())) {
       matches = false
     }
-    
+
     return matches
   })
 
   const getWorkloadColor = (workload: string) => {
     switch (workload) {
-      case "low": return "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-300"
-      case "medium": return "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-300"
-      case "high": return "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300"
-      case "overloaded": return "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-300"
-      default: return "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300"
+      case "low":
+        return "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-300"
+      case "medium":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-300"
+      case "high":
+        return "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300"
+      case "overloaded":
+        return "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-300"
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300"
     }
   }
 
@@ -235,14 +235,14 @@ export function ITStaffWorkStatus() {
     const completedTasks = staffMembers.reduce((sum, staff) => sum + staff.completedTasks, 0)
     const inProgressTasks = staffMembers.reduce((sum, staff) => sum + staff.inProgressTasks, 0)
     const avgPerformance = staffMembers.reduce((sum, staff) => sum + staff.performanceScore, 0) / totalStaff
-    
+
     return {
       totalStaff,
       totalTasks,
       completedTasks,
       inProgressTasks,
       avgPerformance: Math.round(avgPerformance),
-      completionRate: Math.round((completedTasks / totalTasks) * 100)
+      completionRate: Math.round((completedTasks / totalTasks) * 100),
     }
   }
 
@@ -250,20 +250,20 @@ export function ITStaffWorkStatus() {
 
   return (
     <div className="space-y-6">
-      {/* Header with QCC Branding */}
+      {/* Header Section */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-green-600 to-yellow-600 flex items-center justify-center shadow-lg">
-            <Building2 className="h-6 w-6 text-white" />
+          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-orange-600 to-yellow-600 flex items-center justify-center shadow-lg">
+            <Users className="h-6 w-6 text-white" />
           </div>
           <div>
             <h1 className="text-3xl font-bold text-foreground">IT Staff Work Status</h1>
             <p className="text-muted-foreground">
-              Monitor and manage IT staff performance across all locations • QCC Regional Overview
+              Monitor and manage IT staff work status across all locations • QCC Regional Overview
             </p>
           </div>
         </div>
-        
+
         <div className="flex items-center space-x-3">
           <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
@@ -286,7 +286,7 @@ export function ITStaffWorkStatus() {
             <div className="text-2xl font-bold">{teamStats.totalStaff}</div>
           </CardHeader>
         </Card>
-        
+
         <Card className="border-l-4 border-l-purple-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -296,7 +296,7 @@ export function ITStaffWorkStatus() {
             <div className="text-2xl font-bold">{teamStats.totalTasks}</div>
           </CardHeader>
         </Card>
-        
+
         <Card className="border-l-4 border-l-green-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -307,7 +307,7 @@ export function ITStaffWorkStatus() {
             <p className="text-xs text-muted-foreground">{teamStats.completionRate}% completion rate</p>
           </CardHeader>
         </Card>
-        
+
         <Card className="border-l-4 border-l-orange-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -317,12 +317,12 @@ export function ITStaffWorkStatus() {
             <div className="text-2xl font-bold">{teamStats.inProgressTasks}</div>
           </CardHeader>
         </Card>
-        
+
         <Card className="border-l-4 border-l-indigo-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
-              Avg Performance
+              Avg Productivity
             </CardTitle>
             <div className="text-2xl font-bold">{teamStats.avgPerformance}%</div>
           </CardHeader>
@@ -334,7 +334,9 @@ export function ITStaffWorkStatus() {
         <CardHeader className="pb-4">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
-              <Label htmlFor="search" className="sr-only">Search staff</Label>
+              <Label htmlFor="search" className="sr-only">
+                Search staff
+              </Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
@@ -346,7 +348,7 @@ export function ITStaffWorkStatus() {
                 />
               </div>
             </div>
-            
+
             <div className="flex gap-2">
               <Select value={locationFilter} onValueChange={setLocationFilter}>
                 <SelectTrigger className="w-40">
@@ -359,7 +361,7 @@ export function ITStaffWorkStatus() {
                   <SelectItem value="Takoradi Branch">Takoradi</SelectItem>
                 </SelectContent>
               </Select>
-              
+
               <Select value={workloadFilter} onValueChange={setWorkloadFilter}>
                 <SelectTrigger className="w-32">
                   <SelectValue placeholder="Workload" />
@@ -372,7 +374,7 @@ export function ITStaffWorkStatus() {
                   <SelectItem value="overloaded">Overloaded</SelectItem>
                 </SelectContent>
               </Select>
-              
+
               <Select value={timeRange} onValueChange={setTimeRange}>
                 <SelectTrigger className="w-32">
                   <SelectValue placeholder="Time Range" />
@@ -395,9 +397,7 @@ export function ITStaffWorkStatus() {
             <CardContent className="text-center py-8">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No staff members found</h3>
-              <p className="text-muted-foreground">
-                No staff members match your current filters.
-              </p>
+              <p className="text-muted-foreground">No staff members match your current filters.</p>
             </CardContent>
           </Card>
         ) : (
@@ -408,9 +408,12 @@ export function ITStaffWorkStatus() {
                   <div className="flex items-start justify-between">
                     <div className="flex items-center space-x-4">
                       <Avatar className="h-12 w-12">
-                        <AvatarImage src={staff.avatar} />
+                        <AvatarImage src={staff.avatar || "/placeholder.svg"} />
                         <AvatarFallback className="bg-gradient-to-br from-green-500 to-yellow-500 text-white font-semibold">
-                          {staff.name.split(" ").map(n => n[0]).join("")}
+                          {staff.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
@@ -423,14 +426,14 @@ export function ITStaffWorkStatus() {
                             {staff.currentWorkload} workload
                           </Badge>
                           <span className={cn("text-sm font-semibold", getPerformanceColor(staff.performanceScore))}>
-                            {staff.performanceScore}% performance
+                            {staff.performanceScore}% productivity
                           </span>
                         </div>
                       </div>
                     </div>
                   </div>
                 </CardHeader>
-                
+
                 <CardContent className="space-y-4">
                   {/* Task Statistics */}
                   <div className="grid grid-cols-3 gap-4 text-center">
@@ -447,7 +450,7 @@ export function ITStaffWorkStatus() {
                       <div className="text-xs text-muted-foreground">Pending</div>
                     </div>
                   </div>
-                  
+
                   {/* Performance Progress */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
@@ -456,12 +459,9 @@ export function ITStaffWorkStatus() {
                         {Math.round((staff.completedTasks / staff.totalTasksAssigned) * 100)}%
                       </span>
                     </div>
-                    <Progress 
-                      value={(staff.completedTasks / staff.totalTasksAssigned) * 100} 
-                      className="h-2"
-                    />
+                    <Progress value={(staff.completedTasks / staff.totalTasksAssigned) * 100} className="h-2" />
                   </div>
-                  
+
                   {/* Key Metrics */}
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div className="space-y-1">
@@ -476,12 +476,10 @@ export function ITStaffWorkStatus() {
                         <Calendar className="h-3 w-3" />
                         Last Activity
                       </div>
-                      <div className="font-medium">
-                        {new Date(staff.lastActivity).toLocaleDateString()}
-                      </div>
+                      <div className="font-medium">{new Date(staff.lastActivity).toLocaleDateString()}</div>
                     </div>
                   </div>
-                  
+
                   {/* Specializations */}
                   <div className="space-y-2">
                     <div className="text-sm text-muted-foreground">Specializations</div>
@@ -498,7 +496,7 @@ export function ITStaffWorkStatus() {
             ))}
           </div>
         )}
-        
+
         {/* Recent Task Activity */}
         <Card>
           <CardHeader>
@@ -511,19 +509,25 @@ export function ITStaffWorkStatus() {
           <CardContent>
             <div className="space-y-4">
               {recentTasks.map((task) => (
-                <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                <div
+                  key={task.id}
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                >
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-medium">{task.title}</span>
                       <Badge variant="outline" className="text-xs">
                         {task.type.replace("_", " ")}
                       </Badge>
-                      <Badge 
+                      <Badge
                         className={
-                          task.priority === "critical" ? "bg-red-100 text-red-800" :
-                          task.priority === "high" ? "bg-orange-100 text-orange-800" :
-                          task.priority === "medium" ? "bg-yellow-100 text-yellow-800" :
-                          "bg-blue-100 text-blue-800"
+                          task.priority === "critical"
+                            ? "bg-red-100 text-red-800"
+                            : task.priority === "high"
+                              ? "bg-orange-100 text-orange-800"
+                              : task.priority === "medium"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-blue-100 text-blue-800"
                         }
                       >
                         {task.priority}
@@ -538,12 +542,15 @@ export function ITStaffWorkStatus() {
                       <div className="text-sm font-medium">{task.progress}%</div>
                       <Progress value={task.progress} className="w-20 h-1" />
                     </div>
-                    <Badge 
+                    <Badge
                       className={
-                        task.status === "completed" ? "bg-green-100 text-green-800" :
-                        task.status === "in_progress" ? "bg-blue-100 text-blue-800" :
-                        task.status === "assigned" ? "bg-purple-100 text-purple-800" :
-                        "bg-yellow-100 text-yellow-800"
+                        task.status === "completed"
+                          ? "bg-green-100 text-green-800"
+                          : task.status === "in_progress"
+                            ? "bg-blue-100 text-blue-800"
+                            : task.status === "assigned"
+                              ? "bg-purple-100 text-purple-800"
+                              : "bg-yellow-100 text-yellow-800"
                       }
                     >
                       {task.status.replace("_", " ")}
