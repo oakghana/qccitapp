@@ -2,14 +2,12 @@
 
 import type React from "react"
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Shield, Lock, Mail, ArrowRight } from "lucide-react"
-import { useAuth } from "@/lib/auth-context"
 
 interface LoginFormData {
   username: string
@@ -17,8 +15,6 @@ interface LoginFormData {
 }
 
 export function LoginForm() {
-  const router = useRouter()
-  const { login } = useAuth()
   const [formData, setFormData] = useState<LoginFormData>({
     username: "",
     password: "",
@@ -61,11 +57,10 @@ export function LoginForm() {
         phone: data.user.phone,
       }
 
+      // Save to localStorage
       localStorage.setItem("qcc_current_user", JSON.stringify(userData))
-      login(userData)
 
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
+      // Determine redirect URL based on role
       let redirectUrl = "/dashboard"
       if (userData.role === "admin") {
         redirectUrl = "/dashboard/admin"
@@ -77,6 +72,7 @@ export function LoginForm() {
         redirectUrl = "/dashboard/service-desk"
       }
 
+      // Immediate redirect using window.location
       window.location.href = redirectUrl
     } catch (err) {
       console.error("Login error:", err)
@@ -92,18 +88,6 @@ export function LoginForm() {
 
   return (
     <div className="space-y-6">
-      {/* <div className="text-center space-y-3 lg:hidden">
-        <div className="flex justify-center">
-          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-xl">
-            <Shield className="h-10 w-10 text-slate-900" />
-          </div>
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">QCC IT Tracker</h1>
-          <p className="text-sm text-muted-foreground">Ghana Community Network Services</p>
-        </div>
-      </div> */}
-
       <Card className="w-full border shadow-lg">
         <CardHeader className="space-y-4 pb-6">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-yellow-400 to-amber-500 shadow-xl">

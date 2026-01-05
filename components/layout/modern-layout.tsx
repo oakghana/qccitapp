@@ -77,13 +77,13 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
 
   const recentNotifications = notifications.slice(0, 5)
 
-  if (!isMounted || !isHydrated) {
+  if (!isMounted) {
     return (
       <div className="flex min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 dark:from-orange-950 dark:via-amber-950 dark:to-yellow-950">
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-orange-600 dark:text-orange-400" />
-            <div className="text-orange-600 dark:text-orange-400">Loading your dashboard...</div>
+            <div className="text-orange-600 dark:text-orange-400">Loading...</div>
           </div>
         </div>
       </div>
@@ -92,9 +92,7 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
 
   if (!user) {
     if (typeof window !== "undefined") {
-      setTimeout(() => {
-        window.location.href = "/"
-      }, 100)
+      window.location.href = "/"
     }
     return (
       <div className="flex min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 dark:from-orange-950 dark:via-amber-950 dark:to-yellow-950">
