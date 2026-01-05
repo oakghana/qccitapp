@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
+import { createClient } from "@/lib/supabase/client"
 import {
   Users,
   TrendingUp,
@@ -61,133 +62,61 @@ interface TaskSummary {
 export function ITStaffWorkStatus() {
   const { user } = useAuth()
   const [staffMembers, setStaffMembers] = useState<ITStaffMember[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedMember, setSelectedMember] = useState<ITStaffMember | null>(null)
   const [recentTasks, setRecentTasks] = useState<TaskSummary[]>([])
   const [selectedStaff, setSelectedStaff] = useState<string>("all")
   const [locationFilter, setLocationFilter] = useState<string>("all")
   const [workloadFilter, setWorkloadFilter] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [timeRange, setTimeRange] = useState("30") // days
+  const supabase = createClient()
 
   useEffect(() => {
-    const mockStaffMembers: ITStaffMember[] = [
-      {
-        id: "staff-001",
-        name: "Kwame Asante",
-        email: "kwame.asante@qcc.com.gh",
-        location: "Kumasi Branch",
-        joinDate: "2023-03-15",
-        totalTasksAssigned: 45,
-        completedTasks: 38,
-        inProgressTasks: 5,
-        pendingTasks: 2,
-        averageCompletionTime: 6.5,
-        performanceScore: 92,
-        currentWorkload: "medium",
-        lastActivity: "2024-01-15T14:30:00Z",
-        specializations: ["Hardware Repair", "Network Setup"],
-        monthlyStats: [
-          { month: "Dec 2023", tasksCompleted: 12, averageRating: 4.8 },
-          { month: "Jan 2024", tasksCompleted: 15, averageRating: 4.9 },
-        ],
-      },
-      {
-        id: "staff-002",
-        name: "Ama Osei",
-        email: "ama.osei@qcc.com.gh",
-        location: "Kumasi Branch",
-        joinDate: "2023-08-20",
-        totalTasksAssigned: 52,
-        completedTasks: 46,
-        inProgressTasks: 4,
-        pendingTasks: 2,
-        averageCompletionTime: 4.2,
-        performanceScore: 95,
-        currentWorkload: "high",
-        lastActivity: "2024-01-15T16:45:00Z",
-        specializations: ["Software Support", "User Training"],
-        monthlyStats: [
-          { month: "Dec 2023", tasksCompleted: 18, averageRating: 4.9 },
-          { month: "Jan 2024", tasksCompleted: 20, averageRating: 4.8 },
-        ],
-      },
-      {
-        id: "staff-003",
-        name: "Kofi Mensah",
-        email: "kofi.mensah@qcc.com.gh",
-        location: "Takoradi Branch",
-        joinDate: "2023-11-10",
-        totalTasksAssigned: 28,
-        completedTasks: 22,
-        inProgressTasks: 4,
-        pendingTasks: 2,
-        averageCompletionTime: 8.1,
-        performanceScore: 78,
-        currentWorkload: "medium",
-        lastActivity: "2024-01-15T11:20:00Z",
-        specializations: ["Printer Maintenance", "Basic Repairs"],
-        monthlyStats: [
-          { month: "Dec 2023", tasksCompleted: 8, averageRating: 4.2 },
-          { month: "Jan 2024", tasksCompleted: 10, averageRating: 4.4 },
-        ],
-      },
-      {
-        id: "staff-004",
-        name: "Akosua Darko",
-        email: "akosua.darko@qcc.com.gh",
-        location: "Accra Branch",
-        joinDate: "2023-06-05",
-        totalTasksAssigned: 67,
-        completedTasks: 58,
-        inProgressTasks: 7,
-        pendingTasks: 2,
-        averageCompletionTime: 5.8,
-        performanceScore: 88,
-        currentWorkload: "overloaded",
-        lastActivity: "2024-01-15T17:10:00Z",
-        specializations: ["Advanced Diagnostics", "Server Maintenance"],
-        monthlyStats: [
-          { month: "Dec 2023", tasksCompleted: 22, averageRating: 4.7 },
-          { month: "Jan 2024", tasksCompleted: 25, averageRating: 4.6 },
-        ],
-      },
-    ]
-
-    const mockRecentTasks: TaskSummary[] = [
-      {
-        id: "TSK-001",
-        title: "Laptop Screen Repair",
-        type: "repair",
-        priority: "high",
-        status: "in_progress",
-        assignedTo: "Kwame Asante",
-        dueDate: "2024-01-18",
-        progress: 65,
-      },
-      {
-        id: "TSK-002",
-        title: "Email Setup Issue",
-        type: "service_desk",
-        priority: "medium",
-        status: "completed",
-        assignedTo: "Ama Osei",
-        dueDate: "2024-01-16",
-        progress: 100,
-      },
-      {
-        id: "TSK-003",
-        title: "Network Connection Problem",
-        type: "service_desk",
-        priority: "critical",
-        status: "assigned",
-        assignedTo: "Akosua Darko",
-        dueDate: "2024-01-17",
-        progress: 0,
-      },
-    ]
-
-    setStaffMembers(mockStaffMembers)
-    setRecentTasks(mockRecentTasks)
+    loadStaffMembers()
   }, [])
+
+  const loadStaffMembers = async () => {
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("role", "it_staff")
+        .eq("status", "approved")
+
+      if (error) {
+        console.error("Error loading IT staff:", error)
+        setStaffMembers([])
+        return
+      }
+
+      const mappedStaff: ITStaffMember[] = (data || []).map((profile) => ({
+        id: profile.id,
+        name: profile.full_name,
+        email: profile.email,
+        location: profile.location,
+        joinDate: profile.created_at,
+        totalTasksAssigned: 0,
+        completedTasks: 0,
+        inProgressTasks: 0,
+        pendingTasks: 0,
+        averageCompletionTime: 0,
+        performanceScore: 0,
+        currentWorkload: "low",
+        lastActivity: profile.updated_at,
+        specializations: [],
+        monthlyStats: [],
+      }))
+
+      setStaffMembers(mappedStaff)
+    } catch (error) {
+      console.error("Error loading IT staff:", error)
+      setStaffMembers([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filteredStaff = staffMembers.filter((staff) => {
     let matches = true
@@ -392,18 +321,25 @@ export function ITStaffWorkStatus() {
 
       {/* Staff Status Grid */}
       <div className="grid gap-6">
-        {filteredStaff.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-8">
+        {loading ? (
+          <Card className="col-span-full">
+            <CardContent className="py-12 text-center text-muted-foreground">Loading staff members...</CardContent>
+          </Card>
+        ) : staffMembers.length === 0 ? (
+          <Card className="col-span-full">
+            <CardContent className="py-12 text-center">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No staff members found</h3>
-              <p className="text-muted-foreground">No staff members match your current filters.</p>
+              <p className="text-muted-foreground">No IT staff members found</p>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredStaff.map((staff) => (
-              <Card key={staff.id} className="hover:shadow-md transition-shadow">
+              <Card
+                key={staff.id}
+                className="hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => setSelectedMember(staff)}
+              >
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center space-x-4">

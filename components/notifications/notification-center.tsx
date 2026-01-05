@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { NotificationTemplates } from "./notification-templates"
 import { SendNotificationForm } from "./send-notification-form"
+import { createClient } from "@/lib/supabase/client" // Fixed import path to use correct Supabase client location
 import {
   Mail,
   MessageSquare,
@@ -44,58 +45,6 @@ interface Notification {
   attachments?: string[]
 }
 
-const mockNotifications: Notification[] = [
-  {
-    id: "NOT-2024-001",
-    type: "email",
-    recipient: "techfix@ghana.com",
-    recipientType: "service_provider",
-    subject: "Device Pickup Required - HP LaserJet Pro (RR-2024-002)",
-    message: "Please arrange pickup of HP LaserJet Pro for repair. 2-week deadline applies.",
-    status: "delivered",
-    sentDate: "2024-03-01T10:30:00Z",
-    relatedRequest: "RR-2024-002",
-    priority: "high",
-    attachments: ["repair-form-002.pdf", "device-specs.pdf"],
-  },
-  {
-    id: "NOT-2024-002",
-    type: "sms",
-    recipient: "+233241234567",
-    recipientType: "user",
-    subject: "Device Repair Completed",
-    message: "Your Lenovo ThinkCentre repair is complete. Please collect from IT Head in Kumasi.",
-    status: "delivered",
-    sentDate: "2024-03-02T14:15:00Z",
-    relatedRequest: "RR-2024-003",
-    priority: "medium",
-  },
-  {
-    id: "NOT-2024-003",
-    type: "email",
-    recipient: "kwame.asante@company.com",
-    recipientType: "user",
-    subject: "Repair Request Update - Dell Latitude 5520",
-    message: "Your repair request has been approved and device is being transferred to head office.",
-    status: "read",
-    sentDate: "2024-03-01T16:45:00Z",
-    relatedRequest: "RR-2024-001",
-    priority: "medium",
-  },
-  {
-    id: "NOT-2024-004",
-    type: "email",
-    recipient: "it.head.kumasi@company.com",
-    recipientType: "it_head",
-    subject: "Device Ready for Collection - Lenovo ThinkCentre",
-    message: "Repaired device is ready for collection. Please coordinate with Ama Osei.",
-    status: "sent",
-    sentDate: "2024-03-02T09:20:00Z",
-    relatedRequest: "RR-2024-003",
-    priority: "medium",
-  },
-]
-
 const statusColors = {
   sent: "secondary",
   delivered: "default",
@@ -121,10 +70,36 @@ const recipientTypeIcons = {
 }
 
 export function NotificationCenter() {
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications)
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [sendNotificationOpen, setSendNotificationOpen] = useState(false)
   const [templatesOpen, setTemplatesOpen] = useState(false)
+  const supabase = createClient()
+
+  useEffect(() => {
+    loadNotifications()
+  }, [])
+
+  const loadNotifications = async () => {
+    try {
+      setLoading(true)
+      const { data, error } = await supabase.from("notifications").select("*").order("created_at", { ascending: false })
+
+      if (error) {
+        console.error("Error loading notifications:", error)
+        setNotifications([])
+        return
+      }
+
+      setNotifications(data || [])
+    } catch (error) {
+      console.error("Error loading notifications:", error)
+      setNotifications([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filteredNotifications = notifications.filter(
     (notification) =>
@@ -267,21 +242,29 @@ export function NotificationCenter() {
           <TabsTrigger value="providers">Service Providers ({serviceProviderNotifications.length})</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="all" className="space-y-4">
-          <NotificationList notifications={filteredNotifications} />
-        </TabsContent>
+        {loading ? (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">Loading notifications...</CardContent>
+          </Card>
+        ) : (
+          <>
+            <TabsContent value="all" className="space-y-4">
+              <NotificationList notifications={filteredNotifications} />
+            </TabsContent>
 
-        <TabsContent value="email" className="space-y-4">
-          <NotificationList notifications={emailNotifications} />
-        </TabsContent>
+            <TabsContent value="email" className="space-y-4">
+              <NotificationList notifications={emailNotifications} />
+            </TabsContent>
 
-        <TabsContent value="sms" className="space-y-4">
-          <NotificationList notifications={smsNotifications} />
-        </TabsContent>
+            <TabsContent value="sms" className="space-y-4">
+              <NotificationList notifications={smsNotifications} />
+            </TabsContent>
 
-        <TabsContent value="providers" className="space-y-4">
-          <NotificationList notifications={serviceProviderNotifications} />
-        </TabsContent>
+            <TabsContent value="providers" className="space-y-4">
+              <NotificationList notifications={serviceProviderNotifications} />
+            </TabsContent>
+          </>
+        )}
       </Tabs>
     </div>
   )

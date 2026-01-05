@@ -124,67 +124,7 @@ export function DashboardOverview() {
   }
 
   const getRecentActivity = () => {
-    if (user?.role === "it_staff") {
-      return [
-        {
-          id: 1,
-          type: "repair_assigned",
-          device: "Dell Laptop #DL-2024-001",
-          user: "Head Office IT",
-          region: "Accra",
-          status: "assigned",
-          time: "2 hours ago",
-        },
-        {
-          id: 2,
-          type: "repair_completed",
-          device: "HP Printer #HP-2024-045",
-          user: "IT Staff",
-          region: "Ready for Return",
-          status: "completed",
-          time: "4 hours ago",
-        },
-        {
-          id: 3,
-          type: "repair_in_progress",
-          device: "Lenovo Desktop #LD-2024-012",
-          user: "IT Staff",
-          region: "In Progress",
-          status: "in_progress",
-          time: "1 day ago",
-        },
-      ]
-    }
-
-    return [
-      {
-        id: 1,
-        type: "repair_request",
-        device: "Dell Laptop #DL-2024-001",
-        user: "Kwame Asante",
-        region: "Accra",
-        status: "pending",
-        time: "2 hours ago",
-      },
-      {
-        id: 2,
-        type: "device_transfer",
-        device: "HP Printer #HP-2024-045",
-        user: "Ama Osei",
-        region: "Kumasi → Head Office",
-        status: "completed",
-        time: "4 hours ago",
-      },
-      {
-        id: 3,
-        type: "repair_completed",
-        device: "Lenovo Desktop #LD-2024-012",
-        user: "Kofi Mensah",
-        region: "Tamale",
-        status: "completed",
-        time: "6 hours ago",
-      },
-    ]
+    return []
   }
 
   const stats = getStats()
@@ -193,9 +133,7 @@ export function DashboardOverview() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">
-          Dashboard
-        </h1>
+        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
         <p className="text-muted-foreground">
           {user?.role === "it_staff"
             ? "Manage your assigned repair tasks and track progress"
@@ -232,39 +170,48 @@ export function DashboardOverview() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {recentActivity.map((activity) => (
-                <div key={activity.id} className="flex items-center space-x-4">
-                  <div className="flex-shrink-0">
-                    {(activity.type === "repair_request" || activity.type === "repair_assigned") && (
-                      <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
-                        <Wrench className="h-4 w-4 text-orange-600" />
-                      </div>
-                    )}
-                    {(activity.type === "device_transfer" || activity.type === "repair_in_progress") && (
-                      <div className="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center">
-                        <Monitor className="h-4 w-4 text-amber-600" />
-                      </div>
-                    )}
-                    {activity.type === "repair_completed" && (
-                      <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
-                        <CheckCircle className="h-4 w-4 text-orange-600" />
-                      </div>
-                    )}
+            {recentActivity.length === 0 ? (
+              <div className="py-12 text-center">
+                <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No recent activity</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {recentActivity.map((activity) => (
+                  <div key={activity.id} className="flex items-center space-x-4">
+                    <div className="flex-shrink-0">
+                      {(activity.type === "repair_request" || activity.type === "repair_assigned") && (
+                        <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
+                          <Wrench className="h-4 w-4 text-orange-600" />
+                        </div>
+                      )}
+                      {(activity.type === "device_transfer" || activity.type === "repair_in_progress") && (
+                        <div className="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center">
+                          <Monitor className="h-4 w-4 text-amber-600" />
+                        </div>
+                      )}
+                      {activity.type === "repair_completed" && (
+                        <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
+                          <CheckCircle className="h-4 w-4 text-orange-600" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground">{activity.device}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {activity.user} • {activity.region}
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant={activity.status === "completed" ? "default" : "secondary"}>
+                        {activity.status}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">{activity.time}</span>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">{activity.device}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {activity.user} • {activity.region}
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge variant={activity.status === "completed" ? "default" : "secondary"}>{activity.status}</Badge>
-                    <span className="text-xs text-muted-foreground">{activity.time}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -274,7 +221,7 @@ export function DashboardOverview() {
             <CardDescription>Common tasks and shortcuts</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {(user?.role === "it_staff" || user?.role === "it_head" || user?.role === "regional_it_head") ? (
+            {user?.role === "it_staff" || user?.role === "it_head" || user?.role === "regional_it_head" ? (
               <>
                 <Button
                   variant="outline"
@@ -326,20 +273,24 @@ export function DashboardOverview() {
             ) : (
               <>
                 {/* IT roles quick actions */}
-                {(user?.role === "it_staff" || user?.role === "it_head" || user?.role === "regional_it_head" || user?.role === "admin") && (
+                {(user?.role === "it_staff" ||
+                  user?.role === "it_head" ||
+                  user?.role === "regional_it_head" ||
+                  user?.role === "admin") && (
                   <>
                     <Button
                       variant="outline"
                       className={cn(
                         "w-full justify-start bg-transparent transition-colors",
-                        roleColors ? `hover:${roleColors.background} hover:${roleColors.border}` : "hover:bg-green-50 hover:border-green-200"
+                        roleColors
+                          ? `hover:${roleColors.background} hover:${roleColors.border}`
+                          : "hover:bg-green-50 hover:border-green-200",
                       )}
                       onClick={handleNewRepairRequest}
                     >
-                      <Wrench className={cn(
-                        "h-5 w-5 mr-3",
-                        roleColors ? roleColors.textSecondary : "text-green-600"
-                      )} />
+                      <Wrench
+                        className={cn("h-5 w-5 mr-3", roleColors ? roleColors.textSecondary : "text-green-600")}
+                      />
                       <span className="text-sm font-medium">New Repair Request</span>
                     </Button>
 
@@ -347,23 +298,24 @@ export function DashboardOverview() {
                       variant="outline"
                       className={cn(
                         "w-full justify-start bg-transparent transition-colors",
-                        roleColors ? `hover:${roleColors.background} hover:${roleColors.border}` : "hover:bg-green-50 hover:border-green-200"
+                        roleColors
+                          ? `hover:${roleColors.background} hover:${roleColors.border}`
+                          : "hover:bg-green-50 hover:border-green-200",
                       )}
                       onClick={handleAddNewDevice}
                     >
-                      <Monitor className={cn(
-                        "h-5 w-5 mr-3",
-                        roleColors ? roleColors.textSecondary : "text-green-600"
-                      )} />
+                      <Monitor
+                        className={cn("h-5 w-5 mr-3", roleColors ? roleColors.textSecondary : "text-green-600")}
+                      />
                       <span className="text-sm font-medium">Add New Device</span>
                     </Button>
                   </>
                 )}
 
                 {(user?.role === "admin" || user?.role === "it_head" || user?.role === "regional_it_head") && (
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start bg-transparent hover:bg-green-50 hover:border-green-200 transition-colors" 
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start bg-transparent hover:bg-green-50 hover:border-green-200 transition-colors"
                     onClick={handleManageUsers}
                   >
                     <Users className="h-5 w-5 mr-3 text-green-600" />
