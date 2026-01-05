@@ -1,7 +1,40 @@
+"use client"
+
 import { LoginForm } from "@/components/auth/login-form"
 import Image from "next/image"
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 
 export default function HomePage() {
+  const router = useRouter()
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem("qcc_current_user")
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser)
+        console.log("[v0] User already logged in, redirecting from login page")
+
+        let redirectUrl = "/dashboard"
+        if (user.role === "admin") {
+          redirectUrl = "/dashboard/admin"
+        } else if (user.role === "it_head" || user.role === "regional_it_head") {
+          redirectUrl = "/dashboard"
+        } else if (user.role === "it_store_head") {
+          redirectUrl = "/dashboard/store-inventory"
+        } else if (user.role === "it_staff") {
+          redirectUrl = "/dashboard/assigned-tasks"
+        } else if (user.role === "staff") {
+          redirectUrl = "/dashboard/service-desk"
+        }
+
+        window.location.href = redirectUrl
+      } catch (e) {
+        console.error("[v0] Failed to parse saved user on login page:", e)
+      }
+    }
+  }, [router])
+
   return (
     <div className="min-h-screen bg-background flex">
       {/* Left Panel - Branding */}

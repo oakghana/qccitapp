@@ -49,6 +49,7 @@ export function LoginForm() {
       if (!response.ok) {
         console.log("[v0] Login failed:", data.error)
         setError(data.error || "Invalid credentials. Please try again.")
+        setIsLoading(false)
         return
       }
 
@@ -64,8 +65,9 @@ export function LoginForm() {
         phone: data.user.phone,
       }
 
+      console.log("[v0] Logging in user with role:", userData.role)
+
       login(userData)
-      console.log("[v0] User logged in, redirecting to dashboard for role:", userData.role)
 
       let redirectUrl = "/dashboard"
       if (userData.role === "admin") {
@@ -81,12 +83,14 @@ export function LoginForm() {
       }
 
       console.log("[v0] Redirecting to:", redirectUrl)
-      // Force full page navigation
-      window.location.href = redirectUrl
+
+      setTimeout(() => {
+        console.log("[v0] Executing redirect now...")
+        window.location.href = redirectUrl
+      }, 100)
     } catch (err) {
       console.error("[v0] Login error:", err)
       setError("Connection error. Please try again.")
-    } finally {
       setIsLoading(false)
     }
   }
