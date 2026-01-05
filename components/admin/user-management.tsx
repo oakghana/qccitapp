@@ -1,6 +1,7 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import type React from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,7 +16,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Plus, MoreHorizontal, User, MapPin, Mail, Phone, Smartphone, Download } from "lucide-react"
+import { Search, Plus, MoreHorizontal, User, MapPin, Mail, Phone, Smartphone, Download, KeyRound } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { FormNavigation } from "@/components/ui/form-navigation"
 import { usePWAInstall } from "@/components/ui/pwa-install"
@@ -101,7 +102,7 @@ const mockUsers: SystemUser[] = [
 const roleBadgeColors = {
   admin: "destructive",
   regional_it_head: "default",
-  it_head: "default", 
+  it_head: "default",
   it_staff: "secondary",
   staff: "outline",
 } as const
@@ -130,6 +131,8 @@ export function UserManagement() {
   const [addUserOpen, setAddUserOpen] = useState(false)
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const roleColors = user?.role ? getRoleColorScheme(user.role) : null
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false)
+  const [selectedUserForReset, setSelectedUserForReset] = useState<SystemUser | null>(null)
 
   // PWA Install functionality
   useEffect(() => {
@@ -138,10 +141,10 @@ export function UserManagement() {
       setDeferredPrompt(e)
     }
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-    
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
+
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
     }
   }, [])
 
@@ -149,11 +152,11 @@ export function UserManagement() {
     if (deferredPrompt) {
       deferredPrompt.prompt()
       const { outcome } = await deferredPrompt.userChoice
-      
-      if (outcome === 'accepted') {
-        console.log('User accepted the install prompt')
+
+      if (outcome === "accepted") {
+        console.log("User accepted the install prompt")
       }
-      
+
       setDeferredPrompt(null)
     }
   }
@@ -162,7 +165,10 @@ export function UserManagement() {
     let filteredByAccess = users
 
     // Regional IT Head and IT Head (non-head office) can only see users from their location
-    if ((user?.role === "regional_it_head" || (user?.role === "it_head" && user?.location !== "head_office")) && user?.location) {
+    if (
+      (user?.role === "regional_it_head" || (user?.role === "it_head" && user?.location !== "head_office")) &&
+      user?.location
+    ) {
       filteredByAccess = users.filter((u) => u.location === user.location)
     }
 
@@ -225,41 +231,63 @@ export function UserManagement() {
     }
   }
 
+  const handleResetPassword = (user: SystemUser) => {
+    setSelectedUserForReset(user)
+    setResetPasswordOpen(true)
+  }
+
   return (
     <div className="space-y-6">
       <FormNavigation currentPage="/dashboard/users" />
 
       {/* PWA Install Badge */}
       {!isInstalled && isInstallable && deferredPrompt && (
-        <Card className={cn(
-          "border-primary/20",
-          roleColors ? `${roleColors.background}` : "bg-gradient-to-br from-orange-50 to-amber-50 dark:bg-gradient-to-br dark:from-orange-950 dark:to-amber-950"
-        )}>
+        <Card
+          className={cn(
+            "border-primary/20",
+            roleColors
+              ? `${roleColors.background}`
+              : "bg-gradient-to-br from-orange-50 to-amber-50 dark:bg-gradient-to-br dark:from-orange-950 dark:to-amber-950",
+          )}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className={cn(
-                  "p-2 rounded-lg",
-                  roleColors ? `${roleColors.background}` : "bg-orange-100 dark:bg-orange-800"
-                )}>
-                  <Smartphone className={cn(
-                    "h-5 w-5",
-                    roleColors ? roleColors.textSecondary : "text-orange-600 dark:text-orange-400"
-                  )} />
+                <div
+                  className={cn(
+                    "p-2 rounded-lg",
+                    roleColors ? `${roleColors.background}` : "bg-orange-100 dark:bg-orange-800",
+                  )}
+                >
+                  <Smartphone
+                    className={cn(
+                      "h-5 w-5",
+                      roleColors ? roleColors.textSecondary : "text-orange-600 dark:text-orange-400",
+                    )}
+                  />
                 </div>
                 <div>
-                  <h3 className={cn(
-                    "font-semibold",
-                    roleColors ? roleColors.textPrimary : "text-orange-900 dark:text-orange-100"
-                  )}>Install Mobile App</h3>
-                  <p className={cn(
-                    "text-sm",
-                    roleColors ? roleColors.textSecondary : "text-orange-700 dark:text-orange-300"
-                  )}>
+                  <h3
+                    className={cn(
+                      "font-semibold",
+                      roleColors ? roleColors.textPrimary : "text-orange-900 dark:text-orange-100",
+                    )}
+                  >
+                    Install Mobile App
+                  </h3>
+                  <p
+                    className={cn(
+                      "text-sm",
+                      roleColors ? roleColors.textSecondary : "text-orange-700 dark:text-orange-300",
+                    )}
+                  >
                     Install QCC IT Tracker as a mobile app for quick access and offline functionality
                   </p>
                 </div>
-                <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100 text-xs">
+                <Badge
+                  variant="secondary"
+                  className="bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100 text-xs"
+                >
                   PWA
                 </Badge>
               </div>
@@ -268,7 +296,9 @@ export function UserManagement() {
                 size="sm"
                 className={cn(
                   "text-white",
-                  roleColors ? `bg-gradient-to-r ${roleColors.gradient} ${roleColors.hoverGradient}` : "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
+                  roleColors
+                    ? `bg-gradient-to-r ${roleColors.gradient} ${roleColors.hoverGradient}`
+                    : "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600",
                 )}
               >
                 <Download className="mr-2 h-4 w-4" />
@@ -288,27 +318,29 @@ export function UserManagement() {
               : "Manage system users and access permissions"}
           </p>
         </div>
-        
+
         <div className="flex gap-2">
           {user?.role === "admin" && (
-            <Button 
-              variant="outline" 
-              onClick={() => window.location.href = "/dashboard/user-accounts"}
+            <Button
+              variant="outline"
+              onClick={() => (window.location.href = "/dashboard/user-accounts")}
               className="hover:bg-blue-50 hover:border-blue-300"
             >
               <User className="mr-2 h-4 w-4" />
               Account Requests
-              <Badge variant="secondary" className="ml-2 bg-yellow-100 text-yellow-800">3</Badge>
+              <Badge variant="secondary" className="ml-2 bg-yellow-100 text-yellow-800">
+                3
+              </Badge>
             </Button>
           )}
-          
+
           <Dialog open={addUserOpen} onOpenChange={setAddUserOpen}>
             <DialogTrigger asChild>
               <Button className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white">
                 <Plus className="mr-2 h-4 w-4" />
                 Add User
               </Button>
-              </DialogTrigger>
+            </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Add New User</DialogTitle>
@@ -407,8 +439,15 @@ export function UserManagement() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => handleResetPassword(user)}
+                        className="hover:bg-blue-50 hover:text-blue-700 cursor-pointer"
+                      >
+                        <KeyRound className="mr-2 h-4 w-4" />
+                        Reset Password
+                      </DropdownMenuItem>
                       {user.status !== "active" && (
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => handleUserAction(user.id, "activate")}
                           className="hover:bg-green-50 hover:text-green-700 cursor-pointer"
                         >
@@ -416,14 +455,14 @@ export function UserManagement() {
                         </DropdownMenuItem>
                       )}
                       {user.status === "active" && (
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => handleUserAction(user.id, "deactivate")}
                           className="hover:bg-yellow-50 hover:text-yellow-700 cursor-pointer"
                         >
                           Deactivate User
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
                         onClick={() => handleUserAction(user.id, "suspend")}
                         className="hover:bg-orange-50 hover:text-orange-700 cursor-pointer"
                       >
@@ -473,6 +512,24 @@ export function UserManagement() {
           </Card>
         ))}
       </div>
+
+      <Dialog open={resetPasswordOpen} onOpenChange={setResetPasswordOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset User Password</DialogTitle>
+            <DialogDescription>Set a new password for {selectedUserForReset?.name}</DialogDescription>
+          </DialogHeader>
+          {selectedUserForReset && (
+            <ResetPasswordForm
+              user={selectedUserForReset}
+              onClose={() => {
+                setResetPasswordOpen(false)
+                setSelectedUserForReset(null)
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {filteredUsers.length === 0 && (
         <Card>
@@ -584,17 +641,140 @@ function AddUserForm({ onClose, onUserAdded }: { onClose: () => void; onUserAdde
           </div>
         </div>
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose} className="hover:bg-gray-50">
+          <Button type="button" variant="outline" onClick={onClose} className="hover:bg-gray-50 bg-transparent">
             Cancel
           </Button>
-          <Button type="submit" className={cn(
-            "text-white",
-            roleColors ? `bg-gradient-to-r ${roleColors.gradient} ${roleColors.hoverGradient}` : "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
-          )}>
+          <Button
+            type="submit"
+            className={cn(
+              "text-white",
+              roleColors
+                ? `bg-gradient-to-r ${roleColors.gradient} ${roleColors.hoverGradient}`
+                : "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600",
+            )}
+          >
             Create User
           </Button>
         </div>
       </form>
     </div>
+  )
+}
+
+function ResetPasswordForm({ user, onClose }: { user: SystemUser; onClose: () => void }) {
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+
+    if (newPassword.length < 6) {
+      setError("Password must be at least 6 characters long")
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match")
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const response = await fetch("/api/admin/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          username: user.email,
+          newPassword: newPassword,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to reset password")
+      }
+
+      setSuccess(true)
+      setTimeout(() => {
+        onClose()
+      }, 2000)
+    } catch (err) {
+      setError("Failed to reset password. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  if (success) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 space-y-4">
+        <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
+          <KeyRound className="h-8 w-8 text-green-600" />
+        </div>
+        <div className="text-center">
+          <h3 className="font-semibold text-lg">Password Reset Successful</h3>
+          <p className="text-sm text-muted-foreground">Password has been updated for {user.name}</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="p-4 bg-muted rounded-lg">
+        <div className="flex items-center space-x-3">
+          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+            <User className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <p className="font-medium">{user.name}</p>
+            <p className="text-sm text-muted-foreground">{user.email}</p>
+          </div>
+        </div>
+      </div>
+
+      {error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">{error}</div>}
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium">New Password</label>
+        <Input
+          type="password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          placeholder="Enter new password"
+          required
+          minLength={6}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Confirm Password</label>
+        <Input
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          placeholder="Confirm new password"
+          required
+          minLength={6}
+        />
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          disabled={isLoading}
+          className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
+        >
+          {isLoading ? "Resetting..." : "Reset Password"}
+        </Button>
+      </div>
+    </form>
   )
 }
