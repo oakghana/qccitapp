@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, Shield, Lock, Mail, ArrowRight, Info } from "lucide-react"
+import { Loader2, Shield, Lock, Mail, ArrowRight } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 
 interface LoginFormData {
@@ -25,7 +25,6 @@ export function LoginForm() {
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const [showDefaultAccounts, setShowDefaultAccounts] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -63,10 +62,9 @@ export function LoginForm() {
       }
 
       localStorage.setItem("qcc_current_user", JSON.stringify(userData))
-
       login(userData)
 
-      await new Promise((resolve) => setTimeout(resolve, 400))
+      await new Promise((resolve) => setTimeout(resolve, 500))
 
       let redirectUrl = "/dashboard"
       if (userData.role === "admin") {
@@ -92,14 +90,9 @@ export function LoginForm() {
     setError("")
   }
 
-  const quickLogin = (username: string, password: string) => {
-    setFormData({ username, password })
-    setShowDefaultAccounts(false)
-  }
-
   return (
     <div className="space-y-6">
-      <div className="text-center space-y-3 lg:hidden">
+      {/* <div className="text-center space-y-3 lg:hidden">
         <div className="flex justify-center">
           <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-xl">
             <Shield className="h-10 w-10 text-slate-900" />
@@ -109,7 +102,7 @@ export function LoginForm() {
           <h1 className="text-2xl font-bold text-foreground">QCC IT Tracker</h1>
           <p className="text-sm text-muted-foreground">Ghana Community Network Services</p>
         </div>
-      </div>
+      </div> */}
 
       <Card className="w-full border shadow-lg">
         <CardHeader className="space-y-4 pb-6">
@@ -127,58 +120,6 @@ export function LoginForm() {
               <AlertDescription className="font-medium">{error}</AlertDescription>
             </Alert>
           )}
-
-          <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-            <Info className="h-4 w-4 text-blue-600" />
-            <AlertDescription className="text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-blue-800 dark:text-blue-200">Default accounts available for testing</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowDefaultAccounts(!showDefaultAccounts)}
-                  className="text-blue-600 hover:text-blue-700 h-auto p-1"
-                >
-                  {showDefaultAccounts ? "Hide" : "Show"}
-                </Button>
-              </div>
-              {showDefaultAccounts && (
-                <div className="mt-3 space-y-2 text-blue-700 dark:text-blue-300">
-                  <div className="flex items-center justify-between p-2 bg-white dark:bg-blue-900 rounded">
-                    <div className="text-xs">
-                      <div className="font-semibold">Admin Account</div>
-                      <div>ohemengappiah@qccgh.com / ghana</div>
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => quickLogin("ohemengappiah@qccgh.com", "ghana")}
-                      className="text-xs h-7"
-                    >
-                      Use
-                    </Button>
-                  </div>
-                  <div className="flex items-center justify-between p-2 bg-white dark:bg-blue-900 rounded">
-                    <div className="text-xs">
-                      <div className="font-semibold">Store Manager</div>
-                      <div>storemanager@qccgh.com / store123</div>
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => quickLogin("storemanager@qccgh.com", "store123")}
-                      className="text-xs h-7"
-                    >
-                      Use
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </AlertDescription>
-          </Alert>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
@@ -244,19 +185,6 @@ export function LoginForm() {
               </p>
             </div>
           </form>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-muted/50">
-        <CardContent className="pt-6">
-          <div className="text-sm text-muted-foreground space-y-2">
-            <p className="font-semibold text-foreground">Account Information:</p>
-            <ul className="list-disc list-inside space-y-1 ml-2">
-              <li>Admins have full system access and manage all users</li>
-              <li>Store managers control IT inventory and requisitions</li>
-              <li>Staff members need admin approval after registration</li>
-            </ul>
-          </div>
         </CardContent>
       </Card>
     </div>
