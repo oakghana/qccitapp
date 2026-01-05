@@ -90,8 +90,22 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
         { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones, badge: "8" },
         { name: "Repairs", href: "/dashboard/repairs", icon: Wrench, badge: "5" },
         { name: "Devices", href: "/dashboard/devices", icon: Monitor },
+        { name: "Store Stock Levels", href: "/dashboard/store-snapshot", icon: Package, badge: "View" },
+        { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
+        { name: "Updates", href: "/dashboard/updates", icon: Rss, badge: "3" },
+        { name: "Settings", href: "/dashboard/settings", icon: Settings },
+      ]
+    }
+
+    if (user?.role === "it_store_head") {
+      return [
+        ...baseItems,
+        { name: "Assigned Tasks", href: "/dashboard/assigned-tasks", icon: ClipboardList, badge: "6" },
+        { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones, badge: "8" },
+        { name: "Repairs", href: "/dashboard/repairs", icon: Wrench, badge: "5" },
+        { name: "Devices", href: "/dashboard/devices", icon: Monitor },
         { name: "Store Inventory", href: "/dashboard/store-inventory", icon: Package },
-        { name: "Store Requisitions", href: "/dashboard/store-requisitions", icon: ClipboardList, badge: "3" },
+        { name: "Store Requisitions", href: "/dashboard/store-requisitions", icon: ClipboardList, badge: "8" },
         { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
         { name: "Updates", href: "/dashboard/updates", icon: Rss, badge: "3" },
         { name: "Settings", href: "/dashboard/settings", icon: Settings },

@@ -78,6 +78,21 @@ export interface ServiceProvider {
   createdAt: Date
 }
 
+export interface StoreItem {
+  id: string
+  name: string
+  category: string
+  sku: string
+  quantity: number
+  reorderLevel: number
+  unit: string
+  location: string
+  supplier?: string
+  lastRestocked?: Date
+  createdAt: Date
+  updatedAt: Date
+}
+
 // In-memory data stores
 class DataStore {
   private users: User[] = [
@@ -191,6 +206,78 @@ class DataStore {
     },
   ]
 
+  private storeInventory: StoreItem[] = [
+    {
+      id: "1",
+      name: "HP Laptop Battery",
+      category: "Laptop Parts",
+      sku: "BAT-HP-001",
+      quantity: 15,
+      reorderLevel: 5,
+      unit: "pieces",
+      location: "head_office",
+      supplier: "Tech Supplies Ltd",
+      lastRestocked: new Date("2024-01-10"),
+      createdAt: new Date("2024-01-01"),
+      updatedAt: new Date("2024-01-10"),
+    },
+    {
+      id: "2",
+      name: "Dell Keyboard",
+      category: "Peripherals",
+      sku: "KEY-DEL-001",
+      quantity: 8,
+      reorderLevel: 10,
+      unit: "pieces",
+      location: "head_office",
+      supplier: "Office Mart",
+      lastRestocked: new Date("2024-01-05"),
+      createdAt: new Date("2024-01-01"),
+      updatedAt: new Date("2024-01-05"),
+    },
+    {
+      id: "3",
+      name: "HDMI Cable",
+      category: "Cables",
+      sku: "CAB-HDM-001",
+      quantity: 25,
+      reorderLevel: 10,
+      unit: "pieces",
+      location: "kumasi",
+      supplier: "Tech Supplies Ltd",
+      lastRestocked: new Date("2024-01-15"),
+      createdAt: new Date("2024-01-01"),
+      updatedAt: new Date("2024-01-15"),
+    },
+    {
+      id: "4",
+      name: "Mouse (Wireless)",
+      category: "Peripherals",
+      sku: "MOU-WIR-001",
+      quantity: 0,
+      reorderLevel: 8,
+      unit: "pieces",
+      location: "accra",
+      supplier: "Office Mart",
+      createdAt: new Date("2024-01-01"),
+      updatedAt: new Date("2024-01-20"),
+    },
+    {
+      id: "5",
+      name: "RAM 8GB DDR4",
+      category: "Computer Parts",
+      sku: "RAM-8GB-001",
+      quantity: 12,
+      reorderLevel: 5,
+      unit: "pieces",
+      location: "head_office",
+      supplier: "Tech Supplies Ltd",
+      lastRestocked: new Date("2024-01-12"),
+      createdAt: new Date("2024-01-01"),
+      updatedAt: new Date("2024-01-12"),
+    },
+  ]
+
   // CRUD Operations for Users
   getUsers(): User[] {
     return [...this.users]
@@ -299,7 +386,7 @@ class DataStore {
   }
   updateServiceTicket(id: string, updates: Partial<ServiceTicket>): ServiceTicket | null {
     const index = this.serviceTickets.findIndex((t) => t.id === id)
-    if (index === -1) return false
+    if (index === -1) return null
     this.serviceTickets[index] = { ...this.serviceTickets[index], ...updates, updatedAt: new Date() }
     return this.serviceTickets[index]
   }
@@ -359,6 +446,40 @@ class DataStore {
     return true
   }
 
+  // CRUD Operations for Store Inventory
+  getStoreInventory(): StoreItem[] {
+    return [...this.storeInventory]
+  }
+
+  getStoreItemById(id: string): StoreItem | undefined {
+    return this.storeInventory.find((item) => item.id === id)
+  }
+
+  createStoreItem(item: Omit<StoreItem, "id" | "createdAt" | "updatedAt">): StoreItem {
+    const newItem: StoreItem = {
+      ...item,
+      id: Date.now().toString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+    this.storeInventory.push(newItem)
+    return newItem
+  }
+
+  updateStoreItem(id: string, updates: Partial<StoreItem>): StoreItem | null {
+    const index = this.storeInventory.findIndex((item) => item.id === id)
+    if (index === -1) return null
+    this.storeInventory[index] = { ...this.storeInventory[index], ...updates, updatedAt: new Date() }
+    return this.storeInventory[index]
+  }
+
+  deleteStoreItem(id: string): boolean {
+    const index = this.storeInventory.findIndex((item) => item.id === id)
+    if (index === -1) return false
+    this.storeInventory.splice(index, 1)
+    return true
+  }
+
   // Utility methods
   getStats() {
     return {
@@ -375,3 +496,24 @@ class DataStore {
 
 // Global data store instance
 export const dataStore = new DataStore()
+
+// Convenience export functions for store inventory
+export function getStoreInventory(): StoreItem[] {
+  return dataStore.getStoreInventory()
+}
+
+export function getStoreItemById(id: string): StoreItem | undefined {
+  return dataStore.getStoreItemById(id)
+}
+
+export function createStoreItem(item: Omit<StoreItem, "id" | "createdAt" | "updatedAt">): StoreItem {
+  return dataStore.createStoreItem(item)
+}
+
+export function updateStoreItem(id: string, updates: Partial<StoreItem>): StoreItem | null {
+  return dataStore.updateStoreItem(id, updates)
+}
+
+export function deleteStoreItem(id: string): boolean {
+  return dataStore.deleteStoreItem(id)
+}

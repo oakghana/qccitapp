@@ -233,7 +233,7 @@
 }
 
 @theme inline {
-  /* Update font variable names to match the new Inter and JetBrains Mono setup */
+  /* optional: --font-sans, --font-serif, --font-mono if they are applied in the layout.tsx */
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
   --color-background: var(--background);

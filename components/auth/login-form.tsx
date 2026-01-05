@@ -168,6 +168,18 @@ export function LoginForm() {
                   </>
                 )}
               </Button>
+
+              <div className="text-center pt-4 border-t border-green-200 dark:border-green-800">
+                <p className="text-sm text-muted-foreground">
+                  Don't have an account?{" "}
+                  <a
+                    href="/register"
+                    className="font-semibold text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:underline"
+                  >
+                    Create Account
+                  </a>
+                </p>
+              </div>
             </form>
           ) : (
             <form onSubmit={handleOtpSubmit} className="space-y-5">

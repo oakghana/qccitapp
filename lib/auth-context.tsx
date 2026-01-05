@@ -5,7 +5,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from "
 interface User {
   id: string
   username: string
-  role: "admin" | "regional_it_head" | "it_head" | "it_staff" | "staff" | "service_provider"
+  role: "admin" | "regional_it_head" | "it_head" | "it_staff" | "it_store_head" | "staff" | "service_provider"
   location: "head_office" | "kumasi" | "accra" | "kaase_inland_port" | "cape_coast"
   name: string
   email: string
@@ -32,11 +32,11 @@ const userMapping: Record<string, User> = {
     email: "ohemengappiah@qccgh.com",
   },
   "servicedesk@qccgh.com": {
-    id: "TEMP-SD-001",
+    id: "TEMP-STH-001",
     username: "servicedesk@qccgh.com",
-    role: "it_head",
+    role: "it_store_head",
     location: "head_office",
-    name: "Service Desk Manager",
+    name: "IT Store Head",
     email: "servicedesk@qccgh.com",
   },
 }
