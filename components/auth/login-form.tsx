@@ -1,89 +1,27 @@
 "use client"
 
-import type React from "react"
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Shield, Lock, Mail, ArrowRight } from "lucide-react"
-
-interface LoginFormData {
-  username: string
-  password: string
-}
+import { loginAction } from "@/app/actions/auth"
 
 export function LoginForm() {
-  const [formData, setFormData] = useState<LoginFormData>({
-    username: "",
-    password: "",
-  })
-  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [isPending, startTransition] = useTransition()
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+  async function handleSubmit(formData: FormData) {
     setError("")
 
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: formData.username,
-          password: formData.password,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        setError(data.error || "Invalid credentials. Please try again.")
-        setIsLoading(false)
-        return
+    startTransition(async () => {
+      const result = await loginAction(formData)
+      if (result?.error) {
+        setError(result.error)
       }
-
-      const userData = {
-        id: data.user.id,
-        username: data.user.username,
-        email: data.user.email || data.user.username,
-        name: data.user.full_name || data.user.username,
-        full_name: data.user.full_name,
-        role: data.user.role,
-        location: data.user.location,
-        department: data.user.department,
-        phone: data.user.phone,
-      }
-
-      // Save to localStorage
-      localStorage.setItem("qcc_current_user", JSON.stringify(userData))
-
-      // Determine redirect URL based on role
-      let redirectUrl = "/dashboard"
-      if (userData.role === "admin") {
-        redirectUrl = "/dashboard/admin"
-      } else if (userData.role === "it_store_head") {
-        redirectUrl = "/dashboard/store-inventory"
-      } else if (userData.role === "it_staff") {
-        redirectUrl = "/dashboard/assigned-tasks"
-      } else if (userData.role === "staff") {
-        redirectUrl = "/dashboard/service-desk"
-      }
-
-      // Immediate redirect using window.location
-      window.location.href = redirectUrl
-    } catch (err) {
-      console.error("Login error:", err)
-      setError("Connection error. Please try again.")
-      setIsLoading(false)
-    }
-  }
-
-  const handleInputChange = (field: keyof LoginFormData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-    setError("")
+    })
   }
 
   return (
@@ -105,7 +43,7 @@ export function LoginForm() {
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form action={handleSubmit} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="username" className="text-sm font-semibold">
                 Email Address
@@ -114,12 +52,12 @@ export function LoginForm() {
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                   id="username"
+                  name="username"
                   type="email"
                   placeholder="your.email@qccgh.com"
-                  value={formData.username}
-                  onChange={(e) => handleInputChange("username", e.target.value)}
                   className="pl-11 h-12 text-base"
                   required
+                  disabled={isPending}
                 />
               </div>
             </div>
@@ -132,12 +70,12 @@ export function LoginForm() {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                   id="password"
+                  name="password"
                   type="password"
                   placeholder="Enter your password"
-                  value={formData.password}
-                  onChange={(e) => handleInputChange("password", e.target.value)}
                   className="pl-11 h-12 text-base"
                   required
+                  disabled={isPending}
                 />
               </div>
             </div>
@@ -145,9 +83,9 @@ export function LoginForm() {
             <Button
               type="submit"
               className="w-full h-12 text-base font-semibold bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-600 hover:from-yellow-600 hover:via-amber-600 hover:to-yellow-700 shadow-lg text-slate-900"
-              disabled={isLoading}
+              disabled={isPending}
             >
-              {isLoading ? (
+              {isPending ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   Signing in...

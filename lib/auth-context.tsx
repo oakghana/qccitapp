@@ -16,49 +16,36 @@ interface User {
 
 interface AuthContextType {
   user: User | null
-  login: (userData: User) => void
   logout: () => void
   canViewAllLocations: () => boolean
   getUserLocation: () => string
-  isHydrated: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [isHydrated, setIsHydrated] = useState(false)
 
   useEffect(() => {
-    console.log("[v0] AuthContext: Initializing and reading localStorage")
-    // Check for existing session
     const savedUser = localStorage.getItem("qcc_current_user")
-    console.log("[v0] AuthContext: Found savedUser:", savedUser ? "yes" : "no")
     if (savedUser) {
       try {
-        const parsedUser = JSON.parse(savedUser)
-        console.log("[v0] AuthContext: Parsed user role:", parsedUser.role)
-        setUser(parsedUser)
+        setUser(JSON.parse(savedUser))
       } catch (e) {
-        console.error("[v0] Failed to parse saved user:", e)
         localStorage.removeItem("qcc_current_user")
       }
     }
-    setIsHydrated(true)
-    console.log("[v0] AuthContext: Hydration complete")
   }, [])
 
-  const login = (userData: User) => {
-    console.log("[v0] AuthContext: Logging in user:", userData.username, "role:", userData.role)
-    setUser(userData)
-    localStorage.setItem("qcc_current_user", JSON.stringify(userData))
-    console.log("[v0] AuthContext: User saved to localStorage")
-  }
-
-  const logout = () => {
-    console.log("[v0] Logging out user")
+  const logout = async () => {
     setUser(null)
     localStorage.removeItem("qcc_current_user")
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+    } catch (e) {
+      console.error("Logout error:", e)
+    }
+    window.location.href = "/"
   }
 
   const canViewAllLocations = () => {
@@ -70,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, canViewAllLocations, getUserLocation, isHydrated }}>
+    <AuthContext.Provider value={{ user, logout, canViewAllLocations, getUserLocation }}>
       {children}
     </AuthContext.Provider>
   )

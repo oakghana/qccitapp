@@ -1,5 +1,3 @@
-"use client"
-
 import { LoginForm } from "@/components/auth/login-form"
 import Image from "next/image"
 
@@ -12,23 +10,18 @@ export default function HomePage() {
         <div className="absolute inset-0 opacity-30">
           <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
             <defs>
-              {/* Circuit board pattern */}
               <pattern id="circuit" width="100" height="100" patternUnits="userSpaceOnUse">
-                {/* Horizontal lines */}
                 <line x1="0" y1="20" x2="100" y2="20" stroke="rgb(234, 179, 8)" strokeWidth="1.5" opacity="0.6" />
                 <line x1="0" y1="50" x2="100" y2="50" stroke="rgb(234, 179, 8)" strokeWidth="1.5" opacity="0.6" />
                 <line x1="0" y1="80" x2="100" y2="80" stroke="rgb(234, 179, 8)" strokeWidth="1.5" opacity="0.6" />
-                {/* Vertical lines */}
                 <line x1="30" y1="0" x2="30" y2="100" stroke="rgb(251, 191, 36)" strokeWidth="1.5" opacity="0.6" />
                 <line x1="70" y1="0" x2="70" y2="100" stroke="rgb(251, 191, 36)" strokeWidth="1.5" opacity="0.6" />
-                {/* Connection nodes */}
                 <circle cx="30" cy="20" r="3" fill="rgb(234, 179, 8)" opacity="0.8" />
                 <circle cx="70" cy="20" r="3" fill="rgb(251, 191, 36)" opacity="0.8" />
                 <circle cx="30" cy="50" r="3" fill="rgb(251, 191, 36)" opacity="0.8" />
                 <circle cx="70" cy="50" r="3" fill="rgb(234, 179, 8)" opacity="0.8" />
                 <circle cx="30" cy="80" r="3" fill="rgb(234, 179, 8)" opacity="0.8" />
                 <circle cx="70" cy="80" r="3" fill="rgb(251, 191, 36)" opacity="0.8" />
-                {/* Tool icons */}
                 <path d="M 10 10 L 15 5 L 20 10 L 15 15 Z" fill="rgb(234, 179, 8)" opacity="0.5" />
                 <rect x="85" y="85" width="10" height="10" fill="rgb(251, 191, 36)" opacity="0.5" />
               </pattern>
@@ -69,7 +62,7 @@ export default function HomePage() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M9 12l2 2 4-4m6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
               </div>

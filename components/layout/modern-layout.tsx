@@ -33,36 +33,29 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
   const [isOnline, setIsOnline] = useState(true)
   const [isMounted, setIsMounted] = useState(false)
   const [showMobileDownload, setShowMobileDownload] = useState(false)
-  const { user, logout, isHydrated } = useAuth()
+  const { user, logout } = useAuth()
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
   const { setupConnectivityListeners, preloadCriticalData, isOnline: checkOnline } = useOfflineCache()
 
   useEffect(() => {
     setIsMounted(true)
-  }, [])
 
-  useEffect(() => {
-    // Initialize online status
     setIsOnline(checkOnline())
 
-    // Check if we should show mobile app download notification
     const shouldShowMobileDownload = localStorage.getItem("showMobileAppDownload") === "true"
     if (shouldShowMobileDownload) {
       setShowMobileDownload(true)
-      // Clear the flag so it only shows once after login
       localStorage.removeItem("showMobileAppDownload")
     }
 
-    // Setup connectivity listeners
     const cleanup = setupConnectivityListeners(
       () => {
         setIsOnline(true)
-        preloadCriticalData() // Preload data when connection is restored
+        preloadCriticalData()
       },
       () => setIsOnline(false),
     )
 
-    // Preload critical data on mount if online
     if (checkOnline()) {
       preloadCriticalData()
     }
@@ -72,7 +65,6 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
 
   const handleLogout = () => {
     logout()
-    window.location.href = "/"
   }
 
   const recentNotifications = notifications.slice(0, 5)
@@ -145,7 +137,6 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
             </div>
           </div>
 
-          {/* Right side */}
           <div className="flex flex-1 items-center justify-end gap-4">
             {/* Search */}
             <Button
