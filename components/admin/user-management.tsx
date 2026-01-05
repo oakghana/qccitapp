@@ -22,6 +22,7 @@ import { FormNavigation } from "@/components/ui/form-navigation"
 import { usePWAInstall } from "@/components/ui/pwa-install"
 import { getRoleColorScheme } from "@/lib/role-colors"
 import { cn } from "@/lib/utils"
+import { createClient } from "@/supabase/supabase-client"
 
 interface SystemUser {
   id: string
@@ -35,69 +36,6 @@ interface SystemUser {
   createdDate: string
   deviceCount: number
 }
-
-const mockUsers: SystemUser[] = [
-  {
-    id: "USR-001",
-    name: "John Doe",
-    email: "john.doe@qcc.com.gh",
-    phone: "+233241234567",
-    role: "admin",
-    location: "head_office",
-    status: "active",
-    lastLogin: "2024-03-02T10:30:00Z",
-    createdDate: "2024-01-15",
-    deviceCount: 2,
-  },
-  {
-    id: "USR-002",
-    name: "Kwame Asante",
-    email: "kwame.asante@qcc.com.gh",
-    phone: "+233241234568",
-    role: "staff",
-    location: "accra",
-    status: "active",
-    lastLogin: "2024-03-01T14:20:00Z",
-    createdDate: "2024-01-20",
-    deviceCount: 1,
-  },
-  {
-    id: "USR-003",
-    name: "Ama Osei",
-    email: "ama.osei@qcc.com.gh",
-    phone: "+233241234569",
-    role: "regional_it_head",
-    location: "kumasi",
-    status: "active",
-    lastLogin: "2024-03-02T09:15:00Z",
-    createdDate: "2024-01-18",
-    deviceCount: 3,
-  },
-  {
-    id: "USR-004",
-    name: "Kofi Mensah",
-    email: "kofi.mensah@qcc.com.gh",
-    phone: "+233241234570",
-    role: "it_staff",
-    location: "kaase_inland_port",
-    status: "active",
-    lastLogin: "2024-02-28T16:45:00Z",
-    createdDate: "2024-02-01",
-    deviceCount: 1,
-  },
-  {
-    id: "USR-005",
-    name: "Akosua Frimpong",
-    email: "akosua.frimpong@qcc.com.gh",
-    phone: "+233241234571",
-    role: "it_head",
-    location: "head_office",
-    status: "active",
-    lastLogin: "2024-03-02T08:45:00Z",
-    createdDate: "2024-01-10",
-    deviceCount: 2,
-  },
-]
 
 const roleBadgeColors = {
   admin: "destructive",
@@ -124,7 +62,7 @@ const locationNames = {
 export function UserManagement() {
   const { user } = useAuth()
   const { isInstalled, isInstallable } = usePWAInstall()
-  const [users, setUsers] = useState<SystemUser[]>(mockUsers)
+  const [users, setUsers] = useState<SystemUser[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [roleFilter, setRoleFilter] = useState<string>("all")
   const [locationFilter, setLocationFilter] = useState<string>("all")
@@ -133,38 +71,67 @@ export function UserManagement() {
   const roleColors = user?.role ? getRoleColorScheme(user.role) : null
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false)
   const [selectedUserForReset, setSelectedUserForReset] = useState<SystemUser | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  // PWA Install functionality
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault()
-      setDeferredPrompt(e)
-    }
-
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
-    }
-  }, [])
-
-  const handleInstallPWA = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt()
-      const { outcome } = await deferredPrompt.userChoice
-
-      if (outcome === "accepted") {
-        console.log("User accepted the install prompt")
+  const handleInstallPWA = () => {
+    deferredPrompt.prompt()
+    deferredPrompt.userChoice.then((choiceResult) => {
+      if (choiceResult.outcome === "accepted") {
+        console.log("User accepted the A2HS prompt")
+      } else {
+        console.log("User dismissed the A2HS prompt")
       }
-
       setDeferredPrompt(null)
-    }
+    })
   }
+
+  useEffect(() => {
+    async function loadUsers() {
+      try {
+        setLoading(true)
+        console.log("[v0] Loading users from Supabase...")
+
+        const supabase = createClient()
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("status", "approved")
+          .order("created_at", { ascending: false })
+
+        if (error) {
+          console.error("[v0] Error loading users:", error)
+          return
+        }
+
+        console.log("[v0] Loaded users from Supabase:", data)
+
+        const mappedUsers: SystemUser[] = data.map((profile: any) => ({
+          id: profile.id,
+          name: profile.full_name || profile.username,
+          email: profile.email || profile.username,
+          phone: profile.phone || "",
+          role: profile.role,
+          location: profile.location?.toLowerCase().replace(/ /g, "_") || "head_office",
+          status: profile.status === "approved" ? "active" : "inactive",
+          lastLogin: profile.updated_at,
+          createdDate: new Date(profile.created_at).toISOString().split("T")[0],
+          deviceCount: 0,
+        }))
+
+        setUsers(mappedUsers)
+      } catch (error) {
+        console.error("[v0] Error loading users:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadUsers()
+  }, [])
 
   const getFilteredUsers = () => {
     let filteredByAccess = users
 
-    // Regional IT Head and IT Head (non-head office) can only see users from their location
     if (
       (user?.role === "regional_it_head" || (user?.role === "it_head" && user?.location !== "head_office")) &&
       user?.location
@@ -240,7 +207,6 @@ export function UserManagement() {
     <div className="space-y-6">
       <FormNavigation currentPage="/dashboard/users" />
 
-      {/* PWA Install Badge */}
       {!isInstalled && isInstallable && deferredPrompt && (
         <Card
           className={cn(
@@ -358,7 +324,6 @@ export function UserManagement() {
         </div>
       </div>
 
-      {/* Filters */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Filters</CardTitle>
@@ -405,113 +370,120 @@ export function UserManagement() {
         </CardContent>
       </Card>
 
-      {/* User List */}
-      <div className="grid gap-4">
-        {filteredUsers.map((user) => (
-          <Card key={user.id} className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex items-start space-x-4">
-                  <div className="p-3 bg-primary/10 rounded-lg">
-                    <User className="h-6 w-6 text-primary" />
+      {loading ? (
+        <div className="flex justify-center items-center">
+          <p>Loading users...</p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {filteredUsers.map((user) => (
+            <Card key={user.id} className="hover:shadow-md transition-shadow">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start space-x-4">
+                    <div className="p-3 bg-primary/10 rounded-lg">
+                      <User className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">{user.name}</CardTitle>
+                      <CardDescription className="flex items-center gap-2 mt-1">
+                        <span>{user.id}</span>
+                        <span>•</span>
+                        <Mail className="h-3 w-3" />
+                        <span>{user.email}</span>
+                      </CardDescription>
+                    </div>
                   </div>
-                  <div>
-                    <CardTitle className="text-lg">{user.name}</CardTitle>
-                    <CardDescription className="flex items-center gap-2 mt-1">
-                      <span>{user.id}</span>
-                      <span>•</span>
-                      <Mail className="h-3 w-3" />
-                      <span>{user.email}</span>
-                    </CardDescription>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Badge variant={roleBadgeColors[user.role]}>
-                    {user.role.replace("_", " ").charAt(0).toUpperCase() + user.role.replace("_", " ").slice(1)}
-                  </Badge>
-                  <Badge variant={statusColors[user.status]}>
-                    {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
-                  </Badge>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => handleResetPassword(user)}
-                        className="hover:bg-blue-50 hover:text-blue-700 cursor-pointer"
-                      >
-                        <KeyRound className="mr-2 h-4 w-4" />
-                        Reset Password
-                      </DropdownMenuItem>
-                      {user.status !== "active" && (
+                  <div className="flex items-center space-x-2">
+                    <Badge variant={roleBadgeColors[user.role]}>
+                      {user.role.replace("_", " ").charAt(0).toUpperCase() + user.role.replace("_", " ").slice(1)}
+                    </Badge>
+                    <Badge variant={statusColors[user.status]}>
+                      {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
+                    </Badge>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                          onClick={() => handleUserAction(user.id, "activate")}
-                          className="hover:bg-green-50 hover:text-green-700 cursor-pointer"
+                          onClick={() => handleResetPassword(user)}
+                          className="hover:bg-blue-50 hover:text-blue-700 cursor-pointer"
                         >
-                          Activate User
+                          <KeyRound className="mr-2 h-4 w-4" />
+                          Reset Password
                         </DropdownMenuItem>
-                      )}
-                      {user.status === "active" && (
+                        {user.status !== "active" && (
+                          <DropdownMenuItem
+                            onClick={() => handleUserAction(user.id, "activate")}
+                            className="hover:bg-green-50 hover:text-green-700 cursor-pointer"
+                          >
+                            Activate User
+                          </DropdownMenuItem>
+                        )}
+                        {user.status === "active" && (
+                          <DropdownMenuItem
+                            onClick={() => handleUserAction(user.id, "deactivate")}
+                            className="hover:bg-yellow-50 hover:text-yellow-700 cursor-pointer"
+                          >
+                            Deactivate User
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem
-                          onClick={() => handleUserAction(user.id, "deactivate")}
-                          className="hover:bg-yellow-50 hover:text-yellow-700 cursor-pointer"
+                          onClick={() => handleUserAction(user.id, "suspend")}
+                          className="hover:bg-orange-50 hover:text-orange-700 cursor-pointer"
                         >
-                          Deactivate User
+                          Suspend User
                         </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem
-                        onClick={() => handleUserAction(user.id, "suspend")}
-                        className="hover:bg-orange-50 hover:text-orange-700 cursor-pointer"
-                      >
-                        Suspend User
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          if (confirm(`Are you sure you want to delete ${user.name}? This action cannot be undone.`)) {
-                            handleUserAction(user.id, "delete")
-                          }
-                        }}
-                        className="text-destructive hover:bg-red-50 hover:text-red-700 cursor-pointer"
-                      >
-                        Delete User
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div className="flex items-center space-x-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-muted-foreground">Location</p>
-                    <p className="font-medium">{locationNames[user.location]}</p>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            if (
+                              confirm(`Are you sure you want to delete ${user.name}? This action cannot be undone.`)
+                            ) {
+                              handleUserAction(user.id, "delete")
+                            }
+                          }}
+                          className="text-destructive hover:bg-red-50 hover:text-red-700 cursor-pointer"
+                        >
+                          Delete User
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="flex items-center space-x-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-muted-foreground">Location</p>
+                      <p className="font-medium">{locationNames[user.location]}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-muted-foreground">Phone</p>
+                      <p className="font-medium">{user.phone}</p>
+                    </div>
+                  </div>
                   <div>
-                    <p className="text-muted-foreground">Phone</p>
-                    <p className="font-medium">{user.phone}</p>
+                    <p className="text-muted-foreground">Devices</p>
+                    <p className="font-medium">{user.deviceCount} assigned</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Last Login</p>
+                    <p className="font-medium">{new Date(user.lastLogin).toLocaleDateString()}</p>
                   </div>
                 </div>
-                <div>
-                  <p className="text-muted-foreground">Devices</p>
-                  <p className="font-medium">{user.deviceCount} assigned</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Last Login</p>
-                  <p className="font-medium">{new Date(user.lastLogin).toLocaleDateString()}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <Dialog open={resetPasswordOpen} onOpenChange={setResetPasswordOpen}>
         <DialogContent>
