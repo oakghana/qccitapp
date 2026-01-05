@@ -11,8 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Trash2 } from "lucide-react"
 
 export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
+  const [requisitionNumber, setRequisitionNumber] = useState("")
+
   const [formData, setFormData] = useState({
     requestedBy: "",
+    beneficiary: "",
     department: "",
     purpose: "",
     items: [{ itemName: "", quantity: "", unit: "pcs" }],
@@ -45,6 +48,17 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="requisitionNumber">Requisition Number *</Label>
+        <Input
+          id="requisitionNumber"
+          value={requisitionNumber}
+          onChange={(e) => setRequisitionNumber(e.target.value)}
+          placeholder="e.g., REQ-2025-001"
+          required
+        />
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="requestedBy">Requested By *</Label>
@@ -57,6 +71,19 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
           />
         </div>
 
+        <div className="space-y-2">
+          <Label htmlFor="beneficiary">Beneficiary/User *</Label>
+          <Input
+            id="beneficiary"
+            value={formData.beneficiary}
+            onChange={(e) => setFormData({ ...formData, beneficiary: e.target.value })}
+            placeholder="Name of person who will use the items"
+            required
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="department">Department *</Label>
           <Select
