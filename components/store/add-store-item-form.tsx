@@ -16,6 +16,7 @@ export function AddStoreItemForm({ onSubmit }: { onSubmit: () => void }) {
     reorderLevel: "",
     unit: "",
     location: "",
+    sivNumber: "",
   })
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -25,6 +26,18 @@ export function AddStoreItemForm({ onSubmit }: { onSubmit: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="sivNumber">SIV Number *</Label>
+        <Input
+          id="sivNumber"
+          value={formData.sivNumber}
+          onChange={(e) => setFormData({ ...formData, sivNumber: e.target.value })}
+          placeholder="e.g., SIV-2025-001"
+          required
+        />
+        <p className="text-sm text-muted-foreground">Store Issue Voucher number to track items received</p>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="itemName">Item Name *</Label>
