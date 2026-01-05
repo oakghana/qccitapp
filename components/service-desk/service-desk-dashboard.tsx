@@ -5,20 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import {
-  Plus,
-  Clock,
-  AlertTriangle,
-  CheckCircle,
-  Users,
-  Ticket,
-  TrendingUp,
-  MapPin,
-  Monitor,
-  Wifi,
-  Smartphone,
-  Printer,
-} from "lucide-react"
+import { Plus, Clock, AlertTriangle, Ticket, MapPin, Monitor, Wifi, Smartphone, Printer } from "lucide-react"
 import { NewTicketForm } from "./new-ticket-form"
 import { TicketList } from "./ticket-list"
 import { KnowledgeBase } from "./knowledge-base"
@@ -110,14 +97,17 @@ export function ServiceDeskDashboard() {
               : `Manage IT support requests for ${getUserLocation() === "head_office" ? "Head Office" : "Kumasi District Office"}`}
           </p>
         </div>
-        <Button onClick={() => setShowNewTicketForm(true)} className="bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-600">
+        <Button
+          onClick={() => setShowNewTicketForm(true)}
+          className="bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-600"
+        >
           <Plus className="mr-2 h-4 w-4" />
           New Ticket
         </Button>
       </div>
 
       {/* Stats Overview */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Tickets</CardTitle>
@@ -150,39 +140,6 @@ export function ServiceDeskDashboard() {
             <p className="text-xs text-muted-foreground">Being worked on</p>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Resolved</CardTitle>
-            <CheckCircle className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stats.resolved}</div>
-            <p className="text-xs text-muted-foreground">This month</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Resolution</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.avgResolutionTime}</div>
-            <p className="text-xs text-muted-foreground">Response time</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Satisfaction</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.satisfaction}</div>
-            <p className="text-xs text-muted-foreground">User rating</p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Main Content Tabs */}
@@ -205,18 +162,18 @@ export function ServiceDeskDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {recentTickets.map((ticket) => {
                   const IconComponent = categoryIcons[ticket.category as keyof typeof categoryIcons] || Monitor
                   return (
-                    <div key={ticket.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
+                    <div key={ticket.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center space-x-3">
                         <div className="p-2 bg-green-100 dark:bg-green-950/30 rounded-lg">
-                          <IconComponent className="h-5 w-5 text-green-600 dark:text-green-400" />
+                          <IconComponent className="h-4 w-4 text-green-600 dark:text-green-400" />
                         </div>
                         <div>
-                          <h4 className="font-medium">{ticket.title}</h4>
-                          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                          <h4 className="font-medium text-sm">{ticket.title}</h4>
+                          <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                             <MapPin className="h-3 w-3" />
                             <span>{ticket.locationName}</span>
                             <span>•</span>
@@ -235,10 +192,13 @@ export function ServiceDeskDashboard() {
                                 ? "default"
                                 : "secondary"
                           }
+                          className="text-xs"
                         >
                           {ticket.priority}
                         </Badge>
-                        <Badge variant={ticket.status === "Open" ? "outline" : "secondary"}>{ticket.status}</Badge>
+                        <Badge variant={ticket.status === "Open" ? "outline" : "secondary"} className="text-xs">
+                          {ticket.status}
+                        </Badge>
                       </div>
                     </div>
                   )

@@ -78,8 +78,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
         { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones, badge: "New" },
         { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
         { name: "Store Requisition", href: "/dashboard/store-requisitions", icon: ClipboardList, badge: "New" },
-        { name: "Updates", href: "/dashboard/updates", icon: Rss, badge: "2" },
-        { name: "Settings", href: "/dashboard/settings", icon: Settings },
       ]
     }
 
@@ -92,8 +90,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
         { name: "Devices", href: "/dashboard/devices", icon: Monitor },
         { name: "Store Stock Levels", href: "/dashboard/store-snapshot", icon: Package, badge: "View" },
         { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
-        { name: "Updates", href: "/dashboard/updates", icon: Rss, badge: "3" },
-        { name: "Settings", href: "/dashboard/settings", icon: Settings },
       ]
     }
 
@@ -107,8 +103,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
         { name: "Store Inventory", href: "/dashboard/store-inventory", icon: Package },
         { name: "Store Requisitions", href: "/dashboard/store-requisitions", icon: ClipboardList, badge: "8" },
         { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
-        { name: "Updates", href: "/dashboard/updates", icon: Rss, badge: "3" },
-        { name: "Settings", href: "/dashboard/settings", icon: Settings },
       ]
     }
 
@@ -125,8 +119,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
         { name: "IT Reports", href: "/dashboard/it-reports", icon: FileText, badge: "New" },
         { name: "Notifications", href: "/dashboard/notifications", icon: Bell, badge: notifications },
         { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-        { name: "Updates", href: "/dashboard/updates", icon: Rss, badge: "4" },
-        { name: "Settings", href: "/dashboard/settings", icon: Settings },
       ]
       return itHeadNavigation
     }
@@ -143,8 +135,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
         { name: "IT Reports", href: "/dashboard/it-reports", icon: FileText, badge: "New" },
         { name: "Notifications", href: "/dashboard/notifications", icon: Bell, badge: notifications },
         { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-        { name: "Updates", href: "/dashboard/updates", icon: Rss, badge: "5" },
-        { name: "Settings", href: "/dashboard/settings", icon: Settings },
       ]
       return regionalNavigation
     }
@@ -177,8 +167,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
         { name: "Dashboard", href: "/dashboard", icon: Home },
         { name: "My Tasks", href: "/dashboard/service-provider", icon: Wrench, badge: "5" },
         { name: "Notifications", href: "/dashboard/notifications", icon: Bell, badge: notifications },
-        { name: "Updates", href: "/dashboard/updates", icon: Rss, badge: "1" },
-        { name: "Settings", href: "/dashboard/settings", icon: Settings },
       ]
       return serviceProviderNavigation
     }

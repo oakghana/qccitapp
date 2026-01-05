@@ -27,6 +27,7 @@ export function NewTicketForm({ onClose }: NewTicketFormProps) {
     requesterEmail: "",
     requesterPhone: "",
     department: "",
+    officeNumber: "",
   })
 
   const locations = [
@@ -77,6 +78,7 @@ export function NewTicketForm({ onClose }: NewTicketFormProps) {
       created: new Date().toISOString().slice(0, 16).replace("T", " "),
       updated: new Date().toISOString().slice(0, 16).replace("T", " "),
       description: formData.description,
+      officeNumber: formData.officeNumber,
       comments: [],
     }
 
@@ -97,6 +99,7 @@ export function NewTicketForm({ onClose }: NewTicketFormProps) {
       requesterEmail: "",
       requesterPhone: "",
       department: "",
+      officeNumber: "",
     })
     onClose()
   }
@@ -162,6 +165,16 @@ export function NewTicketForm({ onClose }: NewTicketFormProps) {
                     required
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="officeNumber">Office Number</Label>
+                  <Input
+                    id="officeNumber"
+                    value={formData.officeNumber}
+                    onChange={(e) => setFormData({ ...formData, officeNumber: e.target.value })}
+                    placeholder="Room/Office number"
+                    required
+                  />
+                </div>
               </div>
             </div>
 
@@ -200,23 +213,25 @@ export function NewTicketForm({ onClose }: NewTicketFormProps) {
               </div>
 
               <div className="space-y-2">
-                <Label>Category</Label>
-                <div className="grid gap-2 md:grid-cols-2">
-                  {categories.map((category) => (
-                    <div
-                      key={category.value}
-                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                        formData.category === category.value
-                          ? "border-green-300 bg-green-50 dark:bg-green-950/30 dark:border-green-700"
-                          : "border-border hover:border-green-200 hover:bg-green-50/50 dark:hover:bg-green-950/10"
-                      }`}
-                      onClick={() => setFormData({ ...formData, category: category.value })}
-                    >
-                      <div className="font-medium">{category.label}</div>
-                      <div className="text-sm text-muted-foreground">{category.description}</div>
-                    </div>
-                  ))}
-                </div>
+                <Label htmlFor="category">Category</Label>
+                <Select
+                  value={formData.category}
+                  onValueChange={(value) => setFormData({ ...formData, category: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select issue category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category.value} value={category.value}>
+                        <div>
+                          <div className="font-medium">{category.label}</div>
+                          <div className="text-xs text-muted-foreground">{category.description}</div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -227,7 +242,7 @@ export function NewTicketForm({ onClose }: NewTicketFormProps) {
                     return (
                       <div
                         key={priority.value}
-                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                        className={`p-2 border rounded-lg cursor-pointer transition-colors ${
                           formData.priority === priority.value
                             ? "border-green-300 bg-green-50 dark:bg-green-950/30 dark:border-green-700"
                             : "border-border hover:border-green-200 hover:bg-green-50/50 dark:hover:bg-green-950/10"
@@ -236,9 +251,9 @@ export function NewTicketForm({ onClose }: NewTicketFormProps) {
                       >
                         <div className="flex items-center space-x-2">
                           <IconComponent className={`h-4 w-4 ${priority.color}`} />
-                          <span className="font-medium">{priority.label}</span>
+                          <span className="font-medium text-sm">{priority.label}</span>
                         </div>
-                        <div className="text-sm text-muted-foreground mt-1">{priority.description}</div>
+                        <div className="text-xs text-muted-foreground mt-1">{priority.description}</div>
                       </div>
                     )
                   })}
@@ -272,7 +287,10 @@ export function NewTicketForm({ onClose }: NewTicketFormProps) {
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-600">
+              <Button
+                type="submit"
+                className="bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-600"
+              >
                 Submit Ticket
               </Button>
             </div>

@@ -1,29 +1,28 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  Settings, 
-  User, 
-  Lock, 
-  Bell, 
-  Eye, 
-  Shield, 
+import {
+  Settings,
+  User,
+  Lock,
+  Bell,
+  Shield,
   Smartphone,
-  Mail,
   Key,
   Save,
   AlertTriangle,
   CheckCircle,
-  Info
+  Info,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { cn } from "@/lib/utils"
@@ -38,11 +37,11 @@ export default function SettingsPage() {
   const [securityAlerts, setSecurityAlerts] = useState(true)
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [message, setMessage] = useState<{ type: "success" | "error" | "info", text: string } | null>(null)
+  const [message, setMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null)
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (newPassword !== confirmPassword) {
       setMessage({ type: "error", text: "New passwords do not match" })
       return
@@ -54,20 +53,43 @@ export default function SettingsPage() {
     }
 
     setIsLoading(true)
-    
-    // Simulate API call
-    setTimeout(() => {
+
+    try {
+      const response = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: user?.username,
+          currentPassword,
+          newPassword,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setMessage({ type: "error", text: data.error || "Failed to change password" })
+        setIsLoading(false)
+        return
+      }
+
       setMessage({ type: "success", text: "Password changed successfully" })
       setCurrentPassword("")
       setNewPassword("")
       setConfirmPassword("")
+    } catch (error) {
+      console.error("[v0] Password change error:", error)
+      setMessage({ type: "error", text: "Failed to change password. Please try again." })
+    } finally {
       setIsLoading(false)
-    }, 1500)
+    }
   }
 
   const handleNotificationSave = () => {
     setIsLoading(true)
-    
+
     // Simulate API call
     setTimeout(() => {
       setMessage({ type: "success", text: "Notification preferences saved successfully" })
@@ -77,7 +99,7 @@ export default function SettingsPage() {
 
   const handleSecuritySave = () => {
     setIsLoading(true)
-    
+
     // Simulate API call
     setTimeout(() => {
       setMessage({ type: "success", text: "Security settings updated successfully" })
@@ -95,36 +117,38 @@ export default function SettingsPage() {
           </div>
           <div>
             <h1 className="text-3xl font-bold text-foreground">Account Settings</h1>
-            <p className="text-muted-foreground">
-              Manage your account preferences and security settings
-            </p>
+            <p className="text-muted-foreground">Manage your account preferences and security settings</p>
           </div>
         </div>
-        
+
         <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-          {user?.role?.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase())}
+          {user?.role?.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
         </Badge>
       </div>
 
       {/* Message Display */}
       {message && (
-        <Card className={cn(
-          "border-l-4",
-          message.type === "success" && "border-l-green-500 bg-green-50 dark:bg-green-950/50",
-          message.type === "error" && "border-l-red-500 bg-red-50 dark:bg-red-950/50",
-          message.type === "info" && "border-l-blue-500 bg-blue-50 dark:bg-blue-950/50"
-        )}>
+        <Card
+          className={cn(
+            "border-l-4",
+            message.type === "success" && "border-l-green-500 bg-green-50 dark:bg-green-950/50",
+            message.type === "error" && "border-l-red-500 bg-red-50 dark:bg-red-950/50",
+            message.type === "info" && "border-l-blue-500 bg-blue-50 dark:bg-blue-950/50",
+          )}
+        >
           <CardContent className="py-3">
             <div className="flex items-center gap-2">
               {message.type === "success" && <CheckCircle className="h-4 w-4 text-green-600" />}
               {message.type === "error" && <AlertTriangle className="h-4 w-4 text-red-600" />}
               {message.type === "info" && <Info className="h-4 w-4 text-blue-600" />}
-              <p className={cn(
-                "text-sm font-medium",
-                message.type === "success" && "text-green-800 dark:text-green-300",
-                message.type === "error" && "text-red-800 dark:text-red-300",
-                message.type === "info" && "text-blue-800 dark:text-blue-300"
-              )}>
+              <p
+                className={cn(
+                  "text-sm font-medium",
+                  message.type === "success" && "text-green-800 dark:text-green-300",
+                  message.type === "error" && "text-red-800 dark:text-red-300",
+                  message.type === "info" && "text-blue-800 dark:text-blue-300",
+                )}
+              >
                 {message.text}
               </p>
             </div>
@@ -160,9 +184,7 @@ export default function SettingsPage() {
                 <User className="h-5 w-5" />
                 Profile Information
               </CardTitle>
-              <CardDescription>
-                Your basic account information and role details
-              </CardDescription>
+              <CardDescription>Your basic account information and role details</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
@@ -171,28 +193,36 @@ export default function SettingsPage() {
                   <Input id="username" value={user?.username || ""} disabled />
                   <p className="text-xs text-muted-foreground mt-1">Username cannot be changed</p>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="email">Email Address</Label>
                   <Input id="email" value={user?.email || ""} disabled />
                   <p className="text-xs text-muted-foreground mt-1">Contact IT admin to change email</p>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="name">Full Name</Label>
                   <Input id="name" value={user?.name || ""} disabled />
                   <p className="text-xs text-muted-foreground mt-1">Contact HR to update your name</p>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="role">Role</Label>
-                  <Input id="role" value={user?.role?.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase()) || ""} disabled />
+                  <Input
+                    id="role"
+                    value={user?.role?.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase()) || ""}
+                    disabled
+                  />
                   <p className="text-xs text-muted-foreground mt-1">Role assigned by system administrator</p>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="location">Location</Label>
-                  <Input id="location" value={user?.location?.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase()) || ""} disabled />
+                  <Input
+                    id="location"
+                    value={user?.location?.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase()) || ""}
+                    disabled
+                  />
                   <p className="text-xs text-muted-foreground mt-1">Your assigned work location</p>
                 </div>
               </div>
@@ -207,9 +237,7 @@ export default function SettingsPage() {
                 <Key className="h-5 w-5" />
                 Change Password
               </CardTitle>
-              <CardDescription>
-                Update your account password for enhanced security
-              </CardDescription>
+              <CardDescription>Update your account password for enhanced security</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handlePasswordChange} className="space-y-4">
@@ -223,7 +251,7 @@ export default function SettingsPage() {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="newPassword">New Password</Label>
                   <Input
@@ -233,11 +261,9 @@ export default function SettingsPage() {
                     onChange={(e) => setNewPassword(e.target.value)}
                     required
                   />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Password must be at least 8 characters long
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Password must be at least 8 characters long</p>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="confirmPassword">Confirm New Password</Label>
                   <Input
@@ -248,9 +274,9 @@ export default function SettingsPage() {
                     required
                   />
                 </div>
-                
-                <Button 
-                  type="submit" 
+
+                <Button
+                  type="submit"
                   disabled={isLoading}
                   className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white"
                 >
@@ -267,24 +293,17 @@ export default function SettingsPage() {
                 <Smartphone className="h-5 w-5" />
                 Two-Factor Authentication
               </CardTitle>
-              <CardDescription>
-                Add an extra layer of security to your account
-              </CardDescription>
+              <CardDescription>Add an extra layer of security to your account</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <Label>Enable Two-Factor Authentication</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Use your phone to verify login attempts
-                  </p>
+                  <p className="text-sm text-muted-foreground">Use your phone to verify login attempts</p>
                 </div>
-                <Switch
-                  checked={twoFactorEnabled}
-                  onCheckedChange={setTwoFactorEnabled}
-                />
+                <Switch checked={twoFactorEnabled} onCheckedChange={setTwoFactorEnabled} />
               </div>
-              
+
               {twoFactorEnabled && (
                 <div className="p-4 bg-blue-50 dark:bg-blue-950/50 rounded-lg border border-blue-200 dark:border-blue-800">
                   <p className="text-sm text-blue-800 dark:text-blue-300">
@@ -292,12 +311,8 @@ export default function SettingsPage() {
                   </p>
                 </div>
               )}
-              
-              <Button 
-                onClick={handleSecuritySave} 
-                disabled={isLoading}
-                variant="outline"
-              >
+
+              <Button onClick={handleSecuritySave} disabled={isLoading} variant="outline">
                 Save Security Settings
               </Button>
             </CardContent>
@@ -311,58 +326,41 @@ export default function SettingsPage() {
                 <Bell className="h-5 w-5" />
                 Notification Preferences
               </CardTitle>
-              <CardDescription>
-                Choose how you want to receive notifications
-              </CardDescription>
+              <CardDescription>Choose how you want to receive notifications</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
                     <Label>Email Notifications</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Receive notifications via email
-                    </p>
+                    <p className="text-sm text-muted-foreground">Receive notifications via email</p>
                   </div>
-                  <Switch
-                    checked={emailNotifications}
-                    onCheckedChange={setEmailNotifications}
-                  />
+                  <Switch checked={emailNotifications} onCheckedChange={setEmailNotifications} />
                 </div>
-                
+
                 <Separator />
-                
+
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
                     <Label>Push Notifications</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Receive browser push notifications
-                    </p>
+                    <p className="text-sm text-muted-foreground">Receive browser push notifications</p>
                   </div>
-                  <Switch
-                    checked={pushNotifications}
-                    onCheckedChange={setPushNotifications}
-                  />
+                  <Switch checked={pushNotifications} onCheckedChange={setPushNotifications} />
                 </div>
-                
+
                 <Separator />
-                
+
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
                     <Label>Security Alerts</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Important security notifications
-                    </p>
+                    <p className="text-sm text-muted-foreground">Important security notifications</p>
                   </div>
-                  <Switch
-                    checked={securityAlerts}
-                    onCheckedChange={setSecurityAlerts}
-                  />
+                  <Switch checked={securityAlerts} onCheckedChange={setSecurityAlerts} />
                 </div>
               </div>
-              
-              <Button 
-                onClick={handleNotificationSave} 
+
+              <Button
+                onClick={handleNotificationSave}
                 disabled={isLoading}
                 className="bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800 text-white"
               >
@@ -380,17 +378,13 @@ export default function SettingsPage() {
                 <Shield className="h-5 w-5" />
                 Privacy Settings
               </CardTitle>
-              <CardDescription>
-                Control your privacy and data settings
-              </CardDescription>
+              <CardDescription>Control your privacy and data settings</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div>
                   <Label className="text-base font-medium">Activity Visibility</Label>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Control who can see your activity and status
-                  </p>
+                  <p className="text-sm text-muted-foreground mb-3">Control who can see your activity and status</p>
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">
                       <input type="radio" id="public" name="visibility" defaultChecked />
@@ -406,14 +400,12 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
-                
+
                 <Separator />
-                
+
                 <div>
                   <Label className="text-base font-medium">Data Usage</Label>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    How your data is used to improve the system
-                  </p>
+                  <p className="text-sm text-muted-foreground mb-3">How your data is used to improve the system</p>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
@@ -432,12 +424,8 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
-              
-              <Button 
-                onClick={handleNotificationSave} 
-                disabled={isLoading}
-                variant="outline"
-              >
+
+              <Button onClick={handleNotificationSave} disabled={isLoading} variant="outline">
                 Save Privacy Settings
               </Button>
             </CardContent>
@@ -449,9 +437,7 @@ export default function SettingsPage() {
                 <AlertTriangle className="h-5 w-5" />
                 Account Actions
               </CardTitle>
-              <CardDescription>
-                Manage your account data and access
-              </CardDescription>
+              <CardDescription>Manage your account data and access</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="p-4 bg-red-50 dark:bg-red-950/50 rounded-lg border border-red-200 dark:border-red-800">
@@ -459,7 +445,7 @@ export default function SettingsPage() {
                 <p className="text-sm text-red-700 dark:text-red-400 mb-3">
                   This action cannot be undone. Contact your system administrator to request account deletion.
                 </p>
-                <Button variant="outline" className="border-red-300 text-red-600 hover:bg-red-50">
+                <Button variant="outline" className="border-red-300 text-red-600 hover:bg-red-50 bg-transparent">
                   Contact Administrator
                 </Button>
               </div>
