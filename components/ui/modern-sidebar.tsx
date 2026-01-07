@@ -255,7 +255,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
         { name: "IT Reports", href: "/dashboard/it-reports", icon: FileText },
         { name: "Users", href: "/dashboard/users", icon: Users },
         {
-          name: "User Accounts",
+          name: "Pending User Approvals",
           href: "/dashboard/user-accounts",
           icon: UserPlus,
           badge: counts.userAccounts > 0 ? counts.userAccounts : undefined,

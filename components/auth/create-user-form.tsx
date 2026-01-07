@@ -14,13 +14,14 @@ import { User, Mail, MapPin, Shield, Clock, CheckCircle } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { getRoleColorScheme } from "@/lib/role-colors"
 import { cn } from "@/lib/utils"
+import { LOCATIONS, type LocationKey } from "@/lib/locations"
 
 export interface PendingUser {
   id: string
   name: string
   email: string
   phone: string
-  location: "head_office" | "accra" | "kumasi" | "kaase_inland_port" | "cape_coast"
+  location: LocationKey
   department: string
   supervisor: string
   jobTitle: string
@@ -30,14 +31,6 @@ export interface PendingUser {
   status: "pending" | "approved" | "rejected"
   notes?: string
   temporaryPassword?: string
-}
-
-const locationNames = {
-  head_office: "Head Office",
-  accra: "Accra",
-  kumasi: "Kumasi",
-  kaase_inland_port: "Kaase Inland Port",
-  cape_coast: "Cape Coast",
 }
 
 interface CreateUserFormProps {
@@ -55,7 +48,7 @@ export function CreateUserForm({ onUserCreated, onClose }: CreateUserFormProps) 
     name: "",
     email: "",
     phone: "",
-    location: (user?.location || "head_office") as PendingUser["location"],
+    location: (user?.location || "head_office") as LocationKey,
     department: "",
     supervisor: "",
     jobTitle: "",
@@ -222,7 +215,7 @@ export function CreateUserForm({ onUserCreated, onClose }: CreateUserFormProps) 
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(locationNames).map(([value, label]) => (
+                    {Object.entries(LOCATIONS).map(([value, label]) => (
                       <SelectItem key={value} value={value}>
                         <div className="flex items-center">
                           <MapPin className="mr-2 h-4 w-4" />
@@ -319,7 +312,7 @@ export function CreateUserForm({ onUserCreated, onClose }: CreateUserFormProps) 
                 <strong>Request Date:</strong> {new Date().toLocaleDateString()}
               </p>
               <p>
-                <strong>Location:</strong> {locationNames[formData.location]}
+                <strong>Location:</strong> {LOCATIONS[formData.location]}
               </p>
               <p>
                 <strong>Status:</strong> <Badge variant="secondary">Pending Approval</Badge>

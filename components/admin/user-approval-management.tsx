@@ -18,6 +18,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { CheckCircle2, XCircle, Clock, Mail, MapPin, Phone, Briefcase, Search } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { getLocationLabel } from "@/lib/locations"
 
 interface PendingUser {
   id: string
@@ -58,7 +59,7 @@ export function UserApprovalManagement() {
         fullName: "John Doe",
         phone: "+233123456789",
         department: "IT Department",
-        location: "Head Office",
+        location: "head_office",
         createdAt: new Date().toISOString(),
         status: "pending",
       },
@@ -110,17 +111,6 @@ export function UserApprovalManagement() {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  const getLocationLabel = (location: string) => {
-    const locations: Record<string, string> = {
-      head_office: "Head Office - Accra",
-      kumasi: "Kumasi District Office",
-      accra: "Accra Regional Office",
-      kaase_inland_port: "Kaase Inland Port",
-      cape_coast: "Cape Coast Office",
-    }
-    return locations[location] || location
   }
 
   const getRoleLabel = (role: string) => {
