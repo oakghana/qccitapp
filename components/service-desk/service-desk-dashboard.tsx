@@ -27,10 +27,13 @@ export function ServiceDeskDashboard() {
   const loadTickets = async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
-        .from("service_tickets")
-        .select("*")
-        .order("created_at", { ascending: false })
+      let query = supabase.from("service_tickets").select("*").order("created_at", { ascending: false })
+
+      if (!canViewAllLocations() && getUserLocation()) {
+        query = query.eq("location", getUserLocation())
+      }
+
+      const { data, error } = await query
 
       if (error) {
         console.error("[v0] Error loading tickets:", error)

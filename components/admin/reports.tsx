@@ -1,10 +1,34 @@
+"use client"
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Download, FileText, BarChart3, PieChart, TrendingUp, Calendar } from "lucide-react"
+import { useState, useEffect } from "react"
+import { createClient } from "@/lib/supabase/client"
 
 export function Reports() {
+  const supabase = createClient()
+  const [reportsGenerated, setReportsGenerated] = useState(0)
+  const [scheduledReports, setScheduledReports] = useState(0)
+  const [dataPoints, setDataPoints] = useState(0)
+
+  useEffect(() => {
+    loadReportStats()
+  }, [])
+
+  const loadReportStats = async () => {
+    const { data: repairs } = await supabase.from("repair_requests").select("id")
+    const { data: devices } = await supabase.from("devices").select("id")
+    const { data: tickets } = await supabase.from("tickets").select("id")
+
+    const totalDataPoints = (repairs?.length || 0) + (devices?.length || 0) + (tickets?.length || 0)
+
+    setReportsGenerated(repairs?.length || 0)
+    setDataPoints(totalDataPoints)
+  }
+
   const availableReports = [
     {
       id: "device-inventory",
@@ -107,7 +131,7 @@ export function Reports() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">127</div>
+            <div className="text-2xl font-bold">{reportsGenerated}</div>
             <p className="text-xs text-muted-foreground">This month</p>
           </CardContent>
         </Card>
@@ -118,7 +142,7 @@ export function Reports() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">8</div>
+            <div className="text-2xl font-bold">{scheduledReports}</div>
             <p className="text-xs text-muted-foreground">Auto-generated</p>
           </CardContent>
         </Card>
@@ -129,7 +153,7 @@ export function Reports() {
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">15.2K</div>
+            <div className="text-2xl font-bold">{dataPoints.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Tracked metrics</p>
           </CardContent>
         </Card>

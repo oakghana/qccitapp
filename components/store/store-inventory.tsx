@@ -18,6 +18,8 @@ import { Search, Plus, Package, AlertTriangle, TrendingDown, TrendingUp, Downloa
 import { AddStoreItemForm } from "./add-store-item-form"
 import { StoreReceiptForm } from "./store-receipt-form"
 import { createClient } from "@/lib/supabase/client"
+import { useAuth } from "@/lib/auth-context"
+import { canSeeAllLocations } from "@/lib/location-filter"
 
 interface StoreItem {
   id: string
@@ -45,6 +47,7 @@ export function StoreInventory() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [addItemOpen, setAddItemOpen] = useState(false)
   const [receiptOpen, setReceiptOpen] = useState(false)
+  const { user } = useAuth()
   const supabase = createClient()
 
   useEffect(() => {
@@ -54,7 +57,13 @@ export function StoreInventory() {
   const loadInventory = async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase.from("store_items").select("*").order("created_at", { ascending: false })
+      let query = supabase.from("store_items").select("*").order("created_at", { ascending: false })
+
+      if (user && !canSeeAllLocations(user) && user.location) {
+        query = query.eq("location", user.location)
+      }
+
+      const { data, error } = await query
 
       if (error) {
         console.error("[v0] Error loading inventory:", error)

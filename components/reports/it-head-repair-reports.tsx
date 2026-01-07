@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
+import {
   BarChart,
   Bar,
   XAxis,
@@ -23,28 +23,23 @@ import {
   Cell,
   ResponsiveContainer,
   Area,
-  AreaChart
+  AreaChart,
 } from "recharts"
-import { 
-  Calendar,
+import {
   Download,
-  TrendingUp,
-  TrendingDown,
   Clock,
   DollarSign,
   Wrench,
   CheckCircle,
   AlertTriangle,
-  FileText,
   Building2,
-  User,
-  Package,
-  Timer,
   BarChart3,
   Filter,
-  RefreshCw
+  RefreshCw,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { createClient } from "@/lib/supabase/client"
+import { canSeeAllLocations } from "@/lib/location-filter"
 
 interface RepairReport {
   period: string
@@ -107,260 +102,14 @@ interface ServiceProviderStats {
 
 export function ITHeadRepairReports() {
   const { user } = useAuth()
+  const supabase = createClient()
   const [reportPeriod, setReportPeriod] = useState<"daily" | "weekly" | "monthly" | "yearly">("monthly")
   const [selectedProvider, setSelectedProvider] = useState<string>("all")
   const [dateRange, setDateRange] = useState({
-    start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-    end: new Date().toISOString().split('T')[0]
+    start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0],
+    end: new Date().toISOString().split("T")[0],
   })
-  const [reports, setReports] = useState<RepairReport[]>([])
-  const [providerStats, setProviderStats] = useState<ServiceProviderStats[]>([])
-  const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    generateReports()
-  }, [reportPeriod, dateRange, selectedProvider])
-
-  const generateReports = async () => {
-    setLoading(true)
-    
-    // Mock data generation based on report period
-    const mockReports: RepairReport[] = []
-    const mockProviderStats: ServiceProviderStats[] = [
-      {
-        id: "SP-001",
-        name: "Natland IT Services",
-        company: "Natland Technology Ltd",
-        tasksAssigned: 45,
-        tasksCompleted: 42,
-        avgRepairTime: 2.8,
-        totalCost: 18750.00,
-        completionRate: 93.3,
-        rating: 4.8,
-        onTimeDelivery: 89.5,
-        recentTasks: [
-          {
-            taskNumber: "QCC-RPR-2025-001",
-            deviceType: "Laptop",
-            status: "completed",
-            cost: 320.00,
-            completedDate: "2025-01-18T16:30:00Z"
-          },
-          {
-            taskNumber: "QCC-RPR-2025-003",
-            deviceType: "Desktop",
-            status: "in_repair",
-            cost: 480.00
-          }
-        ]
-      },
-      {
-        id: "SP-002",
-        name: "TechFix Ghana",
-        company: "TechFix Solutions",
-        tasksAssigned: 28,
-        tasksCompleted: 25,
-        avgRepairTime: 3.2,
-        totalCost: 11200.00,
-        completionRate: 89.3,
-        rating: 4.5,
-        onTimeDelivery: 84.0,
-        recentTasks: [
-          {
-            taskNumber: "QCC-RPR-2025-002",
-            deviceType: "Printer",
-            status: "completed",
-            cost: 280.00,
-            completedDate: "2025-01-17T14:00:00Z"
-          }
-        ]
-      }
-    ]
-
-    // Generate mock data based on period
-    if (reportPeriod === "daily") {
-      for (let i = 0; i < 30; i++) {
-        const date = new Date()
-        date.setDate(date.getDate() - i)
-        
-        mockReports.push({
-          period: date.toISOString().split('T')[0],
-          totalTasks: Math.floor(Math.random() * 8) + 2,
-          completedTasks: Math.floor(Math.random() * 6) + 1,
-          inProgressTasks: Math.floor(Math.random() * 4) + 1,
-          overdueTasks: Math.floor(Math.random() * 2),
-          totalCost: Math.random() * 2000 + 500,
-          avgRepairTime: Math.random() * 3 + 1,
-          serviceProviderPerformance: mockProviderStats.map(sp => ({
-            name: sp.name,
-            tasksCompleted: Math.floor(Math.random() * 3) + 1,
-            avgRepairTime: Math.random() * 2 + 2,
-            totalCost: Math.random() * 800 + 200,
-            rating: sp.rating
-          })),
-          deviceTypes: [
-            { type: "Laptop", count: Math.floor(Math.random() * 3) + 1, cost: Math.random() * 600 + 200, avgRepairTime: 2.5 },
-            { type: "Desktop", count: Math.floor(Math.random() * 2) + 1, cost: Math.random() * 500 + 300, avgRepairTime: 3.0 },
-            { type: "Printer", count: Math.floor(Math.random() * 2), cost: Math.random() * 300 + 150, avgRepairTime: 1.8 }
-          ],
-          priorityBreakdown: [
-            { priority: "Critical", count: Math.floor(Math.random() * 2), avgResolutionTime: 1.2 },
-            { priority: "High", count: Math.floor(Math.random() * 3) + 1, avgResolutionTime: 2.1 },
-            { priority: "Medium", count: Math.floor(Math.random() * 4) + 2, avgResolutionTime: 3.5 },
-            { priority: "Low", count: Math.floor(Math.random() * 2) + 1, avgResolutionTime: 5.2 }
-          ],
-          monthlyTrends: [],
-          topIssues: [
-            { issue: "Screen Issues", frequency: Math.floor(Math.random() * 3), avgCost: 350 },
-            { issue: "Hardware Failure", frequency: Math.floor(Math.random() * 2), avgCost: 480 },
-            { issue: "Software Problems", frequency: Math.floor(Math.random() * 4), avgCost: 120 }
-          ]
-        })
-      }
-    } else if (reportPeriod === "weekly") {
-      for (let i = 0; i < 12; i++) {
-        const endDate = new Date()
-        endDate.setDate(endDate.getDate() - (i * 7))
-        const startDate = new Date(endDate)
-        startDate.setDate(startDate.getDate() - 6)
-        
-        mockReports.push({
-          period: `${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`,
-          totalTasks: Math.floor(Math.random() * 40) + 15,
-          completedTasks: Math.floor(Math.random() * 35) + 10,
-          inProgressTasks: Math.floor(Math.random() * 8) + 2,
-          overdueTasks: Math.floor(Math.random() * 5) + 1,
-          totalCost: Math.random() * 12000 + 3000,
-          avgRepairTime: Math.random() * 2 + 2.5,
-          serviceProviderPerformance: mockProviderStats.map(sp => ({
-            name: sp.name,
-            tasksCompleted: Math.floor(Math.random() * 15) + 5,
-            avgRepairTime: Math.random() * 1.5 + 2,
-            totalCost: Math.random() * 6000 + 1500,
-            rating: sp.rating
-          })),
-          deviceTypes: [
-            { type: "Laptop", count: Math.floor(Math.random() * 12) + 5, cost: Math.random() * 4000 + 1500, avgRepairTime: 2.8 },
-            { type: "Desktop", count: Math.floor(Math.random() * 8) + 3, cost: Math.random() * 3200 + 1200, avgRepairTime: 3.2 },
-            { type: "Printer", count: Math.floor(Math.random() * 6) + 2, cost: Math.random() * 1800 + 800, avgRepairTime: 2.1 }
-          ],
-          priorityBreakdown: [
-            { priority: "Critical", count: Math.floor(Math.random() * 5) + 1, avgResolutionTime: 1.5 },
-            { priority: "High", count: Math.floor(Math.random() * 10) + 3, avgResolutionTime: 2.3 },
-            { priority: "Medium", count: Math.floor(Math.random() * 15) + 8, avgResolutionTime: 3.8 },
-            { priority: "Low", count: Math.floor(Math.random() * 8) + 3, avgResolutionTime: 5.5 }
-          ],
-          monthlyTrends: [],
-          topIssues: [
-            { issue: "Screen Issues", frequency: Math.floor(Math.random() * 8) + 2, avgCost: 380 },
-            { issue: "Hardware Failure", frequency: Math.floor(Math.random() * 6) + 1, avgCost: 520 },
-            { issue: "Software Problems", frequency: Math.floor(Math.random() * 12) + 4, avgCost: 150 }
-          ]
-        })
-      }
-    } else if (reportPeriod === "monthly") {
-      const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-      
-      for (let i = 0; i < 12; i++) {
-        const month = months[11 - i]
-        
-        mockReports.push({
-          period: `${month} 2025`,
-          totalTasks: Math.floor(Math.random() * 150) + 60,
-          completedTasks: Math.floor(Math.random() * 130) + 50,
-          inProgressTasks: Math.floor(Math.random() * 25) + 5,
-          overdueTasks: Math.floor(Math.random() * 15) + 2,
-          totalCost: Math.random() * 45000 + 15000,
-          avgRepairTime: Math.random() * 1.5 + 2.2,
-          serviceProviderPerformance: mockProviderStats.map(sp => ({
-            name: sp.name,
-            tasksCompleted: Math.floor(Math.random() * 60) + 20,
-            avgRepairTime: Math.random() * 1.2 + 2.5,
-            totalCost: Math.random() * 22000 + 8000,
-            rating: sp.rating
-          })),
-          deviceTypes: [
-            { type: "Laptop", count: Math.floor(Math.random() * 45) + 20, cost: Math.random() * 18000 + 8000, avgRepairTime: 2.9 },
-            { type: "Desktop", count: Math.floor(Math.random() * 30) + 15, cost: Math.random() * 15000 + 6000, avgRepairTime: 3.4 },
-            { type: "Printer", count: Math.floor(Math.random() * 20) + 8, cost: Math.random() * 8000 + 3000, avgRepairTime: 2.2 }
-          ],
-          priorityBreakdown: [
-            { priority: "Critical", count: Math.floor(Math.random() * 15) + 5, avgResolutionTime: 1.8 },
-            { priority: "High", count: Math.floor(Math.random() * 35) + 15, avgResolutionTime: 2.5 },
-            { priority: "Medium", count: Math.floor(Math.random() * 60) + 25, avgResolutionTime: 4.1 },
-            { priority: "Low", count: Math.floor(Math.random() * 25) + 10, avgResolutionTime: 6.2 }
-          ],
-          monthlyTrends: months.slice(0, 12).map((m, idx) => ({
-            month: m,
-            tasks: Math.floor(Math.random() * 100) + 50,
-            cost: Math.random() * 30000 + 10000,
-            completionRate: Math.random() * 15 + 85
-          })),
-          topIssues: [
-            { issue: "Screen Issues", frequency: Math.floor(Math.random() * 25) + 10, avgCost: 420 },
-            { issue: "Hardware Failure", frequency: Math.floor(Math.random() * 20) + 8, avgCost: 580 },
-            { issue: "Software Problems", frequency: Math.floor(Math.random() * 40) + 15, avgCost: 180 },
-            { issue: "Network Connectivity", frequency: Math.floor(Math.random() * 15) + 5, avgCost: 250 },
-            { issue: "Battery Issues", frequency: Math.floor(Math.random() * 18) + 6, avgCost: 320 }
-          ]
-        })
-      }
-    } else if (reportPeriod === "yearly") {
-      for (let i = 0; i < 5; i++) {
-        const year = 2025 - i
-        
-        mockReports.push({
-          period: `Year ${year}`,
-          totalTasks: Math.floor(Math.random() * 1500) + 800,
-          completedTasks: Math.floor(Math.random() * 1300) + 700,
-          inProgressTasks: Math.floor(Math.random() * 100) + 30,
-          overdueTasks: Math.floor(Math.random() * 80) + 20,
-          totalCost: Math.random() * 450000 + 200000,
-          avgRepairTime: Math.random() * 1 + 2.8,
-          serviceProviderPerformance: mockProviderStats.map(sp => ({
-            name: sp.name,
-            tasksCompleted: Math.floor(Math.random() * 600) + 300,
-            avgRepairTime: Math.random() * 0.8 + 2.2,
-            totalCost: Math.random() * 200000 + 100000,
-            rating: sp.rating
-          })),
-          deviceTypes: [
-            { type: "Laptop", count: Math.floor(Math.random() * 500) + 300, cost: Math.random() * 180000 + 90000, avgRepairTime: 3.1 },
-            { type: "Desktop", count: Math.floor(Math.random() * 350) + 200, cost: Math.random() * 140000 + 70000, avgRepairTime: 3.6 },
-            { type: "Printer", count: Math.floor(Math.random() * 200) + 100, cost: Math.random() * 80000 + 40000, avgRepairTime: 2.4 },
-            { type: "Server", count: Math.floor(Math.random() * 50) + 10, cost: Math.random() * 60000 + 20000, avgRepairTime: 5.2 }
-          ],
-          priorityBreakdown: [
-            { priority: "Critical", count: Math.floor(Math.random() * 120) + 60, avgResolutionTime: 2.1 },
-            { priority: "High", count: Math.floor(Math.random() * 300) + 180, avgResolutionTime: 2.8 },
-            { priority: "Medium", count: Math.floor(Math.random() * 600) + 350, avgResolutionTime: 4.5 },
-            { priority: "Low", count: Math.floor(Math.random() * 250) + 120, avgResolutionTime: 7.1 }
-          ],
-          monthlyTrends: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m, idx) => ({
-            month: m,
-            tasks: Math.floor(Math.random() * 120) + 60,
-            cost: Math.random() * 40000 + 15000,
-            completionRate: Math.random() * 10 + 88
-          })),
-          topIssues: [
-            { issue: "Screen Issues", frequency: Math.floor(Math.random() * 200) + 100, avgCost: 450 },
-            { issue: "Hardware Failure", frequency: Math.floor(Math.random() * 180) + 80, avgCost: 620 },
-            { issue: "Software Problems", frequency: Math.floor(Math.random() * 350) + 200, avgCost: 200 },
-            { issue: "Network Connectivity", frequency: Math.floor(Math.random() * 120) + 60, avgCost: 280 },
-            { issue: "Battery Issues", frequency: Math.floor(Math.random() * 150) + 80, avgCost: 350 },
-            { issue: "Memory Issues", frequency: Math.floor(Math.random() * 100) + 40, avgCost: 380 },
-            { issue: "Storage Problems", frequency: Math.floor(Math.random() * 90) + 30, avgCost: 420 }
-          ]
-        })
-      }
-    }
-
-    setReports(mockReports)
-    setProviderStats(mockProviderStats)
-    setLoading(false)
-  }
-
-  const currentReport = reports[0] || {
+  const [currentReport, setCurrentReport] = useState<RepairReport>({
     period: "",
     totalTasks: 0,
     completedTasks: 0,
@@ -372,10 +121,105 @@ export function ITHeadRepairReports() {
     deviceTypes: [],
     priorityBreakdown: [],
     monthlyTrends: [],
-    topIssues: []
+    topIssues: [],
+  })
+  const [providerStats, setProviderStats] = useState<ServiceProviderStats[]>([])
+  const [loading, setLoading] = useState(false)
+  const [reports, setReports] = useState<any[]>([]) // Declare the reports variable
+
+  useEffect(() => {
+    generateReports()
+  }, [reportPeriod, dateRange, selectedProvider, user])
+
+  const generateReports = async () => {
+    if (!user) return
+
+    setLoading(true)
+    console.log("[v0] Generating repair reports from database...")
+
+    try {
+      let query = supabase
+        .from("repair_requests")
+        .select("*")
+        .gte("created_at", dateRange.start)
+        .lte("created_at", dateRange.end)
+
+      if (!canSeeAllLocations(user)) {
+        query = query.eq("location", user.location)
+      }
+
+      const { data: repairs, error } = await query
+
+      if (error) {
+        console.error("[v0] Error loading repairs:", error)
+        setLoading(false)
+        return
+      }
+
+      console.log("[v0] Loaded repairs for report:", repairs?.length || 0)
+
+      const totalTasks = repairs?.length || 0
+      const completedTasks = repairs?.filter((r) => r.status === "completed").length || 0
+      const inProgressTasks =
+        repairs?.filter((r) => ["approved", "in_transit", "with_provider"].includes(r.status)).length || 0
+      const overdueTasks =
+        repairs?.filter((r) => {
+          if (r.estimated_completion && r.status !== "completed") {
+            return new Date(r.estimated_completion) < new Date()
+          }
+          return false
+        }).length || 0
+
+      const totalCost = repairs?.reduce((sum, r) => sum + (r.cost || 0), 0) || 0
+
+      // Calculate average repair time for completed tasks
+      const completedRepairs =
+        repairs?.filter((r) => r.status === "completed" && r.approved_date && r.estimated_completion) || []
+      const avgRepairTime =
+        completedRepairs.length > 0
+          ? completedRepairs.reduce((sum, r) => {
+              const days =
+                Math.abs(new Date(r.estimated_completion!).getTime() - new Date(r.approved_date!).getTime()) /
+                (1000 * 60 * 60 * 24)
+              return sum + days
+            }, 0) / completedRepairs.length
+          : 0
+
+      setCurrentReport({
+        period: `${new Date(dateRange.start).toLocaleDateString()} - ${new Date(dateRange.end).toLocaleDateString()}`,
+        totalTasks,
+        completedTasks,
+        inProgressTasks,
+        overdueTasks,
+        totalCost,
+        avgRepairTime,
+        serviceProviderPerformance: [],
+        deviceTypes: [],
+        priorityBreakdown: [],
+        monthlyTrends: [],
+        topIssues: [],
+      })
+
+      const { data: providers, error: providerError } = await supabase.from("service_providers").select("*")
+
+      if (!providerError && providers) {
+        setProviderStats(
+          providers.map((p) => ({
+            ...p,
+            recentTasks: [],
+          })),
+        )
+      }
+
+      setReports(repairs) // Set the reports variable
+    } catch (error) {
+      console.error("[v0] Error generating reports:", error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#f97316', '#06b6d4']
+  const COLORS = ["#3b82f6", "#ef4444", "#f59e0b", "#10b981", "#8b5cf6", "#f97316", "#06b6d4"]
 
   const exportReport = () => {
     const reportData = {
@@ -386,19 +230,19 @@ export function ITHeadRepairReports() {
         completedTasks: currentReport.completedTasks,
         completionRate: ((currentReport.completedTasks / currentReport.totalTasks) * 100).toFixed(1),
         totalCost: currentReport.totalCost,
-        avgRepairTime: currentReport.avgRepairTime
+        avgRepairTime: currentReport.avgRepairTime,
       },
       serviceProviders: currentReport.serviceProviderPerformance,
       deviceBreakdown: currentReport.deviceTypes,
       priorityAnalysis: currentReport.priorityBreakdown,
-      topIssues: currentReport.topIssues
+      topIssues: currentReport.topIssues,
     }
 
-    const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' })
+    const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: "application/json" })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
+    const a = document.createElement("a")
     a.href = url
-    a.download = `repair-report-${reportPeriod}-${new Date().toISOString().split('T')[0]}.json`
+    a.download = `repair-report-${reportPeriod}-${new Date().toISOString().split("T")[0]}.json`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -420,9 +264,9 @@ export function ITHeadRepairReports() {
             </p>
           </div>
         </div>
-        
+
         <div className="flex items-center space-x-3">
-          <Button 
+          <Button
             onClick={exportReport}
             variant="outline"
             className="bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 text-green-700 border-green-200"
@@ -430,8 +274,8 @@ export function ITHeadRepairReports() {
             <Download className="h-4 w-4 mr-2" />
             Export Report
           </Button>
-          
-          <Button 
+
+          <Button
             onClick={generateReports}
             disabled={loading}
             className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white"
@@ -466,7 +310,7 @@ export function ITHeadRepairReports() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div>
               <Label htmlFor="provider">Service Provider</Label>
               <Select value={selectedProvider} onValueChange={setSelectedProvider}>
@@ -475,29 +319,32 @@ export function ITHeadRepairReports() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Providers</SelectItem>
-                  <SelectItem value="SP-001">Natland IT Services</SelectItem>
-                  <SelectItem value="SP-002">TechFix Ghana</SelectItem>
+                  {providerStats.map((provider) => (
+                    <SelectItem key={provider.id} value={provider.id}>
+                      {provider.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div>
               <Label htmlFor="startDate">Start Date</Label>
               <Input
                 id="startDate"
                 type="date"
                 value={dateRange.start}
-                onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                onChange={(e) => setDateRange((prev) => ({ ...prev, start: e.target.value }))}
               />
             </div>
-            
+
             <div>
               <Label htmlFor="endDate">End Date</Label>
               <Input
                 id="endDate"
                 type="date"
                 value={dateRange.end}
-                onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                onChange={(e) => setDateRange((prev) => ({ ...prev, end: e.target.value }))}
               />
             </div>
           </div>
@@ -505,64 +352,76 @@ export function ITHeadRepairReports() {
       </Card>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <Card className="border-l-4 border-l-blue-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Package className="h-4 w-4" />
-              Total Tasks
-            </CardTitle>
-            <div className="text-2xl font-bold">{currentReport.totalTasks}</div>
-            <p className="text-xs text-muted-foreground">{currentReport.period}</p>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Tasks</CardTitle>
+            <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{currentReport.totalTasks}</div>
+            <p className="text-xs text-muted-foreground">{currentReport.period || "Current period"}</p>
+          </CardContent>
         </Card>
-        
+
         <Card className="border-l-4 border-l-green-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <CheckCircle className="h-4 w-4" />
-              Completed
-            </CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
             <div className="text-2xl font-bold">{currentReport.completedTasks}</div>
             <p className="text-xs text-muted-foreground">
-              {currentReport.totalTasks > 0 ? ((currentReport.completedTasks / currentReport.totalTasks) * 100).toFixed(1) : 0}% completion rate
+              {currentReport.totalTasks > 0
+                ? `${((currentReport.completedTasks / currentReport.totalTasks) * 100).toFixed(1)}% completion rate`
+                : "0% completion rate"}
             </p>
-          </CardHeader>
+          </CardContent>
         </Card>
-        
+
         <Card className="border-l-4 border-l-orange-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Wrench className="h-4 w-4" />
-              In Progress
-            </CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
             <div className="text-2xl font-bold">{currentReport.inProgressTasks}</div>
             <p className="text-xs text-muted-foreground">Active repairs</p>
-          </CardHeader>
+          </CardContent>
         </Card>
-        
+
         <Card className="border-l-4 border-l-red-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" />
-              Overdue
-            </CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Overdue</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
             <div className="text-2xl font-bold">{currentReport.overdueTasks}</div>
             <p className="text-xs text-muted-foreground">Requires attention</p>
-          </CardHeader>
+          </CardContent>
         </Card>
-        
+
         <Card className="border-l-4 border-l-purple-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              Total Cost
-            </CardTitle>
-            <div className="text-lg font-bold">GHS {currentReport.totalCost.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              Avg: GHS {currentReport.totalTasks > 0 ? (currentReport.totalCost / currentReport.totalTasks).toFixed(0) : 0}/task
-            </p>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              GHS{" "}
+              {currentReport.totalCost.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Avg: GHS{" "}
+              {currentReport.totalTasks > 0
+                ? (currentReport.totalCost / currentReport.totalTasks).toLocaleString("en-GH", {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0,
+                  })
+                : "0"}
+              /task
+            </p>
+          </CardContent>
         </Card>
       </div>
 
@@ -575,7 +434,7 @@ export function ITHeadRepairReports() {
           <TabsTrigger value="devices">Device Analysis</TabsTrigger>
           <TabsTrigger value="issues">Issue Analysis</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="overview" className="space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
             <Card>
@@ -587,9 +446,9 @@ export function ITHeadRepairReports() {
                   <PieChart>
                     <Pie
                       data={[
-                        { name: 'Completed', value: currentReport.completedTasks, color: '#10b981' },
-                        { name: 'In Progress', value: currentReport.inProgressTasks, color: '#f59e0b' },
-                        { name: 'Overdue', value: currentReport.overdueTasks, color: '#ef4444' }
+                        { name: "Completed", value: currentReport.completedTasks, color: "#10b981" },
+                        { name: "In Progress", value: currentReport.inProgressTasks, color: "#f59e0b" },
+                        { name: "Overdue", value: currentReport.overdueTasks, color: "#ef4444" },
                       ]}
                       cx="50%"
                       cy="50%"
@@ -597,9 +456,9 @@ export function ITHeadRepairReports() {
                       dataKey="value"
                     >
                       {[
-                        { name: 'Completed', value: currentReport.completedTasks, color: '#10b981' },
-                        { name: 'In Progress', value: currentReport.inProgressTasks, color: '#f59e0b' },
-                        { name: 'Overdue', value: currentReport.overdueTasks, color: '#ef4444' }
+                        { name: "Completed", value: currentReport.completedTasks, color: "#10b981" },
+                        { name: "In Progress", value: currentReport.inProgressTasks, color: "#f59e0b" },
+                        { name: "Overdue", value: currentReport.overdueTasks, color: "#ef4444" },
                       ].map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
@@ -610,7 +469,7 @@ export function ITHeadRepairReports() {
                 </ResponsiveContainer>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Priority Breakdown</CardTitle>
@@ -628,7 +487,7 @@ export function ITHeadRepairReports() {
               </CardContent>
             </Card>
           </div>
-          
+
           <Card>
             <CardHeader>
               <CardTitle>Service Provider Performance</CardTitle>
@@ -649,7 +508,7 @@ export function ITHeadRepairReports() {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="trends" className="space-y-6">
           {reportPeriod === "monthly" || reportPeriod === "yearly" ? (
             <Card>
@@ -667,7 +526,13 @@ export function ITHeadRepairReports() {
                     <Legend />
                     <Line yAxisId="tasks" type="monotone" dataKey="tasks" stroke="#3b82f6" name="Tasks" />
                     <Line yAxisId="cost" type="monotone" dataKey="cost" stroke="#10b981" name="Cost (GHS)" />
-                    <Line yAxisId="tasks" type="monotone" dataKey="completionRate" stroke="#f59e0b" name="Completion Rate %" />
+                    <Line
+                      yAxisId="tasks"
+                      type="monotone"
+                      dataKey="completionRate"
+                      stroke="#f59e0b"
+                      name="Completion Rate %"
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -681,19 +546,17 @@ export function ITHeadRepairReports() {
                 <ResponsiveContainer width="100%" height={400}>
                   <AreaChart data={reports}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="period" />
+                    <XAxis dataKey="created_at" /> {/* Use 'created_at' as dataKey */}
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Area type="monotone" dataKey="completedTasks" stackId="1" stroke="#10b981" fill="#10b981" />
-                    <Area type="monotone" dataKey="inProgressTasks" stackId="1" stroke="#f59e0b" fill="#f59e0b" />
-                    <Area type="monotone" dataKey="overdueTasks" stackId="1" stroke="#ef4444" fill="#ef4444" />
+                    <Area type="monotone" dataKey="status" stackId="1" stroke="#3b82f6" fill="#3b82f6" name="Status" />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
           )}
-          
+
           <div className="grid md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
@@ -703,7 +566,7 @@ export function ITHeadRepairReports() {
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={reports}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="period" />
+                    <XAxis dataKey="created_at" /> {/* Use 'created_at' as dataKey */}
                     <YAxis />
                     <Tooltip />
                     <Line type="monotone" dataKey="avgRepairTime" stroke="#8b5cf6" strokeWidth={2} />
@@ -711,7 +574,7 @@ export function ITHeadRepairReports() {
                 </ResponsiveContainer>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Cost Trends</CardTitle>
@@ -720,17 +583,17 @@ export function ITHeadRepairReports() {
                 <ResponsiveContainer width="100%" height={300}>
                   <AreaChart data={reports}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="period" />
+                    <XAxis dataKey="created_at" /> {/* Use 'created_at' as dataKey */}
                     <YAxis />
                     <Tooltip />
-                    <Area type="monotone" dataKey="totalCost" stroke="#06b6d4" fill="#06b6d4" />
+                    <Area type="monotone" dataKey="cost" stroke="#06b6d4" fill="#06b6d4" name="Cost (GHS)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
-        
+
         <TabsContent value="providers" className="space-y-6">
           <div className="grid gap-6">
             {providerStats.map((provider) => (
@@ -744,7 +607,11 @@ export function ITHeadRepairReports() {
                       </CardTitle>
                       <CardDescription>{provider.company}</CardDescription>
                     </div>
-                    <Badge className={provider.completionRate >= 90 ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}>
+                    <Badge
+                      className={
+                        provider.completionRate >= 90 ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                      }
+                    >
                       ⭐ {provider.rating}/5.0
                     </Badge>
                   </div>
@@ -774,7 +641,7 @@ export function ITHeadRepairReports() {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="space-y-4">
                       <div>
                         <Label className="font-semibold">Time & Cost</Label>
@@ -789,12 +656,14 @@ export function ITHeadRepairReports() {
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Avg Cost per Task:</span>
-                            <span className="font-medium">GHS {(provider.totalCost / provider.tasksCompleted).toFixed(0)}</span>
+                            <span className="font-medium">
+                              GHS {(provider.totalCost / provider.tasksCompleted).toFixed(0)}
+                            </span>
                           </div>
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="md:col-span-2">
                       <Label className="font-semibold">Recent Tasks</Label>
                       <div className="space-y-2 mt-2">
@@ -805,9 +674,14 @@ export function ITHeadRepairReports() {
                               <span className="text-muted-foreground ml-2">• {task.deviceType}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Badge size="sm" className={
-                                task.status === "completed" ? "bg-green-100 text-green-800" : "bg-orange-100 text-orange-800"
-                              }>
+                              <Badge
+                                size="sm"
+                                className={
+                                  task.status === "completed"
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-orange-100 text-orange-800"
+                                }
+                              >
                                 {task.status}
                               </Badge>
                               <span className="font-medium">GHS {task.cost}</span>
@@ -822,7 +696,7 @@ export function ITHeadRepairReports() {
             ))}
           </div>
         </TabsContent>
-        
+
         <TabsContent value="devices" className="space-y-6">
           <Card>
             <CardHeader>
@@ -843,7 +717,7 @@ export function ITHeadRepairReports() {
               </ResponsiveContainer>
             </CardContent>
           </Card>
-          
+
           <div className="grid md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
@@ -852,13 +726,7 @@ export function ITHeadRepairReports() {
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
-                    <Pie
-                      data={currentReport.deviceTypes}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={100}
-                      dataKey="count"
-                    >
+                    <Pie data={currentReport.deviceTypes} cx="50%" cy="50%" outerRadius={100} dataKey="count">
                       {currentReport.deviceTypes.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
@@ -869,7 +737,7 @@ export function ITHeadRepairReports() {
                 </ResponsiveContainer>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Average Repair Time by Device</CardTitle>
@@ -883,8 +751,8 @@ export function ITHeadRepairReports() {
                         <span>{device.avgRepairTime.toFixed(1)} days</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full" 
+                        <div
+                          className="bg-blue-600 h-2 rounded-full"
                           style={{ width: `${(device.avgRepairTime / 6) * 100}%` }}
                         ></div>
                       </div>
@@ -895,7 +763,7 @@ export function ITHeadRepairReports() {
             </Card>
           </div>
         </TabsContent>
-        
+
         <TabsContent value="issues" className="space-y-6">
           <Card>
             <CardHeader>
@@ -916,7 +784,7 @@ export function ITHeadRepairReports() {
               </ResponsiveContainer>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader>
               <CardTitle>Issue Analysis Summary</CardTitle>

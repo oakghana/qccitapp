@@ -44,6 +44,9 @@ export async function POST(request: Request) {
       redirectUrl = "/dashboard/service-desk"
     } else if (profiles.role === "regional_it_head" || profiles.role === "it_head") {
       redirectUrl = "/dashboard"
+    } else if (profiles.role?.startsWith("service_desk_")) {
+      // All service desk roles go to service desk dashboard
+      redirectUrl = "/dashboard/service-desk"
     }
 
     // Return user data without password

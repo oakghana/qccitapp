@@ -18,6 +18,8 @@ import { Plus, FileText, Search, CheckCircle, Clock, XCircle, Download } from "l
 import { NewRequisitionForm } from "./new-requisition-form"
 import { IssueItemsForm } from "./issue-items-form"
 import { createClient } from "@/lib/supabase/client"
+import { useAuth } from "@/lib/auth-context"
+import { canSeeAllLocations } from "@/lib/location-filter"
 
 interface Requisition {
   id: string
@@ -48,6 +50,7 @@ export function RequisitionManagement() {
   const [newReqOpen, setNewReqOpen] = useState(false)
   const [issueOpen, setIssueOpen] = useState(false)
   const [selectedReq, setSelectedReq] = useState<Requisition | null>(null)
+  const { user } = useAuth()
   const supabase = createClient()
 
   useEffect(() => {
@@ -57,10 +60,13 @@ export function RequisitionManagement() {
   const loadRequisitions = async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
-        .from("store_requisitions")
-        .select("*")
-        .order("created_at", { ascending: false })
+      let query = supabase.from("store_requisitions").select("*").order("created_at", { ascending: false })
+
+      if (user && !canSeeAllLocations(user) && user.location) {
+        query = query.eq("location", user.location)
+      }
+
+      const { data, error } = await query
 
       if (error) {
         console.error("[v0] Error loading requisitions:", error)

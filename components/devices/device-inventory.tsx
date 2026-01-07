@@ -19,6 +19,8 @@ import { DeviceTransferForm } from "./device-transfer-form"
 import { Search, Plus, Monitor, Smartphone, Printer, HardDrive, ArrowRightLeft, MoreHorizontal } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { createClient } from "@/lib/supabase/client"
+import { useAuth } from "@/lib/auth-context"
+import { canSeeAllLocations } from "@/lib/location-filter"
 
 interface Device {
   id: string
@@ -67,6 +69,7 @@ export function DeviceInventory() {
   const [addDeviceOpen, setAddDeviceOpen] = useState(false)
   const [transferDeviceOpen, setTransferDeviceOpen] = useState(false)
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null)
+  const { user } = useAuth()
   const supabase = createClient()
 
   useEffect(() => {
@@ -76,7 +79,13 @@ export function DeviceInventory() {
   const loadDevices = async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase.from("devices").select("*").order("created_at", { ascending: false })
+      let query = supabase.from("devices").select("*").order("created_at", { ascending: false })
+
+      if (user && !canSeeAllLocations(user) && user.location) {
+        query = query.eq("location", user.location)
+      }
+
+      const { data, error } = await query
 
       if (error) {
         console.error("[v0] Error loading devices:", error)

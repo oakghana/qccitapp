@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -17,6 +17,8 @@ import { NewRepairRequestForm } from "./new-repair-request-form"
 import { RepairRequestDetails } from "./repair-request-details"
 import { Plus, Clock, CheckCircle, AlertTriangle, FileText, Calendar } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { createClient } from "@/lib/supabase/client"
+import { canSeeAllLocations } from "@/lib/location-filter"
 
 interface RepairRequest {
   id: string
@@ -36,99 +38,6 @@ interface RepairRequest {
   serviceProvider?: string
   notes?: string
 }
-
-const mockRepairRequests: RepairRequest[] = [
-  {
-    id: "RR-2024-001",
-    deviceId: "DL-2024-001",
-    deviceName: "Dell Latitude 5520",
-    requestedBy: "John Mensah",
-    requestedDate: "2024-03-01",
-    description: "Screen flickering and keyboard keys not responding properly",
-    priority: "high",
-    status: "pending",
-    attachments: ["repair-form-001.pdf", "device-photos.jpg"],
-    location: "head_office",
-    locationName: "Head Office - Accra",
-  },
-  {
-    id: "RR-2024-002",
-    deviceId: "HP-2024-045",
-    deviceName: "HP LaserJet Pro",
-    requestedBy: "Head Office IT Staff",
-    requestedDate: "2024-02-28",
-    description: "Paper jam mechanism broken, unable to print",
-    priority: "medium",
-    status: "with_provider",
-    approvedBy: "Head Office Admin",
-    approvedDate: "2024-03-01",
-    estimatedCompletion: "2024-03-15",
-    attachments: ["repair-form-002.pdf"],
-    location: "head_office",
-    locationName: "Head Office - Accra",
-    serviceProvider: "Natland Computers",
-  },
-  {
-    id: "RR-2024-003",
-    deviceId: "LD-2024-012",
-    deviceName: "Lenovo ThinkCentre",
-    requestedBy: "Akosua Asante",
-    requestedDate: "2024-02-25",
-    description: "Computer randomly shutting down, possible power supply issue",
-    priority: "urgent",
-    status: "completed",
-    approvedBy: "Kumasi IT Head",
-    approvedDate: "2024-02-26",
-    estimatedCompletion: "2024-03-10",
-    attachments: ["repair-form-003.pdf", "diagnostic-report.pdf"],
-    location: "kumasi",
-    locationName: "Kumasi District Office",
-    serviceProvider: "Natland Computers",
-  },
-  {
-    id: "RR-2024-004",
-    deviceId: "AC-2024-008",
-    deviceName: "Acer Aspire Desktop",
-    requestedBy: "Kumasi IT Staff",
-    requestedDate: "2024-03-02",
-    description: "Blue screen errors and system crashes during startup",
-    priority: "high",
-    status: "approved",
-    approvedBy: "Kumasi IT Head",
-    approvedDate: "2024-03-02",
-    attachments: ["repair-form-004.pdf"],
-    location: "kumasi",
-    locationName: "Kumasi District Office",
-  },
-  {
-    id: "RR-2024-005",
-    deviceId: "KI-2024-003",
-    deviceName: "Canon Printer MX490",
-    requestedBy: "Sarah Mensah",
-    requestedDate: "2024-03-03",
-    description: "Ink cartridge not recognized, error messages on display",
-    priority: "medium",
-    status: "pending",
-    attachments: ["repair-form-005.pdf"],
-    location: "kaase_inland_port",
-    locationName: "Kaase Inland Port",
-  },
-  {
-    id: "RR-2024-006",
-    deviceId: "CC-2024-007",
-    deviceName: "HP EliteBook 840",
-    requestedBy: "Cape Coast Staff",
-    requestedDate: "2024-03-04",
-    description: "Battery not charging, power adapter issues",
-    priority: "high",
-    status: "approved",
-    approvedBy: "Head Office IT Head",
-    approvedDate: "2024-03-04",
-    attachments: ["repair-form-006.pdf"],
-    location: "cape_coast",
-    locationName: "Cape Coast Office",
-  },
-]
 
 const statusColors = {
   pending: "secondary",
@@ -156,35 +65,49 @@ const statusIcons = {
 }
 
 export function RepairWorkflow() {
-  const [repairRequests, setRepairRequests] = useState<RepairRequest[]>(mockRepairRequests)
+  const [repairRequests, setRepairRequests] = useState<RepairRequest[]>([])
   const [newRequestOpen, setNewRequestOpen] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<RepairRequest | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
   const { user } = useAuth()
+  const supabase = createClient()
+
+  useEffect(() => {
+    loadRepairRequests()
+  }, [user])
+
+  const loadRepairRequests = async () => {
+    if (!user) return
+
+    setLoading(true)
+    console.log("[v0] Loading repair requests from database...")
+
+    try {
+      let query = supabase.from("repair_requests").select("*").order("created_at", { ascending: false })
+
+      if (!canSeeAllLocations(user)) {
+        query = query.eq("location", user.location)
+      }
+
+      const { data, error } = await query
+
+      if (error) {
+        console.error("[v0] Error loading repair requests:", error)
+        return
+      }
+
+      console.log("[v0] Loaded repair requests:", data?.length || 0)
+      setRepairRequests(data || [])
+    } catch (error) {
+      console.error("[v0] Error:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const getFilteredRepairRequests = () => {
-    // Admin can see all requests
-    if (user?.role === "admin") {
-      return repairRequests
-    }
-
-    // Head office IT Head can see all requests regardless of location
-    if (user?.role === "it_head" && user?.location === "head_office") {
-      return repairRequests
-    }
-
-    // Regional IT Head can see requests from their location only
-    if (user?.role === "it_head" && user?.location !== "head_office") {
-      return repairRequests.filter((request) => request.location === user.location)
-    }
-
-    // IT Staff can see requests from their location only
-    if (user?.role === "it_staff") {
-      return repairRequests.filter((request) => request.location === user.location)
-    }
-
-    // Regular users (staff, service desk, etc.) can only see their own requests
-    return repairRequests.filter((request) => request.requestedBy === user?.name)
+    return repairRequests
   }
 
   const filteredRepairRequests = getFilteredRepairRequests()
@@ -209,60 +132,66 @@ export function RepairWorkflow() {
       return locationNames[user?.location as keyof typeof locationNames] || "your location"
     }
 
-    // For regular users (staff, service desk, etc.)
     return "your requests"
   }
 
-  const handleNewRequest = (newRequest: Omit<RepairRequest, "id" | "requestedBy" | "requestedDate" | "status" | "location" | "locationName">) => {
-    const locationNames = {
-      head_office: "Head Office - Accra",
-      kumasi: "Kumasi District Office",
-      accra: "Accra Office", 
-      kaase_inland_port: "Kaase Inland Port",
-      cape_coast: "Cape Coast Office",
+  const handleNewRequest = async (
+    newRequest: Omit<RepairRequest, "id" | "requestedBy" | "requestedDate" | "status" | "location" | "locationName">,
+  ) => {
+    const { data, error } = await supabase
+      .from("repair_requests")
+      .insert({
+        ...newRequest,
+        requested_by: user?.name || "Unknown User",
+        location: user?.location || "head_office",
+        status: "pending",
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error("[v0] Error creating repair request:", error)
+      return
     }
 
-    const request: RepairRequest = {
-      ...newRequest,
-      id: `RR-2024-${String(repairRequests.length + 1).padStart(3, "0")}`,
-      requestedBy: user?.name || "Unknown User",
-      requestedDate: new Date().toISOString().split("T")[0],
-      status: "pending",
-      location: user?.location || "head_office",
-      locationName: locationNames[user?.location as keyof typeof locationNames] || "Head Office - Accra",
-    }
-    setRepairRequests([request, ...repairRequests])
+    loadRepairRequests()
     setNewRequestOpen(false)
   }
 
-  const handleApproveRequest = (requestId: string) => {
-    setRepairRequests(
-      repairRequests.map((request) =>
-        request.id === requestId
-          ? {
-              ...request,
-              status: "approved" as const,
-              approvedBy: user?.name || "Current User",
-              approvedDate: new Date().toISOString().split("T")[0],
-            }
-          : request,
-      ),
-    )
+  const handleApproveRequest = async (requestId: string) => {
+    const { error } = await supabase
+      .from("repair_requests")
+      .update({
+        status: "approved",
+        approved_by: user?.name || "Current User",
+        approved_date: new Date().toISOString().split("T")[0],
+      })
+      .eq("id", requestId)
+
+    if (error) {
+      console.error("[v0] Error approving request:", error)
+      return
+    }
+
+    loadRepairRequests()
   }
 
-  const handleRejectRequest = (requestId: string) => {
-    setRepairRequests(
-      repairRequests.map((request) =>
-        request.id === requestId
-          ? {
-              ...request,
-              status: "rejected" as const,
-              approvedBy: user?.name || "Current User",
-              approvedDate: new Date().toISOString().split("T")[0],
-            }
-          : request,
-      ),
-    )
+  const handleRejectRequest = async (requestId: string) => {
+    const { error } = await supabase
+      .from("repair_requests")
+      .update({
+        status: "rejected",
+        approved_by: user?.name || "Current User",
+        approved_date: new Date().toISOString().split("T")[0],
+      })
+      .eq("id", requestId)
+
+    if (error) {
+      console.error("[v0] Error rejecting request:", error)
+      return
+    }
+
+    loadRepairRequests()
   }
 
   const pendingRequests = filteredRepairRequests.filter((r) => r.status === "pending")
@@ -270,6 +199,17 @@ export function RepairWorkflow() {
     ["approved", "in_transit", "with_provider"].includes(r.status),
   )
   const completedRequests = filteredRepairRequests.filter((r) => ["completed", "rejected"].includes(r.status))
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading repair requests...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -303,7 +243,6 @@ export function RepairWorkflow() {
         </Dialog>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -347,13 +286,26 @@ export function RepairWorkflow() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">8.5</div>
+            <div className="text-2xl font-bold">
+              {completedRequests.length > 0
+                ? (
+                    completedRequests.reduce((sum, req) => {
+                      if (req.estimatedCompletion && req.approvedDate) {
+                        const days =
+                          Math.abs(new Date(req.estimatedCompletion).getTime() - new Date(req.approvedDate).getTime()) /
+                          (1000 * 60 * 60 * 24)
+                        return sum + days
+                      }
+                      return sum
+                    }, 0) / completedRequests.length
+                  ).toFixed(1)
+                : "0"}
+            </div>
             <p className="text-xs text-muted-foreground">Days average</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Repair Requests Tabs */}
       <Tabs defaultValue="pending" className="space-y-4">
         <TabsList>
           <TabsTrigger value="pending">Pending ({pendingRequests.length})</TabsTrigger>
@@ -454,7 +406,6 @@ export function RepairWorkflow() {
         </TabsContent>
       </Tabs>
 
-      {/* Repair Request Details Dialog */}
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>

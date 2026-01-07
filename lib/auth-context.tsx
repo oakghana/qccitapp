@@ -5,7 +5,20 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from "
 interface User {
   id: string
   username: string
-  role: "admin" | "regional_it_head" | "it_head" | "it_staff" | "it_store_head" | "staff" | "service_provider"
+  role:
+    | "admin"
+    | "regional_it_head"
+    | "it_head"
+    | "it_staff"
+    | "it_store_head"
+    | "staff"
+    | "service_provider"
+    | "service_desk_accra"
+    | "service_desk_kumasi"
+    | "service_desk_takoradi"
+    | "service_desk_tema"
+    | "service_desk_sunyani"
+    | "service_desk_cape_coast"
   location: string
   name: string
   email: string
@@ -49,7 +62,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const canViewAllLocations = () => {
-    return user?.role === "admin" || (user?.location === "Head Office" && user?.role === "it_head")
+    return (
+      user?.role === "admin" ||
+      (user?.location === "Head Office" && user?.role === "it_head") ||
+      user?.role.startsWith("service_desk")
+    )
   }
 
   const getUserLocation = () => {

@@ -1,4 +1,16 @@
-type UserRole = "admin" | "regional_it_head" | "it_head" | "it_staff" | "staff" | "service_provider"
+type UserRole =
+  | "admin"
+  | "regional_it_head"
+  | "it_head"
+  | "it_staff"
+  | "staff"
+  | "service_provider"
+  | "service_desk_accra"
+  | "service_desk_kumasi"
+  | "service_desk_takoradi"
+  | "service_desk_tema"
+  | "service_desk_sunyani"
+  | "service_desk_cape_coast"
 
 interface RoleColorScheme {
   primary: string
@@ -26,7 +38,7 @@ const roleColorSchemes: Record<UserRole, RoleColorScheme> = {
     textPrimary: "text-gray-900 dark:text-gray-100",
     textSecondary: "text-gray-700 dark:text-gray-300",
     border: "border-red-300 dark:border-red-700",
-    background: "bg-red-100/50 dark:bg-red-950/50"
+    background: "bg-red-100/50 dark:bg-red-950/50",
   },
   regional_it_head: {
     primary: "rgb(29 78 216)", // blue-700 - darker for better contrast
@@ -39,7 +51,7 @@ const roleColorSchemes: Record<UserRole, RoleColorScheme> = {
     textPrimary: "text-gray-900 dark:text-gray-100",
     textSecondary: "text-gray-700 dark:text-gray-300",
     border: "border-blue-300 dark:border-blue-700",
-    background: "bg-blue-100/50 dark:bg-blue-950/50"
+    background: "bg-blue-100/50 dark:bg-blue-950/50",
   },
   it_head: {
     primary: "rgb(126 34 206)", // purple-700 - darker for better contrast
@@ -52,7 +64,7 @@ const roleColorSchemes: Record<UserRole, RoleColorScheme> = {
     textPrimary: "text-gray-900 dark:text-gray-100",
     textSecondary: "text-gray-700 dark:text-gray-300",
     border: "border-purple-300 dark:border-purple-700",
-    background: "bg-purple-100/50 dark:bg-purple-950/50"
+    background: "bg-purple-100/50 dark:bg-purple-950/50",
   },
   it_staff: {
     primary: "rgb(15 118 110)", // teal-700 - darker for better contrast
@@ -65,7 +77,7 @@ const roleColorSchemes: Record<UserRole, RoleColorScheme> = {
     textPrimary: "text-gray-900 dark:text-gray-100",
     textSecondary: "text-gray-700 dark:text-gray-300",
     border: "border-teal-300 dark:border-teal-700",
-    background: "bg-teal-100/50 dark:bg-teal-950/50"
+    background: "bg-teal-100/50 dark:bg-teal-950/50",
   },
   staff: {
     primary: "rgb(194 65 12)", // orange-700 - darker for better contrast
@@ -78,21 +90,99 @@ const roleColorSchemes: Record<UserRole, RoleColorScheme> = {
     textPrimary: "text-gray-900 dark:text-gray-100",
     textSecondary: "text-gray-700 dark:text-gray-300",
     border: "border-orange-300 dark:border-orange-700",
-    background: "bg-orange-100/50 dark:bg-orange-950/50"
+    background: "bg-orange-100/50 dark:bg-orange-950/50",
   },
   service_provider: {
-    primary: "rgb(101 163 13)", // lime-700 - darker for better contrast
-    secondary: "rgb(132 204 22)", // lime-600
-    accent: "rgb(77 124 15)", // lime-800
-    light: "rgb(190 242 100)", // lime-300
-    dark: "rgb(54 83 20)", // lime-900
+    primary: "rgb(101 163 13)",
+    secondary: "rgb(132 204 22)",
+    accent: "rgb(77 124 15)",
+    light: "rgb(190 242 100)",
+    dark: "rgb(54 83 20)",
     gradient: "from-lime-600 to-green-700",
     hoverGradient: "hover:from-lime-700 hover:to-green-800",
     textPrimary: "text-gray-900 dark:text-gray-100",
     textSecondary: "text-gray-700 dark:text-gray-300",
     border: "border-lime-300 dark:border-lime-700",
-    background: "bg-lime-100/50 dark:bg-lime-950/50"
-  }
+    background: "bg-lime-100/50 dark:bg-lime-950/50",
+  },
+  service_desk_accra: {
+    primary: "rgb(14 116 144)",
+    secondary: "rgb(6 182 212)",
+    accent: "rgb(21 94 117)",
+    light: "rgb(103 232 249)",
+    dark: "rgb(22 78 99)",
+    gradient: "from-cyan-600 to-cyan-800",
+    hoverGradient: "hover:from-cyan-700 hover:to-cyan-900",
+    textPrimary: "text-gray-900 dark:text-gray-100",
+    textSecondary: "text-gray-700 dark:text-gray-300",
+    border: "border-cyan-300 dark:border-cyan-700",
+    background: "bg-cyan-100/50 dark:bg-cyan-950/50",
+  },
+  service_desk_kumasi: {
+    primary: "rgb(14 116 144)",
+    secondary: "rgb(6 182 212)",
+    accent: "rgb(21 94 117)",
+    light: "rgb(103 232 249)",
+    dark: "rgb(22 78 99)",
+    gradient: "from-cyan-600 to-cyan-800",
+    hoverGradient: "hover:from-cyan-700 hover:to-cyan-900",
+    textPrimary: "text-gray-900 dark:text-gray-100",
+    textSecondary: "text-gray-700 dark:text-gray-300",
+    border: "border-cyan-300 dark:border-cyan-700",
+    background: "bg-cyan-100/50 dark:bg-cyan-950/50",
+  },
+  service_desk_takoradi: {
+    primary: "rgb(14 116 144)",
+    secondary: "rgb(6 182 212)",
+    accent: "rgb(21 94 117)",
+    light: "rgb(103 232 249)",
+    dark: "rgb(22 78 99)",
+    gradient: "from-cyan-600 to-cyan-800",
+    hoverGradient: "hover:from-cyan-700 hover:to-cyan-900",
+    textPrimary: "text-gray-900 dark:text-gray-100",
+    textSecondary: "text-gray-700 dark:text-gray-300",
+    border: "border-cyan-300 dark:border-cyan-700",
+    background: "bg-cyan-100/50 dark:bg-cyan-950/50",
+  },
+  service_desk_tema: {
+    primary: "rgb(14 116 144)",
+    secondary: "rgb(6 182 212)",
+    accent: "rgb(21 94 117)",
+    light: "rgb(103 232 249)",
+    dark: "rgb(22 78 99)",
+    gradient: "from-cyan-600 to-cyan-800",
+    hoverGradient: "hover:from-cyan-700 hover:to-cyan-900",
+    textPrimary: "text-gray-900 dark:text-gray-100",
+    textSecondary: "text-gray-700 dark:text-gray-300",
+    border: "border-cyan-300 dark:border-cyan-700",
+    background: "bg-cyan-100/50 dark:bg-cyan-950/50",
+  },
+  service_desk_sunyani: {
+    primary: "rgb(14 116 144)",
+    secondary: "rgb(6 182 212)",
+    accent: "rgb(21 94 117)",
+    light: "rgb(103 232 249)",
+    dark: "rgb(22 78 99)",
+    gradient: "from-cyan-600 to-cyan-800",
+    hoverGradient: "hover:from-cyan-700 hover:to-cyan-900",
+    textPrimary: "text-gray-900 dark:text-gray-100",
+    textSecondary: "text-gray-700 dark:text-gray-300",
+    border: "border-cyan-300 dark:border-cyan-700",
+    background: "bg-cyan-100/50 dark:bg-cyan-950/50",
+  },
+  service_desk_cape_coast: {
+    primary: "rgb(14 116 144)",
+    secondary: "rgb(6 182 212)",
+    accent: "rgb(21 94 117)",
+    light: "rgb(103 232 249)",
+    dark: "rgb(22 78 99)",
+    gradient: "from-cyan-600 to-cyan-800",
+    hoverGradient: "hover:from-cyan-700 hover:to-cyan-900",
+    textPrimary: "text-gray-900 dark:text-gray-100",
+    textSecondary: "text-gray-700 dark:text-gray-300",
+    border: "border-cyan-300 dark:border-cyan-700",
+    background: "bg-cyan-100/50 dark:bg-cyan-950/50",
+  },
 }
 
 export function getRoleColorScheme(role: UserRole): RoleColorScheme {
@@ -104,9 +194,9 @@ export function getRoleGradientClass(role: UserRole): string {
   return `bg-gradient-to-r ${scheme.gradient} ${scheme.hoverGradient}`
 }
 
-export function getRoleTextClass(role: UserRole, variant: 'primary' | 'secondary' = 'primary'): string {
+export function getRoleTextClass(role: UserRole, variant: "primary" | "secondary" = "primary"): string {
   const scheme = getRoleColorScheme(role)
-  return variant === 'primary' ? scheme.textPrimary : scheme.textSecondary
+  return variant === "primary" ? scheme.textPrimary : scheme.textSecondary
 }
 
 export function getRoleBorderClass(role: UserRole): string {

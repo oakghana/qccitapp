@@ -34,6 +34,7 @@ import {
 import { AssignTicketDialog } from "./assign-ticket-dialog"
 import { useAuth } from "@/lib/auth-context"
 import { createClient } from "@/lib/supabase/client"
+import { canSeeAllLocations } from "@/lib/location-filter"
 
 interface Ticket {
   id: string
@@ -82,10 +83,13 @@ export function TicketList() {
   const loadTickets = async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
-        .from("service_tickets")
-        .select("*")
-        .order("created_at", { ascending: false })
+      let query = supabase.from("service_tickets").select("*").order("created_at", { ascending: false })
+
+      if (user && !canSeeAllLocations(user) && user.location) {
+        query = query.eq("location", user.location)
+      }
+
+      const { data, error } = await query
 
       if (error) {
         console.error("[v0] Error loading tickets:", error)
