@@ -32,7 +32,7 @@ interface StoreItem {
   lastUpdated: string
 }
 
-const categoryIcons: Record<string, typeof Package> = {
+const categoryIcons = {
   hardware: Package,
   software: Package,
   accessories: Package,
@@ -223,7 +223,7 @@ export function StoreInventory() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filteredInventory.map((item) => {
-          const IconComponent = categoryIcons[item.category]
+          const IconComponent = categoryIcons[item.category as keyof typeof categoryIcons] || Package
           const isLowStock = item.quantity <= item.reorderLevel
           return (
             <Card key={item.id} className={isLowStock ? "border-orange-200" : ""}>
