@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Trash2 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
-import { LOCATIONS } from "@/lib/locations"
+import { getLocationOptions } from "@/lib/locations"
 
 export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
   const [loading, setLoading] = useState(false)
@@ -127,7 +127,7 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
               <SelectValue placeholder="Select location" />
             </SelectTrigger>
             <SelectContent>
-              {LOCATIONS.map((location) => (
+              {getLocationOptions().map((location) => (
                 <SelectItem key={location.value} value={location.value}>
                   {location.label}
                 </SelectItem>
