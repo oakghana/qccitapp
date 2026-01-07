@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,6 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Upload, X, FileText } from "lucide-react"
 import { FormNavigation } from "@/components/ui/form-navigation"
+import { useAuth } from "@/lib/auth-context"
+import { createClient } from "@/lib/supabase/client"
+import { canSeeAllLocations } from "@/lib/location-filter"
 
 interface RepairRequest {
   deviceId: string
@@ -23,10 +26,11 @@ interface RepairRequest {
 }
 
 interface NewRepairRequestFormProps {
-  onSubmit: (request: Omit<RepairRequest, "id" | "requestedBy" | "requestedDate" | "status" | "location" | "locationName">) => void
+  onSubmit: (
+    request: Omit<RepairRequest, "id" | "requestedBy" | "requestedDate" | "status" | "location" | "locationName">,
+  ) => void
 }
 
-// Mock device data - in real app, this would come from the device inventory
 const mockDevices = [
   { id: "DL-2024-001", name: "Dell Latitude 5520", location: "accra" as const },
   { id: "HP-2024-045", name: "HP LaserJet Pro", location: "head_office" as const },
@@ -35,6 +39,10 @@ const mockDevices = [
 ]
 
 export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
+  const { user } = useAuth()
+  const supabase = createClient()
+  const [devices, setDevices] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [formData, setFormData] = useState({
     deviceId: "",
     deviceName: "",
@@ -45,9 +53,38 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
 
+  useEffect(() => {
+    loadDevices()
+  }, [user])
+
+  const loadDevices = async () => {
+    if (!user) return
+
+    setLoading(true)
+    try {
+      let query = supabase.from("devices").select("*")
+
+      if (!canSeeAllLocations(user)) {
+        query = query.eq("location", user.location)
+      }
+
+      const { data, error } = await query
+
+      if (error) {
+        console.error("[v0] Error loading devices:", error)
+        return
+      }
+
+      setDevices(data || [])
+    } catch (error) {
+      console.error("[v0] Error loading devices:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // In a real app, you would upload files here and get their URLs
     const attachmentNames = selectedFiles.map((file) => file.name)
     onSubmit({
       ...formData,
@@ -60,12 +97,12 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
   }
 
   const handleDeviceSelect = (deviceId: string) => {
-    const device = mockDevices.find((d) => d.id === deviceId)
+    const device = devices.find((d) => d.id === deviceId)
     if (device) {
       setFormData((prev) => ({
         ...prev,
         deviceId: device.id,
-        deviceName: device.name,
+        deviceName: device.name || `${device.type} - ${device.model}`,
       }))
     }
   }
@@ -87,14 +124,14 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="device">Select Device</Label>
-            <Select value={formData.deviceId} onValueChange={handleDeviceSelect}>
+            <Select value={formData.deviceId} onValueChange={handleDeviceSelect} disabled={loading}>
               <SelectTrigger>
-                <SelectValue placeholder="Choose a device" />
+                <SelectValue placeholder={loading ? "Loading devices..." : "Choose a device"} />
               </SelectTrigger>
               <SelectContent>
-                {mockDevices.map((device) => (
+                {devices.map((device) => (
                   <SelectItem key={device.id} value={device.id}>
-                    {device.name} ({device.id})
+                    {device.name || `${device.type} - ${device.model}`} ({device.asset_tag || device.id})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -129,7 +166,6 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
           />
         </div>
 
-        {/* File Upload Section */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Attachments</CardTitle>
