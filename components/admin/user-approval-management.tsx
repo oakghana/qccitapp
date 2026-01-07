@@ -49,22 +49,67 @@ export function UserApprovalManagement() {
   }, [])
 
   const fetchUsers = async () => {
-    // TODO: Replace with actual API call to Supabase
-    // Mock data for demonstration
-    const mockPending: PendingUser[] = [
-      {
-        id: "1",
-        username: "john.doe@qccgh.com",
-        email: "john.doe@qccgh.com",
-        fullName: "John Doe",
-        phone: "+233123456789",
-        department: "IT Department",
-        location: "head_office",
-        createdAt: new Date().toISOString(),
-        status: "pending",
-      },
-    ]
-    setPendingUsers(mockPending)
+    try {
+      // Fetch pending users
+      const pendingRes = await fetch("/api/admin/pending-users?status=pending")
+      const pendingData = await pendingRes.json()
+
+      // Fetch approved users
+      const approvedRes = await fetch("/api/admin/pending-users?status=approved")
+      const approvedData = await approvedRes.json()
+
+      // Fetch rejected users
+      const rejectedRes = await fetch("/api/admin/pending-users?status=rejected")
+      const rejectedData = await rejectedRes.json()
+
+      // Map the data to the expected format
+      setPendingUsers(
+        (pendingData.users || []).map((user: any) => ({
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          fullName: user.full_name,
+          phone: user.phone,
+          department: user.department,
+          location: user.location,
+          createdAt: user.created_at,
+          status: user.status,
+          role: user.role,
+        })),
+      )
+
+      setApprovedUsers(
+        (approvedData.users || []).map((user: any) => ({
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          fullName: user.full_name,
+          phone: user.phone,
+          department: user.department,
+          location: user.location,
+          createdAt: user.created_at,
+          status: user.status,
+          role: user.role,
+        })),
+      )
+
+      setRejectedUsers(
+        (rejectedData.users || []).map((user: any) => ({
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          fullName: user.full_name,
+          phone: user.phone,
+          department: user.department,
+          location: user.location,
+          createdAt: user.created_at,
+          status: user.status,
+          role: user.role,
+        })),
+      )
+    } catch (error) {
+      console.error("Error fetching users:", error)
+    }
   }
 
   const handleApprove = (user: PendingUser) => {
@@ -84,9 +129,8 @@ export function UserApprovalManagement() {
 
     setIsLoading(true)
     try {
-      // TODO: Replace with actual API call to Supabase
       if (actionType === "approve") {
-        await fetch("/api/admin/approve-user", {
+        const response = await fetch("/api/admin/approve-user", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -94,12 +138,20 @@ export function UserApprovalManagement() {
             role: selectedRole,
           }),
         })
+
+        if (!response.ok) {
+          throw new Error("Failed to approve user")
+        }
       } else {
-        await fetch("/api/admin/reject-user", {
+        const response = await fetch("/api/admin/reject-user", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId: selectedUser.id }),
         })
+
+        if (!response.ok) {
+          throw new Error("Failed to reject user")
+        }
       }
 
       await fetchUsers()
@@ -108,6 +160,7 @@ export function UserApprovalManagement() {
       setSelectedRole("")
     } catch (error) {
       console.error("Error processing user action:", error)
+      alert("Failed to process user action. Please try again.")
     } finally {
       setIsLoading(false)
     }

@@ -23,14 +23,27 @@ import { usePWAInstall } from "@/components/ui/pwa-install"
 import { getRoleColorScheme } from "@/lib/role-colors"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/supabase/supabase-client"
+import { getLocationOptions, LOCATIONS } from "@/lib/locations"
 
 interface SystemUser {
   id: string
   name: string
   email: string
   phone: string
-  role: "admin" | "regional_it_head" | "it_head" | "it_staff" | "staff"
-  location: "head_office" | "accra" | "kumasi" | "kaase_inland_port" | "cape_coast"
+  role:
+    | "admin"
+    | "regional_it_head"
+    | "it_head"
+    | "it_staff"
+    | "staff"
+    | "it_store_head"
+    | "service_desk_accra"
+    | "service_desk_kumasi"
+    | "service_desk_tema"
+    | "service_desk_takoradi"
+    | "service_desk_cape_coast"
+    | "service_desk_ho"
+  location: string
   status: "active" | "inactive" | "suspended"
   lastLogin: string
   createdDate: string
@@ -43,6 +56,13 @@ const roleBadgeColors = {
   it_head: "default",
   it_staff: "secondary",
   staff: "outline",
+  it_store_head: "secondary",
+  service_desk_accra: "outline",
+  service_desk_kumasi: "outline",
+  service_desk_tema: "outline",
+  service_desk_takoradi: "outline",
+  service_desk_cape_coast: "outline",
+  service_desk_ho: "outline",
 } as const
 
 const statusColors = {
@@ -51,13 +71,7 @@ const statusColors = {
   suspended: "destructive",
 } as const
 
-const locationNames = {
-  head_office: "Head Office",
-  accra: "Accra",
-  kumasi: "Kumasi",
-  kaase_inland_port: "Kaase Inland Port",
-  cape_coast: "Cape Coast",
-}
+const locationNames = LOCATIONS
 
 export function UserManagement() {
   const { user } = useAuth()
@@ -111,7 +125,7 @@ export function UserManagement() {
           email: profile.email || profile.username,
           phone: profile.phone || "",
           role: profile.role,
-          location: profile.location?.toLowerCase().replace(/ /g, "_") || "head_office",
+          location: profile.location || "Head Office",
           status: profile.status === "approved" ? "active" : "inactive",
           lastLogin: profile.updated_at,
           createdDate: new Date(profile.created_at).toISOString().split("T")[0],
@@ -133,7 +147,7 @@ export function UserManagement() {
     let filteredByAccess = users
 
     if (
-      (user?.role === "regional_it_head" || (user?.role === "it_head" && user?.location !== "head_office")) &&
+      (user?.role === "regional_it_head" || (user?.role === "it_head" && user?.location !== "Head Office")) &&
       user?.location
     ) {
       filteredByAccess = users.filter((u) => u.location === user.location)
@@ -155,21 +169,16 @@ export function UserManagement() {
   const filteredUsers = getFilteredUsers()
 
   const getLocationFilterOptions = () => {
-    if (user?.role === "it_head" && user?.location !== "head_office") {
+    const allOptions = getLocationOptions()
+
+    if (user?.role === "it_head" && user?.location !== "Head Office") {
       return [
         { value: "all", label: "All Locations" },
-        { value: user.location, label: locationNames[user.location as keyof typeof locationNames] },
+        { value: user.location, label: user.location },
       ]
     }
 
-    return [
-      { value: "all", label: "All Locations" },
-      { value: "head_office", label: "Head Office" },
-      { value: "accra", label: "Accra" },
-      { value: "kumasi", label: "Kumasi" },
-      { value: "kaase_inland_port", label: "Kaase Inland Port" },
-      { value: "cape_coast", label: "Cape Coast" },
-    ]
+    return [{ value: "all", label: "All Locations" }, ...allOptions]
   }
 
   const locationOptions = getLocationFilterOptions()
@@ -279,8 +288,8 @@ export function UserManagement() {
         <div>
           <h2 className="text-2xl font-bold text-foreground">User Management</h2>
           <p className="text-muted-foreground">
-            {user?.role === "it_head" && user?.location !== "head_office"
-              ? `Manage users in ${locationNames[user.location as keyof typeof locationNames]}`
+            {user?.role === "it_head" && user?.location !== "Head Office"
+              ? `Manage users in ${user.location}`
               : "Manage system users and access permissions"}
           </p>
         </div>
@@ -352,6 +361,13 @@ export function UserManagement() {
                 <SelectItem value="it_head">IT Head</SelectItem>
                 <SelectItem value="it_staff">IT Staff</SelectItem>
                 <SelectItem value="staff">Staff</SelectItem>
+                <SelectItem value="it_store_head">IT Store Head</SelectItem>
+                <SelectItem value="service_desk_accra">Service Desk (Accra)</SelectItem>
+                <SelectItem value="service_desk_kumasi">Service Desk (Kumasi)</SelectItem>
+                <SelectItem value="service_desk_tema">Service Desk (Tema)</SelectItem>
+                <SelectItem value="service_desk_takoradi">Service Desk (Takoradi)</SelectItem>
+                <SelectItem value="service_desk_cape_coast">Service Desk (Cape Coast)</SelectItem>
+                <SelectItem value="service_desk_ho">Service Desk (Ho)</SelectItem>
               </SelectContent>
             </Select>
             <Select value={locationFilter} onValueChange={setLocationFilter}>
@@ -460,7 +476,7 @@ export function UserManagement() {
                     <MapPin className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-muted-foreground">Location</p>
-                      <p className="font-medium">{locationNames[user.location]}</p>
+                      <p className="font-medium">{user.location}</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -526,27 +542,50 @@ function AddUserForm({ onClose, onUserAdded }: { onClose: () => void; onUserAdde
     email: "",
     phone: "",
     role: "staff" as SystemUser["role"],
-    location: "head_office" as SystemUser["location"],
+    location: "Head Office",
+    department: "ITD",
+    password: "qccghana123",
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState("")
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError("")
+    setIsSubmitting(true)
 
-    const newUser: SystemUser = {
-      id: `USR-${String(Date.now()).slice(-3).padStart(3, "0")}`,
-      ...formData,
-      status: "active",
-      lastLogin: new Date().toISOString(),
-      createdDate: new Date().toISOString().split("T")[0],
-      deviceCount: 0,
+    try {
+      console.log("[v0] Submitting user creation:", formData)
+
+      const response = await fetch("/api/admin/create-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to create user")
+      }
+
+      const result = await response.json()
+      console.log("[v0] User created successfully:", result)
+
+      // Refresh the page to show the new user
+      window.location.reload()
+    } catch (err: any) {
+      console.error("[v0] Error creating user:", err)
+      setError(err.message || "Failed to create user. Please try again.")
+    } finally {
+      setIsSubmitting(false)
     }
-
-    onUserAdded(newUser)
   }
 
   return (
     <div>
       <FormNavigation currentPage="/dashboard/users" className="mb-4" />
+
+      {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">{error}</div>}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
@@ -576,6 +615,29 @@ function AddUserForm({ onClose, onUserAdded }: { onClose: () => void; onUserAdde
             />
           </div>
           <div>
+            <label className="text-sm font-medium">Department</label>
+            <Select
+              value={formData.department}
+              onValueChange={(value) => setFormData({ ...formData, department: value })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ITD">ITD</SelectItem>
+                <SelectItem value="Marketing">Marketing</SelectItem>
+                <SelectItem value="AUDIT">AUDIT</SelectItem>
+                <SelectItem value="ACCOUNTS">ACCOUNTS</SelectItem>
+                <SelectItem value="RESEARCH">RESEARCH</SelectItem>
+                <SelectItem value="ESTATE">ESTATE</SelectItem>
+                <SelectItem value="SECURITY">SECURITY</SelectItem>
+                <SelectItem value="OPERATIONS">OPERATIONS</SelectItem>
+                <SelectItem value="PROCUREMENT">PROCUREMENT</SelectItem>
+                <SelectItem value="HR">HR</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
             <label className="text-sm font-medium">Role</label>
             <Select
               value={formData.role}
@@ -589,35 +651,57 @@ function AddUserForm({ onClose, onUserAdded }: { onClose: () => void; onUserAdde
                 <SelectItem value="it_staff">IT Staff</SelectItem>
                 <SelectItem value="it_head">IT Head</SelectItem>
                 <SelectItem value="regional_it_head">Regional IT Head</SelectItem>
+                <SelectItem value="it_store_head">IT Store Head</SelectItem>
+                <SelectItem value="service_desk_accra">Service Desk (Accra)</SelectItem>
+                <SelectItem value="service_desk_kumasi">Service Desk (Kumasi)</SelectItem>
+                <SelectItem value="service_desk_tema">Service Desk (Tema)</SelectItem>
+                <SelectItem value="service_desk_takoradi">Service Desk (Takoradi)</SelectItem>
+                <SelectItem value="service_desk_cape_coast">Service Desk (Cape Coast)</SelectItem>
+                <SelectItem value="service_desk_ho">Service Desk (Ho)</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div className="col-span-2">
+          <div>
             <label className="text-sm font-medium">Location</label>
-            <Select
-              value={formData.location}
-              onValueChange={(value) => setFormData({ ...formData, location: value as SystemUser["location"] })}
-            >
+            <Select value={formData.location} onValueChange={(value) => setFormData({ ...formData, location: value })}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="head_office">Head Office</SelectItem>
-                <SelectItem value="accra">Accra</SelectItem>
-                <SelectItem value="kumasi">Kumasi</SelectItem>
-                <SelectItem value="kaase_inland_port">Kaase Inland Port</SelectItem>
-                <SelectItem value="cape_coast">Cape Coast</SelectItem>
+                {getLocationOptions().map((option) => (
+                  <SelectItem key={option.value} value={option.label}>
+                    {option.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
+          <div className="col-span-2">
+            <label className="text-sm font-medium">Default Password</label>
+            <Input
+              type="password"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              required
+              placeholder="Default password for new user"
+            />
+            <p className="text-xs text-muted-foreground mt-1">User can change this password after first login</p>
+          </div>
         </div>
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose} className="hover:bg-gray-50 bg-transparent">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="hover:bg-gray-50 bg-transparent"
+          >
             Cancel
           </Button>
           <Button
             type="submit"
+            disabled={isSubmitting}
             className={cn(
               "text-white",
               roleColors
@@ -625,7 +709,7 @@ function AddUserForm({ onClose, onUserAdded }: { onClose: () => void; onUserAdde
                 : "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600",
             )}
           >
-            Create User
+            {isSubmitting ? "Creating..." : "Create User"}
           </Button>
         </div>
       </form>
