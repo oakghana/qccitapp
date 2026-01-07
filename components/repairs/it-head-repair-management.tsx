@@ -165,7 +165,7 @@ export function ITHeadRepairManagement() {
     return matchesSearch && matchesStatus && matchesPriority
   })
 
-  const createRepairTask = () => {
+  const createRepairTask = async () => {
     if (!selectedDevice || !issueDescription || !selectedProvider) return
 
     const device = devices.find((d) => d.id === selectedDevice)
@@ -173,29 +173,47 @@ export function ITHeadRepairManagement() {
 
     if (!device || !provider) return
 
-    const newTask: RepairTask = {
-      id: `RPR-${String(tasks.length + 1).padStart(3, "0")}`,
-      taskNumber: `QCC-RPR-2025-${String(tasks.length + 1).padStart(3, "0")}`,
-      device,
-      issueDescription,
-      priority,
-      status: "assigned",
-      serviceProvider: provider,
-      createdBy: user?.name || "IT Head",
-      createdDate: new Date().toISOString(),
-      estimatedCost: estimatedCost ? Number.parseFloat(estimatedCost) : undefined,
-      attachments: [],
+    try {
+      console.log("[v0] Saving repair task to Supabase")
+
+      const { data, error } = await supabase
+        .from("repair_requests")
+        .insert([
+          {
+            device_id: device.id,
+            issue_description: issueDescription,
+            priority,
+            status: "assigned",
+            service_provider_id: provider.id,
+            requested_by: user?.id,
+            location: device.location,
+            estimated_cost: estimatedCost ? Number.parseFloat(estimatedCost) : null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        ])
+        .select()
+
+      if (error) {
+        console.error("[v0] Error saving repair task:", error)
+        return
+      }
+
+      console.log("[v0] Repair task saved successfully:", data)
+
+      // Reload tasks
+      await loadRepairTasks()
+
+      // Reset form
+      setSelectedDevice("")
+      setIssueDescription("")
+      setPriority("medium")
+      setSelectedProvider("")
+      setEstimatedCost("")
+      setShowCreateDialog(false)
+    } catch (error) {
+      console.error("[v0] Error saving repair task:", error)
     }
-
-    setTasks((prev) => [...prev, newTask])
-
-    // Reset form
-    setSelectedDevice("")
-    setIssueDescription("")
-    setPriority("medium")
-    setSelectedProvider("")
-    setEstimatedCost("")
-    setShowCreateDialog(false)
   }
 
   const getPriorityColor = (priority: string) => {

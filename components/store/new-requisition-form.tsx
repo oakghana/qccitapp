@@ -9,14 +9,20 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Trash2 } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
+import { useAuth } from "@/lib/auth-context"
+import { LOCATIONS } from "@/lib/locations"
 
 export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
-  const [requisitionNumber, setRequisitionNumber] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const { user } = useAuth()
+  const supabase = createClient()
 
   const [formData, setFormData] = useState({
-    requestedBy: "",
+    requestedBy: user?.full_name || "",
     beneficiary: "",
-    department: "",
+    location: user?.location || "",
     purpose: "",
     items: [{ itemName: "", quantity: "", unit: "pcs" }],
   })
@@ -41,23 +47,53 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
     setFormData({ ...formData, items: updatedItems })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit()
+    setError("")
+    setLoading(true)
+
+    try {
+      console.log("[v0] Saving requisition to Supabase:", formData)
+
+      const { data, error: insertError } = await supabase
+        .from("store_requisitions")
+        .insert([
+          {
+            requested_by: formData.requestedBy,
+            beneficiary: formData.beneficiary,
+            location: formData.location,
+            purpose: formData.purpose,
+            items: formData.items.map((item) => ({
+              itemName: item.itemName,
+              quantity: Number.parseInt(item.quantity),
+              unit: item.unit,
+            })),
+            status: "pending",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        ])
+        .select()
+
+      if (insertError) {
+        console.error("[v0] Error saving requisition:", insertError)
+        setError(insertError.message)
+        return
+      }
+
+      console.log("[v0] Requisition saved successfully:", data)
+      onSubmit()
+    } catch (err) {
+      console.error("[v0] Error:", err)
+      setError("Failed to save requisition")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="requisitionNumber">Requisition Number *</Label>
-        <Input
-          id="requisitionNumber"
-          value={requisitionNumber}
-          onChange={(e) => setRequisitionNumber(e.target.value)}
-          placeholder="e.g., REQ-2025-001"
-          required
-        />
-      </div>
+      {error && <div className="bg-destructive/10 text-destructive px-4 py-2 rounded">{error}</div>}
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
@@ -85,20 +121,17 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="department">Department *</Label>
-          <Select
-            value={formData.department}
-            onValueChange={(value) => setFormData({ ...formData, department: value })}
-          >
+          <Label htmlFor="location">Location *</Label>
+          <Select value={formData.location} onValueChange={(value) => setFormData({ ...formData, location: value })}>
             <SelectTrigger>
-              <SelectValue placeholder="Select department" />
+              <SelectValue placeholder="Select location" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="IT Support">IT Support</SelectItem>
-              <SelectItem value="Finance">Finance</SelectItem>
-              <SelectItem value="HR">Human Resources</SelectItem>
-              <SelectItem value="Operations">Operations</SelectItem>
-              <SelectItem value="Admin">Administration</SelectItem>
+              {LOCATIONS.map((location) => (
+                <SelectItem key={location.value} value={location.value}>
+                  {location.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -172,7 +205,9 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
-        <Button type="submit">Submit Requisition</Button>
+        <Button type="submit" disabled={loading}>
+          {loading ? "Saving..." : "Submit Requisition"}
+        </Button>
       </div>
     </form>
   )

@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FormNavigation } from "@/components/ui/form-navigation"
+import { createClient } from "@/lib/supabase/client"
+import { LOCATIONS } from "@/lib/locations"
 
 interface Device {
   name: string
@@ -16,16 +18,20 @@ interface Device {
   model: string
   brand: string
   status: "active" | "repair" | "maintenance" | "retired"
-  location: "head_office" | "accra" | "kumasi" | "kaase_inland_port" | "cape_coast"
+  location: string
   assignedTo: string
   assignedDate: string
 }
 
 interface AddDeviceFormProps {
-  onSubmit: (device: Device) => void
+  onSubmit: () => void
 }
 
 export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const supabase = createClient()
+
   const [formData, setFormData] = useState<Device>({
     name: "",
     type: "laptop",
@@ -33,26 +39,60 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
     model: "",
     brand: "",
     status: "active",
-    location: "head_office",
+    location: "Head Office",
     assignedTo: "",
     assignedDate: new Date().toISOString().split("T")[0],
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit(formData)
+    setError("")
+    setLoading(true)
+
+    try {
+      console.log("[v0] Saving device to Supabase:", formData)
+
+      const { data, error: insertError } = await supabase
+        .from("devices")
+        .insert([
+          {
+            device_type: formData.type,
+            brand: formData.brand,
+            model: formData.model,
+            serial_number: formData.serialNumber,
+            asset_tag: `${formData.type.toUpperCase().slice(0, 2)}-${new Date().getFullYear()}-${Math.floor(
+              Math.random() * 1000,
+            )
+              .toString()
+              .padStart(3, "0")}`,
+            location: formData.location,
+            assigned_to: formData.assignedTo,
+            status: formData.status,
+            purchase_date: formData.assignedDate,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        ])
+        .select()
+
+      if (insertError) {
+        console.error("[v0] Error saving device:", insertError)
+        setError(insertError.message)
+        return
+      }
+
+      console.log("[v0] Device saved successfully:", data)
+      onSubmit()
+    } catch (err) {
+      console.error("[v0] Error:", err)
+      setError("Failed to save device")
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleInputChange = (field: keyof Device, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
-  }
-
-  const locationNames = {
-    head_office: "Head Office",
-    accra: "Accra",
-    kumasi: "Kumasi",
-    kaase_inland_port: "Kaase Inland Port",
-    cape_coast: "Cape Coast",
   }
 
   return (
@@ -60,6 +100,8 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
       <FormNavigation currentPage="/dashboard/devices" />
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <div className="bg-destructive/10 text-destructive px-4 py-2 rounded">{error}</div>}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="name">Device Name</Label>
@@ -144,11 +186,11 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="head_office">Head Office</SelectItem>
-                <SelectItem value="accra">Accra</SelectItem>
-                <SelectItem value="kumasi">Kumasi</SelectItem>
-                <SelectItem value="kaase_inland_port">Kaase Inland Port</SelectItem>
-                <SelectItem value="cape_coast">Cape Coast</SelectItem>
+                {LOCATIONS.map((location) => (
+                  <SelectItem key={location.value} value={location.value}>
+                    {location.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -166,7 +208,9 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
         </div>
 
         <div className="flex justify-end space-x-2 pt-4">
-          <Button type="submit">Add Device</Button>
+          <Button type="submit" disabled={loading}>
+            {loading ? "Saving..." : "Add Device"}
+          </Button>
         </div>
       </form>
     </div>

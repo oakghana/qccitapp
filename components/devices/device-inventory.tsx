@@ -128,13 +128,9 @@ export function DeviceInventory() {
     return matchesSearch && matchesStatus && matchesLocation
   })
 
-  const handleAddDevice = (newDevice: Omit<Device, "id" | "lastUpdated">) => {
-    const device: Device = {
-      ...newDevice,
-      id: `${newDevice.type.toUpperCase().slice(0, 2)}-2024-${String(devices.length + 1).padStart(3, "0")}`,
-      lastUpdated: new Date().toISOString().split("T")[0],
-    }
-    setDevices([...devices, device])
+  const handleAddDevice = () => {
+    // Just reload devices after form saves to database
+    loadDevices()
     setAddDeviceOpen(false)
   }
 

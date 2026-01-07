@@ -142,7 +142,12 @@ export function StoreInventory() {
                 <DialogTitle>Add Store Item</DialogTitle>
                 <DialogDescription>Register a new item in the IT store inventory</DialogDescription>
               </DialogHeader>
-              <AddStoreItemForm onSubmit={() => setAddItemOpen(false)} />
+              <AddStoreItemForm
+                onSubmit={() => {
+                  setAddItemOpen(false)
+                  loadInventory()
+                }}
+              />
             </DialogContent>
           </Dialog>
         </div>

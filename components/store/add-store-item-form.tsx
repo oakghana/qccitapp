@@ -7,25 +7,71 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { createClient } from "@/lib/supabase/client"
+import { getLocationOptions } from "@/lib/locations"
+import { useAuth } from "@/lib/auth-context"
 
 export function AddStoreItemForm({ onSubmit }: { onSubmit: () => void }) {
   const [formData, setFormData] = useState({
     itemName: "",
     category: "",
+    sku: "",
     quantity: "",
     reorderLevel: "",
     unit: "",
     location: "",
     sivNumber: "",
+    supplier: "",
   })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const { user } = useAuth()
+  const supabase = createClient()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit()
+    setLoading(true)
+    setError("")
+
+    try {
+      const { data, error: insertError } = await supabase
+        .from("store_items")
+        .insert({
+          name: formData.itemName,
+          category: formData.category,
+          sku: formData.sku || `SKU-${Date.now()}`,
+          siv_number: formData.sivNumber,
+          quantity: Number.parseInt(formData.quantity) || 0,
+          reorder_level: Number.parseInt(formData.reorderLevel) || 0,
+          unit: formData.unit,
+          location: formData.location || user?.location || "Head Office",
+          supplier: formData.supplier || "N/A",
+          last_restocked: new Date().toISOString().split("T")[0],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+
+      if (insertError) {
+        console.error("[v0] Error adding store item:", insertError)
+        setError(insertError.message)
+        return
+      }
+
+      console.log("[v0] Successfully added store item:", data)
+      onSubmit()
+    } catch (err) {
+      console.error("[v0] Error adding store item:", err)
+      setError(err instanceof Error ? err.message : "Failed to add item")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {error && <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">{error}</div>}
+
       <div className="space-y-2">
         <Label htmlFor="sivNumber">SIV Number *</Label>
         <Input
@@ -51,19 +97,41 @@ export function AddStoreItemForm({ onSubmit }: { onSubmit: () => void }) {
         </div>
 
         <div className="space-y-2">
+          <Label htmlFor="sku">SKU</Label>
+          <Input
+            id="sku"
+            value={formData.sku}
+            onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+            placeholder="Auto-generated if empty"
+          />
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="category">Category *</Label>
           <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
             <SelectTrigger>
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="hardware">Hardware</SelectItem>
-              <SelectItem value="software">Software</SelectItem>
-              <SelectItem value="accessories">Accessories</SelectItem>
-              <SelectItem value="consumables">Consumables</SelectItem>
-              <SelectItem value="peripherals">Peripherals</SelectItem>
+              <SelectItem value="Hardware">Hardware</SelectItem>
+              <SelectItem value="Software">Software</SelectItem>
+              <SelectItem value="Accessories">Accessories</SelectItem>
+              <SelectItem value="Consumables">Consumables</SelectItem>
+              <SelectItem value="Peripherals">Peripherals</SelectItem>
+              <SelectItem value="Laptop Parts">Laptop Parts</SelectItem>
+              <SelectItem value="Cables">Cables</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="supplier">Supplier</Label>
+          <Input
+            id="supplier"
+            value={formData.supplier}
+            onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
+            placeholder="e.g., Tech Supplies Ltd"
+          />
         </div>
 
         <div className="space-y-2">
@@ -97,10 +165,11 @@ export function AddStoreItemForm({ onSubmit }: { onSubmit: () => void }) {
               <SelectValue placeholder="Select unit" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="pcs">Pieces (pcs)</SelectItem>
+              <SelectItem value="pieces">Pieces</SelectItem>
               <SelectItem value="box">Box</SelectItem>
               <SelectItem value="pack">Pack</SelectItem>
               <SelectItem value="set">Set</SelectItem>
+              <SelectItem value="unit">Unit</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -112,18 +181,20 @@ export function AddStoreItemForm({ onSubmit }: { onSubmit: () => void }) {
               <SelectValue placeholder="Select location" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="head_office">Head Office</SelectItem>
-              <SelectItem value="accra">Accra</SelectItem>
-              <SelectItem value="kumasi">Kumasi</SelectItem>
-              <SelectItem value="kaase">Kaase Inland Port</SelectItem>
-              <SelectItem value="cape_coast">Cape Coast</SelectItem>
+              {getLocationOptions().map((loc) => (
+                <SelectItem key={loc.value} value={loc.label}>
+                  {loc.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
-        <Button type="submit">Add Item</Button>
+        <Button type="submit" disabled={loading}>
+          {loading ? "Adding..." : "Add Item"}
+        </Button>
       </div>
     </form>
   )

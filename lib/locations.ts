@@ -10,6 +10,7 @@ export const LOCATIONS = {
   vr: "VR",
   bar: "BAR",
   nsawam: "Nsawam",
+  cr: "CR",
 } as const
 
 export type LocationKey = keyof typeof LOCATIONS
