@@ -6,16 +6,130 @@ import { Button } from "@/components/ui/button"
 import { Monitor, Wrench, CheckCircle, AlertTriangle, Clock, Users, Plus, Settings, Calendar } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { getRoleColorScheme } from "@/lib/role-colors"
 import { cn } from "@/lib/utils"
+import { createClient } from "@/lib/supabase/client"
+import { canSeeAllLocations } from "@/lib/location-filter"
 
 export function DashboardOverview() {
   const router = useRouter()
   const { user } = useAuth()
   const [showAlerts, setShowAlerts] = useState(false)
   const roleColors = user?.role ? getRoleColorScheme(user.role) : null
+  const [stats, setStats] = useState({
+    totalDevices: 0,
+    activeRepairs: 0,
+    completedRepairs: 0,
+    pendingApprovals: 0,
+    assignedTasks: 0,
+    inProgressTasks: 0,
+    completedTasks: 0,
+    pendingReview: 0,
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!user) return
+
+      const supabase = createClient()
+      const canSeeAll = canSeeAllLocations(user.role || "")
+      const locationFilter = canSeeAll ? {} : { location: user.location }
+
+      try {
+        // Fetch total devices
+        const { count: devicesCount } = await supabase
+          .from("devices")
+          .select("*", { count: "exact", head: true })
+          .match(locationFilter)
+
+        // Fetch active repairs (in_repair status)
+        const { count: activeRepairsCount } = await supabase
+          .from("repairs")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "in_repair")
+          .match(locationFilter)
+
+        // Fetch completed repairs this month
+        const startOfMonth = new Date()
+        startOfMonth.setDate(1)
+        startOfMonth.setHours(0, 0, 0, 0)
+
+        const { count: completedRepairsCount } = await supabase
+          .from("repairs")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "completed")
+          .gte("updated_at", startOfMonth.toISOString())
+          .match(locationFilter)
+
+        // Fetch pending approvals (users with pending status)
+        const { count: pendingApprovalsCount } = await supabase
+          .from("profiles")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "pending")
+
+        // For IT staff - fetch assigned tasks
+        let assignedTasksCount = 0
+        let inProgressTasksCount = 0
+        let completedTasksCount = 0
+        let pendingReviewCount = 0
+
+        if (user.role === "it_staff") {
+          const { count: assigned } = await supabase
+            .from("repairs")
+            .select("*", { count: "exact", head: true })
+            .eq("assigned_to", user.id)
+
+          const { count: inProgress } = await supabase
+            .from("repairs")
+            .select("*", { count: "exact", head: true })
+            .eq("assigned_to", user.id)
+            .eq("status", "in_repair")
+
+          const { count: completed } = await supabase
+            .from("repairs")
+            .select("*", { count: "exact", head: true })
+            .eq("assigned_to", user.id)
+            .eq("status", "completed")
+            .gte("updated_at", startOfMonth.toISOString())
+
+          const { count: pending } = await supabase
+            .from("repairs")
+            .select("*", { count: "exact", head: true })
+            .eq("assigned_to", user.id)
+            .eq("status", "pending_approval")
+
+          assignedTasksCount = assigned || 0
+          inProgressTasksCount = inProgress || 0
+          completedTasksCount = completed || 0
+          pendingReviewCount = pending || 0
+        }
+
+        setStats({
+          totalDevices: devicesCount || 0,
+          activeRepairs: activeRepairsCount || 0,
+          completedRepairs: completedRepairsCount || 0,
+          pendingApprovals: pendingApprovalsCount || 0,
+          assignedTasks: assignedTasksCount,
+          inProgressTasks: inProgressTasksCount,
+          completedTasks: completedTasksCount,
+          pendingReview: pendingReviewCount,
+        })
+      } catch (error) {
+        console.error("Error fetching dashboard stats:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchStats()
+
+    // Refresh stats every 30 seconds
+    const interval = setInterval(fetchStats, 30000)
+    return () => clearInterval(interval)
+  }, [user])
 
   const handleNewRepairRequest = () => {
     router.push("/dashboard/repairs")
@@ -62,31 +176,31 @@ export function DashboardOverview() {
       return [
         {
           title: "Assigned Tasks",
-          value: "12",
+          value: loading ? "..." : stats.assignedTasks.toString(),
           description: "Total repair assignments",
           icon: Wrench,
-          trend: "+3 this week",
+          trend: "",
         },
         {
           title: "In Progress",
-          value: "5",
+          value: loading ? "..." : stats.inProgressTasks.toString(),
           description: "Currently working on",
           icon: Clock,
-          trend: "+2 from yesterday",
+          trend: "",
         },
         {
           title: "Completed",
-          value: "28",
+          value: loading ? "..." : stats.completedTasks.toString(),
           description: "This month",
           icon: CheckCircle,
-          trend: "+15 from last month",
+          trend: "",
         },
         {
           title: "Pending Review",
-          value: "3",
+          value: loading ? "..." : stats.pendingReview.toString(),
           description: "Awaiting approval",
           icon: Calendar,
-          trend: "+1 today",
+          trend: "",
         },
       ]
     }
@@ -94,31 +208,31 @@ export function DashboardOverview() {
     return [
       {
         title: "Total Devices",
-        value: "248",
+        value: loading ? "..." : stats.totalDevices.toString(),
         description: "Across all regions",
         icon: Monitor,
-        trend: "+12 from last month",
+        trend: "",
       },
       {
         title: "Active Repairs",
-        value: "23",
+        value: loading ? "..." : stats.activeRepairs.toString(),
         description: "Currently in progress",
         icon: Wrench,
-        trend: "-5 from last week",
+        trend: "",
       },
       {
         title: "Completed Repairs",
-        value: "156",
+        value: loading ? "..." : stats.completedRepairs.toString(),
         description: "This month",
         icon: CheckCircle,
-        trend: "+28 from last month",
+        trend: "",
       },
       {
         title: "Pending Approvals",
-        value: "8",
+        value: loading ? "..." : stats.pendingApprovals.toString(),
         description: "Awaiting IT head review",
         icon: Clock,
-        trend: "+3 from yesterday",
+        trend: "",
       },
     ]
   }
@@ -127,7 +241,7 @@ export function DashboardOverview() {
     return []
   }
 
-  const stats = getStats()
+  const displayStats = getStats()
   const recentActivity = getRecentActivity()
 
   return (
@@ -143,7 +257,7 @@ export function DashboardOverview() {
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
+        {displayStats.map((stat) => (
           <Card key={stat.title}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
@@ -152,7 +266,7 @@ export function DashboardOverview() {
             <CardContent>
               <div className="text-2xl font-bold">{stat.value}</div>
               <p className="text-xs text-muted-foreground">{stat.description}</p>
-              <p className="text-xs text-primary mt-1">{stat.trend}</p>
+              {stat.trend && <p className="text-xs text-primary mt-1">{stat.trend}</p>}
             </CardContent>
           </Card>
         ))}
