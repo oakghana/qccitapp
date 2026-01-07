@@ -541,7 +541,7 @@ function AddUserForm({ onClose, onUserAdded }: { onClose: () => void; onUserAdde
     name: "",
     email: "",
     phone: "",
-    role: "staff" as SystemUser["role"],
+    role: "user" as SystemUser["role"],
     location: "Head Office",
     department: "ITD",
     password: "qccghana123",
@@ -647,17 +647,13 @@ function AddUserForm({ onClose, onUserAdded }: { onClose: () => void; onUserAdde
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="staff">Staff</SelectItem>
+                <SelectItem value="user">User</SelectItem>
                 <SelectItem value="it_staff">IT Staff</SelectItem>
                 <SelectItem value="it_head">IT Head</SelectItem>
-                <SelectItem value="regional_it_head">Regional IT Head</SelectItem>
                 <SelectItem value="it_store_head">IT Store Head</SelectItem>
-                <SelectItem value="service_desk_accra">Service Desk (Accra)</SelectItem>
-                <SelectItem value="service_desk_kumasi">Service Desk (Kumasi)</SelectItem>
-                <SelectItem value="service_desk_tema">Service Desk (Tema)</SelectItem>
-                <SelectItem value="service_desk_takoradi">Service Desk (Takoradi)</SelectItem>
-                <SelectItem value="service_desk_cape_coast">Service Desk (Cape Coast)</SelectItem>
-                <SelectItem value="service_desk_ho">Service Desk (Ho)</SelectItem>
+                <SelectItem value="service_desk_head">Service Desk Head</SelectItem>
+                <SelectItem value="service_desk_staff">Service Desk Staff</SelectItem>
+                <SelectItem value="service_provider">Service Provider</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
             </Select>

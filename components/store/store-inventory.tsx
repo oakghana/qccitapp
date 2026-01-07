@@ -32,7 +32,7 @@ interface StoreItem {
   lastUpdated: string
 }
 
-const categoryIcons = {
+const categoryIcons: Record<string, typeof Package> = {
   hardware: Package,
   software: Package,
   accessories: Package,

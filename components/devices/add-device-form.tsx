@@ -9,10 +9,9 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FormNavigation } from "@/components/ui/form-navigation"
 import { createClient } from "@/lib/supabase/client"
-import { LOCATIONS } from "@/lib/locations"
+import { getLocationOptions } from "@/lib/locations"
 
 interface Device {
-  name: string
   type: "laptop" | "desktop" | "printer" | "mobile" | "server" | "other"
   serialNumber: string
   model: string
@@ -20,7 +19,8 @@ interface Device {
   status: "active" | "repair" | "maintenance" | "retired"
   location: string
   assignedTo: string
-  assignedDate: string
+  purchaseDate: string
+  warrantyExpiry: string
 }
 
 interface AddDeviceFormProps {
@@ -33,7 +33,6 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
   const supabase = createClient()
 
   const [formData, setFormData] = useState<Device>({
-    name: "",
     type: "laptop",
     serialNumber: "",
     model: "",
@@ -41,7 +40,8 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
     status: "active",
     location: "Head Office",
     assignedTo: "",
-    assignedDate: new Date().toISOString().split("T")[0],
+    purchaseDate: new Date().toISOString().split("T")[0],
+    warrantyExpiry: "",
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -60,15 +60,11 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
             brand: formData.brand,
             model: formData.model,
             serial_number: formData.serialNumber,
-            asset_tag: `${formData.type.toUpperCase().slice(0, 2)}-${new Date().getFullYear()}-${Math.floor(
-              Math.random() * 1000,
-            )
-              .toString()
-              .padStart(3, "0")}`,
             location: formData.location,
-            assigned_to: formData.assignedTo,
+            assigned_to: formData.assignedTo || null,
             status: formData.status,
-            purchase_date: formData.assignedDate,
+            purchase_date: formData.purchaseDate || null,
+            warranty_expiry: formData.warrantyExpiry || null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           },
@@ -103,17 +99,6 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
         {error && <div className="bg-destructive/10 text-destructive px-4 py-2 rounded">{error}</div>}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Device Name</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => handleInputChange("name", e.target.value)}
-              placeholder="e.g., Dell Latitude 5520"
-              required
-            />
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="type">Device Type</Label>
             <Select value={formData.type} onValueChange={(value) => handleInputChange("type", value)}>
@@ -186,8 +171,8 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {LOCATIONS.map((location) => (
-                  <SelectItem key={location.value} value={location.value}>
+                {getLocationOptions().map((location) => (
+                  <SelectItem key={location.value} value={location.label}>
                     {location.label}
                   </SelectItem>
                 ))}
@@ -201,8 +186,27 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
               id="assignedTo"
               value={formData.assignedTo}
               onChange={(e) => handleInputChange("assignedTo", e.target.value)}
-              placeholder="Person or department name"
-              required
+              placeholder="Person or department name (optional)"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="purchaseDate">Purchase Date</Label>
+            <Input
+              id="purchaseDate"
+              type="date"
+              value={formData.purchaseDate}
+              onChange={(e) => handleInputChange("purchaseDate", e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="warrantyExpiry">Warranty Expiry</Label>
+            <Input
+              id="warrantyExpiry"
+              type="date"
+              value={formData.warrantyExpiry}
+              onChange={(e) => handleInputChange("warrantyExpiry", e.target.value)}
             />
           </div>
         </div>

@@ -174,6 +174,9 @@ export function UserApprovalManagement() {
       it_store_head: "IT Store Head",
       staff: "Staff",
       service_provider: "Service Provider",
+      user: "User",
+      service_desk_head: "Service Desk Head",
+      service_desk_staff: "Service Desk Staff",
     }
     return roles[role] || role
   }
@@ -355,9 +358,11 @@ export function UserApprovalManagement() {
                       <SelectValue placeholder="Select a role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="staff">Staff</SelectItem>
+                      <SelectItem value="user">User</SelectItem>
                       <SelectItem value="it_staff">IT Staff</SelectItem>
                       <SelectItem value="it_store_head">IT Store Head</SelectItem>
+                      <SelectItem value="service_desk_head">Service Desk Head</SelectItem>
+                      <SelectItem value="service_desk_staff">Service Desk Staff</SelectItem>
                       <SelectItem value="it_head">IT Head</SelectItem>
                       <SelectItem value="admin">Admin</SelectItem>
                     </SelectContent>
