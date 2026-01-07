@@ -1,6 +1,7 @@
 "use client"
 
-import React, { useState } from "react"
+import type React from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { User, Mail, Phone, MapPin, Shield, Clock, CheckCircle } from "lucide-react"
+import { User, Mail, MapPin, Shield, Clock, CheckCircle } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { getRoleColorScheme } from "@/lib/role-colors"
 import { cn } from "@/lib/utils"
@@ -66,7 +67,7 @@ export function CreateUserForm({ onUserCreated, onClose }: CreateUserFormProps) 
     setIsSubmitting(true)
 
     // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    await new Promise((resolve) => setTimeout(resolve, 2000))
 
     const newPendingUser: PendingUser = {
       id: `PND-${String(Date.now()).slice(-6)}`,
@@ -88,37 +89,43 @@ export function CreateUserForm({ onUserCreated, onClose }: CreateUserFormProps) 
   }
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
   if (submitted) {
     return (
-      <Card className={cn(
-        "max-w-2xl mx-auto",
-        roleColors ? `${roleColors.background}` : "bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950"
-      )}>
+      <Card
+        className={cn(
+          "max-w-2xl mx-auto",
+          roleColors
+            ? `${roleColors.background}`
+            : "bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950",
+        )}
+      >
         <CardContent className="p-8 text-center">
-          <div className={cn(
-            "w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4",
-            roleColors ? `${roleColors.background}` : "bg-green-100 dark:bg-green-800"
-          )}>
-            <CheckCircle className={cn(
-              "h-8 w-8",
-              roleColors ? roleColors.textPrimary : "text-green-600 dark:text-green-400"
-            )} />
+          <div
+            className={cn(
+              "w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4",
+              roleColors ? `${roleColors.background}` : "bg-green-100 dark:bg-green-800",
+            )}
+          >
+            <CheckCircle
+              className={cn("h-8 w-8", roleColors ? roleColors.textPrimary : "text-green-600 dark:text-green-400")}
+            />
           </div>
-          <h3 className={cn(
-            "text-xl font-semibold mb-2",
-            roleColors ? roleColors.textPrimary : "text-green-900 dark:text-green-100"
-          )}>
+          <h3
+            className={cn(
+              "text-xl font-semibold mb-2",
+              roleColors ? roleColors.textPrimary : "text-green-900 dark:text-green-100",
+            )}
+          >
             User Account Request Submitted
           </h3>
-          <p className={cn(
-            "text-sm mb-4",
-            roleColors ? roleColors.textSecondary : "text-green-700 dark:text-green-300"
-          )}>
-            The user account request for <strong>{formData.name}</strong> has been submitted successfully. 
-            An administrator will review and approve the account within 24-48 hours.
+          <p
+            className={cn("text-sm mb-4", roleColors ? roleColors.textSecondary : "text-green-700 dark:text-green-300")}
+          >
+            The user account request for <strong>{formData.name}</strong> has been submitted successfully. An
+            administrator will review and approve the account within 24-48 hours.
           </p>
           <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100">
             <Clock className="mr-1 h-3 w-3" />
@@ -131,28 +138,30 @@ export function CreateUserForm({ onUserCreated, onClose }: CreateUserFormProps) 
 
   return (
     <Card className="max-w-4xl mx-auto">
-      <CardHeader className={cn(
-        "text-center",
-        roleColors ? `${roleColors.background}` : "bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950"
-      )}>
-        <div className={cn(
-          "w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4",
-          roleColors ? `${roleColors.background}` : "bg-orange-100 dark:bg-orange-800"
-        )}>
-          <User className={cn(
-            "h-8 w-8",
-            roleColors ? roleColors.textPrimary : "text-orange-600 dark:text-orange-400"
-          )} />
+      <CardHeader
+        className={cn(
+          "text-center",
+          roleColors
+            ? `${roleColors.background}`
+            : "bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950",
+        )}
+      >
+        <div
+          className={cn(
+            "w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4",
+            roleColors ? `${roleColors.background}` : "bg-orange-100 dark:bg-orange-800",
+          )}
+        >
+          <User
+            className={cn("h-8 w-8", roleColors ? roleColors.textPrimary : "text-orange-600 dark:text-orange-400")}
+          />
         </div>
-        <CardTitle className={cn(
-          "text-2xl",
-          roleColors ? roleColors.textPrimary : "text-orange-900 dark:text-orange-100"
-        )}>
+        <CardTitle
+          className={cn("text-2xl", roleColors ? roleColors.textPrimary : "text-orange-900 dark:text-orange-100")}
+        >
           Create New User Account
         </CardTitle>
-        <CardDescription className={cn(
-          roleColors ? roleColors.textSecondary : "text-orange-700 dark:text-orange-300"
-        )}>
+        <CardDescription className={cn(roleColors ? roleColors.textSecondary : "text-orange-700 dark:text-orange-300")}>
           Submit a request to create a new user account. All requests require administrator approval.
         </CardDescription>
       </CardHeader>
@@ -161,8 +170,9 @@ export function CreateUserForm({ onUserCreated, onClose }: CreateUserFormProps) 
         <Alert className="mb-6 border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">
           <Shield className="h-4 w-4 text-yellow-600" />
           <AlertDescription className="text-yellow-800 dark:text-yellow-200">
-            <strong>Important:</strong> This form creates a user account request that requires administrator approval. 
-            The user will not be able to access the system until an admin activates their account and assigns appropriate roles.
+            <strong>Important:</strong> This form creates a user account request that requires administrator approval.
+            The user will not be able to access the system until an admin activates their account and assigns
+            appropriate roles.
           </AlertDescription>
         </Alert>
 
@@ -207,10 +217,7 @@ export function CreateUserForm({ onUserCreated, onClose }: CreateUserFormProps) 
               </div>
               <div className="space-y-2">
                 <Label htmlFor="location">Location *</Label>
-                <Select
-                  value={formData.location}
-                  onValueChange={(value) => handleInputChange("location", value)}
-                >
+                <Select value={formData.location} onValueChange={(value) => handleInputChange("location", value)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -248,22 +255,21 @@ export function CreateUserForm({ onUserCreated, onClose }: CreateUserFormProps) 
               </div>
               <div className="space-y-2">
                 <Label htmlFor="department">Department *</Label>
-                <Select
-                  value={formData.department}
-                  onValueChange={(value) => handleInputChange("department", value)}
-                >
+                <Select value={formData.department} onValueChange={(value) => handleInputChange("department", value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="administration">Administration</SelectItem>
-                    <SelectItem value="it">Information Technology</SelectItem>
-                    <SelectItem value="operations">Operations</SelectItem>
-                    <SelectItem value="customs">Customs</SelectItem>
-                    <SelectItem value="security">Security</SelectItem>
-                    <SelectItem value="finance">Finance</SelectItem>
-                    <SelectItem value="hr">Human Resources</SelectItem>
-                    <SelectItem value="maintenance">Maintenance</SelectItem>
+                    <SelectItem value="ITD">ITD</SelectItem>
+                    <SelectItem value="Marketing">Marketing</SelectItem>
+                    <SelectItem value="AUDIT">AUDIT</SelectItem>
+                    <SelectItem value="ACCOUNTS">ACCOUNTS</SelectItem>
+                    <SelectItem value="RESEARCH">RESEARCH</SelectItem>
+                    <SelectItem value="ESTATE">ESTATE</SelectItem>
+                    <SelectItem value="SECURITY">SECURITY</SelectItem>
+                    <SelectItem value="OPERATIONS">OPERATIONS</SelectItem>
+                    <SelectItem value="PROCUREMENT">PROCUREMENT</SelectItem>
+                    <SelectItem value="HR">HR</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -306,26 +312,36 @@ export function CreateUserForm({ onUserCreated, onClose }: CreateUserFormProps) 
           <div className="bg-muted/50 p-4 rounded-lg">
             <h4 className="font-medium mb-2">Request Summary</h4>
             <div className="text-sm space-y-1">
-              <p><strong>Requested by:</strong> {user?.name || "Self-Registration"} {user?.role && `(${user.role})`}</p>
-              <p><strong>Request Date:</strong> {new Date().toLocaleDateString()}</p>
-              <p><strong>Location:</strong> {locationNames[formData.location]}</p>
-              <p><strong>Status:</strong> <Badge variant="secondary">Pending Approval</Badge></p>
+              <p>
+                <strong>Requested by:</strong> {user?.name || "Self-Registration"} {user?.role && `(${user.role})`}
+              </p>
+              <p>
+                <strong>Request Date:</strong> {new Date().toLocaleDateString()}
+              </p>
+              <p>
+                <strong>Location:</strong> {locationNames[formData.location]}
+              </p>
+              <p>
+                <strong>Status:</strong> <Badge variant="secondary">Pending Approval</Badge>
+              </p>
             </div>
           </div>
 
           {/* Form Actions */}
           <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
             {onClose && (
-              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+              <Button type="button" variant="outline" onClick={onClose} className="flex-1 bg-transparent">
                 Cancel
               </Button>
             )}
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={isSubmitting}
               className={cn(
                 "flex-1 text-white",
-                roleColors ? `bg-gradient-to-r ${roleColors.gradient} ${roleColors.hoverGradient}` : "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
+                roleColors
+                  ? `bg-gradient-to-r ${roleColors.gradient} ${roleColors.hoverGradient}`
+                  : "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600",
               )}
             >
               {isSubmitting ? (

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,38 +8,29 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { 
-  Search, 
-  Plus, 
-  MoreHorizontal, 
-  User, 
-  MapPin, 
-  Mail, 
-  Phone, 
-  Shield, 
-  Clock, 
-  CheckCircle, 
+import {
+  Search,
+  MoreHorizontal,
+  User,
+  MapPin,
+  Mail,
+  Shield,
+  Clock,
+  CheckCircle,
   XCircle,
   Eye,
   UserCheck,
   UserX,
   AlertTriangle,
-  Calendar
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { FormNavigation } from "@/components/ui/form-navigation"
 import { getRoleColorScheme } from "@/lib/role-colors"
 import { cn } from "@/lib/utils"
-import { PendingUser } from "../auth/create-user-form"
+import type { PendingUser } from "../auth/create-user-form"
+import { createClient } from "@/lib/supabase/client"
 
 interface SystemUser {
   id: string
@@ -55,78 +46,43 @@ interface SystemUser {
   isApproved: boolean
 }
 
-// Mock pending user requests
-const mockPendingUsers: PendingUser[] = [
-  {
-    id: "PND-001",
-    name: "Mary Adjei",
-    email: "mary.adjei@qcc.com.gh",
-    phone: "+233241234571",
-    location: "accra",
-    department: "administration",
-    supervisor: "John Mensah",
-    jobTitle: "Administrative Assistant", 
-    reason: "New employee needs access to track IT equipment and submit repair requests for office devices.",
-    requestedBy: "John Mensah",
-    requestedDate: "2024-03-01T10:30:00Z",
-    status: "pending",
-    temporaryPassword: "TEMP123A"
-  },
-  {
-    id: "PND-002",
-    name: "Ibrahim Yakubu",
-    email: "ibrahim.yakubu@qcc.com.gh",
-    phone: "+233241234572",
-    location: "kumasi",
-    department: "operations",
-    supervisor: "Akosua Asante",
-    jobTitle: "Operations Officer",
-    reason: "Requires access to monitor equipment status and coordinate with IT staff for maintenance activities.",
-    requestedBy: "Akosua Asante",
-    requestedDate: "2024-02-28T14:15:00Z",
-    status: "pending",
-    temporaryPassword: "TEMP456B"
-  },
-  {
-    id: "PND-003",
-    name: "Sarah Ofosu",
-    email: "sarah.ofosu@qcc.com.gh",
-    phone: "+233241234573",
-    location: "cape_coast",
-    department: "customs",
-    supervisor: "Kofi Adjei",
-    jobTitle: "Customs Officer",
-    reason: "New transfer from Tema office. Needs system access to continue managing customs IT equipment and requests.",
-    requestedBy: "Kofi Adjei",
-    requestedDate: "2024-03-02T09:00:00Z",
-    status: "approved",
-    notes: "Approved by Admin - Transfer from Tema office confirmed"
-  }
-]
+const departmentNames = {
+  ITD: "ITD",
+  Marketing: "Marketing",
+  AUDIT: "AUDIT",
+  ACCOUNTS: "ACCOUNTS",
+  RESEARCH: "RESEARCH",
+  ESTATE: "ESTATE",
+  SECURITY: "SECURITY",
+  OPERATIONS: "OPERATIONS",
+  PROCUREMENT: "PROCUREMENT",
+  HR: "HR",
+}
 
 const locationNames = {
   head_office: "Head Office",
-  accra: "Accra", 
+  accra: "Accra",
   kumasi: "Kumasi",
   kaase_inland_port: "Kaase Inland Port",
   cape_coast: "Cape Coast",
 }
 
-const departmentNames = {
-  administration: "Administration",
-  it: "Information Technology",
-  operations: "Operations", 
-  customs: "Customs",
-  security: "Security",
-  finance: "Finance",
-  hr: "Human Resources",
-  maintenance: "Maintenance",
-}
-
 const statusColors = {
-  pending: { bg: "bg-yellow-50 dark:bg-yellow-950", text: "text-yellow-800 dark:text-yellow-200", border: "border-yellow-200 dark:border-yellow-800" },
-  approved: { bg: "bg-green-50 dark:bg-green-950", text: "text-green-800 dark:text-green-200", border: "border-green-200 dark:border-green-800" },
-  rejected: { bg: "bg-red-50 dark:bg-red-950", text: "text-red-800 dark:text-red-200", border: "border-red-200 dark:border-red-800" },
+  pending: {
+    bg: "bg-yellow-50 dark:bg-yellow-950",
+    text: "text-yellow-800 dark:text-yellow-200",
+    border: "border-yellow-200 dark:border-yellow-800",
+  },
+  approved: {
+    bg: "bg-green-50 dark:bg-green-950",
+    text: "text-green-800 dark:text-green-200",
+    border: "border-green-200 dark:border-green-800",
+  },
+  rejected: {
+    bg: "bg-red-50 dark:bg-red-950",
+    text: "text-red-800 dark:text-red-200",
+    border: "border-red-200 dark:border-red-800",
+  },
 }
 
 interface ApprovalDialogProps {
@@ -167,9 +123,7 @@ function ApprovalDialog({ user, isOpen, onClose, onApprove, onReject }: Approval
             <UserCheck className="mr-2 h-5 w-5" />
             Review User Request
           </DialogTitle>
-          <DialogDescription>
-            Review and process the user account request for {user.name}
-          </DialogDescription>
+          <DialogDescription>Review and process the user account request for {user.name}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -227,7 +181,9 @@ function ApprovalDialog({ user, isOpen, onClose, onApprove, onReject }: Approval
               onClick={() => setAction("approve")}
               className={cn(
                 "flex-1",
-                action === "approve" && roleColors ? `bg-gradient-to-r ${roleColors.gradient} ${roleColors.hoverGradient} text-white` : ""
+                action === "approve" && roleColors
+                  ? `bg-gradient-to-r ${roleColors.gradient} ${roleColors.hoverGradient} text-white`
+                  : "",
               )}
             >
               <UserCheck className="mr-2 h-4 w-4" />
@@ -261,9 +217,7 @@ function ApprovalDialog({ user, isOpen, onClose, onApprove, onReject }: Approval
                       <SelectItem value="it_staff">IT Staff</SelectItem>
                       <SelectItem value="it_head">IT Head</SelectItem>
                       <SelectItem value="regional_it_head">Regional IT Head</SelectItem>
-                      {currentUser?.role === "admin" && (
-                        <SelectItem value="admin">Admin</SelectItem>
-                      )}
+                      {currentUser?.role === "admin" && <SelectItem value="admin">Admin</SelectItem>}
                     </SelectContent>
                   </Select>
                 </div>
@@ -278,12 +232,14 @@ function ApprovalDialog({ user, isOpen, onClose, onApprove, onReject }: Approval
                     required
                   />
                 </div>
-                <Button 
+                <Button
                   onClick={handleApproval}
                   disabled={!selectedRole || !notes.trim()}
                   className={cn(
                     "w-full text-white",
-                    roleColors ? `bg-gradient-to-r ${roleColors.gradient} ${roleColors.hoverGradient}` : "bg-green-600 hover:bg-green-700"
+                    roleColors
+                      ? `bg-gradient-to-r ${roleColors.gradient} ${roleColors.hoverGradient}`
+                      : "bg-green-600 hover:bg-green-700",
                   )}
                 >
                   <CheckCircle className="mr-2 h-4 w-4" />
@@ -311,7 +267,7 @@ function ApprovalDialog({ user, isOpen, onClose, onApprove, onReject }: Approval
                     required
                   />
                 </div>
-                <Button 
+                <Button
                   onClick={handleRejection}
                   disabled={!rejectionReason.trim()}
                   variant="destructive"
@@ -332,7 +288,8 @@ function ApprovalDialog({ user, isOpen, onClose, onApprove, onReject }: Approval
 export function PendingUserApprovals() {
   const { user } = useAuth()
   const roleColors = user?.role ? getRoleColorScheme(user.role) : null
-  const [pendingUsers, setPendingUsers] = useState<PendingUser[]>(mockPendingUsers)
+  const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [selectedUser, setSelectedUser] = useState<PendingUser | null>(null)
@@ -341,34 +298,98 @@ export function PendingUserApprovals() {
   // Only admins can see all pending requests
   const isAdmin = user?.role === "admin"
 
-  const handleApprove = (userId: string, role: string, notes: string) => {
-    setPendingUsers(prev => 
-      prev.map(u => 
-        u.id === userId 
-          ? { ...u, status: "approved" as const, notes }
-          : u
-      )
-    )
+  useEffect(() => {
+    if (isAdmin) {
+      loadPendingUsers()
+    }
+  }, [isAdmin])
+
+  const loadPendingUsers = async () => {
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .in("status", ["pending", "approved", "rejected"])
+        .order("created_at", { ascending: false })
+
+      if (error) throw error
+
+      const formattedUsers: PendingUser[] = (data || []).map((profile) => ({
+        id: profile.id,
+        name: profile.full_name || profile.username,
+        email: profile.email || profile.username,
+        phone: profile.phone || "",
+        location: profile.location,
+        department: profile.department || "",
+        supervisor: profile.supervisor || "",
+        jobTitle: profile.job_title || "",
+        reason: profile.request_reason || "",
+        requestedBy: profile.requested_by || "Self-Registration",
+        requestedDate: profile.created_at,
+        status: profile.status,
+        notes: profile.approval_notes,
+      }))
+
+      setPendingUsers(formattedUsers)
+    } catch (error) {
+      console.error("[v0] Error loading pending users:", error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleReject = (userId: string, reason: string) => {
-    setPendingUsers(prev => 
-      prev.map(u => 
-        u.id === userId 
-          ? { ...u, status: "rejected" as const, notes: reason }
-          : u
-      )
-    )
+  const handleApprove = async (userId: string, role: string, notes: string) => {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          status: "approved",
+          role: role,
+          approval_notes: notes,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userId)
+
+      if (error) throw error
+
+      // Reload the list
+      loadPendingUsers()
+    } catch (error) {
+      console.error("[v0] Error approving user:", error)
+    }
   }
 
-  const filteredUsers = pendingUsers.filter(user => {
-    const matchesSearch = 
+  const handleReject = async (userId: string, reason: string) => {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          status: "rejected",
+          approval_notes: reason,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userId)
+
+      if (error) throw error
+
+      // Reload the list
+      loadPendingUsers()
+    } catch (error) {
+      console.error("[v0] Error rejecting user:", error)
+    }
+  }
+
+  const filteredUsers = pendingUsers.filter((user) => {
+    const matchesSearch =
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.id.toLowerCase().includes(searchTerm.toLowerCase())
-    
+
     const matchesStatus = statusFilter === "all" || user.status === statusFilter
-    
+
     return matchesSearch && matchesStatus
   })
 
@@ -378,9 +399,7 @@ export function PendingUserApprovals() {
         <CardContent className="p-8 text-center">
           <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">Access Restricted</h3>
-          <p className="text-muted-foreground">
-            Only administrators can view and approve pending user requests.
-          </p>
+          <p className="text-muted-foreground">Only administrators can view and approve pending user requests.</p>
         </CardContent>
       </Card>
     )
@@ -389,16 +408,14 @@ export function PendingUserApprovals() {
   return (
     <div className="space-y-6">
       <FormNavigation currentPage="/dashboard/users/approvals" />
-      
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-foreground">Pending User Approvals</h2>
-          <p className="text-muted-foreground">
-            Review and approve user account requests from staff members
-          </p>
+          <p className="text-muted-foreground">Review and approve user account requests from staff members</p>
         </div>
         <Badge variant="secondary" className="w-fit">
-          {filteredUsers.filter(u => u.status === "pending").length} Pending Reviews
+          {filteredUsers.filter((u) => u.status === "pending").length} Pending Reviews
         </Badge>
       </div>
 
@@ -456,13 +473,13 @@ export function PendingUserApprovals() {
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Badge 
-                    variant="outline" 
+                  <Badge
+                    variant="outline"
                     className={cn(
                       "font-medium",
                       statusColors[pendingUser.status].bg,
                       statusColors[pendingUser.status].text,
-                      statusColors[pendingUser.status].border
+                      statusColors[pendingUser.status].border,
                     )}
                   >
                     {pendingUser.status === "pending" && <Clock className="mr-1 h-3 w-3" />}
@@ -470,7 +487,7 @@ export function PendingUserApprovals() {
                     {pendingUser.status === "rejected" && <XCircle className="mr-1 h-3 w-3" />}
                     {pendingUser.status.charAt(0).toUpperCase() + pendingUser.status.slice(1)}
                   </Badge>
-                  
+
                   {pendingUser.status === "pending" && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -479,7 +496,7 @@ export function PendingUserApprovals() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => {
                             setSelectedUser(pendingUser)
                             setApprovalDialogOpen(true)
@@ -508,7 +525,9 @@ export function PendingUserApprovals() {
                   <Shield className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-muted-foreground">Department</p>
-                    <p className="font-medium">{departmentNames[pendingUser.department as keyof typeof departmentNames]}</p>
+                    <p className="font-medium">
+                      {departmentNames[pendingUser.department as keyof typeof departmentNames]}
+                    </p>
                   </div>
                 </div>
                 <div>
@@ -520,7 +539,7 @@ export function PendingUserApprovals() {
                   <p className="font-medium">{new Date(pendingUser.requestedDate).toLocaleDateString()}</p>
                 </div>
               </div>
-              
+
               <div className="mt-4 p-3 bg-muted/50 rounded-lg">
                 <p className="text-sm text-muted-foreground mb-1">Request Reason:</p>
                 <p className="text-sm">{pendingUser.reason}</p>
@@ -543,9 +562,7 @@ export function PendingUserApprovals() {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <User className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-2">No requests found</h3>
-            <p className="text-muted-foreground text-center">
-              No user account requests match your current filters.
-            </p>
+            <p className="text-muted-foreground text-center">No user account requests match your current filters.</p>
           </CardContent>
         </Card>
       )}

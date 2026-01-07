@@ -1,58 +1,125 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import {
-  Monitor,
-  Wrench,
-  Users,
-  TrendingUp,
-  TrendingDown,
-  Clock,
-  CheckCircle,
-  AlertTriangle,
-  MapPin,
-} from "lucide-react"
+import { Monitor, Wrench, Users, Clock, AlertTriangle, MapPin, Loader2 } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
+
+interface SystemStats {
+  totalDevices: number
+  activeRepairs: number
+  totalUsers: number
+  serviceProviders: number
+  avgRepairTime: number
+  pendingApprovals: number
+}
+
+interface RegionalStat {
+  region: string
+  devices: number
+  repairs: number
+  users: number
+}
 
 export function SystemOverview() {
-  const systemStats = {
-    totalDevices: 248,
-    activeRepairs: 23,
-    totalUsers: 156,
-    serviceProviders: 8,
-    monthlyRepairs: 89,
-    avgRepairTime: 8.5,
-    systemUptime: 99.8,
-    pendingApprovals: 8,
+  const [loading, setLoading] = useState(true)
+  const [systemStats, setSystemStats] = useState<SystemStats>({
+    totalDevices: 0,
+    activeRepairs: 0,
+    totalUsers: 0,
+    serviceProviders: 0,
+    avgRepairTime: 0,
+    pendingApprovals: 0,
+  })
+  const [regionalStats, setRegionalStats] = useState<RegionalStat[]>([])
+
+  useEffect(() => {
+    loadSystemStats()
+  }, [])
+
+  const loadSystemStats = async () => {
+    try {
+      const supabase = createClient()
+
+      const [devicesResult, repairsResult, usersResult, providersResult, pendingUsersResult] = await Promise.all([
+        supabase.from("devices").select("id", { count: "exact", head: true }),
+        supabase.from("repair_tasks").select("id", { count: "exact", head: true }).eq("status", "in_repair"),
+        supabase.from("profiles").select("id", { count: "exact", head: true }).eq("status", "approved"),
+        supabase.from("service_providers").select("id", { count: "exact", head: true }),
+        supabase.from("profiles").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      ])
+
+      // Calculate average repair time from completed repairs
+      const { data: completedRepairs } = await supabase
+        .from("repair_tasks")
+        .select("created_at, completed_at")
+        .eq("status", "completed")
+        .not("completed_at", "is", null)
+        .limit(50)
+
+      let avgRepairDays = 0
+      if (completedRepairs && completedRepairs.length > 0) {
+        const totalDays = completedRepairs.reduce((sum, repair) => {
+          const start = new Date(repair.created_at).getTime()
+          const end = new Date(repair.completed_at!).getTime()
+          const days = (end - start) / (1000 * 60 * 60 * 24)
+          return sum + days
+        }, 0)
+        avgRepairDays = totalDays / completedRepairs.length
+      }
+
+      // Fetch regional statistics
+      const locations = ["Head Office", "Accra", "Kumasi", "Kaase Inland Port", "Cape Coast", "Takoradi"]
+      const regionalData: RegionalStat[] = []
+
+      for (const location of locations) {
+        const [devicesCount, repairsCount, usersCount] = await Promise.all([
+          supabase.from("devices").select("id", { count: "exact", head: true }).eq("location", location),
+          supabase
+            .from("repair_tasks")
+            .select("id", { count: "exact", head: true })
+            .eq("location", location)
+            .eq("status", "in_repair"),
+          supabase
+            .from("profiles")
+            .select("id", { count: "exact", head: true })
+            .eq("location", location)
+            .eq("status", "approved"),
+        ])
+
+        regionalData.push({
+          region: location,
+          devices: devicesCount.count || 0,
+          repairs: repairsCount.count || 0,
+          users: usersCount.count || 0,
+        })
+      }
+
+      setSystemStats({
+        totalDevices: devicesResult.count || 0,
+        activeRepairs: repairsResult.count || 0,
+        totalUsers: usersResult.count || 0,
+        serviceProviders: providersResult.count || 0,
+        avgRepairTime: Number.parseFloat(avgRepairDays.toFixed(1)),
+        pendingApprovals: pendingUsersResult.count || 0,
+      })
+
+      setRegionalStats(regionalData.filter((r) => r.devices > 0 || r.repairs > 0 || r.users > 0))
+    } catch (error) {
+      console.error("[v0] Error loading system stats:", error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const regionalStats = [
-    { region: "Head Office", devices: 89, repairs: 8, users: 45 },
-    { region: "Accra", devices: 67, repairs: 6, users: 38 },
-    { region: "Kumasi", devices: 45, repairs: 4, users: 28 },
-    { region: "Kaase Inland Port", devices: 32, repairs: 3, users: 25 },
-    { region: "Cape Coast", devices: 15, repairs: 2, users: 20 },
-  ]
-
-  const recentAlerts = [
-    {
-      id: 1,
-      type: "warning",
-      message: "Service provider TechFix Ghana has exceeded 2-week repair deadline",
-      time: "2 hours ago",
-    },
-    {
-      id: 2,
-      type: "info",
-      message: "New user registration: Akosua Mensah (Kaase Inland Port office)",
-      time: "4 hours ago",
-    },
-    {
-      id: 3,
-      type: "success",
-      message: "Monthly backup completed successfully",
-      time: "1 day ago",
-    },
-  ]
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -65,10 +132,7 @@ export function SystemOverview() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{systemStats.totalDevices}</div>
-            <p className="text-xs text-muted-foreground">
-              <TrendingUp className="inline h-3 w-3 mr-1" />
-              +12 from last month
-            </p>
+            <p className="text-xs text-muted-foreground">Registered in system</p>
           </CardContent>
         </Card>
 
@@ -79,10 +143,7 @@ export function SystemOverview() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{systemStats.activeRepairs}</div>
-            <p className="text-xs text-muted-foreground">
-              <TrendingDown className="inline h-3 w-3 mr-1" />
-              -5 from last week
-            </p>
+            <p className="text-xs text-muted-foreground">Currently in progress</p>
           </CardContent>
         </Card>
 
@@ -93,10 +154,7 @@ export function SystemOverview() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{systemStats.totalUsers}</div>
-            <p className="text-xs text-muted-foreground">
-              <TrendingUp className="inline h-3 w-3 mr-1" />
-              +8 from last month
-            </p>
+            <p className="text-xs text-muted-foreground">Active accounts</p>
           </CardContent>
         </Card>
 
@@ -106,117 +164,76 @@ export function SystemOverview() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{systemStats.avgRepairTime}d</div>
-            <p className="text-xs text-muted-foreground">
-              <TrendingDown className="inline h-3 w-3 mr-1" />
-              -1.2 days improved
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* System Health */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>System Health</CardTitle>
-            <CardDescription>Current system performance metrics</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">System Uptime</span>
-                <span className="text-sm text-muted-foreground">{systemStats.systemUptime}%</span>
-              </div>
-              <Progress value={systemStats.systemUptime} className="h-2" />
+            <div className="text-2xl font-bold">
+              {systemStats.avgRepairTime > 0 ? `${systemStats.avgRepairTime}d` : "N/A"}
             </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Database Performance</span>
-                <span className="text-sm text-muted-foreground">95.2%</span>
-              </div>
-              <Progress value={95.2} className="h-2" />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">API Response Time</span>
-                <span className="text-sm text-muted-foreground">98.7%</span>
-              </div>
-              <Progress value={98.7} className="h-2" />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Storage Usage</span>
-                <span className="text-sm text-muted-foreground">67.3%</span>
-              </div>
-              <Progress value={67.3} className="h-2" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent System Alerts</CardTitle>
-            <CardDescription>Latest system notifications and warnings</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentAlerts.map((alert) => (
-                <div key={alert.id} className="flex items-start space-x-3">
-                  <div className="flex-shrink-0 mt-1">
-                    {alert.type === "warning" && <AlertTriangle className="h-4 w-4 text-orange-500" />}
-                    {alert.type === "info" && <Monitor className="h-4 w-4 text-orange-500" />}
-                    {alert.type === "success" && <CheckCircle className="h-4 w-4 text-orange-500" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-foreground">{alert.message}</p>
-                    <p className="text-xs text-muted-foreground">{alert.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <p className="text-xs text-muted-foreground">Average completion time</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Regional Overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Regional Overview</CardTitle>
-          <CardDescription>Device and repair statistics by location</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {regionalStats.map((region) => (
-              <div key={region.region} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <MapPin className="h-5 w-5 text-primary" />
-                  <div>
-                    <h4 className="font-medium">{region.region}</h4>
-                    <p className="text-sm text-muted-foreground">{region.users} users</p>
+      {regionalStats.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Regional Overview</CardTitle>
+            <CardDescription>Device and repair statistics by location</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {regionalStats.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">No regional data available</p>
+            ) : (
+              <div className="space-y-4">
+                {regionalStats.map((region) => (
+                  <div key={region.region} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <MapPin className="h-5 w-5 text-primary" />
+                      <div>
+                        <h4 className="font-medium">{region.region}</h4>
+                        <p className="text-sm text-muted-foreground">{region.users} users</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-6 text-sm">
+                      <div className="text-center">
+                        <p className="font-medium">{region.devices}</p>
+                        <p className="text-muted-foreground">Devices</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="font-medium">{region.repairs}</p>
+                        <p className="text-muted-foreground">Active Repairs</p>
+                      </div>
+                      <Badge
+                        variant={region.repairs > 5 ? "destructive" : region.repairs > 2 ? "secondary" : "default"}
+                      >
+                        {region.repairs > 5 ? "High Load" : region.repairs > 2 ? "Moderate" : "Normal"}
+                      </Badge>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center space-x-6 text-sm">
-                  <div className="text-center">
-                    <p className="font-medium">{region.devices}</p>
-                    <p className="text-muted-foreground">Devices</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="font-medium">{region.repairs}</p>
-                    <p className="text-muted-foreground">Active Repairs</p>
-                  </div>
-                  <Badge variant={region.repairs > 5 ? "destructive" : region.repairs > 2 ? "secondary" : "default"}>
-                    {region.repairs > 5 ? "High Load" : region.repairs > 2 ? "Moderate" : "Normal"}
-                  </Badge>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Pending Approvals Alert */}
+      {systemStats.pendingApprovals > 0 && (
+        <Card className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
+          <CardHeader>
+            <CardTitle className="text-orange-900 dark:text-orange-100 flex items-center">
+              <AlertTriangle className="mr-2 h-5 w-5" />
+              Pending User Approvals
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-orange-800 dark:text-orange-200">
+              There {systemStats.pendingApprovals === 1 ? "is" : "are"} <strong>{systemStats.pendingApprovals}</strong>{" "}
+              user account{systemStats.pendingApprovals === 1 ? "" : "s"} pending approval. Please review and approve or
+              reject these requests in the Users tab.
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
