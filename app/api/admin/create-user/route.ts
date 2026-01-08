@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       p_location: location,
       p_phone: phone || "+233XXXXXXXXX",
       p_department: department || "ITD",
-      p_password: password || "qccghana123",
+      p_password: password || "qcc@123", // Updated default password from qccghana123 to qcc@123
     })
 
     if (error) {

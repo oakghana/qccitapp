@@ -268,14 +268,14 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           badge: counts.notifications > 0 ? counts.notifications : undefined,
         },
         { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-        { name: "System Settings", href: "/dashboard/system-settings", icon: Database },
+        { name: "Lookup Data", href: "/dashboard/lookup-data", icon: Database },
+        { name: "System Settings", href: "/dashboard/system-settings", icon: Settings },
         {
           name: "Updates",
           href: "/dashboard/updates",
           icon: Rss,
           badge: counts.updates > 0 ? counts.updates : undefined,
         },
-        { name: "Settings", href: "/dashboard/settings", icon: Settings },
       ]
       return fullNavigation
     }

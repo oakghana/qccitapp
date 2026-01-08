@@ -896,7 +896,7 @@ function AddUserForm({ onClose, onUserAdded }: { onClose: () => void; onUserAdde
     role: "user" as SystemUser["role"],
     location: "Head Office",
     department: "ITD",
-    password: "qccghana123",
+    password: "qcc@123", // Updated default password from qccghana123 to qcc@123
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState("")
