@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/client"
+import { createServerClient } from "@/lib/supabase/server"
+import bcrypt from "bcryptjs"
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,29 +10,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // Validate password strength
     if (newPassword.length < 8) {
       return NextResponse.json({ error: "Password must be at least 8 characters long" }, { status: 400 })
     }
 
-    const supabase = createClient()
+    const supabase = createServerClient()
 
-    // Verify current password by calling the database function
-    const { data: verifyData, error: verifyError } = await supabase.rpc("verify_password", {
-      p_username: username,
-      p_password: currentPassword,
-    })
+    const { data: userData, error: fetchError } = await supabase
+      .from("profiles")
+      .select("password_hash, status, is_active")
+      .eq("username", username)
+      .single()
 
-    if (verifyError || !verifyData) {
-      console.error("[v0] Password verification error:", verifyError)
+    if (fetchError || !userData) {
+      console.error("[v0] User fetch error:", fetchError)
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
+
+    if (userData.status !== "approved" || !userData.is_active) {
+      return NextResponse.json({ error: "Account is not active" }, { status: 403 })
+    }
+
+    const isPasswordValid = await bcrypt.compare(currentPassword, userData.password_hash)
+
+    if (!isPasswordValid) {
       return NextResponse.json({ error: "Current password is incorrect" }, { status: 401 })
     }
 
-    // Update password using raw SQL with crypt function
-    const { error: updateError } = await supabase.rpc("update_password", {
-      p_username: username,
-      p_new_password: newPassword,
-    })
+    const newPasswordHash = await bcrypt.hash(newPassword, 10)
+
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({
+        password_hash: newPasswordHash,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("username", username)
 
     if (updateError) {
       console.error("[v0] Password update error:", updateError)

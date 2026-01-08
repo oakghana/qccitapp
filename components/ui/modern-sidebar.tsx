@@ -562,6 +562,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                 <Button
                   variant="ghost"
                   className="w-full justify-start text-sm h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+                  onClick={() => (window.location.href = "/dashboard/settings")}
                 >
                   <Settings className="mr-3 h-4 w-4" />
                   Settings
@@ -581,6 +582,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                   variant="ghost"
                   size="icon"
                   className="w-full h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+                  onClick={() => (window.location.href = "/dashboard/settings")}
                 >
                   <Settings className="h-4 w-4" />
                 </Button>
