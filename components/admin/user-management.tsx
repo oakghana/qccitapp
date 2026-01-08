@@ -197,27 +197,64 @@ export function UserManagement() {
 
   const locationOptions = getLocationFilterOptions()
 
-  const handleUserAction = (userId: string, action: "activate" | "deactivate" | "suspend" | "delete") => {
-    setUsers(
-      users.map((user) => {
-        if (user.id === userId) {
-          switch (action) {
-            case "activate":
-              return { ...user, status: "active" as const }
-            case "deactivate":
-              return { ...user, status: "inactive" as const }
-            case "suspend":
-              return { ...user, status: "suspended" as const }
-            default:
-              return user
-          }
-        }
-        return user
-      }),
-    )
+  const handleUserAction = async (userId: string, action: "activate" | "deactivate" | "suspend" | "delete") => {
+    try {
+      const supabase = createClient()
 
-    if (action === "delete") {
-      setUsers(users.filter((user) => user.id !== userId))
+      if (action === "delete") {
+        // Delete user from database
+        const { error } = await supabase.from("profiles").delete().eq("id", userId)
+
+        if (error) {
+          console.error("[v0] Error deleting user:", error)
+          alert("Failed to delete user. Please try again.")
+          return
+        }
+
+        // Remove from UI
+        setUsers(users.filter((user) => user.id !== userId))
+      } else {
+        // Update user status
+        const newStatus = action === "activate" ? "approved" : action === "deactivate" ? "pending" : "suspended"
+        const isActive = action === "activate"
+
+        const { error } = await supabase
+          .from("profiles")
+          .update({
+            status: newStatus,
+            is_active: isActive,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", userId)
+
+        if (error) {
+          console.error("[v0] Error updating user status:", error)
+          alert("Failed to update user status. Please try again.")
+          return
+        }
+
+        // Update UI
+        setUsers(
+          users.map((user) => {
+            if (user.id === userId) {
+              switch (action) {
+                case "activate":
+                  return { ...user, status: "active" as const }
+                case "deactivate":
+                  return { ...user, status: "inactive" as const }
+                case "suspend":
+                  return { ...user, status: "suspended" as const }
+                default:
+                  return user
+              }
+            }
+            return user
+          }),
+        )
+      }
+    } catch (error) {
+      console.error("[v0] Error in handleUserAction:", error)
+      alert("An error occurred. Please try again.")
     }
   }
 
