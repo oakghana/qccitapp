@@ -10,6 +10,7 @@ export const LOCATIONS = {
   wn: "WN",
   vr: "VR",
   bar: "BAR",
+  eastern: "Eastern",
   nsawam: "Nsawam",
   cr: "CR",
 } as const
