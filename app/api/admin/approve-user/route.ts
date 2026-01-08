@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { userId, role } = body
+    const { userId, role, password } = body
 
     if (!userId || !role) {
       return NextResponse.json({ message: "Missing userId or role" }, { status: 400 })
@@ -12,30 +12,31 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient()
 
-    // Update user status and assign role
-    const { data, error } = await supabase
-      .from("profiles")
-      .update({
-        status: "approved",
-        role,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", userId)
-      .select()
-      .single()
+    const updateData: any = {
+      status: "approved",
+      role,
+      updated_at: new Date().toISOString(),
+    }
+
+    // If password is provided, hash it and update
+    if (password && password.trim()) {
+      const bcrypt = require("bcrypt")
+      const hashedPassword = await bcrypt.hash(password, 10)
+      updateData.password_hash = hashedPassword
+    }
+
+    const { data, error } = await supabase.from("profiles").update(updateData).eq("id", userId).select().single()
 
     if (error) {
       console.error("Approval error:", error)
       return NextResponse.json({ message: "Failed to approve user" }, { status: 500 })
     }
 
-    // TODO: Send notification email to user
-    // You can add email notification logic here
-
     return NextResponse.json(
       {
         message: "User approved successfully",
         user: data,
+        passwordChanged: !!password,
       },
       { status: 200 },
     )

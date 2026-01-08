@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { CheckCircle2, XCircle, Clock, Mail, MapPin, Phone, Briefcase, Search } from "lucide-react"
+import { CheckCircle2, XCircle, Clock, Mail, MapPin, Phone, Briefcase, Search, Eye, EyeOff } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getLocationLabel } from "@/lib/locations"
 
@@ -39,6 +39,8 @@ export function UserApprovalManagement() {
   const [rejectedUsers, setRejectedUsers] = useState<PendingUser[]>([])
   const [selectedUser, setSelectedUser] = useState<PendingUser | null>(null)
   const [selectedRole, setSelectedRole] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [actionType, setActionType] = useState<"approve" | "reject">("approve")
   const [searchQuery, setSearchQuery] = useState("")
@@ -136,6 +138,7 @@ export function UserApprovalManagement() {
           body: JSON.stringify({
             userId: selectedUser.id,
             role: selectedRole,
+            password: newPassword || undefined, // Send password if provided
           }),
         })
 
@@ -158,6 +161,8 @@ export function UserApprovalManagement() {
       setIsDialogOpen(false)
       setSelectedUser(null)
       setSelectedRole("")
+      setNewPassword("")
+      setShowPassword(false)
     } catch (error) {
       console.error("Error processing user action:", error)
       alert("Failed to process user action. Please try again.")
@@ -332,48 +337,92 @@ export function UserApprovalManagement() {
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{actionType === "approve" ? "Approve User" : "Reject User"}</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader className="space-y-1">
+            <DialogTitle className="text-xl">
+              {actionType === "approve" ? "Approve User Access" : "Reject User Request"}
+            </DialogTitle>
+            <DialogDescription className="text-sm">
               {actionType === "approve"
-                ? "Assign a role to grant access to the system"
-                : "Are you sure you want to reject this user registration?"}
+                ? "Assign role and optionally set a new password"
+                : "Confirm rejection of this registration request"}
             </DialogDescription>
           </DialogHeader>
 
           {selectedUser && (
-            <div className="space-y-4">
-              <div className="p-4 bg-muted rounded-lg space-y-2">
-                <p className="font-medium">{selectedUser.fullName}</p>
-                <p className="text-sm text-muted-foreground">{selectedUser.email}</p>
-                <p className="text-sm text-muted-foreground">{getLocationLabel(selectedUser.location)}</p>
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 p-3 bg-muted/50 rounded-lg text-sm">
+                <span className="font-medium">Name:</span>
+                <span>{selectedUser.fullName}</span>
+
+                <span className="font-medium">Email:</span>
+                <span className="text-muted-foreground truncate">{selectedUser.email}</span>
+
+                <span className="font-medium">Location:</span>
+                <span>{getLocationLabel(selectedUser.location)}</span>
+
+                {selectedUser.department && (
+                  <>
+                    <span className="font-medium">Department:</span>
+                    <span>{selectedUser.department}</span>
+                  </>
+                )}
               </div>
 
               {actionType === "approve" && (
-                <div className="space-y-2">
-                  <Label htmlFor="role">Assign Role</Label>
-                  <Select value={selectedRole} onValueChange={setSelectedRole}>
-                    <SelectTrigger id="role">
-                      <SelectValue placeholder="Select a role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="user">User</SelectItem>
-                      <SelectItem value="it_staff">IT Staff</SelectItem>
-                      <SelectItem value="it_store_head">IT Store Head</SelectItem>
-                      <SelectItem value="service_desk_head">Service Desk Head</SelectItem>
-                      <SelectItem value="service_desk_staff">Service Desk Staff</SelectItem>
-                      <SelectItem value="it_head">IT Head</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="role" className="text-sm font-medium">
+                      Assign Role *
+                    </Label>
+                    <Select value={selectedRole} onValueChange={setSelectedRole}>
+                      <SelectTrigger id="role" className="h-9">
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="user">User</SelectItem>
+                        <SelectItem value="it_staff">IT Staff</SelectItem>
+                        <SelectItem value="it_store_head">IT Store Head</SelectItem>
+                        <SelectItem value="service_desk_head">Service Desk Head</SelectItem>
+                        <SelectItem value="service_desk_staff">Service Desk Staff</SelectItem>
+                        <SelectItem value="it_head">IT Head</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="password" className="text-sm font-medium">
+                      Set New Password (Optional)
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Leave empty to keep current"
+                        className="h-9 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      User will receive email with new credentials if password is set
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
           )}
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isLoading}>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isLoading} size="sm">
               Cancel
             </Button>
             <Button
@@ -381,8 +430,9 @@ export function UserApprovalManagement() {
               disabled={isLoading || (actionType === "approve" && !selectedRole)}
               className={actionType === "approve" ? "bg-green-600 hover:bg-green-700" : ""}
               variant={actionType === "reject" ? "destructive" : "default"}
+              size="sm"
             >
-              {isLoading ? "Processing..." : actionType === "approve" ? "Approve & Assign Role" : "Reject User"}
+              {isLoading ? "Processing..." : actionType === "approve" ? "Approve User" : "Reject Request"}
             </Button>
           </DialogFooter>
         </DialogContent>

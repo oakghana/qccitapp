@@ -59,26 +59,55 @@ export function CreateUserForm({ onUserCreated, onClose }: CreateUserFormProps) 
     e.preventDefault()
     setIsSubmitting(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    try {
+      console.log("[v0] Submitting registration to API...", formData)
 
-    const newPendingUser: PendingUser = {
-      id: `PND-${String(Date.now()).slice(-6)}`,
-      ...formData,
-      requestedBy: user?.name || "Self-Registration",
-      requestedDate: new Date().toISOString(),
-      status: "pending",
-      temporaryPassword: Math.random().toString(36).slice(-8).toUpperCase(),
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: formData.email, // Use email as username
+          email: formData.email,
+          fullName: formData.name,
+          phone: formData.phone,
+          password: `temp${Math.random().toString(36).slice(-8)}`, // Generate temporary password
+          department: formData.department,
+          location: formData.location,
+        }),
+      })
+
+      const result = await response.json()
+      console.log("[v0] Registration response:", result)
+
+      if (!response.ok) {
+        throw new Error(result.message || "Registration failed")
+      }
+
+      const newPendingUser: PendingUser = {
+        id: result.userId || `PND-${String(Date.now()).slice(-6)}`,
+        ...formData,
+        requestedBy: user?.name || "Self-Registration",
+        requestedDate: new Date().toISOString(),
+        status: "pending",
+        temporaryPassword: "Set by admin upon approval",
+      }
+
+      console.log("[v0] User successfully registered and saved to database:", newPendingUser)
+      onUserCreated(newPendingUser)
+      setSubmitted(true)
+      setIsSubmitting(false)
+
+      // Auto close after success
+      setTimeout(() => {
+        if (onClose) onClose()
+      }, 3000)
+    } catch (error) {
+      console.error("[v0] Registration error:", error)
+      alert(`Registration failed: ${error instanceof Error ? error.message : "Unknown error"}`)
+      setIsSubmitting(false)
     }
-
-    onUserCreated(newPendingUser)
-    setSubmitted(true)
-    setIsSubmitting(false)
-
-    // Auto close after success
-    setTimeout(() => {
-      if (onClose) onClose()
-    }, 3000)
   }
 
   const handleInputChange = (field: string, value: string) => {
