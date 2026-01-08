@@ -4,11 +4,21 @@ import type { User } from "./auth-context"
 
 /**
  * Determines if a user can see all locations
- * Only admin and it_head roles have access to all locations
+ * Admin and it_head roles have access to all locations
+ * Regional IT heads can manage their specific region
  */
 export function canSeeAllLocations(user: User | null): boolean {
   if (!user) return false
   return user.role === "admin" || user.role === "it_head"
+}
+
+/**
+ * Determines if a user can assign tasks and manage regional staff
+ * Regional IT heads have this permission for their location
+ */
+export function canManageRegionalStaff(user: User | null): boolean {
+  if (!user) return false
+  return user.role === "admin" || user.role === "it_head" || user.role === "regional_it_head"
 }
 
 /**

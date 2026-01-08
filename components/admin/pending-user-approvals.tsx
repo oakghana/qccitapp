@@ -37,7 +37,16 @@ interface SystemUser {
   name: string
   email: string
   phone: string
-  role: "admin" | "regional_it_head" | "it_head" | "it_staff" | "staff"
+  role:
+    | "admin"
+    | "it_head"
+    | "regional_it_head" // Added regional_it_head role
+    | "it_staff"
+    | "it_store_head"
+    | "service_desk_head"
+    | "service_desk_staff"
+    | "service_provider"
+    | "user"
   location: "head_office" | "accra" | "kumasi" | "kaase_inland_port" | "cape_coast"
   status: "active" | "inactive" | "suspended"
   lastLogin: string
@@ -96,7 +105,7 @@ interface ApprovalDialogProps {
 function ApprovalDialog({ user, isOpen, onClose, onApprove, onReject }: ApprovalDialogProps) {
   const { user: currentUser } = useAuth()
   const roleColors = currentUser?.role ? getRoleColorScheme(currentUser.role) : null
-  const [selectedRole, setSelectedRole] = useState<string>("staff")
+  const [selectedRole, setSelectedRole] = useState<string>("user")
   const [notes, setNotes] = useState("")
   const [rejectionReason, setRejectionReason] = useState("")
   const [action, setAction] = useState<"approve" | "reject" | null>(null)
@@ -213,10 +222,14 @@ function ApprovalDialog({ user, isOpen, onClose, onApprove, onReject }: Approval
                       <SelectValue placeholder="Select a role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="staff">Staff</SelectItem>
+                      <SelectItem value="user">User</SelectItem>
                       <SelectItem value="it_staff">IT Staff</SelectItem>
-                      <SelectItem value="it_head">IT Head</SelectItem>
+                      <SelectItem value="it_store_head">IT Store Head</SelectItem>
+                      <SelectItem value="service_desk_head">Service Desk Head</SelectItem>
+                      <SelectItem value="service_desk_staff">Service Desk Staff</SelectItem>
+                      <SelectItem value="service_provider">Service Provider</SelectItem>
                       <SelectItem value="regional_it_head">Regional IT Head</SelectItem>
+                      <SelectItem value="it_head">IT Head</SelectItem>
                       {currentUser?.role === "admin" && <SelectItem value="admin">Admin</SelectItem>}
                     </SelectContent>
                   </Select>
@@ -328,7 +341,7 @@ export function PendingUserApprovals() {
         requestedBy: profile.requested_by || "Self-Registration",
         requestedDate: profile.created_at,
         status: profile.status,
-        notes: profile.approval_notes,
+        notes: "",
       }))
 
       setPendingUsers(formattedUsers)
@@ -347,7 +360,7 @@ export function PendingUserApprovals() {
         .update({
           status: "approved",
           role: role,
-          approval_notes: notes,
+          is_active: true,
           updated_at: new Date().toISOString(),
         })
         .eq("id", userId)
@@ -368,7 +381,7 @@ export function PendingUserApprovals() {
         .from("profiles")
         .update({
           status: "rejected",
-          approval_notes: reason,
+          is_active: false,
           updated_at: new Date().toISOString(),
         })
         .eq("id", userId)

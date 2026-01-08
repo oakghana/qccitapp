@@ -69,7 +69,7 @@ export function useBadgeCounts(user: User | null) {
         let repairsQuery = supabase
           .from("repair_requests")
           .select("*", { count: "exact", head: true })
-          .in("status", ["pending", "in_progress"])
+          .or("status.eq.pending,status.eq.in_progress")
 
         if (!canSeeAll && userLocation) {
           repairsQuery = repairsQuery.eq("requester_location", userLocation)

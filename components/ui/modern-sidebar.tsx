@@ -199,6 +199,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           badge: counts.repairs > 0 ? counts.repairs : undefined,
         },
         { name: "Devices", href: "/dashboard/devices", icon: Monitor },
+        { name: "Store Stock Levels", href: "/dashboard/store-snapshot", icon: Package },
         {
           name: "IT Service Provider",
           href: "/dashboard/service-provider",

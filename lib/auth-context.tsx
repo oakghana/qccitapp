@@ -65,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return (
       user?.role === "admin" ||
       (user?.location === "Head Office" && user?.role === "it_head") ||
+      user?.role === "regional_it_head" ||
       user?.role.startsWith("service_desk")
     )
   }

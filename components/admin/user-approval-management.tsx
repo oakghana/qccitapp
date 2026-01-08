@@ -174,6 +174,7 @@ export function UserApprovalManagement() {
   const getRoleLabel = (role: string) => {
     const roles: Record<string, string> = {
       admin: "Admin",
+      regional_it_head: "Regional IT Head", // Added regional IT head role
       it_head: "IT Head",
       it_staff: "IT Staff",
       it_store_head: "IT Store Head",
@@ -385,6 +386,8 @@ export function UserApprovalManagement() {
                         <SelectItem value="it_store_head">IT Store Head</SelectItem>
                         <SelectItem value="service_desk_head">Service Desk Head</SelectItem>
                         <SelectItem value="service_desk_staff">Service Desk Staff</SelectItem>
+                        <SelectItem value="service_provider">Service Provider</SelectItem>
+                        <SelectItem value="regional_it_head">Regional IT Head</SelectItem>
                         <SelectItem value="it_head">IT Head</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
                       </SelectContent>

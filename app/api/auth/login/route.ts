@@ -11,16 +11,21 @@ export async function POST(request: Request) {
 
     const supabase = await createClient()
 
-    // Query the profiles table to find user with matching username
     const { data: profiles, error: queryError } = await supabase
       .from("profiles")
       .select("*")
       .eq("username", username)
       .eq("status", "approved")
-      .single()
+      .maybeSingle()
 
-    if (queryError || !profiles) {
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+    if (queryError) {
+      console.error("[v0] Database query error:", queryError)
+      return NextResponse.json({ error: "Authentication failed" }, { status: 500 })
+    }
+
+    if (!profiles) {
+      console.log("[v0] No user found for username:", username)
+      return NextResponse.json({ error: "Invalid username or password" }, { status: 401 })
     }
 
     // Verify password using pgcrypto
@@ -30,7 +35,8 @@ export async function POST(request: Request) {
     })
 
     if (authError || !authResult) {
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+      console.log("[v0] Password verification failed for:", username)
+      return NextResponse.json({ error: "Invalid username or password" }, { status: 401 })
     }
 
     let redirectUrl = "/dashboard"

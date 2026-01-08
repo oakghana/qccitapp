@@ -16,7 +16,19 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Plus, MoreHorizontal, User, MapPin, Mail, Phone, Smartphone, Download, KeyRound } from "lucide-react"
+import {
+  Search,
+  Plus,
+  MoreHorizontal,
+  User,
+  MapPin,
+  Mail,
+  Phone,
+  Smartphone,
+  Download,
+  KeyRound,
+  Pencil,
+} from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { FormNavigation } from "@/components/ui/form-navigation"
 import { usePWAInstall } from "@/components/ui/pwa-install"
@@ -85,6 +97,8 @@ export function UserManagement() {
   const roleColors = user?.role ? getRoleColorScheme(user.role) : null
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false)
   const [selectedUserForReset, setSelectedUserForReset] = useState<SystemUser | null>(null)
+  const [editUserOpen, setEditUserOpen] = useState(false)
+  const [selectedUserForEdit, setSelectedUserForEdit] = useState<SystemUser | null>(null)
   const [loading, setLoading] = useState(true)
 
   const handleInstallPWA = () => {
@@ -210,6 +224,11 @@ export function UserManagement() {
   const handleResetPassword = (user: SystemUser) => {
     setSelectedUserForReset(user)
     setResetPasswordOpen(true)
+  }
+
+  const handleEditUser = (user: SystemUser) => {
+    setSelectedUserForEdit(user)
+    setEditUserOpen(true)
   }
 
   return (
@@ -425,6 +444,13 @@ export function UserManagement() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
+                          onClick={() => handleEditUser(user)}
+                          className="hover:bg-purple-50 hover:text-purple-700 cursor-pointer"
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit User
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           onClick={() => handleResetPassword(user)}
                           className="hover:bg-blue-50 hover:text-blue-700 cursor-pointer"
                         >
@@ -519,6 +545,29 @@ export function UserManagement() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={editUserOpen} onOpenChange={setEditUserOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>Update user information and permissions</DialogDescription>
+          </DialogHeader>
+          {selectedUserForEdit && (
+            <EditUserForm
+              user={selectedUserForEdit}
+              onClose={() => {
+                setEditUserOpen(false)
+                setSelectedUserForEdit(null)
+              }}
+              onUserUpdated={(updatedUser) => {
+                setUsers(users.map((u) => (u.id === updatedUser.id ? updatedUser : u)))
+                setEditUserOpen(false)
+                setSelectedUserForEdit(null)
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
       {filteredUsers.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
@@ -531,6 +580,309 @@ export function UserManagement() {
         </Card>
       )}
     </div>
+  )
+}
+
+function EditUserForm({
+  user,
+  onClose,
+  onUserUpdated,
+}: {
+  user: SystemUser
+  onClose: () => void
+  onUserUpdated: (user: SystemUser) => void
+}) {
+  const { user: currentUser } = useAuth()
+  const roleColors = currentUser?.role ? getRoleColorScheme(currentUser.role) : null
+  const [formData, setFormData] = useState({
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    role: user.role,
+    location: user.location,
+    department: "ITD",
+    password: "",
+    changePassword: false,
+  })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+    setIsSubmitting(true)
+
+    try {
+      console.log("[v0] Updating user:", formData)
+
+      const response = await fetch("/api/admin/update-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          ...formData,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to update user")
+      }
+
+      const result = await response.json()
+      console.log("[v0] User updated successfully:", result)
+
+      // Refresh the page to show updated user
+      window.location.reload()
+    } catch (err: any) {
+      console.error("[v0] Error updating user:", err)
+      setError(err.message || "Failed to update user. Please try again.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <div>
+      {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">{error}</div>}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm font-medium">Name</label>
+            <Input
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Email</label>
+            <Input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Phone</label>
+            <Input
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Role</label>
+            <Select
+              value={formData.role}
+              onValueChange={(value) => setFormData({ ...formData, role: value as SystemUser["role"] })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="user">User</SelectItem>
+                <SelectItem value="it_staff">IT Staff</SelectItem>
+                <SelectItem value="regional_it_head">Regional IT Head</SelectItem>
+                <SelectItem value="it_head">IT Head</SelectItem>
+                <SelectItem value="it_store_head">IT Store Head</SelectItem>
+                <SelectItem value="service_desk_head">Service Desk Head</SelectItem>
+                <SelectItem value="service_desk_staff">Service Desk Staff</SelectItem>
+                <SelectItem value="service_provider">Service Provider</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="text-sm font-medium">Location</label>
+            <Select value={formData.location} onValueChange={(value) => setFormData({ ...formData, location: value })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {getLocationOptions().map((option) => (
+                  <SelectItem key={option.value} value={option.label}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="col-span-2">
+            <div className="flex items-center space-x-2 mb-2">
+              <input
+                type="checkbox"
+                id="changePassword"
+                checked={formData.changePassword}
+                onChange={(e) => setFormData({ ...formData, changePassword: e.target.checked, password: "" })}
+                className="rounded"
+              />
+              <label htmlFor="changePassword" className="text-sm font-medium">
+                Change Password
+              </label>
+            </div>
+            {formData.changePassword && (
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  placeholder="Enter new password"
+                  minLength={6}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? "👁️" : "👁️‍🗨️"}
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className={cn(
+              "text-white",
+              roleColors
+                ? `bg-gradient-to-r ${roleColors.gradient} ${roleColors.hoverGradient}`
+                : "bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600",
+            )}
+          >
+            {isSubmitting ? "Updating..." : "Update User"}
+          </Button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function ResetPasswordForm({ user, onClose }: { user: SystemUser; onClose: () => void }) {
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+
+    if (newPassword.length < 6) {
+      setError("Password must be at least 6 characters long")
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match")
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const response = await fetch("/api/admin/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          username: user.email,
+          newPassword: newPassword,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to reset password")
+      }
+
+      setSuccess(true)
+      setTimeout(() => {
+        onClose()
+      }, 2000)
+    } catch (err) {
+      setError("Failed to reset password. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  if (success) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 space-y-4">
+        <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
+          <KeyRound className="h-8 w-8 text-green-600" />
+        </div>
+        <div className="text-center">
+          <h3 className="font-semibold text-lg">Password Reset Successful</h3>
+          <p className="text-sm text-muted-foreground">Password has been updated for {user.name}</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="p-4 bg-muted rounded-lg">
+        <div className="flex items-center space-x-3">
+          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+            <User className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <p className="font-medium">{user.name}</p>
+            <p className="text-sm text-muted-foreground">{user.email}</p>
+          </div>
+        </div>
+      </div>
+
+      {error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">{error}</div>}
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium">New Password</label>
+        <Input
+          type="password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          placeholder="Enter new password"
+          required
+          minLength={6}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Confirm Password</label>
+        <Input
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          placeholder="Confirm new password"
+          required
+          minLength={6}
+        />
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          disabled={isLoading}
+          className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
+        >
+          {isLoading ? "Resetting..." : "Reset Password"}
+        </Button>
+      </div>
+    </form>
   )
 }
 
@@ -686,13 +1038,7 @@ function AddUserForm({ onClose, onUserAdded }: { onClose: () => void; onUserAdde
           </div>
         </div>
         <div className="flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="hover:bg-gray-50 bg-transparent"
-          >
+          <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>
           <Button
@@ -710,123 +1056,5 @@ function AddUserForm({ onClose, onUserAdded }: { onClose: () => void; onUserAdde
         </div>
       </form>
     </div>
-  )
-}
-
-function ResetPasswordForm({ user, onClose }: { user: SystemUser; onClose: () => void }) {
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState(false)
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-
-    if (newPassword.length < 6) {
-      setError("Password must be at least 6 characters long")
-      return
-    }
-
-    if (newPassword !== confirmPassword) {
-      setError("Passwords do not match")
-      return
-    }
-
-    setIsLoading(true)
-    try {
-      const response = await fetch("/api/admin/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user.id,
-          username: user.email,
-          newPassword: newPassword,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to reset password")
-      }
-
-      setSuccess(true)
-      setTimeout(() => {
-        onClose()
-      }, 2000)
-    } catch (err) {
-      setError("Failed to reset password. Please try again.")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  if (success) {
-    return (
-      <div className="flex flex-col items-center justify-center py-8 space-y-4">
-        <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
-          <KeyRound className="h-8 w-8 text-green-600" />
-        </div>
-        <div className="text-center">
-          <h3 className="font-semibold text-lg">Password Reset Successful</h3>
-          <p className="text-sm text-muted-foreground">Password has been updated for {user.name}</p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="p-4 bg-muted rounded-lg">
-        <div className="flex items-center space-x-3">
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-            <User className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <p className="font-medium">{user.name}</p>
-            <p className="text-sm text-muted-foreground">{user.email}</p>
-          </div>
-        </div>
-      </div>
-
-      {error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">{error}</div>}
-
-      <div className="space-y-2">
-        <label className="text-sm font-medium">New Password</label>
-        <Input
-          type="password"
-          value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)}
-          placeholder="Enter new password"
-          required
-          minLength={6}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Confirm Password</label>
-        <Input
-          type="password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          placeholder="Confirm new password"
-          required
-          minLength={6}
-        />
-      </div>
-
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          disabled={isLoading}
-          className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
-        >
-          {isLoading ? "Resetting..." : "Reset Password"}
-        </Button>
-      </div>
-    </form>
   )
 }
