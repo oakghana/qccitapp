@@ -1,10 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import bcrypt from "bcrypt"
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { userId, role, password } = body
+    const { userId, role, location, password } = body
 
     if (!userId || !role) {
       return NextResponse.json({ message: "Missing userId or role" }, { status: 400 })
@@ -15,12 +16,12 @@ export async function POST(request: NextRequest) {
     const updateData: any = {
       status: "approved",
       role,
+      ...(location && { location }),
       updated_at: new Date().toISOString(),
     }
 
     // If password is provided, hash it and update
     if (password && password.trim()) {
-      const bcrypt = require("bcrypt")
       const hashedPassword = await bcrypt.hash(password, 10)
       updateData.password_hash = hashedPassword
     }

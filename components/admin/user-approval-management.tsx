@@ -39,6 +39,7 @@ export function UserApprovalManagement() {
   const [rejectedUsers, setRejectedUsers] = useState<PendingUser[]>([])
   const [selectedUser, setSelectedUser] = useState<PendingUser | null>(null)
   const [selectedRole, setSelectedRole] = useState("")
+  const [selectedLocation, setSelectedLocation] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -116,6 +117,7 @@ export function UserApprovalManagement() {
 
   const handleApprove = (user: PendingUser) => {
     setSelectedUser(user)
+    setSelectedLocation(user.location)
     setActionType("approve")
     setIsDialogOpen(true)
   }
@@ -138,7 +140,8 @@ export function UserApprovalManagement() {
           body: JSON.stringify({
             userId: selectedUser.id,
             role: selectedRole,
-            password: newPassword || undefined, // Send password if provided
+            location: selectedLocation,
+            password: newPassword || undefined,
           }),
         })
 
@@ -161,6 +164,7 @@ export function UserApprovalManagement() {
       setIsDialogOpen(false)
       setSelectedUser(null)
       setSelectedRole("")
+      setSelectedLocation("")
       setNewPassword("")
       setShowPassword(false)
     } catch (error) {
@@ -174,7 +178,7 @@ export function UserApprovalManagement() {
   const getRoleLabel = (role: string) => {
     const roles: Record<string, string> = {
       admin: "Admin",
-      regional_it_head: "Regional IT Head", // Added regional IT head role
+      regional_it_head: "Regional IT Head",
       it_head: "IT Head",
       it_staff: "IT Staff",
       it_store_head: "IT Store Head",
@@ -395,6 +399,32 @@ export function UserApprovalManagement() {
                   </div>
 
                   <div className="space-y-1.5">
+                    <Label htmlFor="location" className="text-sm font-medium">
+                      Location *
+                    </Label>
+                    <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                      <SelectTrigger id="location" className="h-9">
+                        <SelectValue placeholder="Select location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="head_office">Head Office</SelectItem>
+                        <SelectItem value="tema_port">Tema Port</SelectItem>
+                        <SelectItem value="takoradi_port">Takoradi Port</SelectItem>
+                        <SelectItem value="tema_research">Tema Research</SelectItem>
+                        <SelectItem value="tema_training_school">Tema Training School</SelectItem>
+                        <SelectItem value="kumasi">Kumasi</SelectItem>
+                        <SelectItem value="kaase">Kaase</SelectItem>
+                        <SelectItem value="ws">WS</SelectItem>
+                        <SelectItem value="wn">WN</SelectItem>
+                        <SelectItem value="vr">VR</SelectItem>
+                        <SelectItem value="bar">BAR</SelectItem>
+                        <SelectItem value="nsawam">Nsawam</SelectItem>
+                        <SelectItem value="cr">CR</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
                     <Label htmlFor="password" className="text-sm font-medium">
                       Set New Password (Optional)
                     </Label>
@@ -430,7 +460,7 @@ export function UserApprovalManagement() {
             </Button>
             <Button
               onClick={confirmAction}
-              disabled={isLoading || (actionType === "approve" && !selectedRole)}
+              disabled={isLoading || (actionType === "approve" && (!selectedRole || !selectedLocation))}
               className={actionType === "approve" ? "bg-green-600 hover:bg-green-700" : ""}
               variant={actionType === "reject" ? "destructive" : "default"}
               size="sm"
