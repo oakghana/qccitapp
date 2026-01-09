@@ -6,6 +6,8 @@ export async function POST(request: NextRequest) {
   try {
     const { username, currentPassword, newPassword } = await request.json()
 
+    console.log("[v0] Change password request for:", username)
+
     if (!username || !currentPassword || !newPassword) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
@@ -27,17 +29,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
+    console.log("[v0] User data fetched, has password_hash:", !!userData.password_hash)
+
     if (userData.status !== "approved" || !userData.is_active) {
       return NextResponse.json({ error: "Account is not active" }, { status: 403 })
     }
 
-    const isPasswordValid = await bcrypt.compare(currentPassword, userData.password_hash)
+    if (!userData.password_hash) {
+      return NextResponse.json(
+        {
+          error: "No password set for this account. Please contact an administrator to set an initial password.",
+        },
+        { status: 400 },
+      )
+    }
+
+    const isPasswordValid = await bcrypt.compare(String(currentPassword), String(userData.password_hash))
 
     if (!isPasswordValid) {
       return NextResponse.json({ error: "Current password is incorrect" }, { status: 401 })
     }
 
-    const newPasswordHash = await bcrypt.hash(newPassword, 10)
+    const newPasswordHash = await bcrypt.hash(String(newPassword), 10)
 
     const { error: updateError } = await supabase
       .from("profiles")
