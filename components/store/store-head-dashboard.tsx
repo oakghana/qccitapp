@@ -34,6 +34,8 @@ export default function StoreHeadDashboard() {
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const locationValues = Object.values(LOCATIONS)
+
   useEffect(() => {
     fetchAllInventory()
   }, [])
@@ -69,7 +71,7 @@ export default function StoreHeadDashboard() {
   const generateMockData = () => {
     // Mock data for demonstration
     const mockItems: StockItem[] = []
-    LOCATIONS.forEach((location) => {
+    locationValues.forEach((location) => {
       mockItems.push(
         {
           id: `${location}-1`,
@@ -97,7 +99,7 @@ export default function StoreHeadDashboard() {
   }
 
   const calculateLocationSummaries = (stockItems: StockItem[]) => {
-    const summaries = LOCATIONS.map((location) => {
+    const summaries = locationValues.map((location) => {
       const locationItems = stockItems.filter((item) => item.location === location)
       return {
         location,
@@ -180,7 +182,7 @@ export default function StoreHeadDashboard() {
       </div>
 
       {/* All Items by Location */}
-      {LOCATIONS.map((location) => {
+      {locationValues.map((location) => {
         const locationItems = items.filter((item) => item.location === location)
         if (locationItems.length === 0) return null
 

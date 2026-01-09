@@ -30,7 +30,6 @@ import { cn } from "@/lib/utils"
 export default function SettingsPage() {
   const { user, setUser } = useAuth()
   const [fullName, setFullName] = useState(user?.name || "")
-  const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [emailNotifications, setEmailNotifications] = useState(true)
@@ -106,7 +105,6 @@ export default function SettingsPage() {
         },
         body: JSON.stringify({
           username: user?.username,
-          currentPassword,
           newPassword,
         }),
       })
@@ -120,7 +118,6 @@ export default function SettingsPage() {
       }
 
       setMessage({ type: "success", text: "Password changed successfully" })
-      setCurrentPassword("")
       setNewPassword("")
       setConfirmPassword("")
     } catch (error) {
@@ -293,21 +290,10 @@ export default function SettingsPage() {
                 <Key className="h-5 w-5" />
                 Change Password
               </CardTitle>
-              <CardDescription>Update your account password for enhanced security</CardDescription>
+              <CardDescription>Update your account password</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handlePasswordChange} className="space-y-4">
-                <div>
-                  <Label htmlFor="currentPassword">Current Password</Label>
-                  <Input
-                    id="currentPassword"
-                    type="password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    required
-                  />
-                </div>
-
                 <div>
                   <Label htmlFor="newPassword">New Password</Label>
                   <Input
@@ -316,6 +302,7 @@ export default function SettingsPage() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     required
+                    placeholder="Enter new password"
                   />
                   <p className="text-xs text-muted-foreground mt-1">Password must be at least 8 characters long</p>
                 </div>
@@ -328,6 +315,7 @@ export default function SettingsPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
+                    placeholder="Confirm new password"
                   />
                 </div>
 
