@@ -40,8 +40,26 @@ export function LoginForm() {
         return
       }
 
-      // Save user data to localStorage for client-side auth context
-      localStorage.setItem("qcc_current_user", JSON.stringify(data.user))
+      const sanitizedUser = {
+        id: data.user.id,
+        username: data.user.username || data.user.email,
+        email: data.user.email,
+        role: data.user.role,
+        location: data.user.location || "Head Office",
+        name: data.user.full_name || data.user.name || data.user.username,
+        full_name: data.user.full_name,
+        department: data.user.department,
+        phone: data.user.phone,
+      }
+
+      try {
+        localStorage.setItem("qcc_current_user", JSON.stringify(sanitizedUser))
+      } catch (storageError) {
+        console.error("[v0] Failed to save user to localStorage:", storageError)
+        setError("Failed to save session. Please try again.")
+        setIsPending(false)
+        return
+      }
 
       // Redirect to dashboard
       window.location.href = data.redirectUrl

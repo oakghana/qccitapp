@@ -4,43 +4,37 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
   ResponsiveContainer,
   LineChart,
   Line,
   PieChart,
   Pie,
-  Cell
+  Cell,
 } from "recharts"
-import { 
-  Building2,
+import {
   FileText,
   Download,
-  Calendar,
-  TrendingUp,
   Users,
-  Wrench,
   Headphones,
   Clock,
   CheckCircle,
   AlertTriangle,
   Target,
   Filter,
-  Shield
+  Shield,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { cn } from "@/lib/utils"
+import { canSeeAllLocations } from "@/lib/location-filter"
 
 interface ReportData {
   location: string
@@ -73,41 +67,14 @@ export function ITReportsDashboard() {
   const [reportData, setReportData] = useState<ReportData[]>([])
   const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesData[]>([])
   const [categoryData, setCategoryData] = useState<CategoryData[]>([])
-  const [selectedLocation, setSelectedLocation] = useState("all")
+  const [selectedLocation, setSelectedLocation] = useState(
+    user && user.role === "regional_it_head" ? user.location : "all",
+  )
   const [dateRange, setDateRange] = useState("30") // days
   const [reportType, setReportType] = useState("overview")
   const [isGenerating, setIsGenerating] = useState(false)
 
-  // Role-based access control - only IT Heads, Regional IT Heads, and Admins can access IT Reports
-  if (!user || !["it_head", "regional_it_head", "admin"].includes(user.role)) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="flex items-center justify-center gap-2 text-red-600">
-              <Shield className="h-6 w-6" />
-              Access Denied
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-center space-y-4">
-            <p className="text-muted-foreground">
-              You don't have permission to view IT Reports. This feature is only available to IT Heads, Regional IT Heads, and System Administrators.
-            </p>
-            <Button 
-              variant="outline" 
-              onClick={() => window.history.back()}
-              className="w-full"
-            >
-              Go Back
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
   useEffect(() => {
-    // Mock report data
     const mockReportData: ReportData[] = [
       {
         location: "Kumasi Branch",
@@ -118,10 +85,10 @@ export function ITReportsDashboard() {
         staffCount: 6,
         deviceCount: 89,
         repairRequests: 45,
-        satisfactionScore: 4.7
+        satisfactionScore: 4.7,
       },
       {
-        location: "Accra Branch", 
+        location: "Accra Branch",
         totalTickets: 203,
         resolvedTickets: 185,
         pendingTickets: 18,
@@ -129,7 +96,7 @@ export function ITReportsDashboard() {
         staffCount: 8,
         deviceCount: 124,
         repairRequests: 67,
-        satisfactionScore: 4.8
+        satisfactionScore: 4.8,
       },
       {
         location: "Takoradi Branch",
@@ -140,7 +107,7 @@ export function ITReportsDashboard() {
         staffCount: 4,
         deviceCount: 52,
         repairRequests: 23,
-        satisfactionScore: 4.5
+        satisfactionScore: 4.5,
       },
       {
         location: "Cape Coast Branch",
@@ -151,8 +118,8 @@ export function ITReportsDashboard() {
         staffCount: 3,
         deviceCount: 34,
         repairRequests: 18,
-        satisfactionScore: 4.6
-      }
+        satisfactionScore: 4.6,
+      },
     ]
 
     const mockTimeSeriesData: TimeSeriesData[] = [
@@ -162,7 +129,7 @@ export function ITReportsDashboard() {
       { date: "Jan 22", tickets: 14, repairs: 11, satisfaction: 4.8 },
       { date: "Jan 29", tickets: 20, repairs: 16, satisfaction: 4.7 },
       { date: "Feb 5", tickets: 17, repairs: 13, satisfaction: 4.9 },
-      { date: "Feb 12", tickets: 22, repairs: 18, satisfaction: 4.8 }
+      { date: "Feb 12", tickets: 22, repairs: 18, satisfaction: 4.8 },
     ]
 
     const mockCategoryData: CategoryData[] = [
@@ -170,20 +137,52 @@ export function ITReportsDashboard() {
       { category: "Software Problems", count: 98, percentage: 22, color: "#3b82f6" },
       { category: "Network Issues", count: 87, percentage: 19, color: "#10b981" },
       { category: "User Training", count: 67, percentage: 15, color: "#f59e0b" },
-      { category: "System Maintenance", count: 54, percentage: 12, color: "#8b5cf6" }
+      { category: "System Maintenance", count: 54, percentage: 12, color: "#8b5cf6" },
     ]
 
-    setReportData(mockReportData)
+    const filteredData =
+      user && user.role === "regional_it_head"
+        ? mockReportData.filter((d) => d.location === user.location)
+        : mockReportData
+
+    setReportData(filteredData)
     setTimeSeriesData(mockTimeSeriesData)
     setCategoryData(mockCategoryData)
-  }, [])
+  }, [user])
+
+  // Role-based access control - only IT Heads, Regional IT Heads, and Admins can access IT Reports
+  const AccessDeniedComponent = () => (
+    <div className="flex items-center justify-center min-h-[400px]">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle className="flex items-center justify-center gap-2 text-red-600">
+            <Shield className="h-6 w-6" />
+            Access Denied
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-center space-y-4">
+          <p className="text-muted-foreground">
+            You don't have permission to view IT Reports. This feature is only available to IT Heads, Regional IT Heads,
+            and System Administrators.
+          </p>
+          <Button variant="outline" onClick={() => window.history.back()} className="w-full">
+            Go Back
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
+
+  if (!user || !["it_head", "regional_it_head", "admin"].includes(user.role)) {
+    return <AccessDeniedComponent />
+  }
 
   const generateReport = async () => {
     setIsGenerating(true)
     // Simulate report generation
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    await new Promise((resolve) => setTimeout(resolve, 2000))
     setIsGenerating(false)
-    
+
     // In a real app, this would generate and download a PDF/Excel report
     const reportContent = {
       reportType,
@@ -191,36 +190,38 @@ export function ITReportsDashboard() {
       dateRange,
       generatedBy: user?.name,
       generatedAt: new Date().toISOString(),
-      data: filteredReportData
+      data: filteredReportData,
     }
-    
+
     console.log("Generated Report:", reportContent)
     alert("Report generated successfully! In a real implementation, this would download a PDF/Excel file.")
   }
 
-  const filteredReportData = selectedLocation === "all" 
-    ? reportData 
-    : reportData.filter(item => item.location === selectedLocation)
+  const filteredReportData =
+    selectedLocation === "all" ? reportData : reportData.filter((item) => item.location === selectedLocation)
 
-  const totalStats = filteredReportData.reduce((acc, curr) => ({
-    totalTickets: acc.totalTickets + curr.totalTickets,
-    resolvedTickets: acc.resolvedTickets + curr.resolvedTickets,
-    pendingTickets: acc.pendingTickets + curr.pendingTickets,
-    avgResolutionTime: acc.avgResolutionTime + curr.avgResolutionTime,
-    staffCount: acc.staffCount + curr.staffCount,
-    deviceCount: acc.deviceCount + curr.deviceCount,
-    repairRequests: acc.repairRequests + curr.repairRequests,
-    avgSatisfactionScore: acc.avgSatisfactionScore + curr.satisfactionScore
-  }), {
-    totalTickets: 0,
-    resolvedTickets: 0, 
-    pendingTickets: 0,
-    avgResolutionTime: 0,
-    staffCount: 0,
-    deviceCount: 0,
-    repairRequests: 0,
-    avgSatisfactionScore: 0
-  })
+  const totalStats = filteredReportData.reduce(
+    (acc, curr) => ({
+      totalTickets: acc.totalTickets + curr.totalTickets,
+      resolvedTickets: acc.resolvedTickets + curr.resolvedTickets,
+      pendingTickets: acc.pendingTickets + curr.pendingTickets,
+      avgResolutionTime: acc.avgResolutionTime + curr.avgResolutionTime,
+      staffCount: acc.staffCount + curr.staffCount,
+      deviceCount: acc.deviceCount + curr.deviceCount,
+      repairRequests: acc.repairRequests + curr.repairRequests,
+      avgSatisfactionScore: acc.avgSatisfactionScore + curr.satisfactionScore,
+    }),
+    {
+      totalTickets: 0,
+      resolvedTickets: 0,
+      pendingTickets: 0,
+      avgResolutionTime: 0,
+      staffCount: 0,
+      deviceCount: 0,
+      repairRequests: 0,
+      avgSatisfactionScore: 0,
+    },
+  )
 
   // Calculate averages
   const locationCount = filteredReportData.length
@@ -229,9 +230,8 @@ export function ITReportsDashboard() {
     totalStats.avgSatisfactionScore = totalStats.avgSatisfactionScore / locationCount
   }
 
-  const resolutionRate = totalStats.totalTickets > 0 
-    ? Math.round((totalStats.resolvedTickets / totalStats.totalTickets) * 100)
-    : 0
+  const resolutionRate =
+    totalStats.totalTickets > 0 ? Math.round((totalStats.resolvedTickets / totalStats.totalTickets) * 100) : 0
 
   return (
     <div className="space-y-6">
@@ -243,12 +243,10 @@ export function ITReportsDashboard() {
           </div>
           <div>
             <h1 className="text-3xl font-bold text-foreground">IT Reports & Analytics</h1>
-            <p className="text-muted-foreground">
-              Generate comprehensive IT reports by location • QCC IT Management
-            </p>
+            <p className="text-muted-foreground">Generate comprehensive IT reports by location • QCC IT Management</p>
           </div>
         </div>
-        
+
         <div className="flex items-center space-x-3">
           <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
             Quality Control Company Ltd.
@@ -282,15 +280,19 @@ export function ITReportsDashboard() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div>
               <Label htmlFor="location">Location</Label>
-              <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+              <Select
+                value={selectedLocation}
+                onValueChange={setSelectedLocation}
+                disabled={user?.role === "regional_it_head"}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Locations</SelectItem>
+                  {canSeeAllLocations(user) && <SelectItem value="all">All Locations</SelectItem>}
                   <SelectItem value="Kumasi Branch">Kumasi Branch</SelectItem>
                   <SelectItem value="Accra Branch">Accra Branch</SelectItem>
                   <SelectItem value="Takoradi Branch">Takoradi Branch</SelectItem>
@@ -298,7 +300,7 @@ export function ITReportsDashboard() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div>
               <Label htmlFor="dateRange">Date Range</Label>
               <Select value={dateRange} onValueChange={setDateRange}>
@@ -314,10 +316,10 @@ export function ITReportsDashboard() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="flex items-end">
-              <Button 
-                onClick={generateReport} 
+              <Button
+                onClick={generateReport}
                 disabled={isGenerating}
                 className="w-full bg-gradient-to-r from-green-600 to-yellow-600 hover:from-green-700 hover:to-yellow-700 text-white"
               >
@@ -349,7 +351,7 @@ export function ITReportsDashboard() {
             <div className="text-2xl font-bold">{totalStats.totalTickets}</div>
           </CardHeader>
         </Card>
-        
+
         <Card className="border-l-4 border-l-green-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -360,7 +362,7 @@ export function ITReportsDashboard() {
             <p className="text-xs text-green-600">{resolutionRate}% resolution rate</p>
           </CardHeader>
         </Card>
-        
+
         <Card className="border-l-4 border-l-orange-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -370,7 +372,7 @@ export function ITReportsDashboard() {
             <div className="text-2xl font-bold">{totalStats.pendingTickets}</div>
           </CardHeader>
         </Card>
-        
+
         <Card className="border-l-4 border-l-purple-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -380,7 +382,7 @@ export function ITReportsDashboard() {
             <div className="text-2xl font-bold">{totalStats.avgResolutionTime.toFixed(1)}h</div>
           </CardHeader>
         </Card>
-        
+
         <Card className="border-l-4 border-l-indigo-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -390,7 +392,7 @@ export function ITReportsDashboard() {
             <div className="text-2xl font-bold">{totalStats.staffCount}</div>
           </CardHeader>
         </Card>
-        
+
         <Card className="border-l-4 border-l-yellow-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -459,10 +461,7 @@ export function ITReportsDashboard() {
               {categoryData.map((category, index) => (
                 <div key={index} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div 
-                      className="w-4 h-4 rounded" 
-                      style={{ backgroundColor: category.color }}
-                    ></div>
+                    <div className="w-4 h-4 rounded" style={{ backgroundColor: category.color }}></div>
                     <span className="font-medium">{category.category}</span>
                   </div>
                   <div className="flex items-center gap-3">
@@ -535,10 +534,10 @@ export function ITReportsDashboard() {
                       <div className="flex items-center gap-2">
                         <span>{Math.round((location.resolvedTickets / location.totalTickets) * 100)}%</span>
                         <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className="h-full bg-green-500 transition-all duration-300"
-                            style={{ 
-                              width: `${(location.resolvedTickets / location.totalTickets) * 100}%` 
+                            style={{
+                              width: `${(location.resolvedTickets / location.totalTickets) * 100}%`,
                             }}
                           ></div>
                         </div>
@@ -546,9 +545,7 @@ export function ITReportsDashboard() {
                     </td>
                     <td className="p-3">{location.avgResolutionTime}h</td>
                     <td className="p-3">
-                      <Badge 
-                        variant={location.satisfactionScore >= 4.5 ? "default" : "secondary"}
-                      >
+                      <Badge variant={location.satisfactionScore >= 4.5 ? "default" : "secondary"}>
                         {location.satisfactionScore}/5
                       </Badge>
                     </td>

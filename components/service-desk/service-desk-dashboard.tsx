@@ -101,7 +101,7 @@ export function ServiceDeskDashboard() {
           <p className="text-muted-foreground">
             {canViewAllLocations()
               ? "Manage IT support requests across all QCC office locations"
-              : `Manage IT support requests for ${getUserLocation() === "head_office" ? "Head Office" : "Kumasi District Office"}`}
+              : `Manage IT support requests for ${getUserLocation()}`}
           </p>
         </div>
         <Button

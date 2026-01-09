@@ -434,7 +434,7 @@ export function UserApprovalManagement() {
                         type={showPassword ? "text" : "password"}
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Leave empty to keep current"
+                        placeholder="Leave empty for default: pa$$w0rd"
                         className="h-9 pr-10"
                       />
                       <button
@@ -446,7 +446,8 @@ export function UserApprovalManagement() {
                       </button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      User will receive email with new credentials if password is set
+                      If left empty, user will be assigned default password:{" "}
+                      <span className="font-medium">pa$$w0rd</span>
                     </p>
                   </div>
                 </div>

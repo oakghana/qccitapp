@@ -35,8 +35,8 @@ export default function RepairsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Only IT staff members can create and manage repair tasks. If you need IT assistance, please use the
-              Service Desk to submit a support request.
+              Only IT staff members can view repair records. To create repair tasks, you must be an Admin or Head Office
+              IT Staff member. If you need IT assistance, please use the Service Desk to submit a support request.
             </p>
           </CardContent>
         </Card>

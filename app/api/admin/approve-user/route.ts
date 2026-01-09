@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import bcrypt from "bcryptjs"
 
+const DEFAULT_PASSWORD = "pa$$w0rd"
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -20,11 +22,9 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString(),
     }
 
-    // If password is provided, hash it and update
-    if (password && password.trim()) {
-      const hashedPassword = await bcrypt.hash(password, 10)
-      updateData.password_hash = hashedPassword
-    }
+    const passwordToSet = password && password.trim() ? password : DEFAULT_PASSWORD
+    const hashedPassword = await bcrypt.hash(passwordToSet, 10)
+    updateData.password_hash = hashedPassword
 
     const { data, error } = await supabase.from("profiles").update(updateData).eq("id", userId).select().single()
 
@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
       {
         message: "User approved successfully",
         user: data,
-        passwordChanged: !!password,
+        passwordChanged: true,
+        defaultPasswordUsed: !password || !password.trim(),
       },
       { status: 200 },
     )

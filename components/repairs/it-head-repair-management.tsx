@@ -25,7 +25,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { createClient } from "@/lib/supabase/client"
-import { canSeeAllLocations } from "@/lib/location-filter"
+import { canSeeAllLocations, canCreateRepairs } from "@/lib/location-filter"
 
 interface Device {
   id: string
@@ -296,111 +296,113 @@ export function ITHeadRepairManagement() {
           </div>
         </div>
 
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Repair Task
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Create New Repair Task</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="device">Select Device</Label>
-                  <Select value={selectedDevice} onValueChange={setSelectedDevice}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose device to repair" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {devices
-                        .filter((d) => d.status === "faulty" || d.status === "maintenance")
-                        .map((device) => (
-                          <SelectItem key={device.id} value={device.id}>
-                            {device.assetTag} - {device.type} ({device.brand} {device.model})
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+        {canCreateRepairs(user) && (
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Repair Task
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Create New Repair Task</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="device">Select Device</Label>
+                    <Select value={selectedDevice} onValueChange={setSelectedDevice}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose device to repair" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {devices
+                          .filter((d) => d.status === "faulty" || d.status === "maintenance")
+                          .map((device) => (
+                            <SelectItem key={device.id} value={device.id}>
+                              {device.assetTag} - {device.type} ({device.brand} {device.model})
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="provider">Service Provider</Label>
+                    <Select value={selectedProvider} onValueChange={setSelectedProvider}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose service provider" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {serviceProviders
+                          .filter((p) => p.status === "active")
+                          .map((provider) => (
+                            <SelectItem key={provider.id} value={provider.id}>
+                              {provider.name} - {provider.company}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <div>
-                  <Label htmlFor="provider">Service Provider</Label>
-                  <Select value={selectedProvider} onValueChange={setSelectedProvider}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose service provider" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {serviceProviders
-                        .filter((p) => p.status === "active")
-                        .map((provider) => (
-                          <SelectItem key={provider.id} value={provider.id}>
-                            {provider.name} - {provider.company}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="issue">Issue Description</Label>
-                <Textarea
-                  id="issue"
-                  placeholder="Describe the problem with the device..."
-                  value={issueDescription}
-                  onChange={(e) => setIssueDescription(e.target.value)}
-                  rows={4}
-                />
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="priority">Priority Level</Label>
-                  <Select value={priority} onValueChange={(value) => setPriority(value as RepairTask["priority"])}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low Priority</SelectItem>
-                      <SelectItem value="medium">Medium Priority</SelectItem>
-                      <SelectItem value="high">High Priority</SelectItem>
-                      <SelectItem value="critical">Critical Priority</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="cost">Estimated Cost (GHS)</Label>
-                  <Input
-                    id="cost"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={estimatedCost}
-                    onChange={(e) => setEstimatedCost(e.target.value)}
+                  <Label htmlFor="issue">Issue Description</Label>
+                  <Textarea
+                    id="issue"
+                    placeholder="Describe the problem with the device..."
+                    value={issueDescription}
+                    onChange={(e) => setIssueDescription(e.target.value)}
+                    rows={4}
                   />
                 </div>
-              </div>
 
-              <div className="flex justify-end space-x-3">
-                <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={createRepairTask}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white"
-                >
-                  <Send className="h-4 w-4 mr-2" />
-                  Assign Task
-                </Button>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="priority">Priority Level</Label>
+                    <Select value={priority} onValueChange={(value) => setPriority(value as RepairTask["priority"])}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Low Priority</SelectItem>
+                        <SelectItem value="medium">Medium Priority</SelectItem>
+                        <SelectItem value="high">High Priority</SelectItem>
+                        <SelectItem value="critical">Critical Priority</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="cost">Estimated Cost (GHS)</Label>
+                    <Input
+                      id="cost"
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={estimatedCost}
+                      onChange={(e) => setEstimatedCost(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3">
+                  <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={createRepairTask}
+                    className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white"
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    Assign Task
+                  </Button>
+                </div>
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {/* Stats Cards */}

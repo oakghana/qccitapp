@@ -85,6 +85,10 @@ const statusColors = {
 
 const locationNames = LOCATIONS
 
+const canSeeAllLocations = (user: any) => {
+  return user.role === "admin" || user.location === "Head Office"
+}
+
 export function UserManagement() {
   const { user } = useAuth()
   const { isInstalled, isInstallable } = usePWAInstall()
@@ -160,10 +164,7 @@ export function UserManagement() {
   const getFilteredUsers = () => {
     let filteredByAccess = users
 
-    if (
-      (user?.role === "regional_it_head" || (user?.role === "it_head" && user?.location !== "Head Office")) &&
-      user?.location
-    ) {
+    if (user && !canSeeAllLocations(user) && user?.location) {
       filteredByAccess = users.filter((u) => u.location === user.location)
     }
 

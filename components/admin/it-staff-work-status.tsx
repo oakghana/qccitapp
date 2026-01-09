@@ -24,6 +24,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { cn } from "@/lib/utils"
+import { applyLocationFilter } from "@/lib/location-filter"
 
 interface ITStaffMember {
   id: string
@@ -79,11 +80,14 @@ export function ITStaffWorkStatus() {
   const loadStaffMembers = async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("role", "it_staff")
-        .eq("status", "approved")
+      let query = supabase.from("profiles").select("*").eq("role", "it_staff").eq("status", "approved")
+
+      // Filter by location for regional IT heads
+      if (user && user.role === "regional_it_head") {
+        query = applyLocationFilter(query, user)
+      }
+
+      const { data, error } = await query
 
       if (error) {
         console.error("Error loading IT staff:", error)

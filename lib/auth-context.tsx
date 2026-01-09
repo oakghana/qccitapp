@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 
-interface User {
+export interface User {
   id: string
   username: string
   role:
@@ -43,8 +43,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const savedUser = localStorage.getItem("qcc_current_user")
     if (savedUser) {
       try {
-        setUser(JSON.parse(savedUser))
+        const parsed = JSON.parse(savedUser)
+        if (parsed && typeof parsed === "object" && parsed.id && parsed.username) {
+          setUser(parsed)
+        } else {
+          console.error("[v0] Invalid user data in localStorage")
+          localStorage.removeItem("qcc_current_user")
+        }
       } catch (e) {
+        console.error("[v0] Failed to parse user data from localStorage:", e)
         localStorage.removeItem("qcc_current_user")
       }
     }
@@ -62,12 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const canViewAllLocations = () => {
-    return (
-      user?.role === "admin" ||
-      (user?.location === "Head Office" && user?.role === "it_head") ||
-      user?.role === "regional_it_head" ||
-      user?.role.startsWith("service_desk")
-    )
+    return user?.role === "admin" || user?.role === "it_head"
   }
 
   const getUserLocation = () => {
@@ -88,3 +90,5 @@ export function useAuth() {
   }
   return context
 }
+
+export type { User as AuthUser }
