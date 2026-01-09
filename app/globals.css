@@ -1,8 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
-
 :root {
   --background: oklch(0.99 0.01 140);
   --foreground: oklch(0.15 0.02 30);
@@ -78,8 +76,8 @@
   --success-foreground: oklch(0.08 0.01 30);
 }
 
-@theme inline {
-  /* optional: --font-sans, --font-serif, --font-mono if they are applied in the layout.tsx */
+/* Fixed @theme inline block with proper Tailwind v4 syntax */
+@theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

@@ -34,36 +34,31 @@ export async function POST(request: Request) {
     }
 
     console.log("[v0] User found:", user.username, "role:", user.role)
-    console.log("[v0] Hash preview:", user.password_hash?.substring(0, 30))
+    console.log("[v0] Hash exists:", !!user.password_hash)
 
-    let isPasswordValid = await bcrypt.compare(password, user.password_hash)
-
-    console.log("[v0] Password verification result:", isPasswordValid)
-
-    if (!isPasswordValid && user.password_hash?.startsWith("$2a$06$")) {
-      console.log("[v0] Detected old pgcrypto hash, attempting auto-fix for:", username)
-
-      // Generate new bcryptjs hash
-      const newHash = await bcrypt.hash(password, 10)
-      console.log("[v0] Generated new hash:", newHash.substring(0, 30))
-
-      // Update the user's password hash
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ password_hash: newHash, updated_at: new Date().toISOString() })
-        .eq("id", user.id)
-
-      if (updateError) {
-        console.error("[v0] Failed to update password hash:", updateError)
-        return NextResponse.json({ error: "Invalid username or password" }, { status: 401 })
-      }
-
-      console.log("[v0] Successfully updated password hash for:", username)
-
-      // Verify the new hash works
-      isPasswordValid = await bcrypt.compare(password, newHash)
-      console.log("[v0] New hash verification result:", isPasswordValid)
+    if (!user.password_hash || user.password_hash.length < 20) {
+      console.log("[v0] No valid password hash for user:", username)
+      return NextResponse.json(
+        {
+          error: "Password not set. Please contact an administrator.",
+        },
+        { status: 401 },
+      )
     }
+
+    // Reject old pgcrypto hashes ($2a$06$) - users must reset their passwords
+    if (user.password_hash.startsWith("$2a$06$")) {
+      console.log("[v0] User has old pgcrypto hash, must reset password:", username)
+      return NextResponse.json(
+        {
+          error: "Password format outdated. Please contact an administrator to reset your password.",
+        },
+        { status: 401 },
+      )
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash)
+    console.log("[v0] Password verification result:", isPasswordValid)
 
     if (!isPasswordValid) {
       console.log("[v0] Password verification failed for:", username)

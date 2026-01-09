@@ -8,6 +8,7 @@ import { Package, AlertTriangle, Download, MapPin } from "lucide-react"
 import { LOCATIONS } from "@/lib/locations"
 import { downloadCSV } from "@/lib/export-utils"
 import StockCardDetailModal from "./stock-card-detail-modal"
+import { createBrowserClient } from "@/lib/supabase/client"
 
 interface StockItem {
   id: string
@@ -38,7 +39,35 @@ export default function StoreHeadDashboard() {
   }, [])
 
   const fetchAllInventory = async () => {
-    // Mock data for now - replace with actual API call
+    try {
+      const supabase = createBrowserClient()
+
+      const { data, error } = await supabase.from("store_items").select("*").order("location").order("item_name")
+
+      if (error) {
+        console.error("[v0] Error fetching inventory:", error)
+        // Fall back to mock data if table doesn't exist yet
+        generateMockData()
+        return
+      }
+
+      if (data && data.length > 0) {
+        setItems(data as StockItem[])
+        calculateLocationSummaries(data as StockItem[])
+      } else {
+        // No data in database, show mock data
+        generateMockData()
+      }
+    } catch (err) {
+      console.error("[v0] Exception fetching inventory:", err)
+      generateMockData()
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const generateMockData = () => {
+    // Mock data for demonstration
     const mockItems: StockItem[] = []
     LOCATIONS.forEach((location) => {
       mockItems.push(
@@ -65,7 +94,6 @@ export default function StoreHeadDashboard() {
 
     setItems(mockItems)
     calculateLocationSummaries(mockItems)
-    setLoading(false)
   }
 
   const calculateLocationSummaries = (stockItems: StockItem[]) => {
