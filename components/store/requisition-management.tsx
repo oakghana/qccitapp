@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Dialog,
   DialogContent,
@@ -20,6 +22,7 @@ import { IssueItemsForm } from "./issue-items-form"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations } from "@/lib/location-filter"
+import { getLocationOptions } from "@/lib/locations"
 
 interface Requisition {
   id: string
@@ -27,13 +30,16 @@ interface Requisition {
   requested_by: string
   beneficiary?: string
   location: string
-  items: { itemName: string; quantity: number; unit: string }[]
+  items: { itemName: string; quantity: number; unit: string; item_id?: string }[]
   created_at: string
   status: "pending" | "approved" | "issued" | "rejected"
   updated_at?: string
   issued_by?: string
   approved_by?: string
   notes?: string
+  allocated_to_location?: string
+  allocation_date?: string
+  allocated_by?: string
 }
 
 const statusConfig = {
@@ -50,6 +56,9 @@ export function RequisitionManagement() {
   const [newReqOpen, setNewReqOpen] = useState(false)
   const [issueOpen, setIssueOpen] = useState(false)
   const [selectedReq, setSelectedReq] = useState<Requisition | null>(null)
+  const [allocateOpen, setAllocateOpen] = useState(false)
+  const [allocatingReq, setAllocatingReq] = useState<Requisition | null>(null)
+  const [allocateLocation, setAllocateLocation] = useState("")
   const { user } = useAuth()
   const supabase = createClient()
 
@@ -88,6 +97,9 @@ export function RequisitionManagement() {
         issued_by: req.issued_by,
         approved_by: req.approved_by,
         notes: req.notes,
+        allocated_to_location: req.allocated_to_location,
+        allocation_date: req.allocation_date,
+        allocated_by: req.allocated_by,
       }))
 
       setRequisitions(mappedRequisitions)
@@ -139,6 +151,34 @@ export function RequisitionManagement() {
       await loadRequisitions()
     } catch (error) {
       console.error("[v0] Error issuing requisition:", error)
+    }
+  }
+
+  const allocateRequisition = async () => {
+    if (!allocatingReq || !allocateLocation) return
+
+    try {
+      const response = await fetch("/api/store/allocate-requisition", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requisitionId: allocatingReq.id,
+          approvedBy: user?.full_name || "Admin",
+          allocateToLocation: allocateLocation,
+        }),
+      })
+
+      if (!response.ok) {
+        console.error("[v0] Error allocating requisition")
+        return
+      }
+
+      setAllocateOpen(false)
+      setAllocatingReq(null)
+      setAllocateLocation("")
+      await loadRequisitions()
+    } catch (error) {
+      console.error("[v0] Error allocating requisition:", error)
     }
   }
 
@@ -271,6 +311,18 @@ export function RequisitionManagement() {
                       </div>
                     </div>
 
+                    {req.allocated_to_location && (
+                      <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
+                        <p className="text-sm font-medium text-primary mb-1">Allocated to Location</p>
+                        <p className="text-sm">{req.allocated_to_location}</p>
+                        {req.allocation_date && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Allocated on {new Date(req.allocation_date).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     {req.status === "approved" && (
                       <div className="flex gap-2">
                         <Button
@@ -290,11 +342,15 @@ export function RequisitionManagement() {
                       <div className="flex gap-2">
                         <Button
                           variant="default"
-                          onClick={() => updateRequisitionStatus(req.id, "approved", "Store Manager")}
+                          onClick={() => {
+                            setAllocatingReq(req)
+                            setAllocateLocation(req.location)
+                            setAllocateOpen(true)
+                          }}
                           className="flex-1"
                         >
                           <CheckCircle className="mr-2 h-4 w-4" />
-                          Approve
+                          Approve & Allocate
                         </Button>
                         <Button
                           variant="destructive"
@@ -325,6 +381,59 @@ export function RequisitionManagement() {
           </TabsContent>
         ))}
       </Tabs>
+
+      <Dialog open={allocateOpen} onOpenChange={setAllocateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve & Allocate Requisition</DialogTitle>
+            <DialogDescription>
+              Allocate items to {allocatingReq?.requested_by} at their location. Stock will be transferred from Head
+              Office to the regional inventory.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="allocateLocation">Allocate to Location *</Label>
+              <Select value={allocateLocation} onValueChange={setAllocateLocation}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getLocationOptions().map((location) => (
+                    <SelectItem key={location.value} value={location.label}>
+                      {location.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {allocatingReq && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Items to Allocate:</p>
+                {allocatingReq.items.map((item, idx) => (
+                  <div key={idx} className="flex justify-between items-center p-2 bg-muted/50 rounded text-sm">
+                    <span>{item.itemName}</span>
+                    <Badge variant="outline">
+                      {item.quantity} {item.unit}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setAllocateOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={allocateRequisition} disabled={!allocateLocation}>
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Approve & Allocate
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={issueOpen} onOpenChange={setIssueOpen}>
         <DialogContent className="max-w-2xl">

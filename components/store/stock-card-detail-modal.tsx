@@ -192,3 +192,5 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
     </Dialog>
   )
 }
+
+export { StockCardDetailModal }

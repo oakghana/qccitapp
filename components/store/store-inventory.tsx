@@ -14,12 +14,24 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Search, Plus, Package, AlertTriangle, TrendingDown, TrendingUp, Download } from "lucide-react"
+import {
+  Search,
+  Plus,
+  Package,
+  AlertTriangle,
+  TrendingDown,
+  TrendingUp,
+  Download,
+  History,
+  ExternalLink,
+} from "lucide-react"
 import { AddStoreItemForm } from "./add-store-item-form"
 import { StoreReceiptForm } from "./store-receipt-form"
+import { StockCardDetailModal } from "./stock-card-detail-modal"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations } from "@/lib/location-filter"
+import { useRouter } from "next/navigation"
 
 interface StoreItem {
   id: string
@@ -47,8 +59,10 @@ export function StoreInventory() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [addItemOpen, setAddItemOpen] = useState(false)
   const [receiptOpen, setReceiptOpen] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<StoreItem | null>(null)
   const { user } = useAuth()
   const supabase = createClient()
+  const router = useRouter()
 
   useEffect(() => {
     loadInventory()
@@ -115,6 +129,10 @@ export function StoreInventory() {
           <p className="text-muted-foreground">Manage IT items, accessories, and consumables</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => router.push("/dashboard/store-overview")}>
+            <ExternalLink className="mr-2 h-4 w-4" />
+            Stock Levels
+          </Button>
           <Dialog open={receiptOpen} onOpenChange={setReceiptOpen}>
             <DialogTrigger asChild>
               <Button variant="outline">
@@ -226,7 +244,11 @@ export function StoreInventory() {
           const IconComponent = categoryIcons[item.category as keyof typeof categoryIcons] || Package
           const isLowStock = item.quantity <= item.reorderLevel
           return (
-            <Card key={item.id} className={isLowStock ? "border-orange-200" : ""}>
+            <Card
+              key={item.id}
+              className={`${isLowStock ? "border-orange-200" : ""} cursor-pointer hover:shadow-lg transition-shadow`}
+              onClick={() => setSelectedItem(item)}
+            >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
@@ -238,6 +260,7 @@ export function StoreInventory() {
                       <CardDescription className="text-sm">{item.id}</CardDescription>
                     </div>
                   </div>
+                  <History className="h-4 w-4 text-muted-foreground" />
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -279,6 +302,10 @@ export function StoreInventory() {
           )
         })}
       </div>
+
+      {selectedItem && (
+        <StockCardDetailModal item={selectedItem} open={!!selectedItem} onClose={() => setSelectedItem(null)} />
+      )}
     </div>
   )
 }
