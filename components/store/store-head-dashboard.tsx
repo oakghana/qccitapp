@@ -9,6 +9,8 @@ import { LOCATIONS } from "@/lib/locations"
 import { downloadCSV } from "@/lib/export-utils"
 import StockCardDetailModal from "./stock-card-detail-modal"
 import { createBrowserClient } from "@/lib/supabase/client"
+import { useAuth } from "@/lib/auth-context"
+import { canSeeAllLocations } from "@/lib/location-filter"
 
 interface StockItem {
   id: string
@@ -36,18 +38,26 @@ export default function StoreHeadDashboard() {
   const [locationSummaries, setLocationSummaries] = useState<LocationSummary[]>([])
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null)
   const [loading, setLoading] = useState(true)
+  const { user } = useAuth()
 
   const locationValues = Object.values(LOCATIONS)
 
   useEffect(() => {
     fetchAllInventory()
-  }, [])
+  }, [user])
 
   const fetchAllInventory = async () => {
     try {
       const supabase = createBrowserClient()
 
-      const { data, error } = await supabase.from("store_items").select("*").order("location").order("name")
+      let query = supabase.from("store_items").select("*").order("location").order("name")
+
+      if (user && !canSeeAllLocations(user) && user.location) {
+        console.log("[v0] Filtering items by location:", user.location)
+        query = query.eq("location", user.location)
+      }
+
+      const { data, error } = await query
 
       if (error) {
         console.error("[v0] Error fetching inventory:", error)
@@ -63,8 +73,7 @@ export default function StoreHeadDashboard() {
         setItems(data as StockItem[])
         calculateLocationSummaries(data as StockItem[])
       } else {
-        // No data in database - show empty state
-        console.log("[v0] No store items found in database")
+        console.log("[v0] No store items found in database for this location")
         setItems([])
         setLocationSummaries([])
       }
@@ -78,12 +87,13 @@ export default function StoreHeadDashboard() {
   }
 
   const calculateLocationSummaries = (stockItems: StockItem[]) => {
-    const summaries = locationValues.map((location) => {
+    const visibleLocations = user && !canSeeAllLocations(user) && user.location ? [user.location] : locationValues
+
+    const summaries = visibleLocations.map((location) => {
       const locationItems = stockItems.filter((item) => item.location === location)
 
       const totalItems = locationItems.reduce((sum, item) => sum + (item.quantity || 0), 0)
       const totalValue = locationItems.reduce((sum, item) => {
-        // Assuming unit_price exists or default to 0
         const unitPrice = (item as any).unit_price || 0
         return sum + (item.quantity || 0) * unitPrice
       }, 0)
@@ -129,24 +139,37 @@ export default function StoreHeadDashboard() {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
         <Package className="h-16 w-16 text-muted-foreground" />
-        <p className="text-muted-foreground text-lg">No store items found in the database</p>
-        <p className="text-sm text-muted-foreground">Add items to the store inventory to see them here</p>
+        <p className="text-muted-foreground text-lg">No Inventory Items Found</p>
+        <p className="text-sm text-muted-foreground">
+          {user && !canSeeAllLocations(user)
+            ? `There are no inventory items to display for your location.`
+            : `Add items to the store inventory to see them here`}
+        </p>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Store Inventory - All Locations</h2>
+        <div>
+          <h2 className="text-2xl font-bold">
+            {user && !canSeeAllLocations(user) && user.location
+              ? `IT Store Stock Levels`
+              : `Store Inventory - All Locations`}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {user && !canSeeAllLocations(user) && user.location
+              ? `View current stock levels for IT items at ${user.location}`
+              : `Comprehensive inventory view across all locations`}
+          </p>
+        </div>
         <Button onClick={exportAllStock}>
           <Download className="mr-2 h-4 w-4" />
           Export All Stock
         </Button>
       </div>
 
-      {/* Location Summaries */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {locationSummaries.map((summary) => (
           <Card key={summary.location}>
@@ -180,8 +203,7 @@ export default function StoreHeadDashboard() {
         ))}
       </div>
 
-      {/* All Items by Location */}
-      {locationValues.map((location) => {
+      {(user && !canSeeAllLocations(user) && user.location ? [user.location] : locationValues).map((location) => {
         const locationItems = items.filter((item) => item.location === location)
         if (locationItems.length === 0) return null
 
@@ -215,7 +237,6 @@ export default function StoreHeadDashboard() {
         )
       })}
 
-      {/* Detail Modal */}
       {selectedItem && (
         <StockCardDetailModal
           open={!!selectedItem}

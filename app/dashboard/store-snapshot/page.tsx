@@ -6,13 +6,17 @@ import { Badge } from "@/components/ui/badge"
 import { Package, AlertTriangle, CheckCircle2, Info } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { createClient } from "@/lib/supabase/client"
+import { canSeeAllLocations } from "@/lib/location-filter"
 
 interface InventoryItem {
   id: string
   item_name: string
+  name: string
   category: string
-  siv_number: string
+  siv_number?: string
+  sku?: string
   quantity_in_stock: number
+  quantity: number
   reorder_level: number
   location: string
   created_at: string
@@ -27,16 +31,23 @@ export default function StoreSnapshotPage() {
     async function fetchInventory() {
       try {
         const supabase = createClient()
-        const { data, error } = await supabase
-          .from("store_inventory")
-          .select("*")
-          .order("item_name", { ascending: true })
+
+        let query = supabase.from("store_items").select("*").order("name", { ascending: true })
+
+        // Apply location filter for Regional IT heads
+        if (user && !canSeeAllLocations(user) && user.location) {
+          console.log("[v0] Filtering store snapshot by location:", user.location)
+          query = query.eq("location", user.location)
+        }
+
+        const { data, error } = await query
 
         if (error) {
           console.error("[v0] Error fetching inventory:", error)
           return
         }
 
+        console.log("[v0] Fetched store items for snapshot:", data)
         setInventory(data || [])
       } catch (error) {
         console.error("[v0] Error loading inventory:", error)
@@ -46,16 +57,18 @@ export default function StoreSnapshotPage() {
     }
 
     fetchInventory()
-  }, [])
+  }, [user])
 
-  const filteredInventory =
-    user?.location === "head_office" ? inventory : inventory.filter((item) => item.location === user?.location)
+  const filteredInventory = inventory
 
   const lowStockItems = filteredInventory.filter(
-    (item) => item.quantity_in_stock <= item.reorder_level && item.quantity_in_stock > 0,
+    (item) =>
+      (item.quantity || item.quantity_in_stock) <= item.reorder_level && (item.quantity || item.quantity_in_stock) > 0,
   )
-  const outOfStockItems = filteredInventory.filter((item) => item.quantity_in_stock === 0)
-  const inStockItems = filteredInventory.filter((item) => item.quantity_in_stock > item.reorder_level)
+  const outOfStockItems = filteredInventory.filter((item) => (item.quantity || item.quantity_in_stock) === 0)
+  const inStockItems = filteredInventory.filter(
+    (item) => (item.quantity || item.quantity_in_stock) > item.reorder_level,
+  )
 
   if (loading) {
     return (
@@ -73,7 +86,7 @@ export default function StoreSnapshotPage() {
       <div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">IT Store Stock Levels</h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1">
-          View current stock levels for IT items at {user?.location?.replace(/_/g, " ") || "your location"}
+          View current stock levels for IT items at {user?.location || "your location"}
         </p>
       </div>
 
@@ -141,13 +154,11 @@ export default function StoreSnapshotPage() {
                 {outOfStockItems.map((item) => (
                   <div key={item.id} className="flex items-center justify-between border-b pb-4 last:border-0">
                     <div className="flex-1">
-                      <h4 className="font-medium text-gray-900 dark:text-gray-100">{item.item_name}</h4>
+                      <h4 className="font-medium text-gray-900 dark:text-gray-100">{item.name || item.item_name}</h4>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Category: {item.category} | SIV: {item.siv_number}
+                        Category: {item.category} | SKU: {item.sku || item.siv_number || "N/A"}
                       </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500">
-                        Location: {item.location.replace(/_/g, " ")}
-                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">Location: {item.location}</p>
                     </div>
                     <Badge variant="destructive">Out of Stock</Badge>
                   </div>
@@ -172,17 +183,15 @@ export default function StoreSnapshotPage() {
                 {lowStockItems.map((item) => (
                   <div key={item.id} className="flex items-center justify-between border-b pb-4 last:border-0">
                     <div className="flex-1">
-                      <h4 className="font-medium text-gray-900 dark:text-gray-100">{item.item_name}</h4>
+                      <h4 className="font-medium text-gray-900 dark:text-gray-100">{item.name || item.item_name}</h4>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Category: {item.category} | SIV: {item.siv_number}
+                        Category: {item.category} | SKU: {item.sku || item.siv_number || "N/A"}
                       </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500">
-                        Location: {item.location.replace(/_/g, " ")}
-                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">Location: {item.location}</p>
                     </div>
                     <div className="text-right">
                       <Badge variant="outline" className="text-yellow-600 border-yellow-600">
-                        Low: {item.quantity_in_stock} left
+                        Low: {item.quantity || item.quantity_in_stock} left
                       </Badge>
                       <p className="text-xs text-gray-400 mt-1">Reorder at: {item.reorder_level}</p>
                     </div>
@@ -208,17 +217,15 @@ export default function StoreSnapshotPage() {
                 {inStockItems.map((item) => (
                   <div key={item.id} className="flex items-center justify-between border-b pb-4 last:border-0">
                     <div className="flex-1">
-                      <h4 className="font-medium text-gray-900 dark:text-gray-100">{item.item_name}</h4>
+                      <h4 className="font-medium text-gray-900 dark:text-gray-100">{item.name || item.item_name}</h4>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Category: {item.category} | SIV: {item.siv_number}
+                        Category: {item.category} | SKU: {item.sku || item.siv_number || "N/A"}
                       </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500">
-                        Location: {item.location.replace(/_/g, " ")}
-                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">Location: {item.location}</p>
                     </div>
                     <div className="text-right">
                       <Badge variant="outline" className="text-green-600 border-green-600">
-                        In Stock: {item.quantity_in_stock}
+                        In Stock: {item.quantity || item.quantity_in_stock}
                       </Badge>
                       <p className="text-xs text-gray-400 mt-1">Reorder at: {item.reorder_level}</p>
                     </div>
