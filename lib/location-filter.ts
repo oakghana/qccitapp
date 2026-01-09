@@ -73,13 +73,15 @@ export function canViewLocation(user: User | null, location: string): boolean {
 
 /**
  * Checks if a user can create IT repair tasks
- * Only Admin and Head Office IT staff can create repairs
- * All other IT staff can only view repairs for their location
+ * All IT staff (including regional and Head Office) can create repairs
+ * Admin can also create repairs
+ * Regular users and staff cannot create repairs
  */
 export function canCreateRepairs(user: User | null): boolean {
   if (!user) return false
   if (user.role === "admin") return true
-  if (user.role === "it_staff" && user.location === "Head Office") return true
-  if (user.role === "it_head" && user.location === "Head Office") return true
+  if (user.role === "it_staff") return true
+  if (user.role === "it_head") return true
+  if (user.role === "regional_it_head") return true
   return false
 }

@@ -73,6 +73,69 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
   const getNavigationItems = (): NavigationItem[] => {
     const baseItems: NavigationItem[] = [{ name: "Dashboard", href: "/dashboard", icon: Home }]
 
+    if (user?.role === "admin") {
+      const fullNavigation: NavigationItem[] = [
+        ...baseItems,
+        {
+          name: "IT Staff Status",
+          href: "/dashboard/it-staff-status",
+          icon: Building2,
+          badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
+        },
+        {
+          name: "Service Desk",
+          href: "/dashboard/service-desk",
+          icon: Headphones,
+          badge: counts.serviceDeskTickets > 0 ? counts.serviceDeskTickets : undefined,
+        },
+        {
+          name: "Repairs",
+          href: "/dashboard/repairs",
+          icon: Wrench,
+          badge: counts.repairs > 0 ? counts.repairs : undefined,
+        },
+        { name: "Devices", href: "/dashboard/devices", icon: Monitor },
+        { name: "Store Overview", href: "/dashboard/store-overview", icon: Package },
+        { name: "Store Inventory", href: "/dashboard/store-inventory", icon: Database },
+        {
+          name: "Store Requisitions",
+          href: "/dashboard/store-requisitions",
+          icon: ClipboardList,
+          badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
+        },
+        {
+          name: "IT Service Provider",
+          href: "/dashboard/service-provider",
+          icon: Truck,
+          badge: counts.serviceProviders > 0 ? counts.serviceProviders : undefined,
+        },
+        { name: "IT Reports", href: "/dashboard/it-reports", icon: FileText },
+        { name: "Users", href: "/dashboard/users", icon: Users },
+        {
+          name: "Pending User Approvals",
+          href: "/dashboard/user-accounts",
+          icon: UserPlus,
+          badge: counts.userAccounts > 0 ? counts.userAccounts : undefined,
+        },
+        {
+          name: "Notifications",
+          href: "/dashboard/notifications",
+          icon: Bell,
+          badge: counts.notifications > 0 ? counts.notifications : undefined,
+        },
+        { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
+        { name: "Lookup Data", href: "/dashboard/lookup-data", icon: Database },
+        { name: "System Settings", href: "/dashboard/system-settings", icon: Settings },
+        {
+          name: "Updates",
+          href: "/dashboard/updates",
+          icon: Rss,
+          badge: counts.updates > 0 ? counts.updates : undefined,
+        },
+      ]
+      return fullNavigation
+    }
+
     if (user?.role === "staff") {
       return [
         ...baseItems,
@@ -218,69 +281,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
       return regionalNavigation
     }
 
-    if (user?.role === "admin") {
-      const fullNavigation: NavigationItem[] = [
-        ...baseItems,
-        {
-          name: "IT Staff Status",
-          href: "/dashboard/it-staff-status",
-          icon: Building2,
-          badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
-        },
-        {
-          name: "Service Desk",
-          href: "/dashboard/service-desk",
-          icon: Headphones,
-          badge: counts.serviceDeskTickets > 0 ? counts.serviceDeskTickets : undefined,
-        },
-        {
-          name: "Repairs",
-          href: "/dashboard/repairs",
-          icon: Wrench,
-          badge: counts.repairs > 0 ? counts.repairs : undefined,
-        },
-        { name: "Devices", href: "/dashboard/devices", icon: Monitor },
-        { name: "Store Inventory", href: "/dashboard/store-inventory", icon: Package },
-        {
-          name: "Store Requisitions",
-          href: "/dashboard/store-requisitions",
-          icon: ClipboardList,
-          badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
-        },
-        {
-          name: "IT Service Provider",
-          href: "/dashboard/service-provider",
-          icon: Truck,
-          badge: counts.serviceProviders > 0 ? counts.serviceProviders : undefined,
-        },
-        { name: "IT Reports", href: "/dashboard/it-reports", icon: FileText },
-        { name: "Users", href: "/dashboard/users", icon: Users },
-        {
-          name: "Pending User Approvals",
-          href: "/dashboard/user-accounts",
-          icon: UserPlus,
-          badge: counts.userAccounts > 0 ? counts.userAccounts : undefined,
-        },
-        {
-          name: "Notifications",
-          href: "/dashboard/notifications",
-          icon: Bell,
-          badge: counts.notifications > 0 ? counts.notifications : undefined,
-        },
-        { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-        { name: "Lookup Data", href: "/dashboard/lookup-data", icon: Database },
-        { name: "System Settings", href: "/dashboard/system-settings", icon: Settings },
-        {
-          name: "Updates",
-          href: "/dashboard/updates",
-          icon: Rss,
-          badge: counts.updates > 0 ? counts.updates : undefined,
-        },
-      ]
-      return fullNavigation
-    }
-
-    // Service Provider role - repair management and service delivery
     if (user?.role === "service_provider") {
       const serviceProviderNavigation: NavigationItem[] = [
         { name: "Dashboard", href: "/dashboard", icon: Home },

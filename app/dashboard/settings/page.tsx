@@ -28,7 +28,8 @@ import { useAuth } from "@/lib/auth-context"
 import { cn } from "@/lib/utils"
 
 export default function SettingsPage() {
-  const { user } = useAuth()
+  const { user, setUser } = useAuth()
+  const [fullName, setFullName] = useState(user?.name || "")
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -38,6 +39,49 @@ export default function SettingsPage() {
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null)
+
+  const handleProfileUpdate = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (fullName.trim().length < 2) {
+      setMessage({ type: "error", text: "Name must be at least 2 characters long" })
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const response = await fetch("/api/auth/update-profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: user?.username,
+          name: fullName.trim(),
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setMessage({ type: "error", text: data.error || "Failed to update profile" })
+        setIsLoading(false)
+        return
+      }
+
+      if (setUser && data.user) {
+        setUser(data.user)
+      }
+
+      setMessage({ type: "success", text: "Profile updated successfully" })
+    } catch (error) {
+      console.error("[v0] Profile update error:", error)
+      setMessage({ type: "error", text: "Failed to update profile. Please try again." })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -90,7 +134,6 @@ export default function SettingsPage() {
   const handleNotificationSave = () => {
     setIsLoading(true)
 
-    // Simulate API call
     setTimeout(() => {
       setMessage({ type: "success", text: "Notification preferences saved successfully" })
       setIsLoading(false)
@@ -100,7 +143,6 @@ export default function SettingsPage() {
   const handleSecuritySave = () => {
     setIsLoading(true)
 
-    // Simulate API call
     setTimeout(() => {
       setMessage({ type: "success", text: "Security settings updated successfully" })
       setIsLoading(false)
@@ -109,7 +151,6 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shadow-lg">
@@ -126,7 +167,6 @@ export default function SettingsPage() {
         </Badge>
       </div>
 
-      {/* Message Display */}
       {message && (
         <Card
           className={cn(
@@ -156,7 +196,6 @@ export default function SettingsPage() {
         </Card>
       )}
 
-      {/* Settings Tabs */}
       <Tabs defaultValue="account" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="account" className="flex items-center gap-2">
@@ -184,48 +223,65 @@ export default function SettingsPage() {
                 <User className="h-5 w-5" />
                 Profile Information
               </CardTitle>
-              <CardDescription>Your basic account information and role details</CardDescription>
+              <CardDescription>Update your name and view account details</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <Label htmlFor="username">Username</Label>
-                  <Input id="username" value={user?.username || ""} disabled />
-                  <p className="text-xs text-muted-foreground mt-1">Username cannot be changed</p>
+            <CardContent>
+              <form onSubmit={handleProfileUpdate} className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <Label htmlFor="username">Username</Label>
+                    <Input id="username" value={user?.username || ""} disabled />
+                    <p className="text-xs text-muted-foreground mt-1">Username cannot be changed</p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input id="email" value={user?.email || ""} disabled />
+                    <p className="text-xs text-muted-foreground mt-1">Contact IT admin to change email</p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="name">Full Name *</Label>
+                    <Input
+                      id="name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      required
+                      placeholder="Enter your full name"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">You can update your display name</p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="role">Role</Label>
+                    <Input
+                      id="role"
+                      value={user?.role?.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase()) || ""}
+                      disabled
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Role assigned by system administrator</p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="location">Location</Label>
+                    <Input
+                      id="location"
+                      value={user?.location?.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase()) || ""}
+                      disabled
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Your assigned work location</p>
+                  </div>
                 </div>
 
-                <div>
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input id="email" value={user?.email || ""} disabled />
-                  <p className="text-xs text-muted-foreground mt-1">Contact IT admin to change email</p>
-                </div>
-
-                <div>
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input id="name" value={user?.name || ""} disabled />
-                  <p className="text-xs text-muted-foreground mt-1">Contact HR to update your name</p>
-                </div>
-
-                <div>
-                  <Label htmlFor="role">Role</Label>
-                  <Input
-                    id="role"
-                    value={user?.role?.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase()) || ""}
-                    disabled
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Role assigned by system administrator</p>
-                </div>
-
-                <div>
-                  <Label htmlFor="location">Location</Label>
-                  <Input
-                    id="location"
-                    value={user?.location?.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase()) || ""}
-                    disabled
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Your assigned work location</p>
-                </div>
-              </div>
+                <Button
+                  type="submit"
+                  disabled={isLoading || fullName === user?.name}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white"
+                >
+                  {isLoading ? "Updating Profile..." : "Update Profile"}
+                  <Save className="h-4 w-4 ml-2" />
+                </Button>
+              </form>
             </CardContent>
           </Card>
         </TabsContent>

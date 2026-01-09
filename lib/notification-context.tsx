@@ -1,8 +1,9 @@
 "use client"
 
-import React, { createContext, useContext, useState, useEffect } from "react"
+import type React from "react"
+import { createContext, useContext, useState } from "react"
 import { toast } from "sonner"
-import { Bell, CheckCircle, AlertCircle, XCircle, Info } from "lucide-react"
+import { CheckCircle, AlertCircle, XCircle, Info } from "lucide-react"
 
 interface Notification {
   id: string
@@ -25,11 +26,7 @@ interface NotificationContextType {
   markAllAsRead: () => void
   removeNotification: (id: string) => void
   clearAll: () => void
-  showToast: (
-    title: string,
-    message?: string,
-    type?: "info" | "success" | "warning" | "error"
-  ) => void
+  showToast: (title: string, message?: string, type?: "info" | "success" | "warning" | "error") => void
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined)
@@ -37,11 +34,9 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
 
-  const unreadCount = notifications.filter(n => !n.isRead).length
+  const unreadCount = notifications.filter((n) => !n.isRead).length
 
-  const addNotification = (
-    notificationData: Omit<Notification, "id" | "timestamp" | "isRead">
-  ) => {
+  const addNotification = (notificationData: Omit<Notification, "id" | "timestamp" | "isRead">) => {
     const newNotification: Notification = {
       ...notificationData,
       id: crypto.randomUUID(),
@@ -49,7 +44,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       isRead: false,
     }
 
-    setNotifications(prev => [newNotification, ...prev])
+    setNotifications((prev) => [newNotification, ...prev])
 
     // Show toast notification
     showToast(newNotification.title, newNotification.message, newNotification.type)
@@ -61,34 +56,24 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }
 
   const markAsRead = (id: string) => {
-    setNotifications(prev =>
-      prev.map(notification =>
-        notification.id === id
-          ? { ...notification, isRead: true }
-          : notification
-      )
+    setNotifications((prev) =>
+      prev.map((notification) => (notification.id === id ? { ...notification, isRead: true } : notification)),
     )
   }
 
   const markAllAsRead = () => {
-    setNotifications(prev =>
-      prev.map(notification => ({ ...notification, isRead: true }))
-    )
+    setNotifications((prev) => prev.map((notification) => ({ ...notification, isRead: true })))
   }
 
   const removeNotification = (id: string) => {
-    setNotifications(prev => prev.filter(notification => notification.id !== id))
+    setNotifications((prev) => prev.filter((notification) => notification.id !== id))
   }
 
   const clearAll = () => {
     setNotifications([])
   }
 
-  const showToast = (
-    title: string,
-    message?: string,
-    type: "info" | "success" | "warning" | "error" = "info"
-  ) => {
+  const showToast = (title: string, message?: string, type: "info" | "success" | "warning" | "error" = "info") => {
     const toastContent = (
       <div className="flex items-start space-x-3">
         {type === "success" && <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />}
@@ -122,59 +107,17 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
     const oscillator = audioContext.createOscillator()
     const gainNode = audioContext.createGain()
-    
+
     oscillator.connect(gainNode)
     gainNode.connect(audioContext.destination)
-    
+
     oscillator.frequency.value = 800
     gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
     gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5)
-    
+
     oscillator.start(audioContext.currentTime)
     oscillator.stop(audioContext.currentTime + 0.5)
   }
-
-  // Simulate real-time notifications for demo
-  useEffect(() => {
-    const sampleNotifications: Array<Omit<Notification, "id" | "timestamp" | "isRead">> = [
-      {
-        title: "New repair request",
-        message: "Device ID: DEV-001 requires immediate attention",
-        type: "info",
-        priority: "high",
-        actionUrl: "/dashboard/repairs",
-        actionLabel: "View Request"
-      },
-      {
-        title: "Device transfer completed",
-        message: "Laptop transferred from IT Staff to John Doe",
-        type: "success",
-        priority: "medium",
-        actionUrl: "/dashboard/devices",
-        actionLabel: "View Device"
-      },
-      {
-        title: "System maintenance scheduled",
-        message: "Server maintenance scheduled for tonight at 2 AM",
-        type: "warning",
-        priority: "medium",
-        actionUrl: "/dashboard/system-settings",
-        actionLabel: "View Details"
-      }
-    ]
-
-    // Add sample notifications on mount
-    sampleNotifications.forEach((notification, index) => {
-      setTimeout(() => {
-        setNotifications(prev => [{
-          ...notification,
-          id: `sample-${index}`,
-          timestamp: new Date(),
-          isRead: false,
-        }, ...prev])
-      }, index * 1000)
-    })
-  }, [])
 
   const value: NotificationContextType = {
     notifications,
@@ -187,11 +130,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     showToast,
   }
 
-  return (
-    <NotificationContext.Provider value={value}>
-      {children}
-    </NotificationContext.Provider>
-  )
+  return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>
 }
 
 export function useNotifications() {
@@ -206,14 +145,18 @@ export function useNotifications() {
 export function useModuleNotifications(module: string) {
   const { addNotification } = useNotifications()
 
-  const notifyTaskAssignment = (taskTitle: string, assignee: string, priority: "low" | "medium" | "high" | "urgent" = "medium") => {
+  const notifyTaskAssignment = (
+    taskTitle: string,
+    assignee: string,
+    priority: "low" | "medium" | "high" | "urgent" = "medium",
+  ) => {
     addNotification({
       title: "New Task Assignment",
       message: `${taskTitle} has been assigned to ${assignee}`,
       type: "info",
       priority,
       actionUrl: `/dashboard/${module}`,
-      actionLabel: "View Task"
+      actionLabel: "View Task",
     })
   }
 
@@ -224,7 +167,7 @@ export function useModuleNotifications(module: string) {
       type: "success",
       priority: "medium",
       actionUrl: `/dashboard/${module}`,
-      actionLabel: "View Details"
+      actionLabel: "View Details",
     })
   }
 
@@ -235,7 +178,7 @@ export function useModuleNotifications(module: string) {
       type: "error",
       priority: "urgent",
       actionUrl: `/dashboard/${module}`,
-      actionLabel: "Take Action"
+      actionLabel: "Take Action",
     })
   }
 
@@ -246,7 +189,7 @@ export function useModuleNotifications(module: string) {
       type: "info",
       priority: "medium",
       actionUrl: `/dashboard/${module}`,
-      actionLabel: "View Item"
+      actionLabel: "View Item",
     })
   }
 
