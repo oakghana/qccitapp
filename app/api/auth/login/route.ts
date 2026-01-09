@@ -35,6 +35,7 @@ export async function POST(request: Request) {
 
     console.log("[v0] User found:", user.username, "role:", user.role)
     console.log("[v0] Hash exists:", !!user.password_hash)
+    console.log("[v0] Hash format:", user.password_hash?.substring(0, 10))
 
     if (!user.password_hash || user.password_hash.length < 20) {
       console.log("[v0] No valid password hash for user:", username)
@@ -46,16 +47,8 @@ export async function POST(request: Request) {
       )
     }
 
-    // Reject old pgcrypto hashes ($2a$06$) - users must reset their passwords
-    if (user.password_hash.startsWith("$2a$06$")) {
-      console.log("[v0] User has old pgcrypto hash, must reset password:", username)
-      return NextResponse.json(
-        {
-          error: "Password format outdated. Please contact an administrator to reset your password.",
-        },
-        { status: 401 },
-      )
-    }
+    // Bcryptjs should be able to validate both $2a$06$ and $2a$10$ formats
+    console.log("[v0] Attempting password validation for hash format:", user.password_hash.substring(0, 7))
 
     const isPasswordValid = await bcrypt.compare(password, user.password_hash)
     console.log("[v0] Password verification result:", isPasswordValid)
