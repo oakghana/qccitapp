@@ -10,12 +10,13 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Item ID, deleted by, and reason are required" }, { status: 400 })
     }
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Get item details before deletion
     const { data: item, error: fetchError } = await supabase.from("store_items").select("*").eq("id", itemId).single()
 
     if (fetchError || !item) {
+      console.error("[v0] Item not found:", fetchError)
       return NextResponse.json({ error: "Item not found" }, { status: 404 })
     }
 
@@ -26,7 +27,6 @@ export async function DELETE(request: Request) {
       updated_by: deletedBy,
       reason: reason,
       changes: { deleted_item: item },
-      created_at: new Date().toISOString(),
     })
 
     if (logError) {
@@ -38,7 +38,7 @@ export async function DELETE(request: Request) {
 
     if (deleteError) {
       console.error("[v0] Error deleting stock item:", deleteError)
-      return NextResponse.json({ error: "Failed to delete item" }, { status: 500 })
+      return NextResponse.json({ error: deleteError.message }, { status: 500 })
     }
 
     return NextResponse.json({ success: true, message: "Item deleted successfully" })

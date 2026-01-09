@@ -10,7 +10,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Log the update with reason
     const { error: logError } = await supabase.from("stock_audit_log").insert({
@@ -19,7 +19,6 @@ export async function PUT(request: Request) {
       updated_by: updatedBy,
       reason: reason || "No reason provided",
       changes: updates,
-      created_at: new Date().toISOString(),
     })
 
     if (logError) {
@@ -27,20 +26,21 @@ export async function PUT(request: Request) {
     }
 
     // Update the item
-    const { error: updateError } = await supabase
+    const { data, error: updateError } = await supabase
       .from("store_items")
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
       })
       .eq("id", itemId)
+      .select()
 
     if (updateError) {
       console.error("[v0] Error updating stock item:", updateError)
-      return NextResponse.json({ error: "Failed to update item" }, { status: 500 })
+      return NextResponse.json({ error: updateError.message }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, message: "Item updated successfully" })
+    return NextResponse.json({ success: true, message: "Item updated successfully", data })
   } catch (error: any) {
     console.error("[v0] Error in update-item route:", error)
     return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 })
