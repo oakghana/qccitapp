@@ -104,6 +104,11 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
         },
         {
+          name: "Store Summary Report",
+          href: "/dashboard/store-summary-report",
+          icon: FileText,
+        },
+        {
           name: "IT Service Provider",
           href: "/dashboard/service-provider",
           icon: Truck,
@@ -189,6 +194,12 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           icon: ClipboardList,
           badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
         },
+        {
+          name: "Store Summary Report",
+          href: "/dashboard/store-summary-report",
+          icon: FileText,
+        },
+        { name: "Users", href: "/dashboard/users", icon: Users },
         { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
       ]
     }

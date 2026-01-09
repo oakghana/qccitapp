@@ -90,7 +90,7 @@ const canSeeAllLocations = (user: any) => {
 }
 
 export function UserManagement() {
-  const { user } = useAuth()
+  const { user: currentUser } = useAuth()
   const { isInstalled, isInstallable } = usePWAInstall()
   const [users, setUsers] = useState<SystemUser[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -98,7 +98,7 @@ export function UserManagement() {
   const [locationFilter, setLocationFilter] = useState<string>("all")
   const [addUserOpen, setAddUserOpen] = useState(false)
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
-  const roleColors = user?.role ? getRoleColorScheme(user.role) : null
+  const roleColors = currentUser?.role ? getRoleColorScheme(currentUser.role) : null
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false)
   const [selectedUserForReset, setSelectedUserForReset] = useState<SystemUser | null>(null)
   const [editUserOpen, setEditUserOpen] = useState(false)
@@ -121,19 +121,19 @@ export function UserManagement() {
     async function loadUsers() {
       try {
         setLoading(true)
-        console.log("[v0] Loading users from Supabase...")
+        console.log("[v0] Loading users from API...")
 
-        const supabase = createClient()
-        const { data, error } = await supabase.from("profiles").select("*").order("created_at", { ascending: false })
+        const response = await fetch("/api/users/list")
 
-        if (error) {
-          console.error("[v0] Error loading users:", error)
+        if (!response.ok) {
+          console.error("[v0] Error loading users:", await response.text())
           return
         }
 
-        console.log("[v0] Loaded users from Supabase:", data)
+        const { users: fetchedUsers, currentUserRole } = await response.json()
+        console.log("[v0] Loaded users from API:", fetchedUsers)
 
-        const mappedUsers: SystemUser[] = data.map((profile: any) => ({
+        const mappedUsers: SystemUser[] = fetchedUsers.map((profile: any) => ({
           id: profile.id,
           name: profile.full_name || profile.username,
           email: profile.email || profile.username,
@@ -165,8 +165,8 @@ export function UserManagement() {
   const getFilteredUsers = () => {
     let filteredByAccess = users
 
-    if (user && !canSeeAllLocations(user) && user?.location) {
-      filteredByAccess = users.filter((u) => u.location === user.location)
+    if (currentUser && !canSeeAllLocations(currentUser) && currentUser?.location) {
+      filteredByAccess = users.filter((u) => u.location === currentUser.location)
     }
 
     return filteredByAccess.filter((user) => {
@@ -187,10 +187,10 @@ export function UserManagement() {
   const getLocationFilterOptions = () => {
     const allOptions = getLocationOptions()
 
-    if (user?.role === "it_head" && user?.location !== "Head Office") {
+    if (currentUser?.role === "it_head" && currentUser?.location !== "Head Office") {
       return [
         { value: "all", label: "All Locations" },
-        { value: user.location, label: user.location },
+        { value: currentUser.location, label: currentUser.location },
       ]
     }
 
@@ -346,14 +346,14 @@ export function UserManagement() {
         <div>
           <h2 className="text-2xl font-bold text-foreground">User Management</h2>
           <p className="text-muted-foreground">
-            {user?.role === "it_head" && user?.location !== "Head Office"
-              ? `Manage users in ${user.location}`
+            {currentUser?.role === "it_head" && currentUser?.location !== "Head Office"
+              ? `Manage users in ${currentUser.location}`
               : "Manage system users and access permissions"}
           </p>
         </div>
 
         <div className="flex gap-2">
-          {user?.role === "admin" && (
+          {currentUser?.role === "admin" && (
             <Button
               variant="outline"
               onClick={() => (window.location.href = "/dashboard/user-accounts")}
@@ -367,27 +367,29 @@ export function UserManagement() {
             </Button>
           )}
 
-          <Dialog open={addUserOpen} onOpenChange={setAddUserOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white">
-                <Plus className="mr-2 h-4 w-4" />
-                Add User
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Add New User</DialogTitle>
-                <DialogDescription>Create a new system user account</DialogDescription>
-              </DialogHeader>
-              <AddUserForm
-                onClose={() => setAddUserOpen(false)}
-                onUserAdded={(newUser) => {
-                  setUsers([...users, newUser])
-                  setAddUserOpen(false)
-                }}
-              />
-            </DialogContent>
-          </Dialog>
+          {currentUser?.role === "admin" && (
+            <Dialog open={addUserOpen} onOpenChange={setAddUserOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add User
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Add New User</DialogTitle>
+                  <DialogDescription>Create a new system user account</DialogDescription>
+                </DialogHeader>
+                <AddUserForm
+                  onClose={() => setAddUserOpen(false)}
+                  onUserAdded={(newUser) => {
+                    setUsers([...users, newUser])
+                    setAddUserOpen(false)
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </div>
 
@@ -482,54 +484,64 @@ export function UserManagement() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => handleEditUser(user)}
-                          className="hover:bg-purple-50 hover:text-purple-700 cursor-pointer"
-                        >
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Edit User
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleResetPassword(user)}
-                          className="hover:bg-blue-50 hover:text-blue-700 cursor-pointer"
-                        >
-                          <KeyRound className="mr-2 h-4 w-4" />
-                          Reset Password
-                        </DropdownMenuItem>
-                        {user.status !== "active" && (
+                        {!(currentUser?.role === "it_store_head" && user.role === "admin") && (
                           <DropdownMenuItem
-                            onClick={() => handleUserAction(user.id, "activate")}
-                            className="hover:bg-green-50 hover:text-green-700 cursor-pointer"
+                            onClick={() => handleEditUser(user)}
+                            className="hover:bg-purple-50 hover:text-purple-700 cursor-pointer"
                           >
-                            Activate User
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit User
                           </DropdownMenuItem>
                         )}
-                        {user.status === "active" && (
+                        {!(currentUser?.role === "it_store_head" && user.role === "admin") && (
                           <DropdownMenuItem
-                            onClick={() => handleUserAction(user.id, "deactivate")}
-                            className="hover:bg-yellow-50 hover:text-yellow-700 cursor-pointer"
+                            onClick={() => handleResetPassword(user)}
+                            className="hover:bg-blue-50 hover:text-blue-700 cursor-pointer"
                           >
-                            Deactivate User
+                            <KeyRound className="mr-2 h-4 w-4" />
+                            Reset Password
                           </DropdownMenuItem>
                         )}
-                        <DropdownMenuItem
-                          onClick={() => handleUserAction(user.id, "suspend")}
-                          className="hover:bg-orange-50 hover:text-orange-700 cursor-pointer"
-                        >
-                          Suspend User
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            if (
-                              confirm(`Are you sure you want to delete ${user.name}? This action cannot be undone.`)
-                            ) {
-                              handleUserAction(user.id, "delete")
-                            }
-                          }}
-                          className="text-destructive hover:bg-red-50 hover:text-red-700 cursor-pointer"
-                        >
-                          Delete User
-                        </DropdownMenuItem>
+                        {!(currentUser?.role === "it_store_head" && user.role === "admin") &&
+                          user.status !== "active" && (
+                            <DropdownMenuItem
+                              onClick={() => handleUserAction(user.id, "activate")}
+                              className="hover:bg-green-50 hover:text-green-700 cursor-pointer"
+                            >
+                              Activate User
+                            </DropdownMenuItem>
+                          )}
+                        {!(currentUser?.role === "it_store_head" && user.role === "admin") &&
+                          user.status === "active" && (
+                            <DropdownMenuItem
+                              onClick={() => handleUserAction(user.id, "deactivate")}
+                              className="hover:bg-yellow-50 hover:text-yellow-700 cursor-pointer"
+                            >
+                              Deactivate User
+                            </DropdownMenuItem>
+                          )}
+                        {!(currentUser?.role === "it_store_head" && user.role === "admin") && (
+                          <DropdownMenuItem
+                            onClick={() => handleUserAction(user.id, "suspend")}
+                            className="hover:bg-orange-50 hover:text-orange-700 cursor-pointer"
+                          >
+                            Suspend User
+                          </DropdownMenuItem>
+                        )}
+                        {!(currentUser?.role === "it_store_head" && user.role === "admin") && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              if (
+                                confirm(`Are you sure you want to delete ${user.name}? This action cannot be undone.`)
+                              ) {
+                                handleUserAction(user.id, "delete")
+                              }
+                            }}
+                            className="text-destructive hover:bg-red-50 hover:text-red-700 cursor-pointer"
+                          >
+                            Delete User
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -725,7 +737,6 @@ function EditUserForm({
               <SelectContent>
                 <SelectItem value="user">User</SelectItem>
                 <SelectItem value="it_staff">IT Staff</SelectItem>
-                <SelectItem value="regional_it_head">Regional IT Head</SelectItem>
                 <SelectItem value="it_head">IT Head</SelectItem>
                 <SelectItem value="it_store_head">IT Store Head</SelectItem>
                 <SelectItem value="service_desk_head">Service Desk Head</SelectItem>

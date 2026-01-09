@@ -218,6 +218,44 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
     }
   }
 
+  const handleSaveEdit = async () => {
+    if (!user) return
+
+    setActionLoading(true)
+    setActionError("")
+
+    try {
+      const response = await fetch("/api/store/update-item", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemId: item.id,
+          updates: {
+            quantity_in_stock: editData.quantity,
+            reorder_level: editData.reorder_level,
+            unit_price: editData.unit_price,
+          },
+          updatedBy: user.email || user.username,
+          reason: "Stock details updated",
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to update item")
+      }
+
+      setIsEditing(false)
+      setActionError("")
+      // Refresh the parent component data
+      onClose()
+    } catch (error: any) {
+      console.error("[v0] Error updating stock:", error)
+      setActionError(error.message || "Failed to update stock")
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -240,63 +278,69 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
             <CardContent className="pt-6">
               {isEditing ? (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Quantity</Label>
+                      <Label htmlFor="edit-quantity">Current Stock</Label>
                       <Input
+                        id="edit-quantity"
                         type="number"
                         value={editData.quantity}
                         onChange={(e) => setEditData({ ...editData, quantity: Number.parseInt(e.target.value) })}
                       />
                     </div>
                     <div>
-                      <Label>Reorder Level</Label>
+                      <Label htmlFor="edit-reorder">Reorder Level</Label>
                       <Input
+                        id="edit-reorder"
                         type="number"
                         value={editData.reorder_level}
                         onChange={(e) => setEditData({ ...editData, reorder_level: Number.parseInt(e.target.value) })}
                       />
                     </div>
-                    <div>
-                      <Label>Unit Price</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={editData.unit_price}
-                        onChange={(e) => setEditData({ ...editData, unit_price: Number.parseFloat(e.target.value) })}
-                      />
-                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-price">Unit Price (GH₵)</Label>
+                    <Input
+                      id="edit-price"
+                      type="number"
+                      step="0.01"
+                      value={editData.unit_price}
+                      onChange={(e) => setEditData({ ...editData, unit_price: Number.parseFloat(e.target.value) })}
+                    />
                   </div>
                   <div className="flex gap-2">
-                    <Button onClick={handleEdit} disabled={actionLoading} size="sm">
+                    <Button onClick={handleSaveEdit} disabled={actionLoading} size="sm">
                       <Save className="h-4 w-4 mr-2" />
-                      Save
+                      {actionLoading ? "Saving..." : "Save Changes"}
                     </Button>
-                    <Button onClick={() => setIsEditing(false)} variant="outline" size="sm" disabled={actionLoading}>
+                    <Button onClick={() => setIsEditing(false)} variant="outline" size="sm">
                       <X className="h-4 w-4 mr-2" />
                       Cancel
                     </Button>
                   </div>
+                  {actionError && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{actionError}</AlertDescription>
+                    </Alert>
+                  )}
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Category</p>
-                    <p className="font-semibold">{item.category}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Current Stock</p>
-                    <p className="font-semibold text-2xl">{item.quantity_in_stock}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Reorder Level</p>
-                    <p className="font-semibold">{item.reorder_level}</p>
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Current Stock</p>
+                      <p className="text-2xl font-bold">{item.quantity_in_stock}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Reorder Level</p>
+                      <p className="text-2xl font-bold">{item.reorder_level}</p>
+                    </div>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Location</p>
-                    <p className="font-semibold">{item.location}</p>
+                    <p className="font-medium">{item.location}</p>
                   </div>
-                </div>
+                </>
               )}
             </CardContent>
           </Card>
