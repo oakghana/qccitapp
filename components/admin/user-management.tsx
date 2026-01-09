@@ -124,11 +124,7 @@ export function UserManagement() {
         console.log("[v0] Loading users from Supabase...")
 
         const supabase = createClient()
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("status", "approved")
-          .order("created_at", { ascending: false })
+        const { data, error } = await supabase.from("profiles").select("*").order("created_at", { ascending: false })
 
         if (error) {
           console.error("[v0] Error loading users:", error)
@@ -144,7 +140,12 @@ export function UserManagement() {
           phone: profile.phone || "",
           role: profile.role,
           location: profile.location || "Head Office",
-          status: profile.status === "approved" ? "active" : "inactive",
+          status:
+            !profile.is_active || profile.status === "suspended"
+              ? "suspended"
+              : profile.status === "approved"
+                ? "active"
+                : "inactive",
           lastLogin: profile.updated_at,
           createdDate: new Date(profile.created_at).toISOString().split("T")[0],
           deviceCount: 0,

@@ -73,15 +73,40 @@ export function canViewLocation(user: User | null, location: string): boolean {
 
 /**
  * Checks if a user can create IT repair tasks
- * All IT staff (including regional and Head Office) can create repairs
- * Admin can also create repairs
- * Regular users and staff cannot create repairs
+ * Only IT staff and Admin at Head Office can create repairs
+ * Regional IT heads and other staff can only view repairs
  */
 export function canCreateRepairs(user: User | null): boolean {
   if (!user) return false
   if (user.role === "admin") return true
-  if (user.role === "it_staff") return true
+  if (user.role === "it_staff" && user.location === "Head Office") return true
+  if (user.role === "it_head" && user.location === "Head Office") return true
+  if (user.role === "it_store_head" && user.location === "Head Office") return true
+  return false
+}
+
+/**
+ * Checks if a user can edit/delete stock items
+ * Admin and IT Store Head can edit/delete all stock
+ * IT Head at Head Office can also manage stock
+ */
+export function canManageStock(user: User | null): boolean {
+  if (!user) return false
+  if (user.role === "admin") return true
+  if (user.role === "it_store_head") return true
+  if (user.role === "it_head" && user.location === "Head Office") return true
+  return false
+}
+
+/**
+ * Checks if a user can assign items to users in their location
+ * Regional IT heads can assign items in their location
+ */
+export function canAssignItems(user: User | null): boolean {
+  if (!user) return false
+  if (user.role === "admin") return true
   if (user.role === "it_head") return true
   if (user.role === "regional_it_head") return true
+  if (user.role === "it_store_head") return true
   return false
 }

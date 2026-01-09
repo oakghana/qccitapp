@@ -13,7 +13,7 @@ import { Upload, X, FileText } from "lucide-react"
 import { FormNavigation } from "@/components/ui/form-navigation"
 import { useAuth } from "@/lib/auth-context"
 import { createClient } from "@/lib/supabase/client"
-import { canSeeAllLocations } from "@/lib/location-filter"
+import { canSeeAllLocations, canCreateRepairs } from "@/lib/location-filter"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ShieldAlert } from "lucide-react"
 
@@ -55,8 +55,7 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
 
-  const canCreateRepairs =
-    user && ["it_staff", "it_store_head", "it_head", "regional_it_head", "admin"].includes(user.role)
+  const canCreate = user && canCreateRepairs(user)
 
   useEffect(() => {
     loadDevices()
@@ -125,11 +124,12 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
     <div>
       <FormNavigation currentPage="/dashboard/repairs" />
 
-      {!canCreateRepairs && (
+      {!canCreate && (
         <Alert variant="destructive" className="mb-4">
           <ShieldAlert className="h-4 w-4" />
           <AlertDescription>
-            Only IT staff can create repair requests. Regular users should submit service desk tickets for IT support.
+            Only IT staff and Admin at Head Office can create repair requests. Other users can view existing repairs.
+            For IT support, please submit a service desk ticket.
           </AlertDescription>
         </Alert>
       )}
@@ -226,7 +226,7 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
         </Card>
 
         <div className="flex justify-end space-x-2 pt-4">
-          <Button type="submit" disabled={!formData.deviceId || !formData.description || !canCreateRepairs}>
+          <Button type="submit" disabled={!formData.deviceId || !formData.description || !canCreate}>
             Submit Repair Request
           </Button>
         </div>

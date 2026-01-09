@@ -5,8 +5,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Download, Package, TrendingDown, TrendingUp, History, FileText } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Download,
+  Package,
+  TrendingDown,
+  TrendingUp,
+  History,
+  FileText,
+  Edit,
+  Trash2,
+  UserPlus,
+  Save,
+  X,
+} from "lucide-react"
 import { downloadCSV, printToPDF } from "@/lib/export-utils"
+import { useAuth } from "@/lib/auth-context"
+import { canManageStock, canAssignItems } from "@/lib/location-filter"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface StockTransfer {
   id: string
@@ -37,8 +55,25 @@ interface StockCardDetailModalProps {
 }
 
 export default function StockCardDetailModal({ open, onClose, item }: StockCardDetailModalProps) {
+  const { user } = useAuth()
   const [transfers, setTransfers] = useState<StockTransfer[]>([])
   const [loading, setLoading] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editData, setEditData] = useState({
+    quantity: item.quantity_in_stock,
+    reorder_level: item.reorder_level,
+    unit_price: item.unit_price,
+  })
+  const [deleteReason, setDeleteReason] = useState("")
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showAssignForm, setShowAssignForm] = useState(false)
+  const [assignData, setAssignData] = useState({
+    assignedTo: "",
+    quantity: 1,
+    notes: "",
+  })
+  const [actionLoading, setActionLoading] = useState(false)
+  const [actionError, setActionError] = useState("")
 
   useEffect(() => {
     if (open && item) {
@@ -81,6 +116,108 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
     printToPDF("stock-card-content", `stock-card-${item.item_name}`)
   }
 
+  const handleEdit = async () => {
+    if (!user) return
+    setActionLoading(true)
+    setActionError("")
+
+    try {
+      const response = await fetch("/api/store/update-item", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemId: item.id,
+          updates: editData,
+          updatedBy: user.full_name || user.username,
+          reason: "Stock level adjustment",
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to update item")
+      }
+
+      setIsEditing(false)
+      window.location.reload() // Refresh to show updated data
+    } catch (error: any) {
+      setActionError(error.message || "Failed to update item")
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!user || !deleteReason.trim()) {
+      setActionError("Please provide a reason for deletion")
+      return
+    }
+
+    setActionLoading(true)
+    setActionError("")
+
+    try {
+      const response = await fetch("/api/store/delete-item", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemId: item.id,
+          deletedBy: user.full_name || user.username,
+          reason: deleteReason,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to delete item")
+      }
+
+      onClose()
+      window.location.reload() // Refresh to show updated list
+    } catch (error: any) {
+      setActionError(error.message || "Failed to delete item")
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleAssign = async () => {
+    if (!user || !assignData.assignedTo || assignData.quantity <= 0) {
+      setActionError("Please fill in all required fields")
+      return
+    }
+
+    setActionLoading(true)
+    setActionError("")
+
+    try {
+      const response = await fetch("/api/store/assign-item", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemId: item.id,
+          itemName: item.item_name,
+          quantity: assignData.quantity,
+          assignedTo: assignData.assignedTo,
+          assignedBy: user.full_name || user.username,
+          location: item.location,
+          notes: assignData.notes,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "Failed to assign item")
+      }
+
+      setShowAssignForm(false)
+      setAssignData({ assignedTo: "", quantity: 1, notes: "" })
+      window.location.reload() // Refresh to show updated data
+    } catch (error: any) {
+      setActionError(error.message || "Failed to assign item")
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -92,32 +229,80 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
         </DialogHeader>
 
         <div id="stock-card-content" className="space-y-6">
+          {actionError && (
+            <Alert variant="destructive">
+              <AlertDescription>{actionError}</AlertDescription>
+            </Alert>
+          )}
+
           {/* Item Summary */}
           <Card>
             <CardContent className="pt-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Category</p>
-                  <p className="font-semibold">{item.category}</p>
+              {isEditing ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label>Quantity</Label>
+                      <Input
+                        type="number"
+                        value={editData.quantity}
+                        onChange={(e) => setEditData({ ...editData, quantity: Number.parseInt(e.target.value) })}
+                      />
+                    </div>
+                    <div>
+                      <Label>Reorder Level</Label>
+                      <Input
+                        type="number"
+                        value={editData.reorder_level}
+                        onChange={(e) => setEditData({ ...editData, reorder_level: Number.parseInt(e.target.value) })}
+                      />
+                    </div>
+                    <div>
+                      <Label>Unit Price</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={editData.unit_price}
+                        onChange={(e) => setEditData({ ...editData, unit_price: Number.parseFloat(e.target.value) })}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={handleEdit} disabled={actionLoading} size="sm">
+                      <Save className="h-4 w-4 mr-2" />
+                      Save
+                    </Button>
+                    <Button onClick={() => setIsEditing(false)} variant="outline" size="sm" disabled={actionLoading}>
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Current Stock</p>
-                  <p className="font-semibold text-2xl">{item.quantity_in_stock}</p>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Category</p>
+                    <p className="font-semibold">{item.category}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Current Stock</p>
+                    <p className="font-semibold text-2xl">{item.quantity_in_stock}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Reorder Level</p>
+                    <p className="font-semibold">{item.reorder_level}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Location</p>
+                    <p className="font-semibold">{item.location}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Reorder Level</p>
-                  <p className="font-semibold">{item.reorder_level}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Location</p>
-                  <p className="font-semibold">{item.location}</p>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Export Buttons */}
-          <div className="flex gap-2">
+          {/* Action Buttons */}
+          <div className="flex gap-2 flex-wrap">
             <Button onClick={exportToCSV} variant="outline" size="sm">
               <Download className="h-4 w-4 mr-2" />
               Export CSV
@@ -126,7 +311,119 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
               <FileText className="h-4 w-4 mr-2" />
               Export PDF
             </Button>
+
+            {user && canManageStock(user) && !isEditing && (
+              <>
+                <Button onClick={() => setIsEditing(true)} variant="outline" size="sm">
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Stock
+                </Button>
+                <Button onClick={() => setShowDeleteConfirm(true)} variant="destructive" size="sm">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Item
+                </Button>
+              </>
+            )}
+
+            {user && canAssignItems(user) && !showAssignForm && (
+              <Button onClick={() => setShowAssignForm(true)} variant="default" size="sm">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Assign to User
+              </Button>
+            )}
           </div>
+
+          {/* Assignment Form */}
+          {showAssignForm && (
+            <Card>
+              <CardContent className="pt-6 space-y-4">
+                <h3 className="font-semibold">Assign Item to User</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Assigned To (Username/Email)</Label>
+                    <Input
+                      value={assignData.assignedTo}
+                      onChange={(e) => setAssignData({ ...assignData, assignedTo: e.target.value })}
+                      placeholder="Enter username or email"
+                    />
+                  </div>
+                  <div>
+                    <Label>Quantity</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max={item.quantity_in_stock}
+                      value={assignData.quantity}
+                      onChange={(e) => setAssignData({ ...assignData, quantity: Number.parseInt(e.target.value) })}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>Notes (Optional)</Label>
+                  <Textarea
+                    value={assignData.notes}
+                    onChange={(e) => setAssignData({ ...assignData, notes: e.target.value })}
+                    placeholder="Add any notes about this assignment..."
+                    rows={2}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleAssign} disabled={actionLoading}>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Assign Item
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setShowAssignForm(false)
+                      setAssignData({ assignedTo: "", quantity: 1, notes: "" })
+                    }}
+                    variant="outline"
+                    disabled={actionLoading}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Delete Confirmation */}
+          {showDeleteConfirm && (
+            <Card className="border-destructive">
+              <CardContent className="pt-6 space-y-4">
+                <h3 className="font-semibold text-destructive">Confirm Deletion</h3>
+                <p className="text-sm text-muted-foreground">
+                  This action cannot be undone. Please provide a reason for deleting this item.
+                </p>
+                <div>
+                  <Label>Reason for Deletion *</Label>
+                  <Textarea
+                    value={deleteReason}
+                    onChange={(e) => setDeleteReason(e.target.value)}
+                    placeholder="Explain why this item is being deleted..."
+                    rows={3}
+                    required
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleDelete} variant="destructive" disabled={actionLoading || !deleteReason.trim()}>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Confirm Delete
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setShowDeleteConfirm(false)
+                      setDeleteReason("")
+                    }}
+                    variant="outline"
+                    disabled={actionLoading}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Transfer History */}
           <div>

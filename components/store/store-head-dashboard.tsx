@@ -12,12 +12,15 @@ import { createBrowserClient } from "@/lib/supabase/client"
 
 interface StockItem {
   id: string
-  item_name: string
+  name: string
   category: string
-  quantity_in_stock: number
+  quantity: number
   reorder_level: number
-  unit_price: number
+  unit: string
   location: string
+  sku: string
+  siv_number: string
+  supplier: string
 }
 
 interface LocationSummary {
@@ -44,73 +47,58 @@ export default function StoreHeadDashboard() {
     try {
       const supabase = createBrowserClient()
 
-      const { data, error } = await supabase.from("store_items").select("*").order("location").order("item_name")
+      const { data, error } = await supabase.from("store_items").select("*").order("location").order("name")
 
       if (error) {
         console.error("[v0] Error fetching inventory:", error)
-        // Fall back to mock data if table doesn't exist yet
-        generateMockData()
+        setItems([])
+        setLocationSummaries([])
+        setLoading(false)
         return
       }
+
+      console.log("[v0] Fetched store items from database:", data)
 
       if (data && data.length > 0) {
         setItems(data as StockItem[])
         calculateLocationSummaries(data as StockItem[])
       } else {
-        // No data in database, show mock data
-        generateMockData()
+        // No data in database - show empty state
+        console.log("[v0] No store items found in database")
+        setItems([])
+        setLocationSummaries([])
       }
     } catch (err) {
       console.error("[v0] Exception fetching inventory:", err)
-      generateMockData()
+      setItems([])
+      setLocationSummaries([])
     } finally {
       setLoading(false)
     }
   }
 
-  const generateMockData = () => {
-    // Mock data for demonstration
-    const mockItems: StockItem[] = []
-    locationValues.forEach((location) => {
-      mockItems.push(
-        {
-          id: `${location}-1`,
-          item_name: "Laptop Dell XPS",
-          category: "IT Equipment",
-          quantity_in_stock: Math.floor(Math.random() * 50),
-          reorder_level: 10,
-          unit_price: 1200,
-          location,
-        },
-        {
-          id: `${location}-2`,
-          item_name: "USB Cable",
-          category: "Accessories",
-          quantity_in_stock: Math.floor(Math.random() * 100),
-          reorder_level: 20,
-          unit_price: 5,
-          location,
-        },
-      )
-    })
-
-    setItems(mockItems)
-    calculateLocationSummaries(mockItems)
-  }
-
   const calculateLocationSummaries = (stockItems: StockItem[]) => {
     const summaries = locationValues.map((location) => {
       const locationItems = stockItems.filter((item) => item.location === location)
+
+      const totalItems = locationItems.reduce((sum, item) => sum + (item.quantity || 0), 0)
+      const totalValue = locationItems.reduce((sum, item) => {
+        // Assuming unit_price exists or default to 0
+        const unitPrice = (item as any).unit_price || 0
+        return sum + (item.quantity || 0) * unitPrice
+      }, 0)
+      const lowStock = locationItems.filter((item) => item.quantity <= item.reorder_level && item.quantity > 0).length
+      const outOfStock = locationItems.filter((item) => item.quantity === 0).length
+
       return {
         location,
-        totalItems: locationItems.reduce((sum, item) => sum + item.quantity_in_stock, 0),
-        totalValue: locationItems.reduce((sum, item) => sum + item.quantity_in_stock * item.unit_price, 0),
-        lowStock: locationItems.filter(
-          (item) => item.quantity_in_stock <= item.reorder_level && item.quantity_in_stock > 0,
-        ).length,
-        outOfStock: locationItems.filter((item) => item.quantity_in_stock === 0).length,
+        totalItems,
+        totalValue,
+        lowStock,
+        outOfStock,
       }
     })
+
     setLocationSummaries(summaries)
   }
 
@@ -118,22 +106,33 @@ export default function StoreHeadDashboard() {
     const data = {
       title: "All Locations Stock Summary",
       fileName: "all-locations-stock",
-      headers: ["Location", "Item Name", "Category", "Quantity", "Reorder Level", "Unit Price", "Total Value"],
+      headers: ["Location", "Item Name", "Category", "SKU", "Quantity", "Reorder Level", "Unit", "Supplier"],
       rows: items.map((item) => [
         item.location,
-        item.item_name,
+        item.name,
         item.category,
-        item.quantity_in_stock,
+        item.sku,
+        item.quantity,
         item.reorder_level,
-        item.unit_price,
-        item.quantity_in_stock * item.unit_price,
+        item.unit,
+        item.supplier || "-",
       ]),
     }
     downloadCSV(data)
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading...</div>
+    return <div className="flex items-center justify-center h-64">Loading inventory data...</div>
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 space-y-4">
+        <Package className="h-16 w-16 text-muted-foreground" />
+        <p className="text-muted-foreground text-lg">No store items found in the database</p>
+        <p className="text-sm text-muted-foreground">Add items to the store inventory to see them here</p>
+      </div>
+    )
   }
 
   return (
@@ -199,15 +198,13 @@ export default function StoreHeadDashboard() {
                   <CardContent className="pt-6">
                     <div className="flex items-start justify-between mb-3">
                       <Package className="h-8 w-8 text-primary" />
-                      {item.quantity_in_stock <= item.reorder_level && (
-                        <AlertTriangle className="h-5 w-5 text-amber-500" />
-                      )}
+                      {item.quantity <= item.reorder_level && <AlertTriangle className="h-5 w-5 text-amber-500" />}
                     </div>
-                    <h4 className="font-semibold mb-1">{item.item_name}</h4>
+                    <h4 className="font-semibold mb-1">{item.name}</h4>
                     <p className="text-sm text-muted-foreground mb-3">{item.category}</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-2xl font-bold">{item.quantity_in_stock}</span>
-                      <span className="text-sm text-muted-foreground">units</span>
+                      <span className="text-2xl font-bold">{item.quantity}</span>
+                      <span className="text-sm text-muted-foreground">{item.unit}</span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-2">Reorder at: {item.reorder_level}</div>
                   </CardContent>
@@ -220,7 +217,19 @@ export default function StoreHeadDashboard() {
 
       {/* Detail Modal */}
       {selectedItem && (
-        <StockCardDetailModal open={!!selectedItem} onClose={() => setSelectedItem(null)} item={selectedItem} />
+        <StockCardDetailModal
+          open={!!selectedItem}
+          onClose={() => setSelectedItem(null)}
+          item={{
+            id: selectedItem.id,
+            item_name: selectedItem.name,
+            category: selectedItem.category,
+            quantity_in_stock: selectedItem.quantity,
+            reorder_level: selectedItem.reorder_level,
+            unit_price: (selectedItem as any).unit_price || 0,
+            location: selectedItem.location,
+          }}
+        />
       )}
     </div>
   )
