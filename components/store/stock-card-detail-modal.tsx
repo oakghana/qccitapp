@@ -231,23 +231,27 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
         body: JSON.stringify({
           itemId: item.id,
           updates: {
-            quantity_in_stock: editData.quantity,
+            quantity: editData.quantity,
             reorder_level: editData.reorder_level,
             unit_price: editData.unit_price,
           },
           updatedBy: user.email || user.username,
-          reason: "Stock details updated",
+          userRole: user.role,
+          userLocation: user.location,
+          reason: "Stock details updated via UI",
         }),
       })
 
       if (!response.ok) {
-        throw new Error("Failed to update item")
+        const data = await response.json()
+        throw new Error(data.error || "Failed to update item")
       }
 
       setIsEditing(false)
       setActionError("")
       // Refresh the parent component data
       onClose()
+      window.location.reload()
     } catch (error: any) {
       console.error("[v0] Error updating stock:", error)
       setActionError(error.message || "Failed to update stock")
@@ -318,11 +322,6 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
                       Cancel
                     </Button>
                   </div>
-                  {actionError && (
-                    <Alert variant="destructive">
-                      <AlertDescription>{actionError}</AlertDescription>
-                    </Alert>
-                  )}
                 </div>
               ) : (
                 <>

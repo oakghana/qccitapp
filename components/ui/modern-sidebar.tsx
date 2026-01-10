@@ -73,6 +73,19 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
   const getNavigationItems = (): NavigationItem[] => {
     const baseItems: NavigationItem[] = [{ name: "Dashboard", href: "/dashboard", icon: Home }]
 
+    if (user?.role === "staff" || user?.role === "user") {
+      return [
+        ...baseItems,
+        {
+          name: "Service Desk",
+          href: "/dashboard/service-desk",
+          icon: Headphones,
+          badge: counts.serviceDeskTickets > 0 ? counts.serviceDeskTickets : undefined,
+        },
+        { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
+      ]
+    }
+
     if (user?.role === "admin") {
       const fullNavigation: NavigationItem[] = [
         ...baseItems,
@@ -139,14 +152,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
         },
       ]
       return fullNavigation
-    }
-
-    if (user?.role === "staff") {
-      return [
-        ...baseItems,
-        { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
-        { name: "Store Requisition", href: "/dashboard/store-requisitions", icon: ClipboardList },
-      ]
     }
 
     if (user?.role === "it_staff") {

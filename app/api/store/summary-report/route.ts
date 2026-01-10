@@ -43,14 +43,64 @@ export async function GET(request: Request) {
       return NextResponse.json({ report: [] })
     }
 
+    const now = new Date()
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const lastDayOfPreviousMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+    const firstDayOfPreviousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+
+    // Get requisitions for current month
+    const { data: currentMonthRequisitions } = await supabase
+      .from("store_requisitions")
+      .select("items")
+      .gte("allocation_date", firstDayOfMonth.toISOString())
+      .eq("status", "completed")
+
+    // Get requisitions for previous month to calculate opening balance
+    const { data: previousMonthRequisitions } = await supabase
+      .from("store_requisitions")
+      .select("items")
+      .gte("allocation_date", firstDayOfPreviousMonth.toISOString())
+      .lte("allocation_date", lastDayOfPreviousMonth.toISOString())
+      .eq("status", "completed")
+
+    // Calculate quantities issued per item
+    const itemsIssuedThisMonth: Record<string, number> = {}
+    const itemsIssuedPreviousMonth: Record<string, number> = {}
+
+    currentMonthRequisitions?.forEach((req) => {
+      if (req.items && Array.isArray(req.items)) {
+        req.items.forEach((item: any) => {
+          const itemId = item.itemId || item.item_id
+          const quantity = item.quantity || 0
+          itemsIssuedThisMonth[itemId] = (itemsIssuedThisMonth[itemId] || 0) + quantity
+        })
+      }
+    })
+
+    previousMonthRequisitions?.forEach((req) => {
+      if (req.items && Array.isArray(req.items)) {
+        req.items.forEach((item: any) => {
+          const itemId = item.itemId || item.item_id
+          const quantity = item.quantity || 0
+          itemsIssuedPreviousMonth[itemId] = (itemsIssuedPreviousMonth[itemId] || 0) + quantity
+        })
+      }
+    })
+
     const summaryData = items.map((item) => {
+      const quantityIssuedThisMonth = itemsIssuedThisMonth[item.id] || 0
+      const quantityIssuedPreviousMonth = itemsIssuedPreviousMonth[item.id] || 0
+
+      // Calculate previous month balance (current stock + issued this month + issued previous month)
+      const previousMonthBalance = (item.quantity || 0) + quantityIssuedThisMonth
+
       const quantityRequired = item.quantity < item.reorder_level ? item.reorder_level - item.quantity : 0
 
       return {
         itemName: item.item_name || item.name || "Unknown",
         category: item.category || "Uncategorized",
-        quantityProcuredLastYear: 0, // TODO: Add procurement tracking
-        quantityIssuedThisMonth: 0, // TODO: Add issuance tracking
+        previousMonthBalance,
+        quantityIssuedThisMonth,
         currentStock: item.quantity || 0,
         reorderLevel: item.reorder_level || 0,
         quantityRequired,

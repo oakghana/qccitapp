@@ -4,26 +4,45 @@ import { createServerClient } from "@/lib/supabase/server"
 export async function PUT(request: Request) {
   try {
     const body = await request.json()
-    const { itemId, updates, updatedBy, reason } = body
+    const { itemId, updates, updatedBy, reason, userRole, userLocation } = body
 
-    if (!itemId || !updates || !updatedBy) {
+    if (!itemId || !updates || !updatedBy || !userRole) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    }
+
+    const canManage =
+      userRole === "admin" || userRole === "it_store_head" || (userRole === "it_head" && userLocation === "Head Office")
+
+    if (!canManage) {
+      console.error("[v0] Unauthorized stock update attempt by:", updatedBy, userRole)
+      return NextResponse.json({ error: "Unauthorized: You don't have permission to edit stock" }, { status: 403 })
     }
 
     const supabase = await createServerClient()
 
-    // Log the update with reason
-    const { error: logError } = await supabase.from("stock_audit_log").insert({
+    // Get current item state for audit trail
+    const { data: currentItem } = await supabase.from("store_items").select("*").eq("id", itemId).single()
+
+    const auditEntry = {
       item_id: itemId,
       action: "update",
       updated_by: updatedBy,
       reason: reason || "No reason provided",
-      changes: updates,
-    })
-
-    if (logError) {
-      console.error("[v0] Error logging stock update:", logError)
+      changes: { before: currentItem, after: updates },
     }
+
+    await supabase.from("stock_audit_log").insert(auditEntry)
+
+    // Also log to main audit_logs table
+    await supabase.from("audit_logs").insert({
+      user: updatedBy,
+      action: "STOCK_UPDATED",
+      resource: `store_items/${itemId}`,
+      details: `Updated stock item: ${currentItem?.name || itemId}. Reason: ${reason || "Not provided"}`,
+      severity: "medium",
+      ip_address: request.headers.get("x-forwarded-for") || "unknown",
+      user_agent: request.headers.get("user-agent") || "unknown",
+    })
 
     // Update the item
     const { data, error: updateError } = await supabase

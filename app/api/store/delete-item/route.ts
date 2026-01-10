@@ -4,10 +4,18 @@ import { createServerClient } from "@/lib/supabase/server"
 export async function DELETE(request: Request) {
   try {
     const body = await request.json()
-    const { itemId, deletedBy, reason } = body
+    const { itemId, deletedBy, reason, userRole, userLocation } = body
 
-    if (!itemId || !deletedBy || !reason) {
-      return NextResponse.json({ error: "Item ID, deleted by, and reason are required" }, { status: 400 })
+    if (!itemId || !deletedBy || !reason || !userRole) {
+      return NextResponse.json({ error: "Item ID, deleted by, reason, and user role are required" }, { status: 400 })
+    }
+
+    const canManage =
+      userRole === "admin" || userRole === "it_store_head" || (userRole === "it_head" && userLocation === "Head Office")
+
+    if (!canManage) {
+      console.error("[v0] Unauthorized stock deletion attempt by:", deletedBy, userRole)
+      return NextResponse.json({ error: "Unauthorized: You don't have permission to delete stock" }, { status: 403 })
     }
 
     const supabase = await createServerClient()
@@ -20,8 +28,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Item not found" }, { status: 404 })
     }
 
-    // Log the deletion with reason
-    const { error: logError } = await supabase.from("stock_audit_log").insert({
+    await supabase.from("stock_audit_log").insert({
       item_id: itemId,
       action: "delete",
       updated_by: deletedBy,
@@ -29,9 +36,16 @@ export async function DELETE(request: Request) {
       changes: { deleted_item: item },
     })
 
-    if (logError) {
-      console.error("[v0] Error logging stock deletion:", logError)
-    }
+    // Log to main audit_logs table
+    await supabase.from("audit_logs").insert({
+      user: deletedBy,
+      action: "STOCK_DELETED",
+      resource: `store_items/${itemId}`,
+      details: `Deleted stock item: ${item.name}. Reason: ${reason}`,
+      severity: "high",
+      ip_address: request.headers.get("x-forwarded-for") || "unknown",
+      user_agent: request.headers.get("user-agent") || "unknown",
+    })
 
     // Delete the item
     const { error: deleteError } = await supabase.from("store_items").delete().eq("id", itemId)

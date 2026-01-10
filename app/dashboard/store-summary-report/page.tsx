@@ -11,7 +11,7 @@ import { FormNavigation } from "@/components/ui/form-navigation"
 interface SummaryItem {
   itemName: string
   category: string
-  quantityProcuredLastYear: number
+  previousMonthBalance: number
   quantityIssuedThisMonth: number
   currentStock: number
   reorderLevel: number
@@ -54,7 +54,7 @@ export default function StoreSummaryReportPage() {
     const headers = [
       "Item Name",
       "Category",
-      "Qty Procured Last Year",
+      "Previous Month Balance",
       "Qty Issued This Month",
       "Current Stock",
       "Reorder Level",
@@ -68,7 +68,7 @@ export default function StoreSummaryReportPage() {
     const rows = report.map((item) => [
       item.itemName,
       item.category,
-      item.quantityProcuredLastYear,
+      item.previousMonthBalance,
       item.quantityIssuedThisMonth,
       item.currentStock,
       item.reorderLevel,
@@ -175,7 +175,7 @@ export default function StoreSummaryReportPage() {
                   <tr className="border-b">
                     <th className="text-left p-3 font-semibold">Item Name</th>
                     <th className="text-left p-3 font-semibold">Category</th>
-                    <th className="text-right p-3 font-semibold">Last Year</th>
+                    <th className="text-right p-3 font-semibold">Previous Month</th>
                     <th className="text-right p-3 font-semibold">This Month</th>
                     <th className="text-right p-3 font-semibold">Current</th>
                     <th className="text-right p-3 font-semibold">Reorder</th>
@@ -190,7 +190,7 @@ export default function StoreSummaryReportPage() {
                     <tr key={index} className="border-b hover:bg-muted/50">
                       <td className="p-3 font-medium">{item.itemName}</td>
                       <td className="p-3">{item.category}</td>
-                      <td className="p-3 text-right">{item.quantityProcuredLastYear}</td>
+                      <td className="p-3 text-right">{item.previousMonthBalance}</td>
                       <td className="p-3 text-right">{item.quantityIssuedThisMonth}</td>
                       <td className="p-3 text-right font-semibold">{item.currentStock}</td>
                       <td className="p-3 text-right">{item.reorderLevel}</td>
