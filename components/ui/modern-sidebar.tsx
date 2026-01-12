@@ -122,6 +122,12 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           href: "/dashboard/store-summary-report",
           icon: FileText,
         },
+        // Adding Device Summary Report link for admin
+        {
+          name: "Device Summary Report",
+          href: "/dashboard/device-summary-report",
+          icon: Monitor,
+        },
         {
           name: "IT Service Provider",
           href: "/dashboard/service-provider",
