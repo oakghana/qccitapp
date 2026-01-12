@@ -55,13 +55,17 @@ export default function DeviceSummaryReportPage() {
   const fetchSummaryData = async () => {
     try {
       setLoading(true)
+      console.log("[v0] Fetching device summary report...")
       const response = await fetch("/api/devices/summary-report")
 
       if (!response.ok) {
-        throw new Error("Failed to fetch device summary")
+        const errorData = await response.json().catch(() => ({}))
+        console.error("[v0] API error response:", errorData)
+        throw new Error(errorData.error || `HTTP ${response.status}: Failed to fetch device summary`)
       }
 
       const result = await response.json()
+      console.log("[v0] Device summary loaded successfully:", result)
       setData(result)
     } catch (err: any) {
       console.error("[v0] Error loading device summary:", err)

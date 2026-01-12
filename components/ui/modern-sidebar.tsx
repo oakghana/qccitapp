@@ -32,6 +32,7 @@ import {
   Package,
   Rss,
   BookOpen,
+  UserCheck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
@@ -127,6 +128,11 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           name: "Device Summary Report",
           href: "/dashboard/device-summary-report",
           icon: Monitor,
+        },
+        {
+          name: "User Device Allocation",
+          href: "/dashboard/user-device-allocation",
+          icon: UserCheck,
         },
         {
           name: "IT Service Provider",
