@@ -47,9 +47,8 @@ interface StockCardDetailModalProps {
     id: string
     item_name: string
     category: string
-    quantity_in_stock: number
+    quantity: number
     reorder_level: number
-    unit_price: number
     location: string
   }
 }
@@ -60,9 +59,8 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
   const [loading, setLoading] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editData, setEditData] = useState({
-    quantity: item.quantity_in_stock,
+    quantity: item.quantity,
     reorder_level: item.reorder_level,
-    unit_price: item.unit_price,
   })
   const [deleteReason, setDeleteReason] = useState("")
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -185,6 +183,11 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
       return
     }
 
+    if (assignData.quantity > item.quantity) {
+      setActionError(`Cannot assign ${assignData.quantity} items. Only ${item.quantity} available in stock.`)
+      return
+    }
+
     setActionLoading(true)
     setActionError("")
 
@@ -233,7 +236,6 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
           updates: {
             quantity: editData.quantity,
             reorder_level: editData.reorder_level,
-            unit_price: editData.unit_price,
           },
           updatedBy: user.email || user.username,
           userRole: user.role,
@@ -302,16 +304,6 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
                       />
                     </div>
                   </div>
-                  <div>
-                    <Label htmlFor="edit-price">Unit Price (GH₵)</Label>
-                    <Input
-                      id="edit-price"
-                      type="number"
-                      step="0.01"
-                      value={editData.unit_price}
-                      onChange={(e) => setEditData({ ...editData, unit_price: Number.parseFloat(e.target.value) })}
-                    />
-                  </div>
                   <div className="flex gap-2">
                     <Button onClick={handleSaveEdit} disabled={actionLoading} size="sm">
                       <Save className="h-4 w-4 mr-2" />
@@ -328,12 +320,16 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">Current Stock</p>
-                      <p className="text-2xl font-bold">{item.quantity_in_stock}</p>
+                      <p className="text-2xl font-bold">{item.quantity}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Reorder Level</p>
                       <p className="text-2xl font-bold">{item.reorder_level}</p>
                     </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Category</p>
+                    <p className="font-medium">{item.category}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Location</p>
@@ -395,7 +391,7 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
                     <Input
                       type="number"
                       min="1"
-                      max={item.quantity_in_stock}
+                      max={item.quantity}
                       value={assignData.quantity}
                       onChange={(e) => setAssignData({ ...assignData, quantity: Number.parseInt(e.target.value) })}
                     />

@@ -94,17 +94,13 @@ export default function StoreHeadDashboard() {
       const locationItems = stockItems.filter((item) => item.location === location)
 
       const totalItems = locationItems.reduce((sum, item) => sum + (item.quantity || 0), 0)
-      const totalValue = locationItems.reduce((sum, item) => {
-        const unitPrice = (item as any).unit_price || 0
-        return sum + (item.quantity || 0) * unitPrice
-      }, 0)
       const lowStock = locationItems.filter((item) => item.quantity <= item.reorder_level && item.quantity > 0).length
       const outOfStock = locationItems.filter((item) => item.quantity === 0).length
 
       return {
         location,
         totalItems,
-        totalValue,
+        totalValue: 0, // Removed price-based calculation
         lowStock,
         outOfStock,
       }
@@ -173,28 +169,24 @@ export default function StoreHeadDashboard() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {locationSummaries.map((summary) => (
-          <Card key={summary.location}>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
+          <Card key={summary.location} className="cursor-pointer hover:shadow-lg transition-shadow">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
                 {summary.location}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <div className="flex justify-between">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Total Items</span>
-                  <span className="font-semibold">{summary.totalItems}</span>
+                  <span className="text-2xl font-bold">{summary.totalItems}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Total Value</span>
-                  <span className="font-semibold">GH₵{summary.totalValue.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Low Stock</span>
                   <Badge variant={summary.lowStock > 0 ? "destructive" : "secondary"}>{summary.lowStock}</Badge>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Out of Stock</span>
                   <Badge variant={summary.outOfStock > 0 ? "destructive" : "secondary"}>{summary.outOfStock}</Badge>
                 </div>
@@ -250,7 +242,7 @@ export default function StoreHeadDashboard() {
             category: selectedItem.category,
             quantity_in_stock: selectedItem.quantity,
             reorder_level: selectedItem.reorder_level,
-            unit_price: (selectedItem as any).unit_price || 0,
+            unit_price: 0, // Removed price-based calculation
             location: selectedItem.location,
           }}
         />
