@@ -25,11 +25,29 @@ export async function POST(request: Request) {
 
     if (queryError) {
       console.error("[v0] Database query error:", queryError)
+      await supabase.from("audit_logs").insert({
+        username: username,
+        action: "LOGIN_FAILED",
+        resource: "auth/login",
+        details: `Database error during login attempt for ${username}`,
+        severity: "high",
+        ip_address: request.headers.get("x-forwarded-for") || "unknown",
+        user_agent: request.headers.get("user-agent") || "unknown",
+      })
       return NextResponse.json({ error: "Authentication failed" }, { status: 500 })
     }
 
     if (!user) {
       console.log("[v0] No user found for username:", username)
+      await supabase.from("audit_logs").insert({
+        username: username,
+        action: "LOGIN_FAILED",
+        resource: "auth/login",
+        details: `Failed login attempt: User not found or not approved/active`,
+        severity: "medium",
+        ip_address: request.headers.get("x-forwarded-for") || "unknown",
+        user_agent: request.headers.get("user-agent") || "unknown",
+      })
       return NextResponse.json({ error: "Invalid username or password" }, { status: 401 })
     }
 
@@ -39,6 +57,16 @@ export async function POST(request: Request) {
 
     if (!user.password_hash || user.password_hash.length < 20) {
       console.log("[v0] No valid password hash for user:", username)
+      await supabase.from("audit_logs").insert({
+        user_id: user.id,
+        username: username,
+        action: "LOGIN_FAILED",
+        resource: "auth/login",
+        details: `Failed login attempt: Password not set for user`,
+        severity: "high",
+        ip_address: request.headers.get("x-forwarded-for") || "unknown",
+        user_agent: request.headers.get("user-agent") || "unknown",
+      })
       return NextResponse.json(
         {
           error: "Password not set. Please contact an administrator.",
@@ -47,7 +75,6 @@ export async function POST(request: Request) {
       )
     }
 
-    // Bcryptjs should be able to validate both $2a$06$ and $2a$10$ formats
     console.log("[v0] Attempting password validation for hash format:", user.password_hash.substring(0, 7))
 
     const isPasswordValid = await bcrypt.compare(password, user.password_hash)
@@ -55,8 +82,29 @@ export async function POST(request: Request) {
 
     if (!isPasswordValid) {
       console.log("[v0] Password verification failed for:", username)
+      await supabase.from("audit_logs").insert({
+        user_id: user.id,
+        username: username,
+        action: "LOGIN_FAILED",
+        resource: "auth/login",
+        details: `Failed login attempt: Invalid password`,
+        severity: "medium",
+        ip_address: request.headers.get("x-forwarded-for") || "unknown",
+        user_agent: request.headers.get("user-agent") || "unknown",
+      })
       return NextResponse.json({ error: "Invalid username or password" }, { status: 401 })
     }
+
+    await supabase.from("audit_logs").insert({
+      user_id: user.id,
+      username: user.username,
+      action: "USER_LOGIN",
+      resource: "auth/login",
+      details: `Successful login as ${user.role} from ${user.location}`,
+      severity: "low",
+      ip_address: request.headers.get("x-forwarded-for") || "unknown",
+      user_agent: request.headers.get("user-agent") || "unknown",
+    })
 
     let redirectUrl = "/dashboard"
     if (user.role === "admin") {

@@ -7,7 +7,7 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { name, email, phone, role, location, department, password } = body
+    const { name, email, phone, role, location, department, password, createdBy } = body
 
     console.log("[v0] Creating user:", { email, role, location })
 
@@ -37,6 +37,17 @@ export async function POST(request: Request) {
       console.error("[v0] Error creating user:", error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
+
+    await supabase.from("audit_logs").insert({
+      user_id: data.id,
+      username: createdBy || "system",
+      action: "USER_CREATED",
+      resource: `profiles/${data.id}`,
+      details: `Created new user: ${data.full_name} (${data.email}) with role ${data.role} at ${data.location}`,
+      severity: "medium",
+      ip_address: request.headers.get("x-forwarded-for") || "unknown",
+      user_agent: request.headers.get("user-agent") || "unknown",
+    })
 
     console.log("[v0] User created successfully:", data.username)
 

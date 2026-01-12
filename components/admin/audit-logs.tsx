@@ -40,20 +40,43 @@ const actionIcons = {
 export function AuditLogs() {
   const [logs, setLogs] = useState<AuditLog[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [severityFilter, setSeverityFilter] = useState("all")
+  const [actionFilter, setActionFilter] = useState("all")
   const supabase = createClient()
 
   useEffect(() => {
     loadAuditLogs()
-  }, [])
+  }, [searchQuery, severityFilter, actionFilter])
 
   const loadAuditLogs = async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
-        .from("audit_logs")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50)
+      let query = supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(50)
+
+      if (severityFilter !== "all") {
+        query = query.eq("severity", severityFilter)
+      }
+
+      if (actionFilter !== "all") {
+        if (actionFilter === "login") {
+          query = query.or("action.eq.USER_LOGIN,action.eq.USER_LOGOUT,action.eq.LOGIN_FAILED")
+        } else if (actionFilter === "repair") {
+          query = query.like("action", "%REPAIR%")
+        } else if (actionFilter === "user") {
+          query = query.or("action.eq.USER_CREATED,action.eq.USER_UPDATED,action.eq.USER_SUSPENDED")
+        } else if (actionFilter === "system") {
+          query = query.or("action.eq.BACKUP_COMPLETED,action.eq.SETTINGS_CHANGED")
+        }
+      }
+
+      if (searchQuery.trim()) {
+        query = query.or(
+          `username.ilike.%${searchQuery}%,action.ilike.%${searchQuery}%,resource.ilike.%${searchQuery}%`,
+        )
+      }
+
+      const { data, error } = await query
 
       if (error) {
         console.error("Error loading audit logs:", error)
@@ -61,7 +84,19 @@ export function AuditLogs() {
         return
       }
 
-      setLogs(data || [])
+      const mappedLogs = (data || []).map((log: any) => ({
+        id: log.id,
+        timestamp: log.created_at,
+        user: log.username,
+        action: log.action,
+        resource: log.resource || "N/A",
+        details: log.details || "",
+        ipAddress: log.ip_address || "unknown",
+        userAgent: log.user_agent || "unknown",
+        severity: log.severity || "low",
+      }))
+
+      setLogs(mappedLogs)
     } catch (error) {
       console.error("Error loading audit logs:", error)
       setLogs([])
@@ -87,10 +122,15 @@ export function AuditLogs() {
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search logs by user, action, or resource..." className="pl-10" />
+                <Input
+                  placeholder="Search logs by user, action, or resource..."
+                  className="pl-10"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
             </div>
-            <Select defaultValue="all">
+            <Select value={severityFilter} onValueChange={setSeverityFilter}>
               <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="Filter by severity" />
               </SelectTrigger>
@@ -102,7 +142,7 @@ export function AuditLogs() {
                 <SelectItem value="low">Low</SelectItem>
               </SelectContent>
             </Select>
-            <Select defaultValue="all">
+            <Select value={actionFilter} onValueChange={setActionFilter}>
               <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="Filter by action" />
               </SelectTrigger>

@@ -45,7 +45,6 @@ export async function GET(request: Request) {
 
     const now = new Date()
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const firstDayOfPreviousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
 
     // Get requisitions for current month
     const { data: currentMonthRequisitions } = await supabase
@@ -83,8 +82,7 @@ export async function GET(request: Request) {
         currentStock: item.quantity || 0,
         reorderLevel: item.reorder_level || 0,
         quantityRequired,
-        unitPrice: item.unit_price || 0,
-        totalValue: (item.quantity || 0) * (item.unit_price || 0),
+        totalValue: item.quantity || 0, // Just show quantity as value since we don't have unit_price
         location: item.location || "Unknown",
         status: item.quantity === 0 ? "Out of Stock" : item.quantity < item.reorder_level ? "Low Stock" : "In Stock",
       }

@@ -16,7 +16,6 @@ interface SummaryItem {
   currentStock: number
   reorderLevel: number
   quantityRequired: number
-  unitPrice: number
   totalValue: number
   location: string
   status: "In Stock" | "Low Stock" | "Out of Stock"
@@ -59,7 +58,6 @@ export default function StoreSummaryReportPage() {
       "Current Stock",
       "Reorder Level",
       "Qty Required",
-      "Unit Price (GHC)",
       "Total Value (GHC)",
       "Location",
       "Status",
@@ -73,7 +71,6 @@ export default function StoreSummaryReportPage() {
       item.currentStock,
       item.reorderLevel,
       item.quantityRequired,
-      item.unitPrice.toFixed(2),
       item.totalValue.toFixed(2),
       item.location,
       item.status,
