@@ -15,7 +15,7 @@ import { createClient } from "@/lib/supabase/client"
 export function ServiceDeskDashboard() {
   const [activeTab, setActiveTab] = useState("overview")
   const [showNewTicketForm, setShowNewTicketForm] = useState(false)
-  const { canViewAllLocations, getUserLocation } = useAuth()
+  const { canViewAllLocations, getUserLocation, user } = useAuth()
   const [allTickets, setAllTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
@@ -29,7 +29,9 @@ export function ServiceDeskDashboard() {
       setLoading(true)
       let query = supabase.from("service_tickets").select("*").order("created_at", { ascending: false })
 
-      if (!canViewAllLocations() && getUserLocation()) {
+      if (user?.role === "user" || user?.role === "staff") {
+        query = query.eq("requested_by", user.name)
+      } else if (!canViewAllLocations() && getUserLocation()) {
         query = query.eq("location", getUserLocation())
       }
 
@@ -62,9 +64,7 @@ export function ServiceDeskDashboard() {
     }
   }
 
-  const filteredTickets = canViewAllLocations()
-    ? allTickets
-    : allTickets.filter((ticket) => ticket.location === getUserLocation())
+  const filteredTickets = allTickets
 
   const recentTickets = filteredTickets.slice(0, 3)
 
@@ -99,9 +99,11 @@ export function ServiceDeskDashboard() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">IT Service Desk</h1>
           <p className="text-muted-foreground">
-            {canViewAllLocations()
-              ? "Manage IT support requests across all QCC office locations"
-              : `Manage IT support requests for ${getUserLocation()}`}
+            {user?.role === "user" || user?.role === "staff"
+              ? "Request IT support and track your service tickets"
+              : canViewAllLocations()
+                ? "Manage IT support requests across all QCC office locations"
+                : `Manage IT support requests for ${getUserLocation()}`}
           </p>
         </div>
         <Button
@@ -122,7 +124,13 @@ export function ServiceDeskDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalTickets}</div>
-            <p className="text-xs text-muted-foreground">{canViewAllLocations() ? "All locations" : "This location"}</p>
+            <p className="text-xs text-muted-foreground">
+              {user?.role === "user" || user?.role === "staff"
+                ? "Your requests"
+                : canViewAllLocations()
+                  ? "All locations"
+                  : "This location"}
+            </p>
           </CardContent>
         </Card>
 
@@ -163,9 +171,11 @@ export function ServiceDeskDashboard() {
             <CardHeader>
               <CardTitle>Recent Tickets</CardTitle>
               <CardDescription>
-                {canViewAllLocations()
-                  ? "Latest IT support requests from all locations"
-                  : "Latest IT support requests from your location"}
+                {user?.role === "user" || user?.role === "staff"
+                  ? "Your latest IT support requests"
+                  : canViewAllLocations()
+                    ? "Latest IT support requests from all locations"
+                    : "Latest IT support requests from your location"}
               </CardDescription>
             </CardHeader>
             <CardContent>

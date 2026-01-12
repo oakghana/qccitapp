@@ -56,7 +56,7 @@ interface Ticket {
   }>
 }
 
-export function TicketList() {
+export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
   const { user } = useAuth()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -77,15 +77,19 @@ export function TicketList() {
   const supabase = createClient()
 
   useEffect(() => {
-    loadTickets()
-  }, [])
+    if (!propTickets) {
+      loadTickets()
+    }
+  }, [propTickets])
 
   const loadTickets = async () => {
     try {
       setLoading(true)
       let query = supabase.from("service_tickets").select("*").order("created_at", { ascending: false })
 
-      if (user && !canSeeAllLocations(user) && user.location) {
+      if (user?.role === "user" || user?.role === "staff") {
+        query = query.eq("requested_by", user.name)
+      } else if (user && !canSeeAllLocations(user) && user.location) {
         query = query.eq("location", user.location)
       }
 
@@ -334,7 +338,9 @@ export function TicketList() {
     setLocationFilter("all")
   }
 
-  const filteredTickets = tickets.filter((ticket) => {
+  const displayTickets = propTickets || tickets
+
+  const filteredTickets = displayTickets.filter((ticket) => {
     const matchesSearch =
       ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       ticket.requester.toLowerCase().includes(searchTerm.toLowerCase()) ||

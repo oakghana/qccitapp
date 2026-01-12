@@ -40,7 +40,17 @@ interface Device {
   model: string
   brand: string
   status: "active" | "repair" | "maintenance" | "retired"
-  location: "head_office" | "accra" | "kumasi" | "tamale" | "cape_coast"
+  location:
+    | "head_office"
+    | "accra"
+    | "kumasi"
+    | "tamale"
+    | "cape_coast"
+    | "takoradi_port"
+    | "tema"
+    | "sunyani"
+    | "kaase_inland_port"
+    | "central_stores"
   assignedTo: string
   assignedDate: string
   lastUpdated: string
@@ -68,6 +78,11 @@ const locationNames = {
   kumasi: "Kumasi",
   tamale: "Tamale",
   cape_coast: "Cape Coast",
+  takoradi_port: "Takoradi Port",
+  tema: "Tema",
+  sunyani: "Sunyani",
+  kaase_inland_port: "Kaase Inland Port",
+  central_stores: "Central Stores",
 }
 
 export function DeviceInventory() {
@@ -127,11 +142,16 @@ export function DeviceInventory() {
         model: device.model,
         brand: device.brand,
         status: device.status || "active",
-        location: device.location?.toLowerCase().replace(/ /g, "_") || "head_office",
+        location: (device.location?.toLowerCase().replace(/ /g, "_") || "head_office") as Device["location"],
         assignedTo: device.assigned_to || "Unassigned",
         assignedDate: device.purchase_date || device.created_at,
         lastUpdated: device.updated_at || device.created_at,
       }))
+
+      console.log(
+        "[v0] Mapped devices with locations:",
+        mappedDevices.map((d) => ({ name: d.name, location: d.location })),
+      )
 
       setDevices(mappedDevices)
     } catch (error) {
@@ -303,6 +323,11 @@ export function DeviceInventory() {
                 <SelectItem value="kumasi">Kumasi</SelectItem>
                 <SelectItem value="tamale">Tamale</SelectItem>
                 <SelectItem value="cape_coast">Cape Coast</SelectItem>
+                <SelectItem value="takoradi_port">Takoradi Port</SelectItem>
+                <SelectItem value="tema">Tema</SelectItem>
+                <SelectItem value="sunyani">Sunyani</SelectItem>
+                <SelectItem value="kaase_inland_port">Kaase Inland Port</SelectItem>
+                <SelectItem value="central_stores">Central Stores</SelectItem>
               </SelectContent>
             </Select>
           </div>

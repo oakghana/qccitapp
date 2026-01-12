@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     const { username, email, fullName, password, phone, department, location } = body
 
     // Validate required fields
-    if (!username || !email || !fullName || !password || !location) {
+    if (!username || !email || !fullName || !location) {
       return NextResponse.json({ message: "Missing required fields" }, { status: 400 })
     }
 
@@ -24,6 +24,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Username or email already exists" }, { status: 409 })
     }
 
+    const defaultPassword = "pa$$w0rd"
+
     // Hash password using pgcrypto
     const { data: newUser, error } = await supabase
       .from("profiles")
@@ -35,8 +37,9 @@ export async function POST(request: NextRequest) {
           phone,
           department,
           location,
-          password_hash: password, // This will be hashed by the database trigger
-          status: "pending", // Set status as pending approval
+          password_hash: defaultPassword, // This will be hashed by the database trigger
+          role: "user", // Default role for self-registered users
+          status: "approved", // Auto-approve with "user" role
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         },
@@ -51,8 +54,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        message: "Registration successful. Your account is pending approval.",
+        message: "Registration successful. Your default password is: pa$$w0rd. Please change it after first login.",
         userId: newUser.id,
+        defaultPassword: "pa$$w0rd", // Send default password in response
       },
       { status: 201 },
     )

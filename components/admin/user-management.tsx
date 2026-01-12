@@ -659,6 +659,25 @@ function EditUserForm({
   const [error, setError] = useState("")
   const [showPassword, setShowPassword] = useState(false)
 
+  const getAvailableLocationOptions = () => {
+    const allLocations = getLocationOptions()
+
+    // Regional IT Heads can only assign users to their own location
+    if (currentUser?.role === "regional_it_head" && currentUser?.location) {
+      return allLocations.filter((option) => option.label === currentUser.location)
+    }
+
+    // IT Heads (non-admin, non-Head Office) can only assign to their location
+    if (currentUser?.role === "it_head" && currentUser?.location !== "Head Office") {
+      return allLocations.filter((option) => option.label === currentUser.location)
+    }
+
+    // Admins and Head Office users see all locations
+    return allLocations
+  }
+
+  const availableLocations = getAvailableLocationOptions()
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
@@ -757,7 +776,7 @@ function EditUserForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {getLocationOptions().map((option) => (
+                {availableLocations.map((option) => (
                   <SelectItem key={option.value} value={option.label}>
                     {option.label}
                   </SelectItem>
@@ -941,19 +960,45 @@ function ResetPasswordForm({ user, onClose }: { user: SystemUser; onClose: () =>
 }
 
 function AddUserForm({ onClose, onUserAdded }: { onClose: () => void; onUserAdded: (user: SystemUser) => void }) {
-  const { user } = useAuth()
-  const roleColors = user?.role ? getRoleColorScheme(user.role) : null
+  const { user: currentUser } = useAuth()
+  const roleColors = currentUser?.role ? getRoleColorScheme(currentUser.role) : null
+
+  const defaultLocation =
+    currentUser?.role === "regional_it_head" ||
+    (currentUser?.role === "it_head" && currentUser?.location !== "Head Office")
+      ? currentUser?.location || "Head Office"
+      : "Head Office"
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
-    role: "user" as SystemUser["role"],
-    location: "Head Office",
+    role: "staff" as SystemUser["role"],
+    location: defaultLocation,
     department: "ITD",
-    password: "qcc@123", // Updated default password from qccghana123 to qcc@123
+    password: "qcc@123",
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState("")
+
+  const getAvailableLocationOptions = () => {
+    const allLocations = getLocationOptions()
+
+    // Regional IT Heads can only assign users to their own location
+    if (currentUser?.role === "regional_it_head" && currentUser?.location) {
+      return allLocations.filter((option) => option.label === currentUser.location)
+    }
+
+    // IT Heads (non-admin, non-Head Office) can only assign to their location
+    if (currentUser?.role === "it_head" && currentUser?.location !== "Head Office") {
+      return allLocations.filter((option) => option.label === currentUser.location)
+    }
+
+    // Admins and Head Office users see all locations
+    return allLocations
+  }
+
+  const availableLocations = getAvailableLocationOptions()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -1071,7 +1116,7 @@ function AddUserForm({ onClose, onUserAdded }: { onClose: () => void; onUserAdde
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {getLocationOptions().map((option) => (
+                {availableLocations.map((option) => (
                   <SelectItem key={option.value} value={option.label}>
                     {option.label}
                   </SelectItem>

@@ -77,14 +77,30 @@ export default function RegisterPage() {
             </div>
             <CardTitle className="text-2xl">Registration Successful!</CardTitle>
             <CardDescription className="text-base">
-              Your account has been created and is pending approval from an administrator.
+              Your account has been created with default user role.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <Alert className="border-yellow-200 bg-yellow-50">
+              <AlertDescription className="text-sm">
+                <div className="space-y-2">
+                  <p className="font-semibold">Your login credentials:</p>
+                  <p>
+                    <strong>Username:</strong> Your email address
+                  </p>
+                  <p>
+                    <strong>Default Password:</strong> <code className="bg-white px-2 py-1 rounded">pa$$w0rd</code>
+                  </p>
+                  <p className="text-xs text-yellow-800 mt-2">
+                    Please change this password after your first login for security.
+                  </p>
+                </div>
+              </AlertDescription>
+            </Alert>
             <Alert>
               <AlertDescription>
-                You will receive a notification once your account has been approved and a role has been assigned. Please
-                check back later or contact your IT administrator.
+                You have been assigned the "User" role. You can now request IT services and view your service desk
+                requests. Contact your administrator if you need additional permissions.
               </AlertDescription>
             </Alert>
             <Link href="/" className="block">

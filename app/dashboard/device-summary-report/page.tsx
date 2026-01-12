@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Download, Package, MapPin, TrendingUp, Monitor, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 
 interface DeviceSummaryData {
   overall: {
@@ -47,6 +48,9 @@ export default function DeviceSummaryReportPage() {
   const [data, setData] = useState<DeviceSummaryData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
+  const [locationDevices, setLocationDevices] = useState<any[]>([])
+  const [loadingDevices, setLoadingDevices] = useState(false)
 
   useEffect(() => {
     fetchSummaryData()
@@ -79,6 +83,27 @@ export default function DeviceSummaryReportPage() {
       setError(err.message || "Failed to load device summary")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchLocationDevices = async (location: string) => {
+    try {
+      setLoadingDevices(true)
+      setSelectedLocation(location)
+
+      const userStr = localStorage.getItem("qcc_current_user")
+      if (!userStr) return
+      const user = JSON.parse(userStr)
+
+      const response = await fetch(
+        `/api/devices/by-location?location=${encodeURIComponent(location)}&username=${encodeURIComponent(user.username)}`,
+      )
+      const devices = await response.json()
+      setLocationDevices(devices)
+    } catch (err) {
+      console.error("[v0] Error loading location devices:", err)
+    } finally {
+      setLoadingDevices(false)
     }
   }
 
@@ -230,12 +255,16 @@ export default function DeviceSummaryReportPage() {
             <MapPin className="h-5 w-5" />
             Devices by Location
           </CardTitle>
-          <CardDescription>Distribution of devices across all locations</CardDescription>
+          <CardDescription>Distribution of devices across all locations (Click to view details)</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {Object.entries(data.byLocation).map(([location, stats]) => (
-              <div key={location} className="border rounded-lg p-4">
+              <div
+                key={location}
+                className="border rounded-lg p-4 cursor-pointer hover:shadow-lg hover:border-primary transition-all"
+                onClick={() => fetchLocationDevices(location)}
+              >
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-lg">{location}</h3>
                   <Badge variant="secondary">{stats.total} devices</Badge>
@@ -334,6 +363,73 @@ export default function DeviceSummaryReportPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Detailed Device Table Modal */}
+      {selectedLocation && (
+        <Dialog open={!!selectedLocation} onOpenChange={() => setSelectedLocation(null)}>
+          <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Devices at {selectedLocation}</DialogTitle>
+              <DialogDescription>Complete list of all devices at this location</DialogDescription>
+            </DialogHeader>
+
+            {loadingDevices ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="text-left p-3 font-semibold">Device</th>
+                      <th className="text-left p-3 font-semibold">Type</th>
+                      <th className="text-left p-3 font-semibold">Serial Number</th>
+                      <th className="text-left p-3 font-semibold">Status</th>
+                      <th className="text-left p-3 font-semibold">Assigned To</th>
+                      <th className="text-left p-3 font-semibold">Model</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {locationDevices.map((device, idx) => (
+                      <tr key={device.id} className="border-b hover:bg-muted/30">
+                        <td className="p-3 font-medium">
+                          {device.brand} {device.model}
+                        </td>
+                        <td className="p-3 capitalize">{device.device_type}</td>
+                        <td className="p-3 font-mono text-sm">{device.serial_number}</td>
+                        <td className="p-3">
+                          <Badge
+                            variant={
+                              device.status === "active"
+                                ? "default"
+                                : device.status === "repair"
+                                  ? "destructive"
+                                  : device.status === "maintenance"
+                                    ? "secondary"
+                                    : "outline"
+                            }
+                          >
+                            {device.status}
+                          </Badge>
+                        </td>
+                        <td className="p-3">{device.assigned_to || "Unassigned"}</td>
+                        <td className="p-3 text-sm">
+                          {device.brand} {device.model}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {locationDevices.length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground">No devices found at this location</div>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }
