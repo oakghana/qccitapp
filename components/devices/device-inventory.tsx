@@ -6,31 +6,13 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { AddDeviceForm } from "./add-device-form"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DeviceTransferForm } from "./device-transfer-form"
-import {
-  Search,
-  Plus,
-  Monitor,
-  Smartphone,
-  Printer,
-  HardDrive,
-  ArrowRightLeft,
-  MoreHorizontal,
-  Edit,
-} from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Plus, Monitor, Smartphone, Printer, HardDrive, MoreHorizontal } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations } from "@/lib/location-filter"
+import { toast } from "@/components/ui/use-toast"
 
 interface Device {
   id: string
@@ -54,6 +36,9 @@ interface Device {
   assignedTo: string
   assignedDate: string
   lastUpdated: string
+  deviceType: "laptop" | "desktop" | "printer" | "mobile" | "server" | "other"
+  purchaseDate: string
+  warrantyExpiry: string
 }
 
 const deviceTypeIcons = {
@@ -72,49 +57,55 @@ const statusColors = {
   retired: "outline",
 } as const
 
-const locationNames = {
-  head_office: "Head Office",
-  accra: "Accra",
-  kumasi: "Kumasi",
-  tamale: "Tamale",
-  cape_coast: "Cape Coast",
-  takoradi_port: "Takoradi Port",
-  tema: "Tema",
-  sunyani: "Sunyani",
-  kaase_inland_port: "Kaase Inland Port",
-  central_stores: "Central Stores",
-}
-
 export function DeviceInventory() {
+  const { user } = useAuth()
   const [devices, setDevices] = useState<Device[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [locationFilter, setLocationFilter] = useState<string>("all")
-  const [addDeviceOpen, setAddDeviceOpen] = useState(false)
-  const [transferDeviceOpen, setTransferDeviceOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null)
+  const [transferDeviceOpen, setTransferDeviceOpen] = useState(false)
   const [editDeviceOpen, setEditDeviceOpen] = useState(false)
-  const [editingDevice, setEditingDevice] = useState<Device | null>(null)
+  const [editLoading, setEditLoading] = useState(false)
+  const [editError, setEditError] = useState("")
   const [editFormData, setEditFormData] = useState({
     device_type: "",
     brand: "",
     model: "",
     serial_number: "",
     status: "",
-    location: "",
+    location: "", // Added location field
     assigned_to: "",
     purchase_date: "",
     warranty_expiry: "",
   })
-  const [editError, setEditError] = useState("")
-  const [editLoading, setEditLoading] = useState(false)
-  const { user } = useAuth()
+  const [dbLocations, setDbLocations] = useState<{ code: string; name: string }[]>([])
+
   const supabase = createClient()
 
   useEffect(() => {
     loadDevices()
+    loadLocations() // Load locations from database
   }, [])
+
+  const loadLocations = async () => {
+    try {
+      const res = await fetch("/api/admin/lookup-data?type=locations")
+      if (res.ok) {
+        const data = await res.json()
+        const activeLocations = data
+          .filter((loc: any) => loc.is_active)
+          .map((loc: any) => ({
+            code: loc.code,
+            name: loc.name,
+          }))
+        setDbLocations(activeLocations)
+      }
+    } catch (error) {
+      console.error("Error loading locations:", error)
+    }
+  }
 
   const loadDevices = async () => {
     try {
@@ -146,6 +137,9 @@ export function DeviceInventory() {
         assignedTo: device.assigned_to || "Unassigned",
         assignedDate: device.purchase_date || device.created_at,
         lastUpdated: device.updated_at || device.created_at,
+        deviceType: device.device_type?.toLowerCase() || "other",
+        purchaseDate: device.purchase_date || "",
+        warrantyExpiry: device.warranty_expiry || "",
       }))
 
       console.log(
@@ -163,9 +157,9 @@ export function DeviceInventory() {
 
   const filteredDevices = devices.filter((device) => {
     const matchesSearch =
-      device.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      device.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      device.assignedTo.toLowerCase().includes(searchTerm.toLowerCase())
+      device.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      device.serialNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      device.assignedTo.toLowerCase().includes(searchQuery.toLowerCase())
 
     const matchesStatus = statusFilter === "all" || device.status === statusFilter
     const matchesLocation = locationFilter === "all" || device.location === locationFilter
@@ -176,7 +170,7 @@ export function DeviceInventory() {
   const handleAddDevice = () => {
     // Just reload devices after form saves to database
     loadDevices()
-    setAddDeviceOpen(false)
+    setTransferDeviceOpen(false)
   }
 
   const handleTransferDevice = (deviceId: string, newLocation: string, newAssignee: string) => {
@@ -197,58 +191,78 @@ export function DeviceInventory() {
   }
 
   const handleEditDevice = (device: Device) => {
-    setEditingDevice(device)
+    setSelectedDevice(device)
     setEditFormData({
-      device_type: device.type,
+      device_type: device.deviceType,
       brand: device.brand,
       model: device.model,
       serial_number: device.serialNumber,
       status: device.status,
-      location: device.location,
+      location: device.location, // Include location in form data
       assigned_to: device.assignedTo,
-      purchase_date: device.assignedDate?.split("T")[0] || "",
-      warranty_expiry: "",
+      purchase_date: device.purchaseDate || "",
+      warranty_expiry: device.warrantyExpiry || "",
     })
     setEditDeviceOpen(true)
+    setEditError("")
   }
 
   const handleSaveDeviceEdit = async () => {
-    if (!editingDevice || !user) return
-
-    setEditError("")
-    setEditLoading(true)
+    if (!selectedDevice) return
 
     try {
+      setEditLoading(true)
+      setEditError("")
+
       const response = await fetch("/api/devices/update-device", {
-        method: "PUT",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          deviceId: editingDevice.id,
-          updates: editFormData,
-          updatedBy: user.full_name || user.email,
-          reason: "Device details updated",
-          userRole: user.role,
+          id: selectedDevice.id,
+          device_type: editFormData.device_type,
+          brand: editFormData.brand,
+          model: editFormData.model,
+          serial_number: editFormData.serial_number,
+          status: editFormData.status,
+          location: editFormData.location, // Include location in update
+          assigned_to: editFormData.assigned_to,
+          purchase_date: editFormData.purchase_date,
+          warranty_expiry: editFormData.warranty_expiry,
+          userRole: user?.role,
+          userLocation: user?.location,
         }),
       })
 
-      const result = await response.json()
-
       if (!response.ok) {
-        setEditError(result.error || "Failed to update device")
-        return
+        const error = await response.json()
+        throw new Error(error.error || "Failed to update device")
       }
 
-      console.log("[v0] Device updated successfully")
+      toast({
+        title: "Success",
+        description: "Device updated successfully",
+      })
+
       setEditDeviceOpen(false)
-      setEditingDevice(null)
-      await loadDevices()
-    } catch (error) {
-      console.error("[v0] Error updating device:", error)
-      setEditError("Failed to update device")
+      loadDevices()
+    } catch (error: any) {
+      setEditError(error.message)
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      })
     } finally {
       setEditLoading(false)
     }
   }
+
+  const locationNames: Record<string, string> = {}
+  dbLocations.forEach((loc) => {
+    locationNames[loc.code] = loc.name
+    locationNames[loc.code.toLowerCase()] = loc.name // Support lowercase codes
+    locationNames[loc.code.toUpperCase()] = loc.name // Support uppercase codes
+  })
 
   if (loading) {
     return (
@@ -265,74 +279,48 @@ export function DeviceInventory() {
           <h1 className="text-3xl font-bold text-foreground">Device Inventory</h1>
           <p className="text-muted-foreground">Manage and track IT devices across all locations</p>
         </div>
-        <Dialog open={addDeviceOpen} onOpenChange={setAddDeviceOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Device
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Add New Device</DialogTitle>
-              <DialogDescription>Register a new IT device in the inventory system</DialogDescription>
-            </DialogHeader>
-            <AddDeviceForm onSubmit={handleAddDevice} />
-          </DialogContent>
-        </Dialog>
+        <Button>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Device
+        </Button>
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search devices, serial numbers, or assignees..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="repair">Under Repair</SelectItem>
-                <SelectItem value="maintenance">Maintenance</SelectItem>
-                <SelectItem value="retired">Retired</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={locationFilter} onValueChange={setLocationFilter}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Filter by location" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
-                <SelectItem value="head_office">Head Office</SelectItem>
-                <SelectItem value="accra">Accra</SelectItem>
-                <SelectItem value="kumasi">Kumasi</SelectItem>
-                <SelectItem value="tamale">Tamale</SelectItem>
-                <SelectItem value="cape_coast">Cape Coast</SelectItem>
-                <SelectItem value="takoradi_port">Takoradi Port</SelectItem>
-                <SelectItem value="tema">Tema</SelectItem>
-                <SelectItem value="sunyani">Sunyani</SelectItem>
-                <SelectItem value="kaase_inland_port">Kaase Inland Port</SelectItem>
-                <SelectItem value="central_stores">Central Stores</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col md:flex-row gap-4 items-end">
+        <div className="flex-1">
+          <Input
+            placeholder="Search devices, serial numbers, or assignees..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full"
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full md:w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="repair">Under Repair</SelectItem>
+            <SelectItem value="maintenance">Maintenance</SelectItem>
+            <SelectItem value="retired">Retired</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={locationFilter} onValueChange={setLocationFilter}>
+          <SelectTrigger className="w-full md:w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Locations</SelectItem>
+            {dbLocations.map((loc) => (
+              <SelectItem key={loc.code} value={loc.code}>
+                {loc.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {/* Device Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -351,28 +339,9 @@ export function DeviceInventory() {
                       <CardDescription className="text-sm">{device.id}</CardDescription>
                     </div>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleEditDevice(device)}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit Device
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setSelectedDevice(device)
-                          setTransferDeviceOpen(true)
-                        }}
-                      >
-                        <ArrowRightLeft className="mr-2 h-4 w-4" />
-                        Transfer Device
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -526,6 +495,24 @@ export function DeviceInventory() {
                 value={editFormData.warranty_expiry}
                 onChange={(e) => setEditFormData({ ...editFormData, warranty_expiry: e.target.value })}
               />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Location</label>
+              <Select
+                value={editFormData.location}
+                onValueChange={(value) => setEditFormData({ ...editFormData, location: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {dbLocations.map((loc) => (
+                    <SelectItem key={loc.code} value={loc.code}>
+                      {loc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-4">

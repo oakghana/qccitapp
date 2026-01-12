@@ -71,18 +71,41 @@ export function ITStaffWorkStatus() {
   const [workloadFilter, setWorkloadFilter] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [timeRange, setTimeRange] = useState("30") // days
+  const [dbLocations, setDbLocations] = useState<{ code: string; name: string }[]>([])
   const supabase = createClient()
 
   useEffect(() => {
     loadStaffMembers()
+    loadLocations()
   }, [])
+
+  const loadLocations = async () => {
+    try {
+      const res = await fetch("/api/admin/lookup-data?type=locations")
+      if (res.ok) {
+        const data = await res.json()
+        const activeLocations = data
+          .filter((loc: any) => loc.is_active)
+          .map((loc: any) => ({
+            code: loc.code,
+            name: loc.name,
+          }))
+        setDbLocations(activeLocations)
+      }
+    } catch (error) {
+      console.error("Error loading locations:", error)
+    }
+  }
 
   const loadStaffMembers = async () => {
     try {
       setLoading(true)
-      let query = supabase.from("profiles").select("*").eq("role", "it_staff").eq("status", "approved")
+      let query = supabase
+        .from("profiles")
+        .select("*")
+        .in("role", ["it_staff", "it_head", "regional_it_head"])
+        .eq("status", "approved")
 
-      // Filter by location for regional IT heads
       if (user && user.role === "regional_it_head") {
         query = applyLocationFilter(query, user)
       }
@@ -183,7 +206,6 @@ export function ITStaffWorkStatus() {
 
   return (
     <div className="space-y-6">
-      {/* Header Section */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-orange-600 to-yellow-600 flex items-center justify-center shadow-lg">
@@ -208,7 +230,6 @@ export function ITStaffWorkStatus() {
         </div>
       </div>
 
-      {/* Team Overview Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="pb-2">
@@ -262,7 +283,6 @@ export function ITStaffWorkStatus() {
         </Card>
       </div>
 
-      {/* Filters */}
       <Card>
         <CardHeader className="pb-4">
           <div className="flex flex-col md:flex-row gap-4">
@@ -289,9 +309,11 @@ export function ITStaffWorkStatus() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Locations</SelectItem>
-                  <SelectItem value="Kumasi Branch">Kumasi</SelectItem>
-                  <SelectItem value="Accra Branch">Accra</SelectItem>
-                  <SelectItem value="Takoradi Branch">Takoradi</SelectItem>
+                  {dbLocations.map((loc) => (
+                    <SelectItem key={loc.code} value={loc.name}>
+                      {loc.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
@@ -323,7 +345,6 @@ export function ITStaffWorkStatus() {
         </CardHeader>
       </Card>
 
-      {/* Staff Status Grid */}
       <div className="grid gap-6">
         {loading ? (
           <Card className="col-span-full">
@@ -375,7 +396,6 @@ export function ITStaffWorkStatus() {
                 </CardHeader>
 
                 <CardContent className="space-y-4">
-                  {/* Task Statistics */}
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div className="space-y-1">
                       <div className="text-2xl font-bold text-green-600">{staff.completedTasks}</div>
@@ -391,7 +411,6 @@ export function ITStaffWorkStatus() {
                     </div>
                   </div>
 
-                  {/* Performance Progress */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span>Task Completion Rate</span>
@@ -402,7 +421,6 @@ export function ITStaffWorkStatus() {
                     <Progress value={(staff.completedTasks / staff.totalTasksAssigned) * 100} className="h-2" />
                   </div>
 
-                  {/* Key Metrics */}
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div className="space-y-1">
                       <div className="flex items-center gap-1 text-muted-foreground">
@@ -420,7 +438,6 @@ export function ITStaffWorkStatus() {
                     </div>
                   </div>
 
-                  {/* Specializations */}
                   <div className="space-y-2">
                     <div className="text-sm text-muted-foreground">Specializations</div>
                     <div className="flex gap-2 flex-wrap">
@@ -437,7 +454,6 @@ export function ITStaffWorkStatus() {
           </div>
         )}
 
-        {/* Recent Task Activity */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

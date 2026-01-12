@@ -29,3 +29,27 @@ export function getLocationOptions() {
     label,
   }))
 }
+
+export async function fetchLocationsFromDatabase(): Promise<{ code: string; name: string }[]> {
+  try {
+    const res = await fetch("/api/admin/lookup-data?type=locations")
+    if (res.ok) {
+      const data = await res.json()
+      return data
+        .filter((loc: any) => loc.is_active)
+        .map((loc: any) => ({
+          code: loc.code,
+          name: loc.name,
+        }))
+    }
+  } catch (error) {
+    console.error("Error fetching locations:", error)
+  }
+  // Fallback to hardcoded locations
+  return Object.entries(LOCATIONS).map(([code, name]) => ({ code, name }))
+}
+
+export function getLocationName(code: string, locations: { code: string; name: string }[]): string {
+  const location = locations.find((loc) => loc.code.toLowerCase() === code.toLowerCase())
+  return location?.name || getLocationLabel(code) || code
+}
