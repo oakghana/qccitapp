@@ -56,7 +56,14 @@ export default function DeviceSummaryReportPage() {
     try {
       setLoading(true)
       console.log("[v0] Fetching device summary report...")
-      const response = await fetch("/api/devices/summary-report")
+
+      const userStr = localStorage.getItem("qcc_current_user")
+      if (!userStr) {
+        throw new Error("User not logged in")
+      }
+      const user = JSON.parse(userStr)
+
+      const response = await fetch(`/api/devices/summary-report?username=${encodeURIComponent(user.username)}`)
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))

@@ -1,28 +1,33 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server" // Using createClient instead of createServerClient for user auth
+import { createServerClient } from "@/lib/supabase/server"
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const supabase = await createServerClient()
     const searchParams = request.nextUrl.searchParams
-    const userId = searchParams.get("userId")
     const userName = searchParams.get("userName")
 
-    // Get current user for authorization
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
+    // Get username from query parameters (same pattern as device summary)
+    const requestingUser = searchParams.get("requestingUser")
+
+    if (!requestingUser) {
+      return NextResponse.json({ error: "Missing requesting user" }, { status: 400 })
+    }
+
+    // Verify requesting user exists and is active
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role, location, username")
+      .eq("username", requestingUser)
+      .eq("is_active", true)
+      .single()
+
+    if (profileError || !profile) {
+      console.error("[v0] Profile fetch error:", profileError)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Get user profile
-    const { data: profile } = await supabase.from("profiles").select("role, location").eq("id", user.id).single()
-
-    if (!profile) {
-      return NextResponse.json({ error: "User profile not found" }, { status: 404 })
-    }
-
+    // Get all users for the dropdown
     const { data: allUsers, error: usersError } = await supabase
       .from("profiles")
       .select("id, username, full_name, role, location")
@@ -55,7 +60,7 @@ export async function GET(request: NextRequest) {
 
     const allocationStats = {
       totalDevices: devices?.length || 0,
-      activeDevices: devices?.filter((d) => d.status === "active").length || 0,
+      activeDevices: devices?.filter((d) => d.status === "active" || d.status === "assigned").length || 0,
       devicesInRepair: devices?.filter((d) => d.status === "repair" || d.status === "under_repair").length || 0,
       retiredDevices: devices?.filter((d) => d.status === "retired").length || 0,
       byDeviceType: {} as Record<string, number>,

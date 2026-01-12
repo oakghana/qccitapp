@@ -57,9 +57,22 @@ export default function UserDeviceAllocationPage() {
       setLoading(true)
       setError("")
 
-      const url = userName
-        ? `/api/devices/user-allocation-summary?userName=${encodeURIComponent(userName)}`
-        : "/api/devices/user-allocation-summary"
+      const userStr = localStorage.getItem("qcc_current_user")
+      if (!userStr) {
+        throw new Error("User not logged in")
+      }
+      const currentUser = JSON.parse(userStr)
+
+      const params = new URLSearchParams({
+        requestingUser: currentUser.username,
+      })
+
+      if (userName) {
+        params.append("userName", userName)
+      }
+
+      const url = `/api/devices/user-allocation-summary?${params.toString()}`
+      // </CHANGE>
 
       const response = await fetch(url)
       const data = await response.json()

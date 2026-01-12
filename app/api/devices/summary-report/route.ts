@@ -1,30 +1,35 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server" // Using createClient instead of createServerClient for user auth
+import { createServerClient } from "@/lib/supabase/server"
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const supabase = await createServerClient()
 
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    // Get username from query parameters
+    const { searchParams } = new URL(request.url)
+    const username = searchParams.get("username")
+
+    if (!username) {
+      return NextResponse.json({ error: "Username required" }, { status: 400 })
     }
 
     // Get user profile for role and location
-    const { data: profile } = await supabase.from("profiles").select("role, location").eq("id", user.id).single()
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role, location, username")
+      .eq("username", username)
+      .eq("is_active", true)
+      .single()
 
-    if (!profile) {
+    if (profileError || !profile) {
+      console.error("[v0] Profile fetch error:", profileError)
       return NextResponse.json({ error: "User profile not found" }, { status: 404 })
     }
 
     // Determine if user can see all locations
-    const canSeeAllLocations =
-      profile.role === "admin" ||
-      profile.role === "it_head" ||
-      (profile.role === "it_store_head" && profile.location === "Head Office")
+    const canSeeAllLocations = profile.role === "admin" || profile.role === "it_head"
+
+    const isRegionalHead = profile.role === "regional_it_head"
 
     // Build query for devices
     let devicesQuery = supabase
@@ -32,7 +37,7 @@ export async function GET(request: NextRequest) {
       .select("id, device_type, status, location, brand, model, assigned_to, purchase_date, warranty_expiry")
 
     // Filter by location for regional users
-    if (!canSeeAllLocations && profile.location) {
+    if (isRegionalHead || (!canSeeAllLocations && profile.location)) {
       devicesQuery = devicesQuery.eq("location", profile.location)
     }
 
