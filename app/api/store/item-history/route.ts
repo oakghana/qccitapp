@@ -1,7 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
-
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+import { createServerClient } from "@/lib/supabase/server"
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,21 +11,36 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Item ID or name is required" }, { status: 400 })
     }
 
-    let query = supabase.from("stock_transfers").select("*").order("transfer_date", { ascending: false })
+    const supabase = await createServerClient()
+
+    let query = supabase.from("stock_audit_log").select("*").order("created_at", { ascending: false })
 
     if (itemId) {
       query = query.eq("item_id", itemId)
-    } else if (itemName) {
-      query = query.eq("item_name", itemName)
     }
 
     const { data, error } = await query
 
-    if (error) throw error
+    if (error) {
+      console.error("History fetch error:", error)
+      return NextResponse.json({ transfers: [] })
+    }
 
-    return NextResponse.json({ transfers: data || [] })
+    // Map audit log data to transfer format for compatibility
+    const transfers = (data || []).map((log) => ({
+      id: log.id,
+      item_id: log.item_id,
+      item_name: itemName || "Unknown",
+      action: log.action,
+      transfer_date: log.created_at,
+      updated_by: log.updated_by,
+      reason: log.reason,
+      changes: log.changes,
+    }))
+
+    return NextResponse.json({ transfers })
   } catch (error: any) {
     console.error("History fetch error:", error)
-    return NextResponse.json({ error: error.message || "Failed to fetch item history" }, { status: 500 })
+    return NextResponse.json({ transfers: [] })
   }
 }

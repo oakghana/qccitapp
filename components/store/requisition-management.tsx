@@ -72,7 +72,7 @@ export function RequisitionManagement() {
       let query = supabase.from("store_requisitions").select("*").order("created_at", { ascending: false })
 
       if (user && !canSeeAllLocations(user) && user.location) {
-        query = query.eq("location", user.location)
+        query = query.or(`location.eq.${user.location},location.eq.Central Stores`)
       }
 
       const { data, error } = await query

@@ -34,10 +34,9 @@ export default function StoreSnapshotPage() {
 
         let query = supabase.from("store_items").select("*").order("name", { ascending: true })
 
-        // Apply location filter for Regional IT heads
         if (user && !canSeeAllLocations(user) && user.location) {
-          console.log("[v0] Filtering store snapshot by location:", user.location)
-          query = query.eq("location", user.location)
+          console.log("[v0] Filtering store snapshot by location:", user.location, "+ Central Stores")
+          query = query.or(`location.eq.${user.location},location.eq.Central Stores`)
         }
 
         const { data, error } = await query

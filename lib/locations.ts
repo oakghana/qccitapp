@@ -1,5 +1,6 @@
 export const LOCATIONS = {
   head_office: "Head Office",
+  central_stores: "Central Stores",
   tema_port: "Tema Port",
   takoradi_port: "Takoradi Port",
   tema_research: "Tema Research",

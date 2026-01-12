@@ -32,7 +32,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 })
     }
 
-    const { data: items, error } = await supabase.from("store_items").select("*").order("item_name")
+    const { data: items, error } = await supabase.from("store_items").select("*").order("name")
 
     if (error) {
       console.error("[v0] Error fetching store items:", error)
@@ -45,27 +45,17 @@ export async function GET(request: Request) {
 
     const now = new Date()
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const lastDayOfPreviousMonth = new Date(now.getFullYear(), now.getMonth(), 0)
     const firstDayOfPreviousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
 
     // Get requisitions for current month
     const { data: currentMonthRequisitions } = await supabase
       .from("store_requisitions")
-      .select("items")
+      .select("items, allocation_date")
       .gte("allocation_date", firstDayOfMonth.toISOString())
-      .eq("status", "completed")
-
-    // Get requisitions for previous month to calculate opening balance
-    const { data: previousMonthRequisitions } = await supabase
-      .from("store_requisitions")
-      .select("items")
-      .gte("allocation_date", firstDayOfPreviousMonth.toISOString())
-      .lte("allocation_date", lastDayOfPreviousMonth.toISOString())
       .eq("status", "completed")
 
     // Calculate quantities issued per item
     const itemsIssuedThisMonth: Record<string, number> = {}
-    const itemsIssuedPreviousMonth: Record<string, number> = {}
 
     currentMonthRequisitions?.forEach((req) => {
       if (req.items && Array.isArray(req.items)) {
@@ -77,27 +67,16 @@ export async function GET(request: Request) {
       }
     })
 
-    previousMonthRequisitions?.forEach((req) => {
-      if (req.items && Array.isArray(req.items)) {
-        req.items.forEach((item: any) => {
-          const itemId = item.itemId || item.item_id
-          const quantity = item.quantity || 0
-          itemsIssuedPreviousMonth[itemId] = (itemsIssuedPreviousMonth[itemId] || 0) + quantity
-        })
-      }
-    })
-
     const summaryData = items.map((item) => {
       const quantityIssuedThisMonth = itemsIssuedThisMonth[item.id] || 0
-      const quantityIssuedPreviousMonth = itemsIssuedPreviousMonth[item.id] || 0
 
-      // Calculate previous month balance (current stock + issued this month + issued previous month)
+      // Previous month balance = current stock + what was issued this month
       const previousMonthBalance = (item.quantity || 0) + quantityIssuedThisMonth
 
       const quantityRequired = item.quantity < item.reorder_level ? item.reorder_level - item.quantity : 0
 
       return {
-        itemName: item.item_name || item.name || "Unknown",
+        itemName: item.name || "Unknown",
         category: item.category || "Uncategorized",
         previousMonthBalance,
         quantityIssuedThisMonth,

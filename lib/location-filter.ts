@@ -28,6 +28,7 @@ export function canManageRegionalStaff(user: User | null): boolean {
  * Gets the location filter for queries
  * Returns null if user can see all locations, otherwise returns their location
  * Users, regional IT heads, and non-Head Office staff can only see their location data
+ * PLUS Central Stores items which are visible to all IT staff
  */
 export function getLocationFilter(user: User | null): string | null {
   if (!user) return null
@@ -39,14 +40,28 @@ export function getLocationFilter(user: User | null): string | null {
  * Applies location filter to a Supabase query
  * Only filters if user cannot see all locations
  * Regional IT heads and regular users will have their location filter applied
+ * BUT will also see Central Stores items which are shared across all locations
  */
 export function applyLocationFilter<T>(query: T, user: User | null, columnName = "location"): T {
   const locationFilter = getLocationFilter(user)
   if (locationFilter) {
     // @ts-ignore - Dynamic query building
-    return query.eq(columnName, locationFilter)
+    return query.or(`${columnName}.eq.${locationFilter},${columnName}.eq.Central Stores`)
   }
   return query
+}
+
+/**
+ * Checks if a user can view data for a specific location
+ * Admin and Head Office IT staff can view all locations
+ * Regional IT heads and other users can view their own location's data
+ * PLUS Central Stores items which are visible to everyone
+ */
+export function canViewLocation(user: User | null, location: string): boolean {
+  if (!user) return false
+  if (canSeeAllLocations(user)) return true
+  if (location === "Central Stores") return true
+  return user.location === location
 }
 
 /**
@@ -55,17 +70,6 @@ export function applyLocationFilter<T>(query: T, user: User | null, columnName =
  * Regional IT heads and other users can only edit their own location's data
  */
 export function canEditLocation(user: User | null, location: string): boolean {
-  if (!user) return false
-  if (canSeeAllLocations(user)) return true
-  return user.location === location
-}
-
-/**
- * Checks if a user can view data for a specific location
- * Admin and Head Office IT staff can view all locations
- * Regional IT heads and other users can only view their own location's data
- */
-export function canViewLocation(user: User | null, location: string): boolean {
   if (!user) return false
   if (canSeeAllLocations(user)) return true
   return user.location === location

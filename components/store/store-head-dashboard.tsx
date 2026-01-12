@@ -53,8 +53,8 @@ export default function StoreHeadDashboard() {
       let query = supabase.from("store_items").select("*").order("location").order("name")
 
       if (user && !canSeeAllLocations(user) && user.location) {
-        console.log("[v0] Filtering items by location:", user.location)
-        query = query.eq("location", user.location)
+        console.log("[v0] Filtering items by location:", user.location, "+ Central Stores")
+        query = query.or(`location.eq.${user.location},location.eq.Central Stores`)
       }
 
       const { data, error } = await query
@@ -87,7 +87,8 @@ export default function StoreHeadDashboard() {
   }
 
   const calculateLocationSummaries = (stockItems: StockItem[]) => {
-    const visibleLocations = user && !canSeeAllLocations(user) && user.location ? [user.location] : locationValues
+    const visibleLocations =
+      user && !canSeeAllLocations(user) && user.location ? [user.location, "Central Stores"] : locationValues
 
     const summaries = visibleLocations.map((location) => {
       const locationItems = stockItems.filter((item) => item.location === location)
@@ -203,39 +204,41 @@ export default function StoreHeadDashboard() {
         ))}
       </div>
 
-      {(user && !canSeeAllLocations(user) && user.location ? [user.location] : locationValues).map((location) => {
-        const locationItems = items.filter((item) => item.location === location)
-        if (locationItems.length === 0) return null
+      {(user && !canSeeAllLocations(user) && user.location ? [user.location, "Central Stores"] : locationValues).map(
+        (location) => {
+          const locationItems = items.filter((item) => item.location === location)
+          if (locationItems.length === 0) return null
 
-        return (
-          <div key={location}>
-            <h3 className="text-lg font-semibold mb-3">{location}</h3>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {locationItems.map((item) => (
-                <Card
-                  key={item.id}
-                  className="cursor-pointer hover:shadow-lg transition-shadow"
-                  onClick={() => setSelectedItem(item)}
-                >
-                  <CardContent className="pt-6">
-                    <div className="flex items-start justify-between mb-3">
-                      <Package className="h-8 w-8 text-primary" />
-                      {item.quantity <= item.reorder_level && <AlertTriangle className="h-5 w-5 text-amber-500" />}
-                    </div>
-                    <h4 className="font-semibold mb-1">{item.name}</h4>
-                    <p className="text-sm text-muted-foreground mb-3">{item.category}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-2xl font-bold">{item.quantity}</span>
-                      <span className="text-sm text-muted-foreground">{item.unit}</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-2">Reorder at: {item.reorder_level}</div>
-                  </CardContent>
-                </Card>
-              ))}
+          return (
+            <div key={location}>
+              <h3 className="text-lg font-semibold mb-3">{location}</h3>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {locationItems.map((item) => (
+                  <Card
+                    key={item.id}
+                    className="cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => setSelectedItem(item)}
+                  >
+                    <CardContent className="pt-6">
+                      <div className="flex items-start justify-between mb-3">
+                        <Package className="h-8 w-8 text-primary" />
+                        {item.quantity <= item.reorder_level && <AlertTriangle className="h-5 w-5 text-amber-500" />}
+                      </div>
+                      <h4 className="font-semibold mb-1">{item.name}</h4>
+                      <p className="text-sm text-muted-foreground mb-3">{item.category}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-2xl font-bold">{item.quantity}</span>
+                        <span className="text-sm text-muted-foreground">{item.unit}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-2">Reorder at: {item.reorder_level}</div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </div>
-          </div>
-        )
-      })}
+          )
+        },
+      )}
 
       {selectedItem && (
         <StockCardDetailModal
