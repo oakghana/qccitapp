@@ -16,7 +16,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, FileText, Search, CheckCircle, Clock, XCircle, Download } from "lucide-react"
+import { Plus, FileText, Search, CheckCircle, Clock, XCircle, Download, Edit } from "lucide-react"
 import { NewRequisitionForm } from "./new-requisition-form"
 import { IssueItemsForm } from "./issue-items-form"
 import { createClient } from "@/lib/supabase/client"
@@ -59,6 +59,15 @@ export function RequisitionManagement() {
   const [allocateOpen, setAllocateOpen] = useState(false)
   const [allocatingReq, setAllocatingReq] = useState<Requisition | null>(null)
   const [allocateLocation, setAllocateLocation] = useState("")
+  const [editReqOpen, setEditReqOpen] = useState(false)
+  const [editingReq, setEditingReq] = useState<Requisition | null>(null)
+  const [editFormData, setEditFormData] = useState({
+    beneficiary: "",
+    location: "",
+    notes: "",
+  })
+  const [editError, setEditError] = useState("")
+  const [editLoading, setEditLoading] = useState(false)
   const { user } = useAuth()
   const supabase = createClient()
 
@@ -179,6 +188,54 @@ export function RequisitionManagement() {
       await loadRequisitions()
     } catch (error) {
       console.error("[v0] Error allocating requisition:", error)
+    }
+  }
+
+  const handleEditRequisition = (req: Requisition) => {
+    setEditingReq(req)
+    setEditFormData({
+      beneficiary: req.beneficiary || "",
+      location: req.location,
+      notes: req.notes || "",
+    })
+    setEditReqOpen(true)
+  }
+
+  const handleSaveRequisitionEdit = async () => {
+    if (!editingReq || !user) return
+
+    setEditError("")
+    setEditLoading(true)
+
+    try {
+      const response = await fetch("/api/store/update-requisition", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requisitionId: editingReq.id,
+          updates: editFormData,
+          updatedBy: user.full_name || user.email,
+          reason: "Requisition details updated",
+          userRole: user.role,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        setEditError(result.error || "Failed to update requisition")
+        return
+      }
+
+      console.log("[v0] Requisition updated successfully")
+      setEditReqOpen(false)
+      setEditingReq(null)
+      await loadRequisitions()
+    } catch (error) {
+      console.error("[v0] Error updating requisition:", error)
+      setEditError("Failed to update requisition")
+    } finally {
+      setEditLoading(false)
     }
   }
 
@@ -338,6 +395,13 @@ export function RequisitionManagement() {
                       </div>
                     )}
 
+                    {(req.status === "pending" || req.status === "approved") && (
+                      <Button variant="outline" size="sm" onClick={() => handleEditRequisition(req)} className="w-full">
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit Requisition Details
+                      </Button>
+                    )}
+
                     {req.status === "pending" && (
                       <div className="flex gap-2">
                         <Button
@@ -457,6 +521,60 @@ export function RequisitionManagement() {
               }}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editReqOpen} onOpenChange={setEditReqOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Requisition</DialogTitle>
+            <DialogDescription>Update requisition details. Items cannot be modified after creation.</DialogDescription>
+          </DialogHeader>
+          {editError && <div className="bg-destructive/10 text-destructive px-4 py-2 rounded">{editError}</div>}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Beneficiary/User</label>
+              <Input
+                value={editFormData.beneficiary}
+                onChange={(e) => setEditFormData({ ...editFormData, beneficiary: e.target.value })}
+                placeholder="Name of person who will use the items"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Location</label>
+              <Select
+                value={editFormData.location}
+                onValueChange={(value) => setEditFormData({ ...editFormData, location: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {getLocationOptions().map((location) => (
+                    <SelectItem key={location.value} value={location.label}>
+                      {location.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Notes / Purpose</label>
+              <Input
+                value={editFormData.notes}
+                onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+                placeholder="Add any notes or purpose"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setEditReqOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveRequisitionEdit} disabled={editLoading}>
+              {editLoading ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -16,7 +16,17 @@ import {
 } from "@/components/ui/dialog"
 import { AddDeviceForm } from "./add-device-form"
 import { DeviceTransferForm } from "./device-transfer-form"
-import { Search, Plus, Monitor, Smartphone, Printer, HardDrive, ArrowRightLeft, MoreHorizontal } from "lucide-react"
+import {
+  Search,
+  Plus,
+  Monitor,
+  Smartphone,
+  Printer,
+  HardDrive,
+  ArrowRightLeft,
+  MoreHorizontal,
+  Edit,
+} from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
@@ -69,6 +79,21 @@ export function DeviceInventory() {
   const [addDeviceOpen, setAddDeviceOpen] = useState(false)
   const [transferDeviceOpen, setTransferDeviceOpen] = useState(false)
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null)
+  const [editDeviceOpen, setEditDeviceOpen] = useState(false)
+  const [editingDevice, setEditingDevice] = useState<Device | null>(null)
+  const [editFormData, setEditFormData] = useState({
+    device_type: "",
+    brand: "",
+    model: "",
+    serial_number: "",
+    status: "",
+    location: "",
+    assigned_to: "",
+    purchase_date: "",
+    warranty_expiry: "",
+  })
+  const [editError, setEditError] = useState("")
+  const [editLoading, setEditLoading] = useState(false)
   const { user } = useAuth()
   const supabase = createClient()
 
@@ -149,6 +174,60 @@ export function DeviceInventory() {
     )
     setTransferDeviceOpen(false)
     setSelectedDevice(null)
+  }
+
+  const handleEditDevice = (device: Device) => {
+    setEditingDevice(device)
+    setEditFormData({
+      device_type: device.type,
+      brand: device.brand,
+      model: device.model,
+      serial_number: device.serialNumber,
+      status: device.status,
+      location: device.location,
+      assigned_to: device.assignedTo,
+      purchase_date: device.assignedDate?.split("T")[0] || "",
+      warranty_expiry: "",
+    })
+    setEditDeviceOpen(true)
+  }
+
+  const handleSaveDeviceEdit = async () => {
+    if (!editingDevice || !user) return
+
+    setEditError("")
+    setEditLoading(true)
+
+    try {
+      const response = await fetch("/api/devices/update-device", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deviceId: editingDevice.id,
+          updates: editFormData,
+          updatedBy: user.full_name || user.email,
+          reason: "Device details updated",
+          userRole: user.role,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        setEditError(result.error || "Failed to update device")
+        return
+      }
+
+      console.log("[v0] Device updated successfully")
+      setEditDeviceOpen(false)
+      setEditingDevice(null)
+      await loadDevices()
+    } catch (error) {
+      console.error("[v0] Error updating device:", error)
+      setEditError("Failed to update device")
+    } finally {
+      setEditLoading(false)
+    }
   }
 
   if (loading) {
@@ -254,6 +333,10 @@ export function DeviceInventory() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleEditDevice(device)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit Device
+                      </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => {
                           setSelectedDevice(device)
@@ -327,6 +410,107 @@ export function DeviceInventory() {
               }}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Device Dialog */}
+      <Dialog open={editDeviceOpen} onOpenChange={setEditDeviceOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Device</DialogTitle>
+            <DialogDescription>Update device details and information</DialogDescription>
+          </DialogHeader>
+          {editError && <div className="bg-destructive/10 text-destructive px-4 py-2 rounded">{editError}</div>}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Device Type</label>
+              <Select
+                value={editFormData.device_type}
+                onValueChange={(value) => setEditFormData({ ...editFormData, device_type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="laptop">Laptop</SelectItem>
+                  <SelectItem value="desktop">Desktop</SelectItem>
+                  <SelectItem value="printer">Printer</SelectItem>
+                  <SelectItem value="mobile">Mobile Device</SelectItem>
+                  <SelectItem value="server">Server</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Brand</label>
+              <Input
+                value={editFormData.brand}
+                onChange={(e) => setEditFormData({ ...editFormData, brand: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Model</label>
+              <Input
+                value={editFormData.model}
+                onChange={(e) => setEditFormData({ ...editFormData, model: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Serial Number</label>
+              <Input
+                value={editFormData.serial_number}
+                onChange={(e) => setEditFormData({ ...editFormData, serial_number: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Status</label>
+              <Select
+                value={editFormData.status}
+                onValueChange={(value) => setEditFormData({ ...editFormData, status: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="repair">Under Repair</SelectItem>
+                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                  <SelectItem value="retired">Retired</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Assigned To</label>
+              <Input
+                value={editFormData.assigned_to}
+                onChange={(e) => setEditFormData({ ...editFormData, assigned_to: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Purchase Date</label>
+              <Input
+                type="date"
+                value={editFormData.purchase_date}
+                onChange={(e) => setEditFormData({ ...editFormData, purchase_date: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Warranty Expiry</label>
+              <Input
+                type="date"
+                value={editFormData.warranty_expiry}
+                onChange={(e) => setEditFormData({ ...editFormData, warranty_expiry: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setEditDeviceOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveDeviceEdit} disabled={editLoading}>
+              {editLoading ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
