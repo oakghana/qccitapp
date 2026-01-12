@@ -45,14 +45,19 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
   const loadAvailableItems = async () => {
     try {
       setLoadingItems(true)
-      const { data, error } = await supabase.from("store_items").select("*").gt("quantity", 0).order("name")
+      const { data, error } = await supabase
+        .from("store_items")
+        .select("*")
+        .gt("quantity", 0)
+        .neq("location", "Central Stores")
+        .order("name")
 
       if (error) {
         console.error("[v0] Error loading store items:", error)
         return
       }
 
-      console.log("[v0] Loaded available store items:", data)
+      console.log("[v0] Loaded available store items (excluding Central Stores):", data)
       setAvailableItems(data || [])
     } catch (err) {
       console.error("[v0] Error loading items:", err)

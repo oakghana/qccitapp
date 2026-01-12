@@ -31,6 +31,7 @@ import {
   PanelLeft,
   Package,
   Rss,
+  BookOpen,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
@@ -150,6 +151,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           icon: Rss,
           badge: counts.updates > 0 ? counts.updates : undefined,
         },
+        { name: "Help Guide", href: "/dashboard/help-guide", icon: BookOpen },
       ]
       return fullNavigation
     }

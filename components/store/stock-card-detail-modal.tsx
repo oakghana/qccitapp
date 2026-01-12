@@ -20,6 +20,7 @@ import {
   UserPlus,
   Save,
   X,
+  ArrowRightLeft,
 } from "lucide-react"
 import { downloadCSV, printToPDF } from "@/lib/export-utils"
 import { useAuth } from "@/lib/auth-context"
@@ -65,13 +66,18 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
   const [deleteReason, setDeleteReason] = useState("")
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showAssignForm, setShowAssignForm] = useState(false)
-  const [assignData, setAssignData] = useState({
-    assignedTo: "",
+  const [showCentralTransfer, setShowCentralTransfer] = useState(false)
+  const [centralTransferData, setCentralTransferData] = useState({
     quantity: 1,
     notes: "",
   })
   const [actionLoading, setActionLoading] = useState(false)
   const [actionError, setActionError] = useState("")
+  const [assignData, setAssignData] = useState({
+    assignedTo: "",
+    quantity: 1,
+    notes: "",
+  })
 
   useEffect(() => {
     if (open && item) {
@@ -262,6 +268,53 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
     }
   }
 
+  const handleCentralStoresTransfer = async () => {
+    if (!user || centralTransferData.quantity <= 0) {
+      setActionError("Please provide a valid quantity")
+      return
+    }
+
+    if (centralTransferData.quantity > item.quantity) {
+      setActionError(`Cannot transfer ${centralTransferData.quantity} items. Only ${item.quantity} available.`)
+      return
+    }
+
+    setActionLoading(true)
+    setActionError("")
+
+    try {
+      const response = await fetch("/api/store/transfer-central-stores", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemId: item.id,
+          quantity: centralTransferData.quantity,
+          transferredBy: user.full_name || user.username,
+          userRole: user.role,
+          notes: centralTransferData.notes,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to transfer from Central Stores")
+      }
+
+      setShowCentralTransfer(false)
+      setCentralTransferData({ quantity: 1, notes: "" })
+      window.location.reload()
+    } catch (error: any) {
+      setActionError(error.message || "Failed to transfer from Central Stores")
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const canTransferCentralStores = () => {
+    return item.location === "Central Stores" && user && (user.role === "admin" || user.role === "it_store_head")
+  }
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -279,7 +332,15 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
             </Alert>
           )}
 
-          {/* Item Summary */}
+          {item.location === "Central Stores" && (
+            <Alert>
+              <AlertDescription>
+                <strong>Central Stores Information:</strong> This location is for reference and guidance only. Items
+                cannot be requisitioned from here. Only Admin and IT Store Head can transfer items to Head Office.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <Card>
             <CardContent className="pt-6">
               {isEditing ? (
@@ -340,7 +401,6 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
             </CardContent>
           </Card>
 
-          {/* Action Buttons */}
           <div className="flex gap-2 flex-wrap">
             <Button onClick={exportToCSV} variant="outline" size="sm">
               <Download className="h-4 w-4 mr-2" />
@@ -350,6 +410,13 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
               <FileText className="h-4 w-4 mr-2" />
               Export PDF
             </Button>
+
+            {canTransferCentralStores() && !showCentralTransfer && (
+              <Button onClick={() => setShowCentralTransfer(true)} variant="default" size="sm">
+                <ArrowRightLeft className="h-4 w-4 mr-2" />
+                Transfer to Head Office
+              </Button>
+            )}
 
             {user && canManageStock(user) && !isEditing && (
               <>
@@ -364,7 +431,7 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
               </>
             )}
 
-            {user && canAssignItems(user) && !showAssignForm && (
+            {user && canAssignItems(user) && !showAssignForm && item.location !== "Central Stores" && (
               <Button onClick={() => setShowAssignForm(true)} variant="default" size="sm">
                 <UserPlus className="h-4 w-4 mr-2" />
                 Assign to User
@@ -372,7 +439,61 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
             )}
           </div>
 
-          {/* Assignment Form */}
+          {showCentralTransfer && (
+            <Card>
+              <CardContent className="pt-6 space-y-4">
+                <h3 className="font-semibold">Transfer from Central Stores to Head Office</h3>
+                <Alert>
+                  <AlertDescription>
+                    This will reduce the quantity in Central Stores and add/update the item in Head Office inventory.
+                  </AlertDescription>
+                </Alert>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Quantity to Transfer</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max={item.quantity}
+                      value={centralTransferData.quantity}
+                      onChange={(e) =>
+                        setCentralTransferData({ ...centralTransferData, quantity: Number.parseInt(e.target.value) })
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Available: {item.quantity} units in Central Stores
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <Label>Transfer Notes</Label>
+                  <Textarea
+                    value={centralTransferData.notes}
+                    onChange={(e) => setCentralTransferData({ ...centralTransferData, notes: e.target.value })}
+                    placeholder="Reason for transfer, purpose, etc..."
+                    rows={2}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleCentralStoresTransfer} disabled={actionLoading}>
+                    <ArrowRightLeft className="h-4 w-4 mr-2" />
+                    Confirm Transfer
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setShowCentralTransfer(false)
+                      setCentralTransferData({ quantity: 1, notes: "" })
+                    }}
+                    variant="outline"
+                    disabled={actionLoading}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {showAssignForm && (
             <Card>
               <CardContent className="pt-6 space-y-4">
@@ -426,7 +547,6 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
             </Card>
           )}
 
-          {/* Delete Confirmation */}
           {showDeleteConfirm && (
             <Card className="border-destructive">
               <CardContent className="pt-6 space-y-4">
@@ -464,7 +584,6 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
             </Card>
           )}
 
-          {/* Transfer History */}
           <div>
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <History className="h-5 w-5" />
