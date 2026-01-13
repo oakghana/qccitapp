@@ -1,0 +1,85 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { createClient } from "@/supabase/client" // Assuming createClient is imported from a supabase client file
+import type { Device } from "@/types/device" // Assuming Device type is imported from a types file
+import { Label } from "@/components/ui/label" // Assuming Label component is imported from a ui file
+
+interface CreateRepairFormProps {
+  onSubmit: (formData: any) => void
+  onCancel: () => void
+}
+
+export function CreateRepairForm({ onSubmit, onCancel }: CreateRepairFormProps) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [serviceProviders, setServiceProviders] = useState<{ id: string; name: string }[]>([])
+  const [devices, setDevices] = useState<Device[]>([])
+  const supabase = createClient()
+  const [formData, setFormData] = useState({ serviceProvider: "" })
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prevData) => ({
+      ...prevData,
+      [field]: value,
+    }))
+  }
+
+  useEffect(() => {
+    const fetchServiceProviders = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("service_providers")
+          .select("id, name")
+          .eq("is_active", true)
+          .order("name")
+
+        if (error) throw error
+        console.log("[v0] Loaded service providers:", data)
+        setServiceProviders(data || [])
+      } catch (error) {
+        console.error("[v0] Error fetching service providers:", error)
+      }
+    }
+
+    const fetchDevices = async () => {
+      try {
+        const { data, error } = await supabase.from("devices").select("*")
+
+        if (error) throw error
+        console.log("[v0] Loaded devices:", data)
+        setDevices(data || [])
+      } catch (error) {
+        console.error("[v0] Error fetching devices:", error)
+      }
+    }
+
+    fetchServiceProviders()
+    fetchDevices()
+  }, [])
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor="serviceProvider">Service Provider</Label>
+      <Select value={formData.serviceProvider} onValueChange={(value) => handleInputChange("serviceProvider", value)}>
+        <SelectTrigger>
+          <SelectValue placeholder="Choose service provider" />
+        </SelectTrigger>
+        <SelectContent>
+          {serviceProviders.length > 0 ? (
+            serviceProviders.map((provider) => (
+              <SelectItem key={provider.id} value={provider.name}>
+                {provider.name}
+              </SelectItem>
+            ))
+          ) : (
+            <SelectItem value="loading" disabled>
+              Loading providers...
+            </SelectItem>
+          )}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}

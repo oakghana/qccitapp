@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FormNavigation } from "@/components/ui/form-navigation"
 import { createClient } from "@/lib/supabase/client"
 import { getLocationOptions } from "@/lib/locations"
+import { toast } from "@/components/ui/use-toast"
 
 interface Device {
   type: "laptop" | "desktop" | "printer" | "mobile" | "server" | "other"
@@ -30,6 +30,8 @@ interface AddDeviceFormProps {
 export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [deviceTypes, setDeviceTypes] = useState<{ code: string; name: string }[]>([])
+  const [locations, setLocations] = useState<{ code: string; name: string }[]>([])
   const supabase = createClient()
 
   const [formData, setFormData] = useState<Device>({
@@ -38,11 +40,45 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
     model: "",
     brand: "",
     status: "active",
-    location: "Head Office",
+    location: "",
     assignedTo: "",
     purchaseDate: new Date().toISOString().split("T")[0],
     warrantyExpiry: "",
   })
+
+  useEffect(() => {
+    const fetchLookupData = async () => {
+      try {
+        const typesRes = await fetch("/api/admin/lookup-data?type=device_types")
+        if (typesRes.ok) {
+          const types = await typesRes.json()
+          const activeTypes = types.filter((t: any) => t.is_active)
+          setDeviceTypes(activeTypes)
+          if (activeTypes.length > 0 && !formData.type) {
+            setFormData((prev) => ({ ...prev, type: activeTypes[0].code }))
+          }
+        }
+
+        const locsRes = await fetch("/api/admin/lookup-data?type=locations")
+        if (locsRes.ok) {
+          const locs = await locsRes.json()
+          const activeLocs = locs.filter((l: any) => l.is_active)
+          setLocations(activeLocs)
+          if (activeLocs.length > 0 && !formData.location) {
+            setFormData((prev) => ({ ...prev, location: activeLocs[0].code }))
+          }
+        }
+      } catch (error) {
+        console.error("[v0] Error fetching lookup data:", error)
+        toast({
+          title: "Warning",
+          description: "Could not load device types and locations. Using defaults.",
+          variant: "destructive",
+        })
+      }
+    }
+    fetchLookupData()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -74,14 +110,29 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
       if (insertError) {
         console.error("[v0] Error saving device:", insertError)
         setError(insertError.message)
+        toast({
+          title: "Error",
+          description: insertError.message,
+          variant: "destructive",
+        })
         return
       }
 
       console.log("[v0] Device saved successfully:", data)
+      toast({
+        title: "Success",
+        description: "Device added successfully",
+      })
       onSubmit()
     } catch (err) {
       console.error("[v0] Error:", err)
-      setError("Failed to save device")
+      const errorMsg = "Failed to save device"
+      setError(errorMsg)
+      toast({
+        title: "Error",
+        description: errorMsg,
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -106,12 +157,22 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="laptop">Laptop</SelectItem>
-                <SelectItem value="desktop">Desktop</SelectItem>
-                <SelectItem value="printer">Printer</SelectItem>
-                <SelectItem value="mobile">Mobile Device</SelectItem>
-                <SelectItem value="server">Server</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
+                {deviceTypes.length > 0 ? (
+                  deviceTypes.map((type) => (
+                    <SelectItem key={type.code} value={type.code}>
+                      {type.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <>
+                    <SelectItem value="laptop">Laptop</SelectItem>
+                    <SelectItem value="desktop">Desktop</SelectItem>
+                    <SelectItem value="printer">Printer</SelectItem>
+                    <SelectItem value="mobile">Mobile Device</SelectItem>
+                    <SelectItem value="server">Server</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -171,11 +232,17 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {getLocationOptions().map((location) => (
-                  <SelectItem key={location.value} value={location.label}>
-                    {location.label}
-                  </SelectItem>
-                ))}
+                {locations.length > 0
+                  ? locations.map((location) => (
+                      <SelectItem key={location.code} value={location.code}>
+                        {location.name}
+                      </SelectItem>
+                    ))
+                  : getLocationOptions().map((location) => (
+                      <SelectItem key={location.value} value={location.label}>
+                        {location.label}
+                      </SelectItem>
+                    ))}
               </SelectContent>
             </Select>
           </div>

@@ -6,6 +6,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { username, email, fullName, password, phone, department, location } = body
 
+    console.log("[v0] Registration request:", { username, email, fullName, location })
+
     // Validate required fields
     if (!username || !email || !fullName || !location) {
       return NextResponse.json({ message: "Missing required fields" }, { status: 400 })
@@ -13,20 +15,25 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient()
 
-    // Check if user already exists
-    const { data: existingUser } = await supabase
+    const { data: existingUser, error: checkError } = await supabase
       .from("profiles")
       .select("id")
       .or(`username.eq.${username},email.eq.${email}`)
-      .single()
+      .maybeSingle()
+
+    if (checkError) {
+      console.error("[v0] Error checking existing user:", checkError)
+    }
 
     if (existingUser) {
+      console.log("[v0] User already exists")
       return NextResponse.json({ message: "Username or email already exists" }, { status: 409 })
     }
 
     const defaultPassword = "pa$$w0rd"
 
-    // Hash password using pgcrypto
+    console.log("[v0] Creating new user profile...")
+
     const { data: newUser, error } = await supabase
       .from("profiles")
       .insert([
@@ -34,12 +41,13 @@ export async function POST(request: NextRequest) {
           username,
           email,
           full_name: fullName,
-          phone,
-          department,
+          phone: phone || null,
+          department: department || "General",
           location,
-          password_hash: defaultPassword, // This will be hashed by the database trigger
+          password_hash: defaultPassword, // Database trigger will hash this
           role: "user", // Default role for self-registered users
           status: "approved", // Auto-approve with "user" role
+          is_active: true,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         },
@@ -48,9 +56,11 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error("Registration error:", error)
+      console.error("[v0] Registration error:", error)
       return NextResponse.json({ message: "Registration failed. Please try again." }, { status: 500 })
     }
+
+    console.log("[v0] User registered successfully:", newUser.id)
 
     return NextResponse.json(
       {
@@ -61,7 +71,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     )
   } catch (error) {
-    console.error("Registration error:", error)
+    console.error("[v0] Registration error:", error)
     return NextResponse.json({ message: "An error occurred during registration" }, { status: 500 })
   }
 }

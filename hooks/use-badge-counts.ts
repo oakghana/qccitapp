@@ -65,16 +65,54 @@ export function useBadgeCounts(user: User | null) {
         }
         const { count: ticketsCount } = await ticketsQuery
 
-        // Fetch repairs count
-        let repairsQuery = supabase
-          .from("repair_requests")
-          .select("*", { count: "exact", head: true })
-          .or("status.eq.pending,status.eq.in_progress")
+        let repairsCount = 0
+        try {
+          // For IT roles, try to fetch all repairs
+          if (
+            user.role === "admin" ||
+            user.role === "it_head" ||
+            user.role === "regional_it_head" ||
+            user.role === "it_staff"
+          ) {
+            // Query pending repairs
+            let pendingQuery = supabase
+              .from("repair_requests")
+              .select("*", { count: "exact", head: true })
+              .eq("status", "pending")
 
-        if (!canSeeAll && userLocation) {
-          repairsQuery = repairsQuery.eq("requester_location", userLocation)
+            if (!canSeeAll && userLocation) {
+              pendingQuery = pendingQuery.eq("requester_location", userLocation)
+            }
+            const { count: pendingCount, error: pendingError } = await pendingQuery
+
+            // Query in_progress repairs
+            let inProgressQuery = supabase
+              .from("repair_requests")
+              .select("*", { count: "exact", head: true })
+              .eq("status", "in_progress")
+
+            if (!canSeeAll && userLocation) {
+              inProgressQuery = inProgressQuery.eq("requester_location", userLocation)
+            }
+            const { count: inProgressCount, error: inProgressError } = await inProgressQuery
+
+            if (!pendingError && !inProgressError) {
+              repairsCount = (pendingCount || 0) + (inProgressCount || 0)
+            }
+          } else {
+            // For regular users, only show their own repairs
+            const { count: userRepairsCount } = await supabase
+              .from("repair_requests")
+              .select("*", { count: "exact", head: true })
+              .eq("requested_by", user.username)
+              .in("status", ["pending", "in_progress"])
+
+            repairsCount = userRepairsCount || 0
+          }
+        } catch (repairError) {
+          console.error("[v0] Error fetching repairs count:", repairError)
+          repairsCount = 0
         }
-        const { count: repairsCount } = await repairsQuery
 
         // Fetch store requisitions count
         let requisitionsQuery = supabase
@@ -126,7 +164,7 @@ export function useBadgeCounts(user: User | null) {
         setCounts({
           assignedTasks: tasksCount || 0,
           serviceDeskTickets: ticketsCount || 0,
-          repairs: repairsCount || 0,
+          repairs: repairsCount,
           storeRequisitions: requisitionsCount || 0,
           serviceProviders: providersCount || 0,
           userAccounts: accountsCount || 0,

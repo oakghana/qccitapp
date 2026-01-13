@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DeviceTransferForm } from "./device-transfer-form"
+import { AddDeviceForm } from "./add-device-form"
 import { Plus, Monitor, Smartphone, Printer, HardDrive, MoreHorizontal } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
@@ -67,6 +68,7 @@ export function DeviceInventory() {
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null)
   const [transferDeviceOpen, setTransferDeviceOpen] = useState(false)
   const [editDeviceOpen, setEditDeviceOpen] = useState(false)
+  const [addDeviceOpen, setAddDeviceOpen] = useState(false)
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState("")
   const [editFormData, setEditFormData] = useState({
@@ -75,7 +77,7 @@ export function DeviceInventory() {
     model: "",
     serial_number: "",
     status: "",
-    location: "", // Added location field
+    location: "",
     assigned_to: "",
     purchase_date: "",
     warranty_expiry: "",
@@ -86,7 +88,7 @@ export function DeviceInventory() {
 
   useEffect(() => {
     loadDevices()
-    loadLocations() // Load locations from database
+    loadLocations()
   }, [])
 
   const loadLocations = async () => {
@@ -168,9 +170,16 @@ export function DeviceInventory() {
   })
 
   const handleAddDevice = () => {
-    // Just reload devices after form saves to database
+    setAddDeviceOpen(true)
+  }
+
+  const handleAddDeviceSubmit = () => {
+    setAddDeviceOpen(false)
     loadDevices()
-    setTransferDeviceOpen(false)
+    toast({
+      title: "Success",
+      description: "Device added successfully",
+    })
   }
 
   const handleTransferDevice = (deviceId: string, newLocation: string, newAssignee: string) => {
@@ -198,7 +207,7 @@ export function DeviceInventory() {
       model: device.model,
       serial_number: device.serialNumber,
       status: device.status,
-      location: device.location, // Include location in form data
+      location: device.location,
       assigned_to: device.assignedTo,
       purchase_date: device.purchaseDate || "",
       warranty_expiry: device.warrantyExpiry || "",
@@ -224,7 +233,7 @@ export function DeviceInventory() {
           model: editFormData.model,
           serial_number: editFormData.serial_number,
           status: editFormData.status,
-          location: editFormData.location, // Include location in update
+          location: editFormData.location,
           assigned_to: editFormData.assigned_to,
           purchase_date: editFormData.purchase_date,
           warranty_expiry: editFormData.warranty_expiry,
@@ -260,8 +269,8 @@ export function DeviceInventory() {
   const locationNames: Record<string, string> = {}
   dbLocations.forEach((loc) => {
     locationNames[loc.code] = loc.name
-    locationNames[loc.code.toLowerCase()] = loc.name // Support lowercase codes
-    locationNames[loc.code.toUpperCase()] = loc.name // Support uppercase codes
+    locationNames[loc.code.toLowerCase()] = loc.name
+    locationNames[loc.code.toUpperCase()] = loc.name
   })
 
   if (loading) {
@@ -279,13 +288,12 @@ export function DeviceInventory() {
           <h1 className="text-3xl font-bold text-foreground">Device Inventory</h1>
           <p className="text-muted-foreground">Manage and track IT devices across all locations</p>
         </div>
-        <Button>
+        <Button onClick={handleAddDevice}>
           <Plus className="mr-2 h-4 w-4" />
           Add Device
         </Button>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col md:flex-row gap-4 items-end">
         <div className="flex-1">
           <Input
@@ -322,12 +330,15 @@ export function DeviceInventory() {
         </Select>
       </div>
 
-      {/* Device Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filteredDevices.map((device) => {
           const IconComponent = deviceTypeIcons[device.type]
           return (
-            <Card key={device.id} className="hover:shadow-md transition-shadow">
+            <Card
+              key={device.id}
+              className="hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => handleEditDevice(device)}
+            >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
@@ -339,7 +350,15 @@ export function DeviceInventory() {
                       <CardDescription className="text-sm">{device.id}</CardDescription>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleEditDevice(device)
+                    }}
+                  >
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </div>
@@ -387,7 +406,6 @@ export function DeviceInventory() {
         </Card>
       )}
 
-      {/* Transfer Device Dialog */}
       <Dialog open={transferDeviceOpen} onOpenChange={setTransferDeviceOpen}>
         <DialogContent>
           <DialogHeader>
@@ -407,7 +425,6 @@ export function DeviceInventory() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Device Dialog */}
       <Dialog open={editDeviceOpen} onOpenChange={setEditDeviceOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -523,6 +540,16 @@ export function DeviceInventory() {
               {editLoading ? "Saving..." : "Save Changes"}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addDeviceOpen} onOpenChange={setAddDeviceOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Device</DialogTitle>
+            <DialogDescription>Enter device details to add it to the inventory</DialogDescription>
+          </DialogHeader>
+          <AddDeviceForm onSubmit={handleAddDeviceSubmit} />
         </DialogContent>
       </Dialog>
     </div>
