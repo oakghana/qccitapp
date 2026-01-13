@@ -114,3 +114,13 @@ export function canAssignItems(user: User | null): boolean {
   if (user.role === "it_store_head") return true
   return false
 }
+
+/**
+ * Checks if a user can view stock balance reports
+ * All IT staff roles can view stock reports, except regular users
+ */
+export function canViewStockReports(user: User | null): boolean {
+  if (!user) return false
+  const allowedRoles = ["admin", "it_head", "regional_it_head", "it_staff", "it_store_head"]
+  return allowedRoles.includes(user.role)
+}

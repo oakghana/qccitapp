@@ -186,6 +186,11 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
         },
         { name: "Devices", href: "/dashboard/devices", icon: Monitor },
         { name: "Store Stock Levels", href: "/dashboard/store-snapshot", icon: Package },
+        {
+          name: "Stock Balance Report",
+          href: "/dashboard/store-summary-report",
+          icon: FileText,
+        },
         { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
       ]
     }
@@ -254,6 +259,11 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
         },
         {
+          name: "Stock Balance Report",
+          href: "/dashboard/store-summary-report",
+          icon: FileText,
+        },
+        {
           name: "IT Service Provider",
           href: "/dashboard/service-provider",
           icon: Truck,
@@ -296,6 +306,11 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
         { name: "Devices", href: "/dashboard/devices", icon: Monitor },
         { name: "Store Overview", href: "/dashboard/store-overview", icon: Package },
         { name: "Store Stock Levels", href: "/dashboard/store-snapshot", icon: Database },
+        {
+          name: "Stock Balance Report",
+          href: "/dashboard/store-summary-report",
+          icon: FileText,
+        },
         {
           name: "IT Service Provider",
           href: "/dashboard/service-provider",
