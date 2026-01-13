@@ -9,7 +9,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DeviceTransferForm } from "./device-transfer-form"
 import { AddDeviceForm } from "./add-device-form"
-import { Plus, Monitor, Smartphone, Printer, HardDrive, MoreHorizontal } from "lucide-react"
+import {
+  Plus,
+  Monitor,
+  Smartphone,
+  Printer,
+  HardDrive,
+  MoreHorizontal,
+  Laptop,
+  Server,
+  UsbIcon,
+  Download,
+} from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations } from "@/lib/location-filter"
@@ -43,11 +54,33 @@ interface Device {
 }
 
 const deviceTypeIcons = {
-  laptop: Monitor,
+  laptop: Laptop,
   desktop: Monitor,
   printer: Printer,
   mobile: Smartphone,
-  server: HardDrive,
+  server: Server,
+  monitor: Monitor,
+  scanner: Printer,
+  ups: HardDrive,
+  stabiliser: HardDrive,
+  network_cable: UsbIcon,
+  switch: Server,
+  router: Server,
+  projector: Monitor,
+  keyboard: Monitor,
+  mouse: Monitor,
+  webcam: Monitor,
+  headset: Smartphone,
+  external_hdd: HardDrive,
+  flash_drive: HardDrive,
+  network_adapter: UsbIcon,
+  docking_station: Monitor,
+  toner: Printer,
+  ink: Printer,
+  power_cable: UsbIcon,
+  hdmi_cable: UsbIcon,
+  vga_cable: UsbIcon,
+  trunk: Server,
   other: Monitor,
 }
 
@@ -266,6 +299,60 @@ export function DeviceInventory() {
     }
   }
 
+  const handleExportToExcel = () => {
+    try {
+      // Prepare data for export
+      const exportData = filteredDevices.map((device, index) => ({
+        "S/N": index + 1,
+        "Device Type": device.deviceType.toUpperCase(),
+        Brand: device.brand,
+        Model: device.model,
+        "Serial Number": device.serialNumber,
+        Status: device.status.charAt(0).toUpperCase() + device.status.slice(1),
+        Location: locationNames[device.location] || device.location,
+        "Assigned To": device.assignedTo,
+        "Purchase Date": device.purchaseDate || "N/A",
+        "Warranty Expiry": device.warrantyExpiry || "N/A",
+      }))
+
+      // Create CSV content
+      const headers = Object.keys(exportData[0] || {})
+      const csvContent = [
+        headers.join(","),
+        ...exportData.map((row) => headers.map((header) => `"${row[header as keyof typeof row]}"`).join(",")),
+      ].join("\n")
+
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+      const link = document.createElement("a")
+      const url = URL.createObjectURL(blob)
+
+      const filterSummary = []
+      if (statusFilter !== "all") filterSummary.push(statusFilter)
+      if (locationFilter !== "all") filterSummary.push(locationFilter)
+      const filename = `device-inventory${filterSummary.length ? "-" + filterSummary.join("-") : ""}-${new Date().toISOString().split("T")[0]}.csv`
+
+      link.setAttribute("href", url)
+      link.setAttribute("download", filename)
+      link.style.visibility = "hidden"
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      toast({
+        title: "Export Successful",
+        description: `Exported ${exportData.length} devices to ${filename}`,
+      })
+    } catch (error) {
+      console.error("[v0] Error exporting to Excel:", error)
+      toast({
+        title: "Export Failed",
+        description: "Failed to export device inventory",
+        variant: "destructive",
+      })
+    }
+  }
+
   const locationNames: Record<string, string> = {}
   dbLocations.forEach((loc) => {
     locationNames[loc.code] = loc.name
@@ -288,10 +375,16 @@ export function DeviceInventory() {
           <h1 className="text-3xl font-bold text-foreground">Device Inventory</h1>
           <p className="text-muted-foreground">Manage and track IT devices across all locations</p>
         </div>
-        <Button onClick={handleAddDevice}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Device
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExportToExcel} disabled={filteredDevices.length === 0}>
+            <Download className="mr-2 h-4 w-4" />
+            Export to Excel
+          </Button>
+          <Button onClick={handleAddDevice}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Device
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 items-end">
