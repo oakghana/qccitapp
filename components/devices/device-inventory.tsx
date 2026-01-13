@@ -13,7 +13,7 @@ import { Plus, Monitor, Smartphone, Printer, HardDrive, MoreHorizontal } from "l
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations } from "@/lib/location-filter"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/hooks/use-toast"
 
 interface Device {
   id: string
