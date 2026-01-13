@@ -25,10 +25,12 @@ import {
   Info,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { useOfflineCache } from "@/lib/offline-cache"
 import { cn } from "@/lib/utils"
 
 export default function SettingsPage() {
   const { user, setUser } = useAuth()
+  const { clearCache } = useOfflineCache()
   const [fullName, setFullName] = useState(user?.name || "")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -144,6 +146,23 @@ export default function SettingsPage() {
       setMessage({ type: "success", text: "Security settings updated successfully" })
       setIsLoading(false)
     }, 1000)
+  }
+
+  const handleClearCache = () => {
+    setIsLoading(true)
+
+    try {
+      clearCache()
+      setMessage({ type: "success", text: "Cache cleared successfully! Refreshing page..." })
+
+      setTimeout(() => {
+        window.location.reload()
+      }, 1500)
+    } catch (error) {
+      console.error("[v0] Failed to clear cache:", error)
+      setMessage({ type: "error", text: "Failed to clear cache. Please try again." })
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -472,6 +491,33 @@ export default function SettingsPage() {
               <Button onClick={handleNotificationSave} disabled={isLoading} variant="outline">
                 Save Privacy Settings
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-blue-600">
+                <Info className="h-5 w-5" />
+                Application Updates
+              </CardTitle>
+              <CardDescription>Clear cache to get the latest application updates</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 bg-blue-50 dark:bg-blue-950/50 rounded-lg border border-blue-200 dark:border-blue-800">
+                <h4 className="font-medium text-blue-800 dark:text-blue-300 mb-2">Clear Cache & Refresh</h4>
+                <p className="text-sm text-blue-700 dark:text-blue-400 mb-3">
+                  If you're experiencing issues or not seeing the latest updates, clearing your cache can help. This
+                  will remove all locally stored data and reload the page with fresh content.
+                </p>
+                <Button
+                  onClick={handleClearCache}
+                  disabled={isLoading}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white"
+                >
+                  {isLoading ? "Clearing Cache..." : "Clear Cache & Refresh"}
+                  <Save className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
