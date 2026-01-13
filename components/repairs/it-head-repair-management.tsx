@@ -36,7 +36,7 @@ interface Device {
   assetTag: string
   location: string
   assignedTo: string
-  status: "active" | "maintenance" | "faulty" | "retired"
+  status: "active" | "inactive" | "under_repair" | "retired"
 }
 
 interface ServiceProvider {
@@ -47,7 +47,7 @@ interface ServiceProvider {
   contact: string
   email: string
   rating: number
-  status: "active" | "busy" | "unavailable"
+  is_active: boolean
 }
 
 interface RepairTask {
@@ -97,7 +97,7 @@ export function ITHeadRepairManagement() {
 
   const loadDevices = async () => {
     try {
-      let query = supabase.from("devices").select("*").in("status", ["faulty", "maintenance"])
+      let query = supabase.from("devices").select("*").in("status", ["under_repair", "inactive"])
 
       if (user && !canSeeAllLocations(user)) {
         query = query.eq("location", user.location)
@@ -118,13 +118,14 @@ export function ITHeadRepairManagement() {
 
   const loadServiceProviders = async () => {
     try {
-      const { data, error } = await supabase.from("service_providers").select("*").eq("status", "active")
+      const { data, error } = await supabase.from("service_providers").select("*").eq("is_active", true).order("name")
 
       if (error) {
         console.error("[v0] Error loading service providers:", error)
         return
       }
 
+      console.log("[v0] Loaded service providers:", data)
       setServiceProviders(data || [])
     } catch (error) {
       console.error("[v0] Error loading service providers:", error)
@@ -133,7 +134,7 @@ export function ITHeadRepairManagement() {
 
   const loadRepairTasks = async () => {
     try {
-      let query = supabase.from("repair_tasks").select("*").order("created_at", { ascending: false })
+      let query = supabase.from("repair_requests").select("*").order("created_at", { ascending: false })
 
       if (user && !canSeeAllLocations(user)) {
         query = query.eq("location", user.location)
@@ -318,7 +319,7 @@ export function ITHeadRepairManagement() {
                       </SelectTrigger>
                       <SelectContent>
                         {devices
-                          .filter((d) => d.status === "faulty" || d.status === "maintenance")
+                          .filter((d) => d.status === "under_repair" || d.status === "inactive")
                           .map((device) => (
                             <SelectItem key={device.id} value={device.id}>
                               {device.assetTag} - {device.type} ({device.brand} {device.model})
@@ -335,13 +336,17 @@ export function ITHeadRepairManagement() {
                         <SelectValue placeholder="Choose service provider" />
                       </SelectTrigger>
                       <SelectContent>
-                        {serviceProviders
-                          .filter((p) => p.status === "active")
-                          .map((provider) => (
+                        {serviceProviders.length > 0 ? (
+                          serviceProviders.map((provider) => (
                             <SelectItem key={provider.id} value={provider.id}>
-                              {provider.name} - {provider.company}
+                              {provider.name}
                             </SelectItem>
-                          ))}
+                          ))
+                        ) : (
+                          <SelectItem value="loading" disabled>
+                            Loading service providers...
+                          </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>

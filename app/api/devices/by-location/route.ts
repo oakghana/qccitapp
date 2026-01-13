@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Username is required" }, { status: 401 })
     }
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Verify user exists
     const { data: userProfile } = await supabase.from("profiles").select("*").eq("username", username).single()

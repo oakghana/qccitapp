@@ -6,15 +6,16 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { FormNavigation } from "@/components/ui/form-navigation"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "@/components/ui/use-toast"
 
 interface Device {
-  type: string
+  type: "laptop" | "desktop" | "printer" | "ups" | "stabiliser" | "mobile" | "server" | "other"
   serialNumber: string
   model: string
   brand: string
-  status: string
+  status: "active" | "repair" | "maintenance" | "retired"
   location: string
   assignedTo: string
   purchaseDate: string
@@ -38,7 +39,7 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
     model: "",
     brand: "",
     status: "active",
-    location: "head_office",
+    location: "",
     assignedTo: "",
     purchaseDate: new Date().toISOString().split("T")[0],
     warrantyExpiry: "",
@@ -50,30 +51,35 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
         const typesRes = await fetch("/api/admin/lookup-data?type=device_types")
         if (typesRes.ok) {
           const types = await typesRes.json()
+          console.log("[v0] Loaded device types:", types)
           const activeTypes = types.filter((t: any) => t.is_active)
           setDeviceTypes(activeTypes)
           if (activeTypes.length > 0) {
             setFormData((prev) => ({ ...prev, type: activeTypes[0].code }))
           }
+        } else {
+          console.error("[v0] Failed to load device types:", typesRes.status)
         }
 
         const locsRes = await fetch("/api/admin/lookup-data?type=locations")
         if (locsRes.ok) {
           const locs = await locsRes.json()
+          console.log("[v0] Loaded locations:", locs)
           const activeLocs = locs.filter((l: any) => l.is_active)
           setLocations(activeLocs)
-          if (activeLocs.length > 0) {
+          if (activeLocs.length > 0 && !formData.location) {
             setFormData((prev) => ({ ...prev, location: activeLocs[0].code }))
           }
+        } else {
+          console.error("[v0] Failed to load locations:", locsRes.status)
         }
       } catch (error) {
-        console.error("Error fetching lookup data:", error)
-        setDeviceTypes([
-          { code: "laptop", name: "Laptop" },
-          { code: "desktop", name: "Desktop" },
-          { code: "printer", name: "Printer" },
-        ])
-        setLocations([{ code: "head_office", name: "Head Office" }])
+        console.error("[v0] Error fetching lookup data:", error)
+        toast({
+          title: "Warning",
+          description: "Could not load device types and locations. Using defaults.",
+          variant: "destructive",
+        })
       }
     }
     fetchLookupData()
@@ -85,6 +91,8 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
     setLoading(true)
 
     try {
+      console.log("[v0] Saving device to Supabase:", formData)
+
       const { data, error: insertError } = await supabase
         .from("devices")
         .insert([
@@ -105,7 +113,7 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
         .select()
 
       if (insertError) {
-        console.error("Error saving device:", insertError)
+        console.error("[v0] Error saving device:", insertError)
         setError(insertError.message)
         toast({
           title: "Error",
@@ -115,13 +123,14 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
         return
       }
 
+      console.log("[v0] Device saved successfully:", data)
       toast({
         title: "Success",
         description: "Device added successfully",
       })
       onSubmit()
     } catch (err) {
-      console.error("Error:", err)
+      console.error("[v0] Error:", err)
       const errorMsg = "Failed to save device"
       setError(errorMsg)
       toast({
@@ -139,126 +148,147 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {error && <div className="bg-destructive/10 text-destructive px-4 py-2 rounded">{error}</div>}
+    <div>
+      <FormNavigation currentPage="/dashboard/devices" />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="type">Device Type</Label>
-          <Select value={formData.type} onValueChange={(value) => handleInputChange("type", value)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {deviceTypes.map((type) => (
-                <SelectItem key={type.code} value={type.code}>
-                  {type.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <div className="bg-destructive/10 text-destructive px-4 py-2 rounded">{error}</div>}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="type">Device Type *</Label>
+            <Select value={formData.type} onValueChange={(value) => handleInputChange("type", value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select device type" />
+              </SelectTrigger>
+              <SelectContent>
+                {deviceTypes.length > 0 ? (
+                  deviceTypes.map((type) => (
+                    <SelectItem key={type.code} value={type.code}>
+                      {type.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <>
+                    <SelectItem value="laptop">Laptop</SelectItem>
+                    <SelectItem value="desktop">Desktop</SelectItem>
+                    <SelectItem value="printer">Printer</SelectItem>
+                    <SelectItem value="ups">UPS</SelectItem>
+                    <SelectItem value="stabiliser">Stabiliser</SelectItem>
+                    <SelectItem value="mobile">Mobile Device</SelectItem>
+                    <SelectItem value="server">Server</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="brand">Brand</Label>
+            <Input
+              id="brand"
+              value={formData.brand}
+              onChange={(e) => handleInputChange("brand", e.target.value)}
+              placeholder="e.g., Dell, HP, Lenovo"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="model">Model</Label>
+            <Input
+              id="model"
+              value={formData.model}
+              onChange={(e) => handleInputChange("model", e.target.value)}
+              placeholder="e.g., Latitude 5520"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="serialNumber">Serial Number</Label>
+            <Input
+              id="serialNumber"
+              value={formData.serialNumber}
+              onChange={(e) => handleInputChange("serialNumber", e.target.value)}
+              placeholder="Device serial number"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="status">Status</Label>
+            <Select value={formData.status} onValueChange={(value) => handleInputChange("status", value)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="repair">Under Repair</SelectItem>
+                <SelectItem value="maintenance">Maintenance</SelectItem>
+                <SelectItem value="retired">Retired</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="location">Location *</Label>
+            <Select value={formData.location} onValueChange={(value) => handleInputChange("location", value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select location" />
+              </SelectTrigger>
+              <SelectContent>
+                {locations.length > 0 ? (
+                  locations.map((loc) => (
+                    <SelectItem key={loc.code} value={loc.code}>
+                      {loc.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="head_office">Head Office</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="assignedTo">Assigned To</Label>
+            <Input
+              id="assignedTo"
+              value={formData.assignedTo}
+              onChange={(e) => handleInputChange("assignedTo", e.target.value)}
+              placeholder="Person or department name (optional)"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="purchaseDate">Purchase Date</Label>
+            <Input
+              id="purchaseDate"
+              type="date"
+              value={formData.purchaseDate}
+              onChange={(e) => handleInputChange("purchaseDate", e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="warrantyExpiry">Warranty Expiry</Label>
+            <Input
+              id="warrantyExpiry"
+              type="date"
+              value={formData.warrantyExpiry}
+              onChange={(e) => handleInputChange("warrantyExpiry", e.target.value)}
+            />
+          </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="brand">Brand</Label>
-          <Input
-            id="brand"
-            value={formData.brand}
-            onChange={(e) => handleInputChange("brand", e.target.value)}
-            placeholder="e.g., Dell, HP, Lenovo"
-            required
-          />
+        <div className="flex justify-end space-x-2 pt-4">
+          <Button type="submit" disabled={loading}>
+            {loading ? "Saving..." : "Add Device"}
+          </Button>
         </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="model">Model</Label>
-          <Input
-            id="model"
-            value={formData.model}
-            onChange={(e) => handleInputChange("model", e.target.value)}
-            placeholder="e.g., Latitude 5520"
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="serialNumber">Serial Number</Label>
-          <Input
-            id="serialNumber"
-            value={formData.serialNumber}
-            onChange={(e) => handleInputChange("serialNumber", e.target.value)}
-            placeholder="Device serial number"
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="status">Status</Label>
-          <Select value={formData.status} onValueChange={(value) => handleInputChange("status", value)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="repair">Under Repair</SelectItem>
-              <SelectItem value="maintenance">Maintenance</SelectItem>
-              <SelectItem value="retired">Retired</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="location">Location</Label>
-          <Select value={formData.location} onValueChange={(value) => handleInputChange("location", value)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {locations.map((location) => (
-                <SelectItem key={location.code} value={location.code}>
-                  {location.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="assignedTo">Assigned To</Label>
-          <Input
-            id="assignedTo"
-            value={formData.assignedTo}
-            onChange={(e) => handleInputChange("assignedTo", e.target.value)}
-            placeholder="Person or department name (optional)"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="purchaseDate">Purchase Date</Label>
-          <Input
-            id="purchaseDate"
-            type="date"
-            value={formData.purchaseDate}
-            onChange={(e) => handleInputChange("purchaseDate", e.target.value)}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="warrantyExpiry">Warranty Expiry</Label>
-          <Input
-            id="warrantyExpiry"
-            type="date"
-            value={formData.warrantyExpiry}
-            onChange={(e) => handleInputChange("warrantyExpiry", e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="flex justify-end space-x-2 pt-4">
-        <Button type="submit" disabled={loading}>
-          {loading ? "Saving..." : "Add Device"}
-        </Button>
-      </div>
-    </form>
+      </form>
+    </div>
   )
 }

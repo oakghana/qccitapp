@@ -98,10 +98,18 @@ export default function DeviceSummaryReportPage() {
       const response = await fetch(
         `/api/devices/by-location?location=${encodeURIComponent(location)}&username=${encodeURIComponent(user.username)}`,
       )
+
+      if (!response.ok) {
+        console.error("[v0] Failed to fetch location devices:", response.status)
+        setLocationDevices([])
+        return
+      }
+
       const devices = await response.json()
-      setLocationDevices(devices)
+      setLocationDevices(Array.isArray(devices) ? devices : [])
     } catch (err) {
       console.error("[v0] Error loading location devices:", err)
+      setLocationDevices([])
     } finally {
       setLoadingDevices(false)
     }

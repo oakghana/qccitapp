@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createServerClient } from "@/lib/supabase/server"
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Missing required fields" }, { status: 400 })
     }
 
-    const supabase = await createClient()
+    const supabase = await createServerClient()
 
     const { data: existingUser, error: checkError } = await supabase
       .from("profiles")
@@ -44,9 +44,9 @@ export async function POST(request: NextRequest) {
           phone: phone || null,
           department: department || "General",
           location,
-          password_hash: defaultPassword, // Database trigger will hash this
-          role: "user", // Default role for self-registered users
-          status: "approved", // Auto-approve with "user" role
+          password_hash: defaultPassword,
+          role: "user",
+          status: "approved",
           is_active: true,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       {
         message: "Registration successful. Your default password is: pa$$w0rd. Please change it after first login.",
         userId: newUser.id,
-        defaultPassword: "pa$$w0rd", // Send default password in response
+        defaultPassword: "pa$$w0rd",
       },
       { status: 201 },
     )
