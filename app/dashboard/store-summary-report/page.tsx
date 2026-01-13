@@ -43,17 +43,26 @@ export default function StoreSummaryReportPage() {
   useEffect(() => {
     async function fetchFilters() {
       try {
+        console.log("[v0] Fetching filter options...")
+
         // Fetch locations
         const locResponse = await fetch("/api/admin/lookup-data?type=locations")
         const locData = await locResponse.json()
-        if (locData.locations) {
-          setLocations(locData.locations.map((loc: any) => loc.name))
+        console.log("[v0] Locations response:", locData)
+
+        // API returns array directly, not wrapped in object
+        if (Array.isArray(locData)) {
+          setLocations(locData.map((loc: any) => loc.name))
         }
 
+        // Fetch device types
         const typeResponse = await fetch("/api/admin/lookup-data?type=device_types")
         const typeData = await typeResponse.json()
-        if (typeData.device_types) {
-          setDeviceTypes(typeData.device_types)
+        console.log("[v0] Device types response:", typeData)
+
+        // API returns array directly, not wrapped in object
+        if (Array.isArray(typeData)) {
+          setDeviceTypes(typeData)
         }
       } catch (error) {
         console.error("[v0] Error loading filter options:", error)
@@ -69,20 +78,38 @@ export default function StoreSummaryReportPage() {
   async function loadReport() {
     try {
       setLoading(true)
+      console.log("[v0] Loading stock balance report with filters:", {
+        location: selectedLocation,
+        deviceType: selectedDeviceType,
+        startDate,
+        endDate,
+      })
+
       const params = new URLSearchParams({
         location: selectedLocation,
         deviceType: selectedDeviceType,
         startDate,
         endDate,
       })
-      const response = await fetch(`/api/store/stock-balance-report?${params}`)
+
+      // Get current user from localStorage for authentication
+      const currentUser = localStorage.getItem("qcc_current_user")
+      const username = currentUser ? JSON.parse(currentUser).username : ""
+
+      const response = await fetch(`/api/store/stock-balance-report?${params}`, {
+        headers: {
+          "x-username": username,
+        },
+      })
 
       if (!response.ok) {
-        console.error("[v0] Error loading stock balance report")
+        const errorData = await response.json()
+        console.error("[v0] Error loading stock balance report:", errorData)
         return
       }
 
       const { report: data } = await response.json()
+      console.log("[v0] Stock balance report loaded, items:", data?.length || 0)
       setReport(data || [])
     } catch (error) {
       console.error("[v0] Error loading stock balance report:", error)
