@@ -118,17 +118,20 @@ export function ITHeadRepairManagement() {
 
   const loadServiceProviders = async () => {
     try {
+      console.log("[v0] Loading service providers from database...")
       const { data, error } = await supabase.from("service_providers").select("*").eq("is_active", true).order("name")
 
       if (error) {
         console.error("[v0] Error loading service providers:", error)
+        console.error("[v0] Error details:", JSON.stringify(error))
         return
       }
 
-      console.log("[v0] Loaded service providers:", data)
+      console.log("[v0] Successfully loaded service providers:", data)
+      console.log("[v0] Number of providers:", data?.length || 0)
       setServiceProviders(data || [])
     } catch (error) {
-      console.error("[v0] Error loading service providers:", error)
+      console.error("[v0] Exception loading service providers:", error)
     }
   }
 

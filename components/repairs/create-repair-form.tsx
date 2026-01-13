@@ -29,17 +29,24 @@ export function CreateRepairForm({ onSubmit, onCancel }: CreateRepairFormProps) 
   useEffect(() => {
     const fetchServiceProviders = async () => {
       try {
+        console.log("[v0] Fetching service providers for repair form...")
         const { data, error } = await supabase
           .from("service_providers")
           .select("id, name")
           .eq("is_active", true)
           .order("name")
 
-        if (error) throw error
-        console.log("[v0] Loaded service providers:", data)
+        if (error) {
+          console.error("[v0] Error fetching service providers:", error)
+          console.error("[v0] Error details:", JSON.stringify(error))
+          throw error
+        }
+
+        console.log("[v0] Loaded service providers for repair form:", data)
+        console.log("[v0] Provider count:", data?.length || 0)
         setServiceProviders(data || [])
       } catch (error) {
-        console.error("[v0] Error fetching service providers:", error)
+        console.error("[v0] Exception fetching service providers:", error)
       }
     }
 

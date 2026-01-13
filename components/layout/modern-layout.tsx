@@ -16,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Bell, Search, User, LogOut, ChevronDown, WifiOff, Zap, Loader2 } from "lucide-react"
+import { Bell, Search, User, LogOut, ChevronDown, WifiOff, Zap, Loader2, RefreshCw } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useNotifications } from "@/lib/notification-context"
 import { useOfflineCache } from "@/lib/offline-cache"
@@ -35,7 +35,7 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
   const [showMobileDownload, setShowMobileDownload] = useState(false)
   const { user, logout } = useAuth()
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
-  const { setupConnectivityListeners, preloadCriticalData, isOnline: checkOnline } = useOfflineCache()
+  const { setupConnectivityListeners, preloadCriticalData, isOnline: checkOnline, clearCache } = useOfflineCache()
 
   useEffect(() => {
     setIsMounted(true)
@@ -64,7 +64,26 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
   }, [])
 
   const handleLogout = () => {
-    logout()
+    // Clear cache before logout
+    clearCache()
+    // Wait a moment for cache to clear, then logout
+    setTimeout(() => {
+      logout()
+    }, 100)
+  }
+
+  const handleClearCache = () => {
+    clearCache()
+    // Show toast notification
+    const toast = document.createElement("div")
+    toast.textContent = "Cache cleared! Refreshing..."
+    toast.className = "fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50"
+    document.body.appendChild(toast)
+
+    // Reload page after short delay
+    setTimeout(() => {
+      window.location.reload()
+    }, 500)
   }
 
   const recentNotifications = notifications.slice(0, 5)
@@ -143,6 +162,18 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
               <span className="ml-3 text-sm text-orange-500 bg-white px-2 py-1 rounded-md dark:bg-orange-900/50">
                 ⌘K
               </span>
+            </Button>
+
+            {/* Clear Cache & Refresh button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearCache}
+              className="flex items-center gap-2 h-12 px-4 bg-gradient-to-r from-blue-100 to-cyan-100 hover:from-blue-200 hover:to-cyan-200 text-blue-700 border-none rounded-xl shadow-sm dark:from-blue-900/30 dark:to-cyan-900/30 dark:text-blue-300"
+              title="Clear cache and refresh to get latest updates"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span className="hidden lg:inline text-sm">Clear Cache</span>
             </Button>
 
             {/* Offline Indicator */}

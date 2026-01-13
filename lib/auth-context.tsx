@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { offlineCacheManager } from "@/lib/offline-cache"
 
 export interface User {
   id: string
@@ -58,6 +59,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const logout = async () => {
+    // Clear cache before logout
+    offlineCacheManager.clearCache()
+
     setUser(null)
     localStorage.removeItem("qcc_current_user")
     try {

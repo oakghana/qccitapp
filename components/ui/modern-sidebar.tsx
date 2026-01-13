@@ -38,6 +38,7 @@ import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
 import { getRoleColorScheme } from "@/lib/role-colors"
 import { useBadgeCounts } from "@/hooks/use-badge-counts"
+import { offlineCacheManager } from "@/lib/offline-cache"
 
 interface NavigationItem {
   name: string
@@ -375,8 +376,14 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
   }
 
   const handleLogout = () => {
-    logout()
-    window.location.href = "/"
+    // Clear cache before logout
+    offlineCacheManager.clearCache()
+
+    // Wait a moment for cache to clear, then logout
+    setTimeout(() => {
+      logout()
+      window.location.href = "/"
+    }, 100)
   }
 
   const navigation = getNavigationItems()
