@@ -3,93 +3,130 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Download, TrendingDown, AlertTriangle } from "lucide-react"
+import { Download, Calendar, FileText } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { FormNavigation } from "@/components/ui/form-navigation"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-interface SummaryItem {
+interface StockBalanceItem {
+  code: string
   itemName: string
-  category: string
-  previousMonthBalance: number
-  quantityIssuedThisMonth: number
-  currentStock: number
-  reorderLevel: number
-  quantityRequired: number
-  totalValue: number
+  unitOfMeasure: string
+  openingBalance: number
+  receipts: number
+  issues: number
+  closingBalance: number
   location: string
-  status: "In Stock" | "Low Stock" | "Out of Stock"
+  remarks: string
 }
 
 export default function StoreSummaryReportPage() {
   const { user } = useAuth()
   const [loading, setLoading] = useState(true)
-  const [report, setReport] = useState<SummaryItem[]>([])
+  const [report, setReport] = useState<StockBalanceItem[]>([])
+  const [selectedLocation, setSelectedLocation] = useState("all")
+  const [startDate, setStartDate] = useState(() => {
+    const date = new Date()
+    date.setDate(1) // First day of current month
+    return date.toISOString().split("T")[0]
+  })
+  const [endDate, setEndDate] = useState(() => {
+    return new Date().toISOString().split("T")[0]
+  })
+  const [locations, setLocations] = useState<string[]>([])
 
   useEffect(() => {
-    async function loadReport() {
+    async function fetchLocations() {
       try {
-        setLoading(true)
-        const response = await fetch("/api/store/summary-report")
-
-        if (!response.ok) {
-          console.error("[v0] Error loading summary report")
-          return
+        const response = await fetch("/api/admin/lookup-data?type=locations")
+        const data = await response.json()
+        if (data.locations) {
+          setLocations(data.locations.map((loc: any) => loc.name))
         }
-
-        const { report: data } = await response.json()
-        setReport(data)
       } catch (error) {
-        console.error("[v0] Error loading summary report:", error)
-      } finally {
-        setLoading(false)
+        console.error("[v0] Error loading locations:", error)
       }
     }
-
-    loadReport()
+    fetchLocations()
   }, [])
 
+  useEffect(() => {
+    loadReport()
+  }, [selectedLocation, startDate, endDate])
+
+  async function loadReport() {
+    try {
+      setLoading(true)
+      const params = new URLSearchParams({
+        location: selectedLocation,
+        startDate,
+        endDate,
+      })
+      const response = await fetch(`/api/store/stock-balance-report?${params}`)
+
+      if (!response.ok) {
+        console.error("[v0] Error loading stock balance report")
+        return
+      }
+
+      const { report: data } = await response.json()
+      setReport(data || [])
+    } catch (error) {
+      console.error("[v0] Error loading stock balance report:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const exportToCSV = () => {
+    const locationName = selectedLocation === "all" ? "ALL LOCATIONS" : selectedLocation.toUpperCase()
+    const periodEnd = new Date(endDate).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    })
+
+    const title = `${locationName}\nSTOCK BALANCE AS AT ${periodEnd.toUpperCase()}\nIT ACCESSORIES`
+
     const headers = [
-      "Item Name",
-      "Category",
-      "Previous Month Balance",
-      "Qty Issued This Month",
-      "Current Stock",
-      "Reorder Level",
-      "Qty Required",
-      "Total Value (GHC)",
-      "Location",
-      "Status",
+      "S/N",
+      "CODE",
+      "STOCK ITEM",
+      "UNIT OF MEAS.",
+      "OPENING BALANCE",
+      "RECEIPT",
+      "ISSUES",
+      "CLOSING BALANCE",
+      "REMARKS",
     ]
 
-    const rows = report.map((item) => [
+    const rows = report.map((item, index) => [
+      (index + 1).toString(),
+      item.code,
       item.itemName,
-      item.category,
-      item.previousMonthBalance,
-      item.quantityIssuedThisMonth,
-      item.currentStock,
-      item.reorderLevel,
-      item.quantityRequired,
-      item.totalValue.toFixed(2),
-      item.location,
-      item.status,
+      item.unitOfMeasure,
+      item.openingBalance.toString(),
+      item.receipts.toString(),
+      item.issues.toString(),
+      item.closingBalance.toString(),
+      item.remarks || "",
     ])
 
-    const csv = [headers, ...rows].map((row) => row.join(",")).join("\n")
-    const blob = new Blob([csv], { type: "text/csv" })
+    const csv = [title.split("\n"), [], headers, ...rows].map((row) => row.join(",")).join("\n")
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `store-summary-report-${new Date().toISOString().split("T")[0]}.csv`
+    a.download = `stock-balance-${selectedLocation}-${endDate}.csv`
     a.click()
+    window.URL.revokeObjectURL(url)
   }
 
-  const totals = {
-    totalValue: report.reduce((sum, item) => sum + item.totalValue, 0),
-    totalRequired: report.reduce((sum, item) => sum + item.quantityRequired, 0),
-    lowStock: report.filter((item) => item.status === "Low Stock").length,
-    outOfStock: report.filter((item) => item.status === "Out of Stock").length,
+  const printReport = () => {
+    window.print()
   }
 
   return (
@@ -98,134 +135,142 @@ export default function StoreSummaryReportPage() {
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold">Store Summary Report</h2>
-          <p className="text-muted-foreground">Comprehensive inventory analysis and procurement planning</p>
+          <h2 className="text-2xl font-bold">Stock Balance Report</h2>
+          <p className="text-muted-foreground">Stock movement tracking with opening and closing balances</p>
         </div>
 
-        <Button onClick={exportToCSV} className="bg-green-600 hover:bg-green-700">
-          <Download className="mr-2 h-4 w-4" />
-          Export Report
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={printReport} variant="outline" className="gap-2 bg-transparent">
+            <FileText className="h-4 w-4" />
+            Print Report
+          </Button>
+          <Button onClick={exportToCSV} className="bg-green-600 hover:bg-green-700 gap-2">
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Inventory Value</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">GHC {totals.totalValue.toLocaleString()}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Items Required</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totals.totalRequired}</div>
-            <p className="text-xs text-muted-foreground">Units needed for reorder</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Low Stock Items</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold text-orange-600">{totals.lowStock}</div>
-              <AlertTriangle className="h-5 w-5 text-orange-600" />
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Report Period & Location
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="start-date">From Date</Label>
+              <Input id="start-date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Out of Stock</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold text-red-600">{totals.outOfStock}</div>
-              <TrendingDown className="h-5 w-5 text-red-600" />
+            <div className="space-y-2">
+              <Label htmlFor="end-date">To Date</Label>
+              <Input id="end-date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <div className="space-y-2">
+              <Label htmlFor="location">Location</Label>
+              <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                <SelectTrigger id="location">
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Locations</SelectItem>
+                  {locations.map((loc) => (
+                    <SelectItem key={loc} value={loc}>
+                      {loc}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {loading ? (
         <Card>
           <CardContent className="p-8 text-center">
-            <p>Loading report data...</p>
+            <p>Loading stock balance report...</p>
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Inventory Details</CardTitle>
-            <CardDescription>Item-level analysis with procurement history</CardDescription>
+        <Card className="print:shadow-none">
+          <CardHeader className="print:text-center">
+            <CardTitle className="print:text-2xl">
+              {selectedLocation === "all" ? "ALL LOCATIONS" : selectedLocation.toUpperCase()}
+            </CardTitle>
+            <CardDescription className="print:text-lg print:text-black">
+              STOCK BALANCE AS AT{" "}
+              {new Date(endDate)
+                .toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+                .toUpperCase()}
+              <br />
+              IT ACCESSORIES
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
+              <table className="w-full border-collapse border border-gray-300">
                 <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-3 font-semibold">Item Name</th>
-                    <th className="text-left p-3 font-semibold">Category</th>
-                    <th className="text-right p-3 font-semibold">Previous Month</th>
-                    <th className="text-right p-3 font-semibold">This Month</th>
-                    <th className="text-right p-3 font-semibold">Current</th>
-                    <th className="text-right p-3 font-semibold">Reorder</th>
-                    <th className="text-right p-3 font-semibold">Required</th>
-                    <th className="text-right p-3 font-semibold">Value</th>
-                    <th className="text-left p-3 font-semibold">Location</th>
-                    <th className="text-left p-3 font-semibold">Status</th>
+                  <tr className="bg-gray-100">
+                    <th className="border border-gray-300 p-2 text-left font-semibold">S/N</th>
+                    <th className="border border-gray-300 p-2 text-left font-semibold">CODE</th>
+                    <th className="border border-gray-300 p-2 text-left font-semibold">STOCK ITEM</th>
+                    <th className="border border-gray-300 p-2 text-left font-semibold">UNIT OF MEAS.</th>
+                    <th className="border border-gray-300 p-2 text-right font-semibold">OPENING BALANCE</th>
+                    <th className="border border-gray-300 p-2 text-right font-semibold">RECEIPT</th>
+                    <th className="border border-gray-300 p-2 text-right font-semibold">ISSUES</th>
+                    <th className="border border-gray-300 p-2 text-right font-semibold">CLOSING BALANCE</th>
+                    <th className="border border-gray-300 p-2 text-left font-semibold">REMARKS</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {report.map((item, index) => (
-                    <tr key={index} className="border-b hover:bg-muted/50">
-                      <td className="p-3 font-medium">{item.itemName}</td>
-                      <td className="p-3">{item.category}</td>
-                      <td className="p-3 text-right">{item.previousMonthBalance}</td>
-                      <td className="p-3 text-right">{item.quantityIssuedThisMonth}</td>
-                      <td className="p-3 text-right font-semibold">{item.currentStock}</td>
-                      <td className="p-3 text-right">{item.reorderLevel}</td>
-                      <td className="p-3 text-right">
-                        {item.quantityRequired > 0 ? (
-                          <span className="text-red-600 font-semibold">{item.quantityRequired}</span>
-                        ) : (
-                          <span className="text-green-600">-</span>
-                        )}
-                      </td>
-                      <td className="p-3 text-right">GHC {item.totalValue.toLocaleString()}</td>
-                      <td className="p-3">{item.location}</td>
-                      <td className="p-3">
-                        <Badge
-                          variant={
-                            item.status === "Out of Stock"
-                              ? "destructive"
-                              : item.status === "Low Stock"
-                                ? "default"
-                                : "secondary"
-                          }
-                          className={
-                            item.status === "Low Stock"
-                              ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100"
-                              : ""
-                          }
-                        >
-                          {item.status}
-                        </Badge>
+                  {report.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="border border-gray-300 p-4 text-center text-muted-foreground">
+                        No stock data available for the selected period
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    report.map((item, index) => (
+                      <tr key={item.code} className="hover:bg-gray-50">
+                        <td className="border border-gray-300 p-2">{index + 1}</td>
+                        <td className="border border-gray-300 p-2 font-medium">{item.code}</td>
+                        <td className="border border-gray-300 p-2">{item.itemName}</td>
+                        <td className="border border-gray-300 p-2 text-center">{item.unitOfMeasure}</td>
+                        <td className="border border-gray-300 p-2 text-right">{item.openingBalance}</td>
+                        <td className="border border-gray-300 p-2 text-right">{item.receipts}</td>
+                        <td className="border border-gray-300 p-2 text-right">{item.issues}</td>
+                        <td className="border border-gray-300 p-2 text-right font-semibold">{item.closingBalance}</td>
+                        <td className="border border-gray-300 p-2 text-sm">{item.remarks}</td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
           </CardContent>
         </Card>
       )}
+
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .print\\:shadow-none,
+          .print\\:shadow-none * {
+            visibility: visible;
+          }
+          .print\\:shadow-none {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+        }
+      `}</style>
     </div>
   )
 }
