@@ -13,6 +13,7 @@ export interface User {
     | "it_staff"
     | "it_store_head"
     | "staff"
+    | "user"
     | "service_provider"
     | "service_desk_accra"
     | "service_desk_kumasi"
@@ -30,6 +31,7 @@ export interface User {
 
 interface AuthContextType {
   user: User | null
+  setUser: (user: User | null) => void
   logout: () => void
   canViewAllLocations: () => boolean
   getUserLocation: () => string
@@ -80,8 +82,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return user?.location || "Head Office"
   }
 
+  const updateUser = (newUser: User | null) => {
+    setUser(newUser)
+    if (newUser) {
+      localStorage.setItem("qcc_current_user", JSON.stringify(newUser))
+    } else {
+      localStorage.removeItem("qcc_current_user")
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, logout, canViewAllLocations, getUserLocation }}>
+    <AuthContext.Provider value={{ user, setUser: updateUser, logout, canViewAllLocations, getUserLocation }}>
       {children}
     </AuthContext.Provider>
   )

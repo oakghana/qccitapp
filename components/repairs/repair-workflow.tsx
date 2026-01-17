@@ -86,8 +86,8 @@ export function RepairWorkflow() {
     try {
       let query = supabase.from("repair_requests").select("*").order("created_at", { ascending: false })
 
-      if (!canSeeAllLocations(user)) {
-        query = query.eq("location", user.location)
+      if (!canSeeAllLocations(user) && user.location) {
+        query = query.ilike("location", user.location)
       }
 
       const { data, error } = await query

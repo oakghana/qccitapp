@@ -1,37 +1,11 @@
 import { createServerClient } from "@/lib/supabase/server"
-import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 
 export async function GET(request: Request) {
   try {
-    const cookieStore = await cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value
-          },
-        },
-      },
-    )
+    const supabase = await createServerClient()
 
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    // Get user profile
-    const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-
-    if (!profile || (profile.role !== "admin" && profile.role !== "it_store_head")) {
-      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 })
-    }
-
+    // Get all store items - no auth required for summary report
     const { data: items, error } = await supabase.from("store_items").select("*").order("name")
 
     if (error) {

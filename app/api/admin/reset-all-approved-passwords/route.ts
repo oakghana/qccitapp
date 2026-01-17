@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs"
 
 export async function POST() {
   try {
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Default password for all approved users
     const DEFAULT_PASSWORD = "pa$$w0rd"

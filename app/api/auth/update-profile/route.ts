@@ -13,7 +13,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Name must be at least 2 characters long" }, { status: 400 })
     }
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Update user name in profiles table
     const { data, error } = await supabase

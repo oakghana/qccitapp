@@ -14,6 +14,8 @@ export const LOCATIONS = {
   eastern: "Eastern",
   nsawam: "Nsawam",
   cr: "CR",
+  cape_coast: "Cape Coast",
+  sunyani: "Sunyani",
 } as const
 
 export type LocationKey = keyof typeof LOCATIONS

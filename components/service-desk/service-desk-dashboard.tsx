@@ -27,24 +27,30 @@ export function ServiceDeskDashboard() {
   const loadTickets = async () => {
     try {
       setLoading(true)
-      let query = supabase.from("service_tickets").select("*").order("created_at", { ascending: false })
+      const location = getUserLocation() || ""
+      const canSeeAll = canViewAllLocations()
+      
+      console.log("[v0] Loading tickets via API for user:", user?.role, "location:", location, "canSeeAll:", canSeeAll)
+      
+      // Use API endpoint that bypasses RLS
+      const params = new URLSearchParams({
+        location: location,
+        canSeeAll: String(canSeeAll),
+        userRole: user?.role || "",
+        userId: user?.full_name || user?.name || "",
+      })
+      
+      const response = await fetch(`/api/service-tickets?${params}`)
+      const result = await response.json()
 
-      if (user?.role === "user" || user?.role === "staff") {
-        query = query.eq("requested_by", user.name)
-      } else if (!canViewAllLocations() && getUserLocation()) {
-        query = query.eq("location", getUserLocation())
-      }
-
-      const { data, error } = await query
-
-      if (error) {
-        console.error("[v0] Error loading tickets:", error)
+      if (!response.ok) {
+        console.error("[v0] Error loading tickets:", result.error)
         return
       }
 
-      console.log("[v0] Loaded tickets from Supabase:", data)
+      console.log("[v0] Loaded tickets from API:", result.tickets?.length || 0, "tickets")
 
-      const mappedTickets = data.map((ticket: any) => ({
+      const mappedTickets = (result.tickets || []).map((ticket: any) => ({
         id: ticket.ticket_number || ticket.id,
         title: ticket.title,
         category: ticket.category || "Other",
@@ -235,7 +241,12 @@ export function ServiceDeskDashboard() {
       </Tabs>
 
       {/* New Ticket Form Modal */}
-      {showNewTicketForm && <NewTicketForm onClose={() => setShowNewTicketForm(false)} />}
+      {showNewTicketForm && (
+        <NewTicketForm 
+          onClose={() => setShowNewTicketForm(false)} 
+          onTicketCreated={loadTickets}
+        />
+      )}
     </div>
   )
 }

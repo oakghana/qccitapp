@@ -50,7 +50,7 @@ export function useBadgeCounts(user: User | null) {
           .eq("status", "in_progress")
 
         if (!canSeeAll && userLocation) {
-          tasksQuery = tasksQuery.eq("location", userLocation)
+          tasksQuery = tasksQuery.ilike("location", userLocation)
         }
         const { count: tasksCount } = await tasksQuery
 
@@ -61,7 +61,7 @@ export function useBadgeCounts(user: User | null) {
           .eq("status", "open")
 
         if (!canSeeAll && userLocation) {
-          ticketsQuery = ticketsQuery.eq("location", userLocation)
+          ticketsQuery = ticketsQuery.ilike("location", userLocation)
         }
         const { count: ticketsCount } = await ticketsQuery
 
@@ -81,7 +81,7 @@ export function useBadgeCounts(user: User | null) {
               .eq("status", "pending")
 
             if (!canSeeAll && userLocation) {
-              pendingQuery = pendingQuery.eq("requester_location", userLocation)
+              pendingQuery = pendingQuery.ilike("requester_location", userLocation)
             }
             const { count: pendingCount, error: pendingError } = await pendingQuery
 
@@ -92,7 +92,7 @@ export function useBadgeCounts(user: User | null) {
               .eq("status", "in_progress")
 
             if (!canSeeAll && userLocation) {
-              inProgressQuery = inProgressQuery.eq("requester_location", userLocation)
+              inProgressQuery = inProgressQuery.ilike("requester_location", userLocation)
             }
             const { count: inProgressCount, error: inProgressError } = await inProgressQuery
 
@@ -121,7 +121,7 @@ export function useBadgeCounts(user: User | null) {
           .eq("status", "pending")
 
         if (!canSeeAll && userLocation) {
-          requisitionsQuery = requisitionsQuery.eq("location", userLocation)
+          requisitionsQuery = requisitionsQuery.ilike("location", userLocation)
         }
         const { count: requisitionsCount } = await requisitionsQuery
 
@@ -132,7 +132,7 @@ export function useBadgeCounts(user: User | null) {
           .eq("is_active", true)
 
         if (!canSeeAll && userLocation) {
-          providersQuery = providersQuery.eq("location", userLocation)
+          providersQuery = providersQuery.ilike("location", userLocation)
         }
         const { count: providersCount } = await providersQuery
 
@@ -150,7 +150,7 @@ export function useBadgeCounts(user: User | null) {
           .eq("is_active", true)
 
         if (!canSeeAll && userLocation) {
-          staffQuery = staffQuery.eq("location", userLocation)
+          staffQuery = staffQuery.ilike("location", userLocation)
         }
         const { count: staffCount } = await staffQuery
 

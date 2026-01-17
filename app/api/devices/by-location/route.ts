@@ -24,11 +24,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 401 })
     }
 
-    // Fetch devices for the specified location
+    // Fetch devices for the specified location (case-insensitive)
     const { data: devices, error } = await supabase
       .from("devices")
       .select("*")
-      .eq("location", location)
+      .ilike("location", location)
       .order("brand", { ascending: true })
 
     if (error) {

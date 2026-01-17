@@ -108,13 +108,18 @@ export function ServiceProviderTasks() {
         .order("assigned_date", { ascending: false })
 
       if (error) {
-        console.error("[v0] Error loading service provider tasks:", error)
+        // Table may not exist yet - this is expected during initial setup
+        if (error.code === '42P01' || error.message?.includes('does not exist')) {
+          console.log("[v0] repair_tasks table not yet created - run database migrations")
+        } else {
+          console.error("[v0] Error loading service provider tasks:", error.message || error.code || JSON.stringify(error))
+        }
         return
       }
 
       setTasks(data || [])
-    } catch (error) {
-      console.error("[v0] Error loading service provider tasks:", error)
+    } catch (error: any) {
+      console.error("[v0] Error loading service provider tasks:", error?.message || error)
     } finally {
       setLoading(false)
     }

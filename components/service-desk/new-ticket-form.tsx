@@ -9,14 +9,19 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { X, Upload, AlertTriangle, Clock, Zap } from "lucide-react"
+import { X, Upload, AlertTriangle, Clock, Zap, Loader2 } from "lucide-react"
 import { FormNavigation } from "@/components/ui/form-navigation"
+import { useAuth } from "@/lib/auth-context"
 
 interface NewTicketFormProps {
   onClose: () => void
+  onTicketCreated?: () => void
 }
 
-export function NewTicketForm({ onClose }: NewTicketFormProps) {
+export function NewTicketForm({ onClose, onTicketCreated }: NewTicketFormProps) {
+  const { user } = useAuth()
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState("")
   const [formData, setFormData] = useState({
     title: "",
     category: "",
@@ -62,46 +67,64 @@ export function NewTicketForm({ onClose }: NewTicketFormProps) {
     { value: "high", label: "High", icon: Zap, color: "text-red-600", description: "Urgent, affects work" },
   ]
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setSubmitting(true)
+    setError("")
 
-    // Create new ticket object
-    const newTicket = {
-      id: `TKT-${String(Date.now()).slice(-3)}`,
-      title: formData.title,
-      category: formData.category,
-      priority: formData.priority,
-      status: "Open",
-      location: formData.location,
-      requester: formData.requesterName,
-      assignee: "Unassigned",
-      created: new Date().toISOString().slice(0, 16).replace("T", " "),
-      updated: new Date().toISOString().slice(0, 16).replace("T", " "),
-      description: formData.description,
-      officeNumber: formData.officeNumber,
-      comments: [],
+    try {
+      // Save ticket via API (bypasses RLS)
+      const response = await fetch("/api/service-tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: formData.title,
+          category: formData.category,
+          priority: formData.priority || "medium",
+          location: formData.location || user?.location,
+          requested_by: formData.requesterName || user?.full_name || user?.name,
+          description: formData.description,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.error("[v0] Error creating ticket:", result.error)
+        setError(result.error || "Failed to create ticket")
+        return
+      }
+
+      console.log("[v0] Ticket created successfully:", result.ticket)
+
+      // Show success message
+      alert(`Ticket ${result.ticket?.ticket_number || result.ticket?.id} has been created successfully!`)
+
+      // Reset form and close
+      setFormData({
+        title: "",
+        category: "",
+        priority: "",
+        location: "",
+        description: "",
+        requesterName: "",
+        requesterEmail: "",
+        requesterPhone: "",
+        department: "",
+        officeNumber: "",
+      })
+      
+      // Notify parent to refresh
+      if (onTicketCreated) {
+        onTicketCreated()
+      }
+      onClose()
+    } catch (err) {
+      console.error("[v0] Exception creating ticket:", err)
+      setError("An unexpected error occurred")
+    } finally {
+      setSubmitting(false)
     }
-
-    // In a real app, this would be sent to an API
-    console.log("[v0] New ticket created:", newTicket)
-
-    // Show success message
-    alert(`Ticket ${newTicket.id} has been created successfully!`)
-
-    // Reset form and close
-    setFormData({
-      title: "",
-      category: "",
-      priority: "",
-      location: "",
-      description: "",
-      requesterName: "",
-      requesterEmail: "",
-      requesterPhone: "",
-      department: "",
-      officeNumber: "",
-    })
-    onClose()
   }
 
   return (
@@ -282,16 +305,31 @@ export function NewTicketForm({ onClose }: NewTicketFormProps) {
               </div>
             </div>
 
+            {/* Error message */}
+            {error && (
+              <div className="bg-destructive/10 text-destructive px-4 py-2 rounded text-sm">
+                {error}
+              </div>
+            )}
+
             {/* Submit Buttons */}
             <div className="flex justify-end space-x-2 pt-4 border-t">
-              <Button type="button" variant="outline" onClick={onClose}>
+              <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
                 Cancel
               </Button>
               <Button
                 type="submit"
+                disabled={submitting}
                 className="bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-600"
               >
-                Submit Ticket
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  "Submit Ticket"
+                )}
               </Button>
             </div>
           </form>

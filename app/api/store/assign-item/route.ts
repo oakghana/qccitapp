@@ -10,7 +10,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     // Check if sufficient stock is available
     const { data: item, error: fetchError } = await supabase.from("store_items").select("*").eq("id", itemId).single()

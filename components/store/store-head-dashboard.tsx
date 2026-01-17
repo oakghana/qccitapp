@@ -50,12 +50,11 @@ export default function StoreHeadDashboard() {
     try {
       const supabase = createBrowserClient()
 
+      // Fetch all store items - we'll filter on the client side for case-insensitive matching
       let query = supabase.from("store_items").select("*").order("location").order("name")
 
-      if (user && !canSeeAllLocations(user) && user.location) {
-        console.log("[v0] Filtering items by location:", user.location, "+ Central Stores")
-        query = query.or(`location.eq.${user.location},location.eq.Central Stores`)
-      }
+      // Note: For location filtering, we fetch all and filter client-side due to case-sensitivity issues
+      // Alternatively, we could use .or() with ilike for each location, but that's complex
 
       const { data, error } = await query
 
@@ -70,10 +69,20 @@ export default function StoreHeadDashboard() {
       console.log("[v0] Fetched store items from database:", data)
 
       if (data && data.length > 0) {
-        setItems(data as StockItem[])
-        calculateLocationSummaries(data as StockItem[])
+        // Filter items based on user's location (case-insensitive)
+        let filteredData = data
+        if (user && !canSeeAllLocations(user) && user.location) {
+          console.log("[v0] Filtering items by location:", user.location, "+ Central Stores")
+          filteredData = data.filter((item: any) => 
+            item.location?.toLowerCase() === user.location?.toLowerCase() ||
+            item.location?.toLowerCase() === "central stores"
+          )
+        }
+        
+        setItems(filteredData as StockItem[])
+        calculateLocationSummaries(data as StockItem[]) // Use all data for summaries
       } else {
-        console.log("[v0] No store items found in database for this location")
+        console.log("[v0] No store items found in database")
         setItems([])
         setLocationSummaries([])
       }
@@ -87,11 +96,30 @@ export default function StoreHeadDashboard() {
   }
 
   const calculateLocationSummaries = (stockItems: StockItem[]) => {
-    const visibleLocations =
-      user && !canSeeAllLocations(user) && user.location ? [user.location, "Central Stores"] : locationValues
+    // First, get all unique locations from the actual data
+    const uniqueLocationsInData = [...new Set(stockItems.map(item => item.location).filter(Boolean))]
+    console.log("[v0] Unique locations in store_items data:", uniqueLocationsInData)
+    
+    // Use locations from data if user can see all, otherwise filter by user's location
+    let locationsToShow: string[] = []
+    
+    if (user && !canSeeAllLocations(user) && user.location) {
+      // For restricted users, show only their location and Central Stores
+      locationsToShow = uniqueLocationsInData.filter(loc => 
+        loc.toLowerCase() === user.location?.toLowerCase() ||
+        loc.toLowerCase() === "central stores" ||
+        loc.toLowerCase().includes("central")
+      )
+    } else {
+      // For admins/IT heads, show all unique locations from the data
+      locationsToShow = uniqueLocationsInData.length > 0 ? uniqueLocationsInData : locationValues
+    }
 
-    const summaries = visibleLocations.map((location) => {
-      const locationItems = stockItems.filter((item) => item.location === location)
+    const summaries = locationsToShow.map((location) => {
+      // Case-insensitive location matching
+      const locationItems = stockItems.filter((item) => 
+        item.location?.toLowerCase() === location?.toLowerCase()
+      )
 
       const totalItems = locationItems.reduce((sum, item) => sum + (item.quantity || 0), 0)
       const lowStock = locationItems.filter((item) => item.quantity <= item.reorder_level && item.quantity > 0).length
@@ -106,7 +134,10 @@ export default function StoreHeadDashboard() {
       }
     })
 
-    setLocationSummaries(summaries)
+    // Sort by location name and filter out locations with no items if there are locations with items
+    const sortedSummaries = summaries.sort((a, b) => a.location.localeCompare(b.location))
+    
+    setLocationSummaries(sortedSummaries)
   }
 
   const exportAllStock = () => {
@@ -198,7 +229,10 @@ export default function StoreHeadDashboard() {
 
       {(user && !canSeeAllLocations(user) && user.location ? [user.location, "Central Stores"] : locationValues).map(
         (location) => {
-          const locationItems = items.filter((item) => item.location === location)
+          // Case-insensitive location matching
+          const locationItems = items.filter((item) => 
+            item.location?.toLowerCase() === location?.toLowerCase()
+          )
           if (locationItems.length === 0) return null
 
           return (

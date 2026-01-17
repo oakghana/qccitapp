@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -32,9 +32,12 @@ import {
   Target,
   Filter,
   Shield,
+  Loader2,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations } from "@/lib/location-filter"
+import { createClient } from "@/supabase/supabase-client"
+import { LOCATIONS } from "@/lib/locations"
 
 interface ReportData {
   location: string
@@ -73,82 +76,187 @@ export function ITReportsDashboard() {
   const [dateRange, setDateRange] = useState("30") // days
   const [reportType, setReportType] = useState("overview")
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [availableLocations, setAvailableLocations] = useState<string[]>([])
+
+  // Fetch real data from database
+  const fetchReportData = useCallback(async () => {
+    if (!user) return
+    
+    setIsLoading(true)
+    const supabase = createClient()
+    
+    try {
+      // Calculate date range
+      const daysAgo = parseInt(dateRange)
+      const startDate = new Date()
+      startDate.setDate(startDate.getDate() - daysAgo)
+      const startDateStr = startDate.toISOString()
+      
+      // Get unique locations from devices
+      const { data: deviceLocations } = await supabase
+        .from("devices")
+        .select("location")
+        .not("location", "is", null)
+      
+      const uniqueLocations = [...new Set(deviceLocations?.map(d => d.location).filter(Boolean) || [])]
+      setAvailableLocations(uniqueLocations)
+      
+      // Filter locations based on user role
+      let locationsToQuery = uniqueLocations
+      if (user.role === "regional_it_head" && user.location) {
+        locationsToQuery = [user.location]
+      }
+      
+      // Build report data for each location
+      const reportDataPromises = locationsToQuery.map(async (location) => {
+        // Get service tickets for this location
+        let ticketQuery = supabase
+          .from("service_tickets")
+          .select("id, status, created_at, resolved_at, category")
+          .gte("created_at", startDateStr)
+          .ilike("location", location)
+        
+        const { data: tickets } = await ticketQuery
+        
+        const totalTickets = tickets?.length || 0
+        const resolvedTickets = tickets?.filter(t => t.status === "resolved" || t.status === "closed").length || 0
+        const pendingTickets = tickets?.filter(t => t.status !== "resolved" && t.status !== "closed").length || 0
+        
+        // Calculate average resolution time (in hours)
+        const resolvedWithTime = tickets?.filter(t => t.resolved_at && t.created_at) || []
+        let avgResolutionTime = 0
+        if (resolvedWithTime.length > 0) {
+          const totalHours = resolvedWithTime.reduce((acc, t) => {
+            const created = new Date(t.created_at).getTime()
+            const resolved = new Date(t.resolved_at).getTime()
+            return acc + (resolved - created) / (1000 * 60 * 60)
+          }, 0)
+          avgResolutionTime = totalHours / resolvedWithTime.length
+        }
+        
+        // Get staff count for this location
+        const { count: staffCount } = await supabase
+          .from("profiles")
+          .select("*", { count: "exact", head: true })
+          .ilike("location", location)
+          .in("role", ["it_staff", "regional_it_head", "service_desk_accra", "service_desk_kumasi", "service_desk_takoradi", "service_desk_tema", "service_desk_sunyani", "service_desk_cape_coast"])
+        
+        // Get device count for this location
+        const { count: deviceCount } = await supabase
+          .from("devices")
+          .select("*", { count: "exact", head: true })
+          .ilike("location", location)
+        
+        // Get repair requests for this location
+        const { count: repairRequests } = await supabase
+          .from("repair_requests")
+          .select("*", { count: "exact", head: true })
+          .gte("created_at", startDateStr)
+          .ilike("location", location)
+        
+        return {
+          location,
+          totalTickets,
+          resolvedTickets,
+          pendingTickets,
+          avgResolutionTime: Math.round(avgResolutionTime * 10) / 10,
+          staffCount: staffCount || 0,
+          deviceCount: deviceCount || 0,
+          repairRequests: repairRequests || 0,
+          satisfactionScore: 0, // No satisfaction tracking implemented yet
+        }
+      })
+      
+      const reportResults = await Promise.all(reportDataPromises)
+      setReportData(reportResults.filter(r => r.totalTickets > 0 || r.deviceCount > 0 || r.staffCount > 0))
+      
+      // Build time series data (weekly aggregation)
+      const weeks: TimeSeriesData[] = []
+      for (let i = Math.min(8, Math.ceil(daysAgo / 7)); i >= 0; i--) {
+        const weekStart = new Date()
+        weekStart.setDate(weekStart.getDate() - (i * 7))
+        const weekEnd = new Date(weekStart)
+        weekEnd.setDate(weekEnd.getDate() + 7)
+        
+        let ticketQuery = supabase
+          .from("service_tickets")
+          .select("id", { count: "exact", head: true })
+          .gte("created_at", weekStart.toISOString())
+          .lt("created_at", weekEnd.toISOString())
+        
+        if (user.role === "regional_it_head" && user.location) {
+          ticketQuery = ticketQuery.ilike("location", user.location)
+        }
+        
+        const { count: ticketCount } = await ticketQuery
+        
+        let repairQuery = supabase
+          .from("repair_requests")
+          .select("id", { count: "exact", head: true })
+          .gte("created_at", weekStart.toISOString())
+          .lt("created_at", weekEnd.toISOString())
+        
+        if (user.role === "regional_it_head" && user.location) {
+          repairQuery = repairQuery.ilike("location", user.location)
+        }
+        
+        const { count: repairCount } = await repairQuery
+        
+        weeks.push({
+          date: weekStart.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+          tickets: ticketCount || 0,
+          repairs: repairCount || 0,
+          satisfaction: 0,
+        })
+      }
+      setTimeSeriesData(weeks)
+      
+      // Build category data from ticket categories
+      let categoryQuery = supabase
+        .from("service_tickets")
+        .select("category")
+        .gte("created_at", startDateStr)
+        .not("category", "is", null)
+      
+      if (user.role === "regional_it_head" && user.location) {
+        categoryQuery = categoryQuery.ilike("location", user.location)
+      }
+      
+      const { data: categoryTickets } = await categoryQuery
+      
+      const categoryCounts: Record<string, number> = {}
+      categoryTickets?.forEach(t => {
+        if (t.category) {
+          categoryCounts[t.category] = (categoryCounts[t.category] || 0) + 1
+        }
+      })
+      
+      const categoryColors = ["#ef4444", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6"]
+      const totalCategoryTickets = Object.values(categoryCounts).reduce((a, b) => a + b, 0)
+      
+      const categoryDataResult: CategoryData[] = Object.entries(categoryCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 7)
+        .map(([category, count], index) => ({
+          category,
+          count,
+          percentage: totalCategoryTickets > 0 ? Math.round((count / totalCategoryTickets) * 100) : 0,
+          color: categoryColors[index % categoryColors.length],
+        }))
+      
+      setCategoryData(categoryDataResult)
+      
+    } catch (error) {
+      console.error("Error fetching report data:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [user, dateRange])
 
   useEffect(() => {
-    const mockReportData: ReportData[] = [
-      {
-        location: "Kumasi Branch",
-        totalTickets: 156,
-        resolvedTickets: 134,
-        pendingTickets: 22,
-        avgResolutionTime: 4.2,
-        staffCount: 6,
-        deviceCount: 89,
-        repairRequests: 45,
-        satisfactionScore: 4.7,
-      },
-      {
-        location: "Accra Branch",
-        totalTickets: 203,
-        resolvedTickets: 185,
-        pendingTickets: 18,
-        avgResolutionTime: 3.8,
-        staffCount: 8,
-        deviceCount: 124,
-        repairRequests: 67,
-        satisfactionScore: 4.8,
-      },
-      {
-        location: "Takoradi Branch",
-        totalTickets: 89,
-        resolvedTickets: 76,
-        pendingTickets: 13,
-        avgResolutionTime: 5.1,
-        staffCount: 4,
-        deviceCount: 52,
-        repairRequests: 23,
-        satisfactionScore: 4.5,
-      },
-      {
-        location: "Cape Coast Branch",
-        totalTickets: 67,
-        resolvedTickets: 61,
-        pendingTickets: 6,
-        avgResolutionTime: 4.9,
-        staffCount: 3,
-        deviceCount: 34,
-        repairRequests: 18,
-        satisfactionScore: 4.6,
-      },
-    ]
-
-    const mockTimeSeriesData: TimeSeriesData[] = [
-      { date: "Jan 1", tickets: 12, repairs: 8, satisfaction: 4.5 },
-      { date: "Jan 8", tickets: 15, repairs: 12, satisfaction: 4.6 },
-      { date: "Jan 15", tickets: 18, repairs: 14, satisfaction: 4.7 },
-      { date: "Jan 22", tickets: 14, repairs: 11, satisfaction: 4.8 },
-      { date: "Jan 29", tickets: 20, repairs: 16, satisfaction: 4.7 },
-      { date: "Feb 5", tickets: 17, repairs: 13, satisfaction: 4.9 },
-      { date: "Feb 12", tickets: 22, repairs: 18, satisfaction: 4.8 },
-    ]
-
-    const mockCategoryData: CategoryData[] = [
-      { category: "Hardware Issues", count: 145, percentage: 32, color: "#ef4444" },
-      { category: "Software Problems", count: 98, percentage: 22, color: "#3b82f6" },
-      { category: "Network Issues", count: 87, percentage: 19, color: "#10b981" },
-      { category: "User Training", count: 67, percentage: 15, color: "#f59e0b" },
-      { category: "System Maintenance", count: 54, percentage: 12, color: "#8b5cf6" },
-    ]
-
-    const filteredData =
-      user && user.role === "regional_it_head"
-        ? mockReportData.filter((d) => d.location === user.location)
-        : mockReportData
-
-    setReportData(filteredData)
-    setTimeSeriesData(mockTimeSeriesData)
-    setCategoryData(mockCategoryData)
-  }, [user])
+    fetchReportData()
+  }, [fetchReportData])
 
   // Role-based access control - only IT Heads, Regional IT Heads, and Admins can access IT Reports
   const AccessDeniedComponent = () => (
@@ -198,7 +306,19 @@ export function ITReportsDashboard() {
   }
 
   const filteredReportData =
-    selectedLocation === "all" ? reportData : reportData.filter((item) => item.location === selectedLocation)
+    selectedLocation === "all" ? reportData : reportData.filter((item) => item.location.toLowerCase() === selectedLocation.toLowerCase())
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading report data...</p>
+        </div>
+      </div>
+    )
+  }
 
   const totalStats = filteredReportData.reduce(
     (acc, curr) => ({
@@ -293,10 +413,12 @@ export function ITReportsDashboard() {
                 </SelectTrigger>
                 <SelectContent>
                   {canSeeAllLocations(user) && <SelectItem value="all">All Locations</SelectItem>}
-                  <SelectItem value="Kumasi Branch">Kumasi Branch</SelectItem>
-                  <SelectItem value="Accra Branch">Accra Branch</SelectItem>
-                  <SelectItem value="Takoradi Branch">Takoradi Branch</SelectItem>
-                  <SelectItem value="Cape Coast Branch">Cape Coast Branch</SelectItem>
+                  {availableLocations.map((loc) => (
+                    <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                  ))}
+                  {availableLocations.length === 0 && LOCATIONS.map((loc) => (
+                    <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

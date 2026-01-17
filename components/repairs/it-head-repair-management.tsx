@@ -42,11 +42,10 @@ interface Device {
 interface ServiceProvider {
   id: string
   name: string
-  company: string
-  specialization: string[]
-  contact: string
   email: string
-  rating: number
+  phone: string
+  specialization: string[]
+  location: string
   is_active: boolean
 }
 
@@ -99,8 +98,8 @@ export function ITHeadRepairManagement() {
     try {
       let query = supabase.from("devices").select("*").in("status", ["under_repair", "inactive"])
 
-      if (user && !canSeeAllLocations(user)) {
-        query = query.eq("location", user.location)
+      if (user && !canSeeAllLocations(user) && user.location) {
+        query = query.ilike("location", user.location)
       }
 
       const { data, error } = await query
@@ -119,17 +118,35 @@ export function ITHeadRepairManagement() {
   const loadServiceProviders = async () => {
     try {
       console.log("[v0] Loading service providers from database...")
-      const { data, error } = await supabase.from("service_providers").select("*").eq("is_active", true).order("name")
+      
+      // First check if we can access the table at all
+      const { data, error } = await supabase
+        .from("service_providers")
+        .select("id, name, email, phone, specialization, location, is_active")
+        .eq("is_active", true)
+        .order("name")
 
       if (error) {
         console.error("[v0] Error loading service providers:", error)
+        console.error("[v0] Error code:", error.code)
+        console.error("[v0] Error message:", error.message)
         console.error("[v0] Error details:", JSON.stringify(error))
+        
+        // If RLS is blocking, try to show message
+        if (error.code === 'PGRST301' || error.message?.includes('permission')) {
+          console.error("[v0] RLS policy may be blocking access - run 014_fix_service_providers_rls.sql")
+        }
         return
       }
 
       console.log("[v0] Successfully loaded service providers:", data)
       console.log("[v0] Number of providers:", data?.length || 0)
-      setServiceProviders(data || [])
+      
+      if (data && data.length > 0) {
+        setServiceProviders(data)
+      } else {
+        console.warn("[v0] No service providers found - check if data exists in the table")
+      }
     } catch (error) {
       console.error("[v0] Exception loading service providers:", error)
     }
@@ -137,31 +154,68 @@ export function ITHeadRepairManagement() {
 
   const loadRepairTasks = async () => {
     try {
-      let query = supabase.from("repair_requests").select("*").order("created_at", { ascending: false })
+      let query = supabase.from("repair_requests").select("*, devices(*)").order("created_at", { ascending: false })
 
-      if (user && !canSeeAllLocations(user)) {
-        query = query.eq("location", user.location)
+      if (user && !canSeeAllLocations(user) && user.location) {
+        query = query.ilike("location", user.location)
       }
 
       const { data, error } = await query
 
       if (error) {
-        console.error("[v0] Error loading repair tasks:", error)
+        // Table may not exist yet - this is expected during initial setup
+        if (error.code === '42P01' || error.message?.includes('does not exist')) {
+          console.log("[v0] repair_requests table not yet created - run database migrations")
+        } else {
+          console.error("[v0] Error loading repair tasks:", error.message || error.code || JSON.stringify(error))
+        }
         return
       }
 
-      setTasks(data || [])
+      // Transform data to match RepairTask interface
+      const transformedTasks: RepairTask[] = (data || []).map((item: any) => ({
+        id: item.id,
+        taskNumber: item.task_number || item.id?.substring(0, 8) || "N/A",
+        device: item.devices || {
+          id: item.device_id || "",
+          type: item.device_type || "",
+          brand: item.device_brand || "",
+          model: item.device_model || "",
+          serialNumber: item.serial_number || "",
+          assetTag: item.asset_tag || "",
+          location: item.location || "",
+          assignedTo: item.assigned_to_name || "",
+          status: "under_repair" as const,
+        },
+        issueDescription: item.issue_description || "",
+        priority: item.priority || "medium",
+        status: item.status || "draft",
+        serviceProvider: item.service_provider || undefined,
+        createdBy: item.requested_by || "",
+        createdDate: item.created_at || new Date().toISOString(),
+        estimatedCost: item.estimated_cost,
+        actualCost: item.actual_cost,
+        pickupDate: item.pickup_date,
+        completionDate: item.completion_date,
+        repairNotes: item.repair_notes,
+        laborHours: item.labor_hours,
+        partsUsed: item.parts_used || [],
+        attachments: item.attachments || [],
+      }))
+
+      setTasks(transformedTasks)
     } catch (error) {
-      console.error("[v0] Error loading repair tasks:", error)
+      console.error("[v0] Error loading repair tasks:", JSON.stringify(error))
     }
   }
 
   const filteredTasks = tasks.filter((task) => {
+    const searchLower = searchTerm.toLowerCase()
     const matchesSearch =
-      task.taskNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.device.assetTag.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.device.assignedTo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.issueDescription.toLowerCase().includes(searchTerm.toLowerCase())
+      (task.taskNumber?.toLowerCase() || "").includes(searchLower) ||
+      (task.device?.assetTag?.toLowerCase() || "").includes(searchLower) ||
+      (task.device?.assignedTo?.toLowerCase() || "").includes(searchLower) ||
+      (task.issueDescription?.toLowerCase() || "").includes(searchLower)
 
     const matchesStatus = statusFilter === "all" || task.status === statusFilter
     const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter

@@ -75,16 +75,16 @@ export function SystemOverview() {
 
       for (const location of locations) {
         const [devicesCount, repairsCount, usersCount] = await Promise.all([
-          supabase.from("devices").select("id", { count: "exact", head: true }).eq("location", location),
+          supabase.from("devices").select("id", { count: "exact", head: true }).ilike("location", location),
           supabase
             .from("repair_tasks")
             .select("id", { count: "exact", head: true })
-            .eq("location", location)
+            .ilike("location", location)
             .eq("status", "in_repair"),
           supabase
             .from("profiles")
             .select("id", { count: "exact", head: true })
-            .eq("location", location)
+            .ilike("location", location)
             .eq("status", "approved"),
         ])
 

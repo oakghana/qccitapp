@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "input-otp"
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp"
 import { Loader2, Mail, MessageSquare, Shield, CheckCircle, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 

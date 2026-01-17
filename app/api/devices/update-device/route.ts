@@ -15,6 +15,8 @@ export async function POST(request: Request) {
       assigned_to,
       purchase_date,
       warranty_expiry,
+      region_id,
+      district_id,
       userRole,
       userLocation,
     } = body
@@ -60,6 +62,8 @@ export async function POST(request: Request) {
         assigned_to,
         purchase_date,
         warranty_expiry,
+        region_id: region_id || null,
+        district_id: district_id || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)

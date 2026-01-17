@@ -1,9 +1,11 @@
-type UserRole =
+export type UserRole =
   | "admin"
   | "regional_it_head"
   | "it_head"
   | "it_staff"
+  | "it_store_head"
   | "staff"
+  | "user"
   | "service_provider"
   | "service_desk_accra"
   | "service_desk_kumasi"
@@ -79,6 +81,19 @@ const roleColorSchemes: Record<UserRole, RoleColorScheme> = {
     border: "border-teal-300 dark:border-teal-700",
     background: "bg-teal-100/50 dark:bg-teal-950/50",
   },
+  it_store_head: {
+    primary: "rgb(180 83 9)", // amber-700
+    secondary: "rgb(217 119 6)", // amber-600
+    accent: "rgb(146 64 14)", // amber-800
+    light: "rgb(252 211 77)", // amber-300
+    dark: "rgb(120 53 15)", // amber-900
+    gradient: "from-amber-600 to-amber-800",
+    hoverGradient: "hover:from-amber-700 hover:to-amber-900",
+    textPrimary: "text-gray-900 dark:text-gray-100",
+    textSecondary: "text-gray-700 dark:text-gray-300",
+    border: "border-amber-300 dark:border-amber-700",
+    background: "bg-amber-100/50 dark:bg-amber-950/50",
+  },
   staff: {
     primary: "rgb(194 65 12)", // orange-700 - darker for better contrast
     secondary: "rgb(234 88 12)", // orange-600
@@ -91,6 +106,19 @@ const roleColorSchemes: Record<UserRole, RoleColorScheme> = {
     textSecondary: "text-gray-700 dark:text-gray-300",
     border: "border-orange-300 dark:border-orange-700",
     background: "bg-orange-100/50 dark:bg-orange-950/50",
+  },
+  user: {
+    primary: "rgb(107 114 128)", // gray-500
+    secondary: "rgb(156 163 175)", // gray-400
+    accent: "rgb(75 85 99)", // gray-600
+    light: "rgb(209 213 219)", // gray-300
+    dark: "rgb(55 65 81)", // gray-700
+    gradient: "from-gray-500 to-gray-700",
+    hoverGradient: "hover:from-gray-600 hover:to-gray-800",
+    textPrimary: "text-gray-900 dark:text-gray-100",
+    textSecondary: "text-gray-700 dark:text-gray-300",
+    border: "border-gray-300 dark:border-gray-700",
+    background: "bg-gray-100/50 dark:bg-gray-950/50",
   },
   service_provider: {
     primary: "rgb(101 163 13)",
@@ -185,31 +213,31 @@ const roleColorSchemes: Record<UserRole, RoleColorScheme> = {
   },
 }
 
-export function getRoleColorScheme(role: UserRole): RoleColorScheme {
-  return roleColorSchemes[role] || roleColorSchemes.staff
+export function getRoleColorScheme(role: string): RoleColorScheme {
+  return roleColorSchemes[role as UserRole] || roleColorSchemes.staff
 }
 
-export function getRoleGradientClass(role: UserRole): string {
+export function getRoleGradientClass(role: string): string {
   const scheme = getRoleColorScheme(role)
   return `bg-gradient-to-r ${scheme.gradient} ${scheme.hoverGradient}`
 }
 
-export function getRoleTextClass(role: UserRole, variant: "primary" | "secondary" = "primary"): string {
+export function getRoleTextClass(role: string, variant: "primary" | "secondary" = "primary"): string {
   const scheme = getRoleColorScheme(role)
   return variant === "primary" ? scheme.textPrimary : scheme.textSecondary
 }
 
-export function getRoleBorderClass(role: UserRole): string {
+export function getRoleBorderClass(role: string): string {
   const scheme = getRoleColorScheme(role)
   return scheme.border
 }
 
-export function getRoleBackgroundClass(role: UserRole): string {
+export function getRoleBackgroundClass(role: string): string {
   const scheme = getRoleColorScheme(role)
   return scheme.background
 }
 
-export function getRoleHoverClass(role: UserRole): string {
+export function getRoleHoverClass(role: string): string {
   const scheme = getRoleColorScheme(role)
   return `hover:${scheme.background} hover:${scheme.border}`
 }

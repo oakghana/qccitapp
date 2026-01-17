@@ -35,7 +35,7 @@ export default function TransferStockDialog({ open, onClose, item, onSuccess }: 
 
   const isHeadOffice = item.location === "Head Office"
   const canTransfer =
-    user?.role === "admin" || user?.role === "store_head" || (user?.role === "regional_it_head" && !isHeadOffice)
+    user?.role === "admin" || user?.role === "it_store_head" || (user?.role === "regional_it_head" && !isHeadOffice)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -123,11 +123,13 @@ export default function TransferStockDialog({ open, onClose, item, onSuccess }: 
                 <SelectValue placeholder="Select destination" />
               </SelectTrigger>
               <SelectContent>
-                {LOCATIONS.filter((loc) => loc !== item.location).map((location) => (
-                  <SelectItem key={location} value={location}>
-                    {location}
-                  </SelectItem>
-                ))}
+                {Object.entries(LOCATIONS)
+                  .filter(([key, label]) => label !== item.location)
+                  .map(([key, label]) => (
+                    <SelectItem key={key} value={key}>
+                      {label}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>

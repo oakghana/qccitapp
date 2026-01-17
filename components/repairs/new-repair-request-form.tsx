@@ -68,8 +68,8 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
     try {
       let query = supabase.from("devices").select("*")
 
-      if (!canSeeAllLocations(user)) {
-        query = query.eq("location", user.location)
+      if (!canSeeAllLocations(user) && user.location) {
+        query = query.ilike("location", user.location)
       }
 
       const { data, error } = await query

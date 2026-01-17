@@ -9,7 +9,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     const { data: requisition, error: reqError } = await supabase
       .from("store_requisitions")

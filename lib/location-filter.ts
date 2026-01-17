@@ -3,15 +3,41 @@
 import type { User } from "./auth-context"
 
 /**
+ * Normalizes location string for case-insensitive comparison
+ */
+export function normalizeLocation(location: string | null | undefined): string {
+  if (!location) return ""
+  // Convert to lowercase and handle common variations
+  return location.toLowerCase().replace(/[\s_-]+/g, "_").trim()
+}
+
+/**
+ * Case-insensitive location comparison
+ */
+export function locationsMatch(loc1: string | null | undefined, loc2: string | null | undefined): boolean {
+  if (!loc1 || !loc2) return false
+  return normalizeLocation(loc1) === normalizeLocation(loc2)
+}
+
+/**
  * Determines if a user can see all locations
  * Only Admin and IT Head at Head Office have access to all locations
  * Regional IT heads and other users are restricted to their specific location
  */
-export function canSeeAllLocations(user: User | null): boolean {
-  if (!user) return false
+export function canSeeAllLocations(userOrRole: User | string | null): boolean {
+  if (!userOrRole) return false
+  
+  // Handle case where just a role string is passed
+  if (typeof userOrRole === "string") {
+    return userOrRole === "admin" || userOrRole === "it_head" || userOrRole === "it_store_head"
+  }
+  
+  // Handle full User object
+  const user = userOrRole
   if (user.role === "admin") return true
-  if (user.role === "it_head" && user.location === "Head Office") return true
-  if (user.role === "it_staff" && user.location === "Head Office") return true
+  if (user.role === "it_head") return true
+  if (user.role === "it_store_head") return true
+  if (user.role === "it_staff" && locationsMatch(user.location, "head_office")) return true
   return false
 }
 

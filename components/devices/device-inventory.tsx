@@ -51,6 +51,8 @@ interface Device {
   deviceType: "laptop" | "desktop" | "printer" | "mobile" | "server" | "other"
   purchaseDate: string
   warrantyExpiry: string
+  region_id?: string
+  district_id?: string
 }
 
 const deviceTypeIcons = {
@@ -114,15 +116,48 @@ export function DeviceInventory() {
     assigned_to: "",
     purchase_date: "",
     warranty_expiry: "",
+    region_id: "",
+    district_id: "",
   })
   const [dbLocations, setDbLocations] = useState<{ code: string; name: string }[]>([])
+  const [dbRegions, setDbRegions] = useState<{ id: string; code: string; name: string }[]>([])
+  const [dbDistricts, setDbDistricts] = useState<{ id: string; code: string; name: string; region_id: string }[]>([])
 
   const supabase = createClient()
 
   useEffect(() => {
     loadDevices()
     loadLocations()
+    loadRegionsAndDistricts()
   }, [])
+
+  const loadRegionsAndDistricts = async () => {
+    try {
+      // Load regions
+      const { data: regionsData, error: regionsError } = await supabase
+        .from("regions")
+        .select("id, code, name")
+        .eq("is_active", true)
+        .order("name")
+
+      if (!regionsError && regionsData) {
+        setDbRegions(regionsData)
+      }
+
+      // Load districts
+      const { data: districtsData, error: districtsError } = await supabase
+        .from("districts")
+        .select("id, code, name, region_id")
+        .eq("is_active", true)
+        .order("name")
+
+      if (!districtsError && districtsData) {
+        setDbDistricts(districtsData)
+      }
+    } catch (error) {
+      console.error("Error loading regions/districts:", error)
+    }
+  }
 
   const loadLocations = async () => {
     try {
@@ -130,9 +165,9 @@ export function DeviceInventory() {
       if (res.ok) {
         const data = await res.json()
         const activeLocations = data
-          .filter((loc: any) => loc.is_active)
+          .filter((loc: any) => loc.is_active && loc.code && loc.code.trim() !== "")
           .map((loc: any) => ({
-            code: loc.code,
+            code: loc.code || loc.name, // Fallback to name if code is empty
             name: loc.name,
           }))
         setDbLocations(activeLocations)
@@ -145,20 +180,26 @@ export function DeviceInventory() {
   const loadDevices = async () => {
     try {
       setLoading(true)
-      let query = supabase.from("devices").select("*").order("created_at", { ascending: false })
-
-      if (user && !canSeeAllLocations(user) && user.location) {
-        query = query.eq("location", user.location)
-      }
-
-      const { data, error } = await query
-
-      if (error) {
-        console.error("[v0] Error loading devices:", error)
+      
+      const canSeeAll = user ? canSeeAllLocations(user) : false
+      console.log("[v0] Loading devices for user:", user?.username, "role:", user?.role, "location:", user?.location)
+      console.log("[v0] Can see all locations:", canSeeAll)
+      
+      // Use API endpoint to bypass RLS issues
+      const params = new URLSearchParams()
+      if (user?.location) params.set("location", user.location)
+      params.set("canSeeAll", String(canSeeAll))
+      
+      const response = await fetch(`/api/devices?${params.toString()}`)
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("[v0] Error loading devices:", errorData)
         return
       }
-
-      console.log("[v0] Loaded devices from Supabase:", data)
+      
+      const data = await response.json()
+      console.log("[v0] Loaded devices from API:", data?.length, "devices")
 
       const mappedDevices: Device[] = data.map((device: any) => ({
         id: device.id,
@@ -175,6 +216,8 @@ export function DeviceInventory() {
         deviceType: device.device_type?.toLowerCase() || "other",
         purchaseDate: device.purchase_date || "",
         warrantyExpiry: device.warranty_expiry || "",
+        region_id: device.region_id || "",
+        district_id: device.district_id || "",
       }))
 
       console.log(
@@ -244,6 +287,8 @@ export function DeviceInventory() {
       assigned_to: device.assignedTo,
       purchase_date: device.purchaseDate || "",
       warranty_expiry: device.warrantyExpiry || "",
+      region_id: device.region_id || "",
+      district_id: device.district_id || "",
     })
     setEditDeviceOpen(true)
     setEditError("")
@@ -270,6 +315,8 @@ export function DeviceInventory() {
           assigned_to: editFormData.assigned_to,
           purchase_date: editFormData.purchase_date,
           warranty_expiry: editFormData.warranty_expiry,
+          region_id: editFormData.region_id || null,
+          district_id: editFormData.district_id || null,
           userRole: user?.role,
           userLocation: user?.location,
         }),
@@ -369,35 +416,40 @@ export function DeviceInventory() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-4">
+      {/* Header - Compact */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Device Inventory</h1>
-          <p className="text-muted-foreground">Manage and track IT devices across all locations</p>
+          <h1 className="text-2xl font-bold text-foreground">Device Inventory</h1>
+          <p className="text-sm text-muted-foreground">
+            {filteredDevices.length} device{filteredDevices.length !== 1 ? "s" : ""} 
+            {user?.location && !canSeeAllLocations(user) ? ` in ${user.location}` : ""}
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExportToExcel} disabled={filteredDevices.length === 0}>
-            <Download className="mr-2 h-4 w-4" />
-            Export to Excel
+          <Button variant="outline" size="sm" onClick={handleExportToExcel} disabled={filteredDevices.length === 0}>
+            <Download className="mr-1.5 h-4 w-4" />
+            Export
           </Button>
-          <Button onClick={handleAddDevice}>
-            <Plus className="mr-2 h-4 w-4" />
+          <Button size="sm" onClick={handleAddDevice}>
+            <Plus className="mr-1.5 h-4 w-4" />
             Add Device
           </Button>
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 items-end">
+      {/* Filters - More compact */}
+      <div className="flex flex-col sm:flex-row gap-2">
         <div className="flex-1">
           <Input
-            placeholder="Search devices, serial numbers, or assignees..."
+            placeholder="Search devices..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full"
+            className="h-9"
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full md:w-48">
+          <SelectTrigger className="w-full sm:w-36 h-9">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -409,12 +461,12 @@ export function DeviceInventory() {
           </SelectContent>
         </Select>
         <Select value={locationFilter} onValueChange={setLocationFilter}>
-          <SelectTrigger className="w-full md:w-48">
+          <SelectTrigger className="w-full sm:w-36 h-9">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Locations</SelectItem>
-            {dbLocations.map((loc) => (
+            {dbLocations.filter(loc => loc.code && loc.code.trim() !== "").map((loc) => (
               <SelectItem key={loc.code} value={loc.code}>
                 {loc.name}
               </SelectItem>
@@ -423,65 +475,52 @@ export function DeviceInventory() {
         </Select>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {filteredDevices.map((device) => {
-          const IconComponent = deviceTypeIcons[device.type]
+          const IconComponent = deviceTypeIcons[device.type] || Monitor
           return (
             <Card
               key={device.id}
-              className="hover:shadow-md transition-shadow cursor-pointer"
+              className="group hover:shadow-lg hover:border-primary/30 transition-all duration-200 cursor-pointer overflow-hidden"
               onClick={() => handleEditDevice(device)}
             >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <IconComponent className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-base">{device.name}</CardTitle>
-                      <CardDescription className="text-sm">{device.id}</CardDescription>
-                    </div>
+              <div className="p-4">
+                {/* Header: Icon + Name + Status */}
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="shrink-0 p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
+                    <IconComponent className="h-5 w-5 text-primary" />
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleEditDevice(device)
-                    }}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm truncate" title={device.name}>
+                      {device.brand} {device.model}
+                    </h3>
+                    <p className="text-xs text-muted-foreground font-mono truncate" title={device.serialNumber}>
+                      {device.serialNumber}
+                    </p>
+                  </div>
+                  <Badge 
+                    variant={statusColors[device.status]} 
+                    className="shrink-0 text-xs px-2 py-0.5"
                   >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Status</span>
-                  <Badge variant={statusColors[device.status]}>
                     {device.status.charAt(0).toUpperCase() + device.status.slice(1)}
                   </Badge>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Location</span>
-                  <span className="text-sm font-medium">{locationNames[device.location]}</span>
+                
+                {/* Details: Compact 2-column layout */}
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary/50"></span>
+                    <span className="truncate">{locationNames[device.location] || device.location}</span>
+                  </div>
+                  <div className="text-right text-muted-foreground truncate" title={device.assignedTo}>
+                    {device.assignedTo === "Unassigned" ? (
+                      <span className="italic opacity-60">Unassigned</span>
+                    ) : (
+                      device.assignedTo
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Assigned To</span>
-                  <span className="text-sm font-medium">{device.assignedTo}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Model</span>
-                  <span className="text-sm">
-                    {device.brand} {device.model}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Serial</span>
-                  <span className="text-sm font-mono">{device.serialNumber}</span>
-                </div>
-              </CardContent>
+              </div>
             </Card>
           )
         })}
@@ -609,18 +648,60 @@ export function DeviceInventory() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Location</label>
               <Select
-                value={editFormData.location}
-                onValueChange={(value) => setEditFormData({ ...editFormData, location: value })}
+                value={editFormData.location || "none"}
+                onValueChange={(value) => setEditFormData({ ...editFormData, location: value === "none" ? "" : value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select location" />
                 </SelectTrigger>
                 <SelectContent>
-                  {dbLocations.map((loc) => (
+                  <SelectItem value="none">Select location...</SelectItem>
+                  {dbLocations.filter(loc => loc.code && loc.code.trim() !== "").map((loc) => (
                     <SelectItem key={loc.code} value={loc.code}>
                       {loc.name}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Region</label>
+              <Select
+                value={editFormData.region_id || "none"}
+                onValueChange={(value) => setEditFormData({ ...editFormData, region_id: value === "none" ? "" : value, district_id: "" })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select region" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Region</SelectItem>
+                  {dbRegions.map((region) => (
+                    <SelectItem key={region.id} value={region.id}>
+                      {region.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">District</label>
+              <Select
+                value={editFormData.district_id || "none"}
+                onValueChange={(value) => setEditFormData({ ...editFormData, district_id: value === "none" ? "" : value })}
+                disabled={!editFormData.region_id}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={editFormData.region_id ? "Select district" : "Select region first"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No District</SelectItem>
+                  {dbDistricts
+                    .filter((d) => !editFormData.region_id || d.region_id === editFormData.region_id)
+                    .map((district) => (
+                      <SelectItem key={district.id} value={district.id}>
+                        {district.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

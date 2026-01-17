@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FormNavigation } from "@/components/ui/form-navigation"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "@/components/ui/use-toast"
+import { useAuth } from "@/lib/auth-context"
+import { canSeeAllLocations } from "@/lib/location-filter"
 
 interface Device {
   type: "laptop" | "desktop" | "printer" | "ups" | "stabiliser" | "mobile" | "server" | "other"
@@ -17,6 +19,8 @@ interface Device {
   brand: string
   status: "active" | "repair" | "maintenance" | "retired"
   location: string
+  region: string
+  district: string
   assignedTo: string
   purchaseDate: string
   warrantyExpiry: string
@@ -27,11 +31,18 @@ interface AddDeviceFormProps {
 }
 
 export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
+  const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [deviceTypes, setDeviceTypes] = useState<{ code: string; name: string }[]>([])
   const [locations, setLocations] = useState<{ code: string; name: string }[]>([])
+  const [regions, setRegions] = useState<{ id: string; name: string; code: string }[]>([])
+  const [districts, setDistricts] = useState<{ id: string; name: string; code: string; region_id: string }[]>([])
+  const [filteredDistricts, setFilteredDistricts] = useState<{ id: string; name: string; code: string; region_id: string }[]>([])
   const supabase = createClient()
+  
+  // Check if user can select all locations or is restricted to their own
+  const canSelectAllLocations = user ? canSeeAllLocations(user) : false
 
   const [formData, setFormData] = useState<Device>({
     type: "laptop",
@@ -39,7 +50,9 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
     model: "",
     brand: "",
     status: "active",
-    location: "",
+    location: user?.location || "",  // Pre-select user's location
+    region: "",
+    district: "",
     assignedTo: "",
     purchaseDate: new Date().toISOString().split("T")[0],
     warrantyExpiry: "",
@@ -67,11 +80,46 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
           console.log("[v0] Loaded locations:", locs)
           const activeLocs = locs.filter((l: any) => l.is_active)
           setLocations(activeLocs)
-          if (activeLocs.length > 0 && !formData.location) {
+          
+          // If user has a location and can't see all locations, use their location
+          // Otherwise, default to first location in list
+          if (user?.location && !canSelectAllLocations) {
+            // Find matching location in list (case-insensitive)
+            const matchingLoc = activeLocs.find((l: any) => 
+              l.code?.toLowerCase() === user.location.toLowerCase() ||
+              l.name?.toLowerCase() === user.location.toLowerCase()
+            )
+            if (matchingLoc) {
+              setFormData((prev) => ({ ...prev, location: matchingLoc.code }))
+            } else {
+              // Use user's location directly if not found in list
+              setFormData((prev) => ({ ...prev, location: user.location }))
+            }
+          } else if (activeLocs.length > 0 && !formData.location) {
             setFormData((prev) => ({ ...prev, location: activeLocs[0].code }))
           }
         } else {
           console.error("[v0] Failed to load locations:", locsRes.status)
+        }
+
+        // Load regions
+        const regionsRes = await fetch("/api/admin/lookup-data?type=regions")
+        if (regionsRes.ok) {
+          const regs = await regionsRes.json()
+          console.log("[v0] Loaded regions:", regs)
+          setRegions(regs.filter((r: any) => r.is_active !== false))
+        } else {
+          console.error("[v0] Failed to load regions:", regionsRes.status)
+        }
+
+        // Load districts
+        const districtsRes = await fetch("/api/admin/lookup-data?type=districts")
+        if (districtsRes.ok) {
+          const dists = await districtsRes.json()
+          console.log("[v0] Loaded districts:", dists)
+          setDistricts(dists.filter((d: any) => d.is_active !== false))
+        } else {
+          console.error("[v0] Failed to load districts:", districtsRes.status)
         }
       } catch (error) {
         console.error("[v0] Error fetching lookup data:", error)
@@ -85,44 +133,61 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
     fetchLookupData()
   }, [])
 
+  // Filter districts when region changes
+  useEffect(() => {
+    if (formData.region) {
+      const filtered = districts.filter(d => d.region_id === formData.region)
+      setFilteredDistricts(filtered)
+      // Reset district if current selection is not in filtered list
+      if (formData.district && !filtered.find(d => d.id === formData.district)) {
+        setFormData(prev => ({ ...prev, district: "" }))
+      }
+    } else {
+      setFilteredDistricts([])
+      setFormData(prev => ({ ...prev, district: "" }))
+    }
+  }, [formData.region, districts])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setLoading(true)
 
     try {
-      console.log("[v0] Saving device to Supabase:", formData)
+      console.log("[v0] Saving device via API:", formData)
 
-      const { data, error: insertError } = await supabase
-        .from("devices")
-        .insert([
-          {
-            device_type: formData.type,
-            brand: formData.brand,
-            model: formData.model,
-            serial_number: formData.serialNumber,
-            location: formData.location,
-            assigned_to: formData.assignedTo || null,
-            status: formData.status,
-            purchase_date: formData.purchaseDate || null,
-            warranty_expiry: formData.warrantyExpiry || null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-        ])
-        .select()
+      // Use API endpoint to bypass RLS issues
+      const response = await fetch("/api/devices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          device_type: formData.type,
+          brand: formData.brand,
+          model: formData.model,
+          serial_number: formData.serialNumber,
+          location: formData.location,
+          region_id: formData.region || null,
+          district_id: formData.district || null,
+          assigned_to: formData.assignedTo || null,
+          status: formData.status,
+          purchase_date: formData.purchaseDate || null,
+          warranty_expiry: formData.warrantyExpiry || null,
+        }),
+      })
 
-      if (insertError) {
-        console.error("[v0] Error saving device:", insertError)
-        setError(insertError.message)
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("[v0] Error saving device:", errorData)
+        setError(errorData.error || "Failed to save device")
         toast({
           title: "Error",
-          description: insertError.message,
+          description: errorData.error || "Failed to save device",
           variant: "destructive",
         })
         return
       }
 
+      const data = await response.json()
       console.log("[v0] Device saved successfully:", data)
       toast({
         title: "Success",
@@ -233,13 +298,22 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="location">Location *</Label>
-            <Select value={formData.location} onValueChange={(value) => handleInputChange("location", value)}>
+            <Label htmlFor="location">Location *{!canSelectAllLocations && user?.location && <span className="text-muted-foreground text-sm ml-2">(Your location)</span>}</Label>
+            <Select 
+              value={formData.location} 
+              onValueChange={(value) => handleInputChange("location", value)}
+              disabled={!canSelectAllLocations && !!user?.location}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select location" />
               </SelectTrigger>
               <SelectContent>
-                {locations.length > 0 ? (
+                {!canSelectAllLocations && user?.location ? (
+                  // Show only user's location for non-admin users
+                  <SelectItem value={formData.location || user.location}>
+                    {locations.find(l => l.code === formData.location || l.code === user.location)?.name || user.location}
+                  </SelectItem>
+                ) : locations.length > 0 ? (
                   locations.map((loc) => (
                     <SelectItem key={loc.code} value={loc.code}>
                       {loc.name}
@@ -248,6 +322,47 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
                 ) : (
                   <SelectItem value="head_office">Head Office</SelectItem>
                 )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="region">Region</Label>
+            <Select 
+              value={formData.region} 
+              onValueChange={(value) => handleInputChange("region", value === "none" ? "" : value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select region" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">-- No Region --</SelectItem>
+                {regions.map((region) => (
+                  <SelectItem key={region.id} value={region.id}>
+                    {region.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="district">District</Label>
+            <Select 
+              value={formData.district} 
+              onValueChange={(value) => handleInputChange("district", value === "none" ? "" : value)}
+              disabled={!formData.region}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={formData.region ? "Select district" : "Select a region first"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">-- No District --</SelectItem>
+                {filteredDistricts.map((district) => (
+                  <SelectItem key={district.id} value={district.id}>
+                    {district.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

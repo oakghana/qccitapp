@@ -1,0 +1,776 @@
+"use client"
+
+import { useState, useEffect, useRef } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  FileText,
+  Upload,
+  Download,
+  Eye,
+  CheckCircle,
+  Clock,
+  Users,
+  Filter,
+  Loader2,
+  Trash2,
+  MessageSquare,
+  FileCheck,
+  Printer,
+  BarChart3,
+  Info,
+  ExternalLink,
+} from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
+import { LOCATIONS } from "@/lib/locations"
+import { format } from "date-fns"
+import { toast } from "sonner"
+
+interface PDFUpload {
+  id: string
+  title: string
+  description: string
+  document_type: "toner" | "quarterly_report" | "information"
+  file_name: string
+  file_url: string
+  file_size: number
+  uploaded_by: string
+  uploaded_by_name: string
+  target_location: string | null
+  is_active: boolean
+  created_at: string
+  confirmations: PDFConfirmation[]
+}
+
+interface PDFConfirmation {
+  id: string
+  user_id: string
+  user_name: string
+  user_location: string
+  confirmed_at: string
+  comments: string
+}
+
+const documentTypeLabels = {
+  toner: "Toner Report",
+  quarterly_report: "Quarterly Report",
+  information: "Information",
+}
+
+const documentTypeIcons = {
+  toner: Printer,
+  quarterly_report: BarChart3,
+  information: Info,
+}
+
+const documentTypeColors = {
+  toner: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  quarterly_report: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+  information: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+}
+
+export function PDFUploadsDashboard() {
+  const { user } = useAuth()
+  const [uploads, setUploads] = useState<PDFUpload[]>([])
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [selectedType, setSelectedType] = useState("all")
+  const [selectedLocation, setSelectedLocation] = useState("all")
+  const [showUploadDialog, setShowUploadDialog] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [showConfirmationsDialog, setShowConfirmationsDialog] = useState(false)
+  const [selectedUpload, setSelectedUpload] = useState<PDFUpload | null>(null)
+  const [confirmComment, setConfirmComment] = useState("")
+  const [confirming, setConfirming] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Upload form state
+  const [uploadForm, setUploadForm] = useState({
+    title: "",
+    description: "",
+    documentType: "information" as "toner" | "quarterly_report" | "information",
+    targetLocation: "all",
+    file: null as File | null,
+  })
+
+  const canUpload = user && ["admin", "it_head", "regional_it_head", "service_desk_head"].includes(user.role)
+  const canDelete = user && ["admin", "it_head"].includes(user.role)
+
+  useEffect(() => {
+    fetchUploads()
+  }, [selectedType, selectedLocation])
+
+  const fetchUploads = async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (selectedType !== "all") params.append("type", selectedType)
+      if (selectedLocation !== "all") params.append("location", selectedLocation)
+
+      const response = await fetch(`/api/pdf-uploads?${params.toString()}`)
+      const data = await response.json()
+
+      if (data.success) {
+        setUploads(data.uploads || [])
+      } else {
+        toast.error(data.error || "Failed to fetch uploads")
+      }
+    } catch (error) {
+      console.error("Error fetching uploads:", error)
+      toast.error("Failed to fetch uploads")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleUpload = async () => {
+    if (!uploadForm.file || !uploadForm.title || !user) {
+      toast.error("Please fill in all required fields")
+      return
+    }
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", uploadForm.file)
+      formData.append("title", uploadForm.title)
+      formData.append("description", uploadForm.description)
+      formData.append("documentType", uploadForm.documentType)
+      formData.append("targetLocation", uploadForm.targetLocation)
+      formData.append("uploadedBy", user.id)
+      formData.append("uploadedByName", user.full_name || user.name || user.username)
+
+      const response = await fetch("/api/pdf-uploads", {
+        method: "POST",
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success("Document uploaded successfully")
+        setShowUploadDialog(false)
+        setUploadForm({
+          title: "",
+          description: "",
+          documentType: "information",
+          targetLocation: "all",
+          file: null,
+        })
+        fetchUploads()
+      } else {
+        toast.error(data.error || "Failed to upload document")
+      }
+    } catch (error) {
+      console.error("Error uploading:", error)
+      toast.error("Failed to upload document")
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleConfirm = async () => {
+    if (!selectedUpload || !user) return
+
+    setConfirming(true)
+    try {
+      const response = await fetch("/api/pdf-uploads/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pdfId: selectedUpload.id,
+          userId: user.id,
+          userName: user.full_name || user.name || user.username,
+          userLocation: user.location,
+          comments: confirmComment,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success("Document confirmed successfully")
+        setShowConfirmDialog(false)
+        setConfirmComment("")
+        setSelectedUpload(null)
+        fetchUploads()
+      } else {
+        toast.error(data.error || "Failed to confirm document")
+      }
+    } catch (error) {
+      console.error("Error confirming:", error)
+      toast.error("Failed to confirm document")
+    } finally {
+      setConfirming(false)
+    }
+  }
+
+  const handleDelete = async (uploadId: string) => {
+    if (!confirm("Are you sure you want to delete this document?")) return
+
+    try {
+      const response = await fetch(`/api/pdf-uploads?id=${uploadId}`, {
+        method: "DELETE",
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success("Document deleted successfully")
+        fetchUploads()
+      } else {
+        toast.error(data.error || "Failed to delete document")
+      }
+    } catch (error) {
+      console.error("Error deleting:", error)
+      toast.error("Failed to delete document")
+    }
+  }
+
+  const hasUserConfirmed = (upload: PDFUpload) => {
+    return upload.confirmations?.some((c) => c.user_id === user?.id)
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+
+  const filteredUploads = uploads.filter((upload) => {
+    // If user's location doesn't match target and target is not null, hide it
+    if (upload.target_location && upload.target_location !== user?.location) {
+      // Unless user is admin or it_head who can see all
+      if (!["admin", "it_head"].includes(user?.role || "")) {
+        return false
+      }
+    }
+    return true
+  })
+
+  const stats = {
+    total: filteredUploads.length,
+    toner: filteredUploads.filter((u) => u.document_type === "toner").length,
+    quarterly: filteredUploads.filter((u) => u.document_type === "quarterly_report").length,
+    information: filteredUploads.filter((u) => u.document_type === "information").length,
+    unconfirmed: filteredUploads.filter((u) => !hasUserConfirmed(u)).length,
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            IT Documents & Reports
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            View and confirm official IT documents and reports
+          </p>
+        </div>
+        {canUpload && (
+          <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Upload className="h-4 w-4" />
+                Upload Document
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Upload New Document</DialogTitle>
+                <DialogDescription>
+                  Upload a PDF document for IT staff to view and confirm.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Title *</Label>
+                  <Input
+                    id="title"
+                    value={uploadForm.title}
+                    onChange={(e) => setUploadForm({ ...uploadForm, title: e.target.value })}
+                    placeholder="Enter document title"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={uploadForm.description}
+                    onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
+                    placeholder="Enter document description"
+                    rows={3}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Document Type *</Label>
+                    <Select
+                      value={uploadForm.documentType}
+                      onValueChange={(value) =>
+                        setUploadForm({
+                          ...uploadForm,
+                          documentType: value as "toner" | "quarterly_report" | "information",
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="toner">Toner Report</SelectItem>
+                        <SelectItem value="quarterly_report">Quarterly Report</SelectItem>
+                        <SelectItem value="information">Information</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Target Location</Label>
+                    <Select
+                      value={uploadForm.targetLocation}
+                      onValueChange={(value) =>
+                        setUploadForm({ ...uploadForm, targetLocation: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Locations</SelectItem>
+                        {Object.entries(LOCATIONS).map(([key, label]) => (
+                          <SelectItem key={key} value={key}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>PDF File *</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          if (file.type !== "application/pdf") {
+                            toast.error("Please select a PDF file")
+                            return
+                          }
+                          setUploadForm({ ...uploadForm, file })
+                        }
+                      }}
+                      className="flex-1"
+                    />
+                  </div>
+                  {uploadForm.file && (
+                    <p className="text-sm text-gray-500">
+                      Selected: {uploadForm.file.name} ({formatFileSize(uploadForm.file.size)})
+                    </p>
+                  )}
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowUploadDialog(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleUpload} disabled={uploading}>
+                  {uploading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Total Documents</p>
+                <p className="text-2xl font-bold">{stats.total}</p>
+              </div>
+              <FileText className="h-8 w-8 text-gray-400" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Toner Reports</p>
+                <p className="text-2xl font-bold text-blue-600">{stats.toner}</p>
+              </div>
+              <Printer className="h-8 w-8 text-blue-400" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Quarterly Reports</p>
+                <p className="text-2xl font-bold text-purple-600">{stats.quarterly}</p>
+              </div>
+              <BarChart3 className="h-8 w-8 text-purple-400" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Information</p>
+                <p className="text-2xl font-bold text-green-600">{stats.information}</p>
+              </div>
+              <Info className="h-8 w-8 text-green-400" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Pending Confirmation</p>
+                <p className="text-2xl font-bold text-orange-600">{stats.unconfirmed}</p>
+              </div>
+              <Clock className="h-8 w-8 text-orange-400" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-gray-500" />
+              <span className="text-sm font-medium">Filters:</span>
+            </div>
+            <Select value={selectedType} onValueChange={setSelectedType}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Document Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="toner">Toner Reports</SelectItem>
+                <SelectItem value="quarterly_report">Quarterly Reports</SelectItem>
+                <SelectItem value="information">Information</SelectItem>
+              </SelectContent>
+            </Select>
+            {["admin", "it_head", "regional_it_head"].includes(user?.role || "") && (
+              <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Locations</SelectItem>
+                  {Object.entries(LOCATIONS).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Documents List */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Documents</CardTitle>
+          <CardDescription>
+            Click on a document to view, download, or confirm that you have reviewed it.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            </div>
+          ) : filteredUploads.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No documents found</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Document</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Uploaded By</TableHead>
+                    <TableHead>Target Location</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Confirmations</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredUploads.map((upload) => {
+                    const Icon = documentTypeIcons[upload.document_type]
+                    const confirmed = hasUserConfirmed(upload)
+                    return (
+                      <TableRow key={upload.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                              <FileText className="h-5 w-5 text-red-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium">{upload.title}</p>
+                              <p className="text-sm text-gray-500">{upload.file_name}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={documentTypeColors[upload.document_type]}>
+                            <Icon className="h-3 w-3 mr-1" />
+                            {documentTypeLabels[upload.document_type]}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{upload.uploaded_by_name}</TableCell>
+                        <TableCell>
+                          {upload.target_location
+                            ? LOCATIONS[upload.target_location as keyof typeof LOCATIONS] ||
+                              upload.target_location
+                            : "All Locations"}
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(upload.created_at), "MMM d, yyyy")}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1"
+                            onClick={() => {
+                              setSelectedUpload(upload)
+                              setShowConfirmationsDialog(true)
+                            }}
+                          >
+                            <Users className="h-4 w-4" />
+                            {upload.confirmations?.length || 0}
+                          </Button>
+                        </TableCell>
+                        <TableCell>
+                          {confirmed ? (
+                            <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Confirmed
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-orange-600 border-orange-300">
+                              <Clock className="h-3 w-3 mr-1" />
+                              Pending
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => window.open(upload.file_url, "_blank")}
+                              title="View PDF"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const link = document.createElement("a")
+                                link.href = upload.file_url
+                                link.download = upload.file_name
+                                link.click()
+                              }}
+                              title="Download"
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                            {!confirmed && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1"
+                                onClick={() => {
+                                  setSelectedUpload(upload)
+                                  setShowConfirmDialog(true)
+                                }}
+                              >
+                                <FileCheck className="h-4 w-4" />
+                                Confirm
+                              </Button>
+                            )}
+                            {canDelete && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700"
+                                onClick={() => handleDelete(upload.id)}
+                                title="Delete"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Confirm Dialog */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Document Review</DialogTitle>
+            <DialogDescription>
+              Confirm that you have reviewed and understood this document.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedUpload && (
+            <div className="space-y-4 py-4">
+              <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <p className="font-medium">{selectedUpload.title}</p>
+                <p className="text-sm text-gray-500">{selectedUpload.description}</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="comment">Add a comment (optional)</Label>
+                <Textarea
+                  id="comment"
+                  value={confirmComment}
+                  onChange={(e) => setConfirmComment(e.target.value)}
+                  placeholder="Any notes or feedback about this document..."
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirm} disabled={confirming}>
+              {confirming ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Confirming...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Confirm Review
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmations List Dialog */}
+      <Dialog open={showConfirmationsDialog} onOpenChange={setShowConfirmationsDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Document Confirmations</DialogTitle>
+            <DialogDescription>
+              {selectedUpload?.title} - Staff who have confirmed this document
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-96 overflow-y-auto">
+            {selectedUpload?.confirmations?.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No confirmations yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {selectedUpload?.confirmations?.map((conf) => (
+                  <div
+                    key={conf.id}
+                    className="p-3 border rounded-lg flex items-start justify-between"
+                  >
+                    <div>
+                      <p className="font-medium">{conf.user_name}</p>
+                      <p className="text-sm text-gray-500">{conf.user_location}</p>
+                      {conf.comments && (
+                        <p className="text-sm mt-1 text-gray-600 dark:text-gray-400">
+                          <MessageSquare className="h-3 w-3 inline mr-1" />
+                          {conf.comments}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <Badge variant="outline" className="text-green-600">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Confirmed
+                      </Badge>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {format(new Date(conf.confirmed_at), "MMM d, yyyy h:mm a")}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowConfirmationsDialog(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}

@@ -2,9 +2,19 @@
 
 import { useState, useEffect } from "react"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
-import { createClient } from "@/supabase/client" // Assuming createClient is imported from a supabase client file
-import type { Device } from "@/types/device" // Assuming Device type is imported from a types file
-import { Label } from "@/components/ui/label" // Assuming Label component is imported from a ui file
+import { createClient } from "@/lib/supabase/client"
+import { Label } from "@/components/ui/label"
+
+interface Device {
+  id: string
+  type: string
+  brand: string
+  model: string
+  serial_number: string
+  asset_tag: string
+  location: string
+  status: string
+}
 
 interface CreateRepairFormProps {
   onSubmit: (formData: any) => void

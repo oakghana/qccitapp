@@ -36,9 +36,9 @@ export async function GET(request: NextRequest) {
       .from("devices")
       .select("id, device_type, status, location, brand, model, assigned_to, purchase_date, warranty_expiry")
 
-    // Filter by location for regional users
-    if (isRegionalHead || (!canSeeAllLocations && profile.location)) {
-      devicesQuery = devicesQuery.eq("location", profile.location)
+    // Filter by location for regional users (case-insensitive)
+    if ((isRegionalHead || !canSeeAllLocations) && profile.location) {
+      devicesQuery = devicesQuery.ilike("location", profile.location)
     }
 
     const { data: devices, error: devicesError } = await devicesQuery

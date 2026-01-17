@@ -144,8 +144,8 @@ export function ITHeadRepairReports() {
         .gte("created_at", dateRange.start)
         .lte("created_at", dateRange.end)
 
-      if (!canSeeAllLocations(user)) {
-        query = query.eq("location", user.location)
+      if (!canSeeAllLocations(user) && user.location) {
+        query = query.ilike("location", user.location)
       }
 
       const { data: repairs, error } = await query

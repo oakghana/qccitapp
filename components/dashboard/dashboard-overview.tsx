@@ -35,40 +35,65 @@ export function DashboardOverview() {
       if (!user) return
 
       const supabase = createClient()
-      const canSeeAll = canSeeAllLocations(user.role || "")
-      const locationFilter = canSeeAll ? {} : { location: user.location }
+      const canSeeAll = canSeeAllLocations(user)
+      const userLoc = user.location?.trim()
+
+      console.log("[v0] Dashboard stats - user:", user.username, "role:", user.role, "location:", userLoc, "canSeeAll:", canSeeAll)
 
       try {
-        // Fetch total devices
-        const { count: devicesCount } = await supabase
+        // Fetch total devices - use or filter for flexible location matching
+        let devicesQuery = supabase
           .from("devices")
           .select("*", { count: "exact", head: true })
-          .match(locationFilter)
+        
+        if (!canSeeAll && userLoc) {
+          // Use or filter for flexible location matching (exact and partial)
+          devicesQuery = devicesQuery.or(`location.ilike.${userLoc},location.ilike.%${userLoc}%`)
+        }
+        
+        const { count: devicesCount, error: devicesError } = await devicesQuery
+        if (devicesError) console.error("[v0] Error fetching devices:", devicesError, JSON.stringify(devicesError))
+        console.log("[v0] Devices count:", devicesCount)
 
-        // Fetch active repairs (in_repair status)
-        const { count: activeRepairsCount } = await supabase
-          .from("repairs")
+        // Fetch active repairs (in_progress status) - using repair_requests table
+        let repairsQuery = supabase
+          .from("repair_requests")
           .select("*", { count: "exact", head: true })
-          .eq("status", "in_repair")
-          .match(locationFilter)
+          .eq("status", "in_progress")
+        
+        if (!canSeeAll && userLoc) {
+          repairsQuery = repairsQuery.or(`location.ilike.${userLoc},location.ilike.%${userLoc}%`)
+        }
+        
+        const { count: activeRepairsCount, error: repairsError } = await repairsQuery
+        if (repairsError) console.error("[v0] Error fetching repairs:", repairsError, JSON.stringify(repairsError))
+        console.log("[v0] Active repairs count:", activeRepairsCount)
 
         // Fetch completed repairs this month
         const startOfMonth = new Date()
         startOfMonth.setDate(1)
         startOfMonth.setHours(0, 0, 0, 0)
 
-        const { count: completedRepairsCount } = await supabase
-          .from("repairs")
+        let completedQuery = supabase
+          .from("repair_requests")
           .select("*", { count: "exact", head: true })
           .eq("status", "completed")
           .gte("updated_at", startOfMonth.toISOString())
-          .match(locationFilter)
+        
+        if (!canSeeAll && userLoc) {
+          completedQuery = completedQuery.or(`location.ilike.${userLoc},location.ilike.%${userLoc}%`)
+        }
+        
+        const { count: completedRepairsCount, error: completedError } = await completedQuery
+        if (completedError) console.error("[v0] Error fetching completed repairs:", completedError)
+        console.log("[v0] Completed repairs count:", completedRepairsCount)
 
         // Fetch pending approvals (users with pending status)
-        const { count: pendingApprovalsCount } = await supabase
+        const { count: pendingApprovalsCount, error: pendingError } = await supabase
           .from("profiles")
           .select("*", { count: "exact", head: true })
           .eq("status", "pending")
+        if (pendingError) console.error("[v0] Error fetching pending approvals:", pendingError)
 
         // For IT staff - fetch assigned tasks
         let assignedTasksCount = 0
@@ -78,28 +103,28 @@ export function DashboardOverview() {
 
         if (user.role === "it_staff") {
           const { count: assigned } = await supabase
-            .from("repairs")
+            .from("repair_requests")
             .select("*", { count: "exact", head: true })
             .eq("assigned_to", user.id)
 
           const { count: inProgress } = await supabase
-            .from("repairs")
+            .from("repair_requests")
             .select("*", { count: "exact", head: true })
             .eq("assigned_to", user.id)
-            .eq("status", "in_repair")
+            .eq("status", "in_progress")
 
           const { count: completed } = await supabase
-            .from("repairs")
+            .from("repair_requests")
             .select("*", { count: "exact", head: true })
             .eq("assigned_to", user.id)
             .eq("status", "completed")
             .gte("updated_at", startOfMonth.toISOString())
 
           const { count: pending } = await supabase
-            .from("repairs")
+            .from("repair_requests")
             .select("*", { count: "exact", head: true })
             .eq("assigned_to", user.id)
-            .eq("status", "pending_approval")
+            .eq("status", "pending")
 
           assignedTasksCount = assigned || 0
           inProgressTasksCount = inProgress || 0
@@ -237,7 +262,17 @@ export function DashboardOverview() {
     ]
   }
 
-  const getRecentActivity = () => {
+  interface RecentActivity {
+    id: string
+    type: "repair_request" | "repair_assigned" | "device_transfer" | "repair_in_progress" | "repair_completed"
+    device: string
+    user: string
+    region: string
+    status: string
+    time: string
+  }
+
+  const getRecentActivity = (): RecentActivity[] => {
     return []
   }
 
@@ -246,27 +281,37 @@ export function DashboardOverview() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground">
-          {user?.role === "it_staff"
-            ? "Manage your assigned repair tasks and track progress"
-            : "Welcome to the QCC IT Device Tracking System"}
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">
+            {user?.role === "it_staff"
+              ? "Manage your assigned repair tasks and track progress"
+              : "Welcome to the QCC IT Device Tracking System"}
+          </p>
+        </div>
+        {user?.location && !canSeeAllLocations(user) && (
+          <Badge variant="outline" className="w-fit text-xs px-3 py-1">
+            📍 {user.location}
+          </Badge>
+        )}
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* Stats Grid - More compact */}
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         {displayStats.map((stat) => (
-          <Card key={stat.title}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <stat.icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">{stat.description}</p>
-              {stat.trend && <p className="text-xs text-primary mt-1">{stat.trend}</p>}
+          <Card key={stat.title} className="relative overflow-hidden">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">{stat.title}</p>
+                  <p className="text-2xl font-bold">{stat.value}</p>
+                  <p className="text-[10px] text-muted-foreground">{stat.description}</p>
+                </div>
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <stat.icon className="h-5 w-5 text-primary" />
+                </div>
+              </div>
             </CardContent>
           </Card>
         ))}

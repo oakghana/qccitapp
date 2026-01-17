@@ -85,24 +85,30 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
   const loadTickets = async () => {
     try {
       setLoading(true)
-      let query = supabase.from("service_tickets").select("*").order("created_at", { ascending: false })
+      const location = user?.location || ""
+      const canSeeAll = user ? canSeeAllLocations(user) : false
+      
+      console.log("[v0] Loading tickets via API for user:", user?.role, "location:", location, "canSeeAll:", canSeeAll)
+      
+      // Use API endpoint that bypasses RLS
+      const params = new URLSearchParams({
+        location: location,
+        canSeeAll: String(canSeeAll),
+        userRole: user?.role || "",
+        userId: user?.full_name || user?.name || "",
+      })
+      
+      const response = await fetch(`/api/service-tickets?${params}`)
+      const result = await response.json()
 
-      if (user?.role === "user" || user?.role === "staff") {
-        query = query.eq("requested_by", user.name)
-      } else if (user && !canSeeAllLocations(user) && user.location) {
-        query = query.eq("location", user.location)
-      }
-
-      const { data, error } = await query
-
-      if (error) {
-        console.error("[v0] Error loading tickets:", error)
+      if (!response.ok) {
+        console.error("[v0] Error loading tickets:", result.error)
         return
       }
 
-      console.log("[v0] Loaded tickets from Supabase:", data)
+      console.log("[v0] Loaded tickets from API:", result.tickets?.length || 0, "tickets")
 
-      const mappedTickets: Ticket[] = data.map((ticket: any) => ({
+      const mappedTickets: Ticket[] = (result.tickets || []).map((ticket: any) => ({
         id: ticket.ticket_number || ticket.id,
         title: ticket.title,
         category: ticket.category || "Other",
@@ -329,7 +335,7 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
     }
   }
 
-  const isItHeadOrAdmin = user?.role === "it_head" || user?.role === "admin" || user?.role === "regional_it_head"
+  const isItHeadOrAdmin = user?.role === "it_head" || user?.role === "admin" || user?.role === "regional_it_head" || user?.role?.startsWith("service_desk_")
 
   const clearFilters = () => {
     setSearchTerm("")

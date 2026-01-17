@@ -142,6 +142,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           badge: counts.serviceProviders > 0 ? counts.serviceProviders : undefined,
         },
         { name: "IT Reports", href: "/dashboard/it-reports", icon: FileText },
+        { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
         { name: "Users", href: "/dashboard/users", icon: Users },
         {
           name: "Pending User Approvals",
@@ -191,6 +192,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           href: "/dashboard/store-summary-report",
           icon: FileText,
         },
+        { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
         { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
       ]
     }
@@ -224,6 +226,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           href: "/dashboard/store-summary-report",
           icon: FileText,
         },
+        { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
         { name: "Users", href: "/dashboard/users", icon: Users },
         { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
       ]
@@ -270,6 +273,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           badge: counts.serviceProviders > 0 ? counts.serviceProviders : undefined,
         },
         { name: "IT Reports", href: "/dashboard/it-reports", icon: FileText },
+        { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
         {
           name: "Notifications",
           href: "/dashboard/notifications",
@@ -318,6 +322,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           badge: counts.serviceProviders > 0 ? counts.serviceProviders : undefined,
         },
         { name: "IT Reports", href: "/dashboard/it-reports", icon: FileText },
+        { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
         {
           name: "Notifications",
           href: "/dashboard/notifications",
@@ -377,6 +382,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           icon: Wrench,
           badge: counts.repairs > 0 ? counts.repairs : undefined,
         },
+        { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
         {
           name: "Notifications",
           href: "/dashboard/notifications",

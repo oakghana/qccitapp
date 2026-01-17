@@ -8,6 +8,8 @@ const TABLE_MAP: Record<string, string> = {
   departments: "lookup_departments",
   device_types: "lookup_device_types",
   item_categories: "lookup_item_categories",
+  regions: "regions",
+  districts: "districts",
 }
 
 export async function GET(request: NextRequest) {
