@@ -35,10 +35,8 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [deviceTypes, setDeviceTypes] = useState<{ code: string; name: string }[]>([])
-  const [locations, setLocations] = useState<{ code: string; name: string }[]>([])
+  const [locations, setLocations] = useState<{ code: string; name: string; region_id?: string }[]>([])
   const [regions, setRegions] = useState<{ id: string; name: string; code: string }[]>([])
-  const [districts, setDistricts] = useState<{ id: string; name: string; code: string; region_id: string }[]>([])
-  const [filteredDistricts, setFilteredDistricts] = useState<{ id: string; name: string; code: string; region_id: string }[]>([])
   const supabase = createClient()
   
   // Check if user can select all locations or is restricted to their own
@@ -78,7 +76,11 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
         if (locsRes.ok) {
           const locs = await locsRes.json()
           console.log("[v0] Loaded locations:", locs)
-          const activeLocs = locs.filter((l: any) => l.is_active)
+          const activeLocs = locs.filter((l: any) => l.is_active).map((l: any) => ({
+            code: l.code,
+            name: l.name,
+            region_id: l.region_id || null
+          }))
           setLocations(activeLocs)
           
           // If user has a location and can't see all locations, use their location
@@ -112,15 +114,6 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
           console.error("[v0] Failed to load regions:", regionsRes.status)
         }
 
-        // Load districts
-        const districtsRes = await fetch("/api/admin/lookup-data?type=districts")
-        if (districtsRes.ok) {
-          const dists = await districtsRes.json()
-          console.log("[v0] Loaded districts:", dists)
-          setDistricts(dists.filter((d: any) => d.is_active !== false))
-        } else {
-          console.error("[v0] Failed to load districts:", districtsRes.status)
-        }
       } catch (error) {
         console.error("[v0] Error fetching lookup data:", error)
         toast({
@@ -133,20 +126,16 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
     fetchLookupData()
   }, [])
 
-  // Filter districts when region changes
-  useEffect(() => {
-    if (formData.region) {
-      const filtered = districts.filter(d => d.region_id === formData.region)
-      setFilteredDistricts(filtered)
-      // Reset district if current selection is not in filtered list
-      if (formData.district && !filtered.find(d => d.id === formData.district)) {
-        setFormData(prev => ({ ...prev, district: "" }))
-      }
-    } else {
-      setFilteredDistricts([])
-      setFormData(prev => ({ ...prev, district: "" }))
-    }
-  }, [formData.region, districts])
+  // Auto-populate region when location changes
+  const handleLocationChange = (locationCode: string) => {
+    const selectedLocation = locations.find(loc => loc.code === locationCode)
+    const newRegionId = selectedLocation?.region_id || ""
+    setFormData(prev => ({
+      ...prev,
+      location: locationCode,
+      region: newRegionId,
+    }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -301,7 +290,7 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
             <Label htmlFor="location">Location *{!canSelectAllLocations && user?.location && <span className="text-muted-foreground text-sm ml-2">(Your location)</span>}</Label>
             <Select 
               value={formData.location} 
-              onValueChange={(value) => handleInputChange("location", value)}
+              onValueChange={handleLocationChange}
               disabled={!canSelectAllLocations && !!user?.location}
             >
               <SelectTrigger>
@@ -344,27 +333,17 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">Auto-populated from location, or select manually</p>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="district">District</Label>
-            <Select 
-              value={formData.district} 
-              onValueChange={(value) => handleInputChange("district", value === "none" ? "" : value)}
-              disabled={!formData.region}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={formData.region ? "Select district" : "Select a region first"} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">-- No District --</SelectItem>
-                {filteredDistricts.map((district) => (
-                  <SelectItem key={district.id} value={district.id}>
-                    {district.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input
+              id="district"
+              value={formData.district}
+              onChange={(e) => handleInputChange("district", e.target.value)}
+              placeholder="Enter district if applicable"
+            />
           </div>
 
           <div className="space-y-2">

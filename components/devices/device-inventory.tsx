@@ -119,7 +119,7 @@ export function DeviceInventory() {
     region_id: "",
     district_id: "",
   })
-  const [dbLocations, setDbLocations] = useState<{ code: string; name: string }[]>([])
+  const [dbLocations, setDbLocations] = useState<{ code: string; name: string; region_id?: string }[]>([])
   const [dbRegions, setDbRegions] = useState<{ id: string; code: string; name: string }[]>([])
   const [dbDistricts, setDbDistricts] = useState<{ id: string; code: string; name: string; region_id: string }[]>([])
 
@@ -169,12 +169,24 @@ export function DeviceInventory() {
           .map((loc: any) => ({
             code: loc.code || loc.name, // Fallback to name if code is empty
             name: loc.name,
+            region_id: loc.region_id || null, // Include region_id for auto-population
           }))
         setDbLocations(activeLocations)
       }
     } catch (error) {
       console.error("Error loading locations:", error)
     }
+  }
+
+  // Auto-populate region when location changes
+  const handleLocationChange = (locationCode: string) => {
+    const selectedLocation = dbLocations.find(loc => loc.code === locationCode)
+    const newRegionId = selectedLocation?.region_id || ""
+    setEditFormData(prev => ({
+      ...prev,
+      location: locationCode === "none" ? "" : locationCode,
+      region_id: newRegionId,
+    }))
   }
 
   const loadDevices = async () => {
@@ -649,7 +661,7 @@ export function DeviceInventory() {
               <label className="text-sm font-medium">Location</label>
               <Select
                 value={editFormData.location || "none"}
-                onValueChange={(value) => setEditFormData({ ...editFormData, location: value === "none" ? "" : value })}
+                onValueChange={handleLocationChange}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select location" />
@@ -668,7 +680,7 @@ export function DeviceInventory() {
               <label className="text-sm font-medium">Region</label>
               <Select
                 value={editFormData.region_id || "none"}
-                onValueChange={(value) => setEditFormData({ ...editFormData, region_id: value === "none" ? "" : value, district_id: "" })}
+                onValueChange={(value) => setEditFormData({ ...editFormData, region_id: value === "none" ? "" : value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select region" />
@@ -682,28 +694,15 @@ export function DeviceInventory() {
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">Auto-populated from location, or select manually</p>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">District</label>
-              <Select
-                value={editFormData.district_id || "none"}
-                onValueChange={(value) => setEditFormData({ ...editFormData, district_id: value === "none" ? "" : value })}
-                disabled={!editFormData.region_id}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={editFormData.region_id ? "Select district" : "Select region first"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No District</SelectItem>
-                  {dbDistricts
-                    .filter((d) => !editFormData.region_id || d.region_id === editFormData.region_id)
-                    .map((district) => (
-                      <SelectItem key={district.id} value={district.id}>
-                        {district.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              <Input
+                value={editFormData.district_id || ""}
+                onChange={(e) => setEditFormData({ ...editFormData, district_id: e.target.value })}
+                placeholder="Enter district if applicable"
+              />
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-4">
