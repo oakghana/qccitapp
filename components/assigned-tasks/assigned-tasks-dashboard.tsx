@@ -86,24 +86,134 @@ export function AssignedTasksDashboard() {
 
     setLoading(true)
     try {
-      const query = supabase
-        .from("assigned_tasks")
+      const allTasks: AssignedTask[] = []
+
+      // Load service desk tickets assigned to this user
+      const { data: serviceTickets, error: ticketError } = await supabase
+        .from("service_tickets")
         .select("*")
         .eq("assigned_to", user.id)
-        .order("assigned_date", { ascending: false })
+        .order("created_at", { ascending: false })
 
-      const { data, error } = await query
-
-      if (error) {
-        console.error("[v0] Error loading assigned tasks:", error)
-        return
+      if (ticketError) {
+        console.error("[v0] Error loading service tickets:", ticketError)
+      } else if (serviceTickets) {
+        // Map service tickets to AssignedTask format
+        const mappedTickets: AssignedTask[] = serviceTickets.map((ticket: any) => ({
+          id: ticket.id,
+          type: "service_desk" as const,
+          title: ticket.title || ticket.subject || "Service Desk Request",
+          description: ticket.description || ticket.notes || "",
+          priority: (ticket.priority || "medium") as AssignedTask["priority"],
+          status: mapTicketStatus(ticket.status),
+          assignedBy: ticket.assigned_by || "IT Head",
+          assignedByRole: "it_head",
+          assignedDate: ticket.assigned_at || ticket.created_at,
+          dueDate: ticket.due_date || "",
+          location: ticket.location || ticket.requester_location || "",
+          requestedBy: ticket.requester_name || ticket.submitted_by || "Unknown",
+          ticketInfo: {
+            category: ticket.category || "General",
+            subcategory: ticket.subcategory || "",
+            ticketNumber: ticket.ticket_number || ticket.id
+          },
+          attachments: [],
+          workNotes: ticket.work_notes ? [ticket.work_notes] : [],
+          completionDate: ticket.resolved_at,
+          estimatedHours: ticket.estimated_hours,
+          actualHours: ticket.actual_hours
+        }))
+        allTasks.push(...mappedTickets)
       }
 
-      setTasks(data || [])
+      // Load repair requests assigned to this user
+      const { data: repairs, error: repairError } = await supabase
+        .from("repair_requests")
+        .select("*, devices(*)")
+        .eq("assigned_to", user.id)
+        .order("created_at", { ascending: false })
+
+      if (repairError) {
+        console.error("[v0] Error loading repair requests:", repairError)
+      } else if (repairs) {
+        // Map repairs to AssignedTask format
+        const mappedRepairs: AssignedTask[] = repairs.map((repair: any) => ({
+          id: repair.id,
+          type: "repair" as const,
+          title: repair.issue_description || repair.description || "Repair Task",
+          description: repair.description || repair.issue_description || "",
+          priority: (repair.priority || "medium") as AssignedTask["priority"],
+          status: mapRepairStatus(repair.status),
+          assignedBy: repair.assigned_by || "IT Head",
+          assignedByRole: "it_head",
+          assignedDate: repair.assigned_at || repair.created_at,
+          dueDate: repair.due_date || "",
+          location: repair.location || repair.devices?.location || "",
+          requestedBy: repair.requested_by || "IT Department",
+          deviceInfo: repair.devices ? {
+            type: repair.devices.device_type || "Unknown",
+            model: repair.devices.brand_model || repair.devices.model || "Unknown",
+            serialNumber: repair.devices.serial_number || ""
+          } : undefined,
+          attachments: [],
+          workNotes: repair.work_notes ? [repair.work_notes] : [],
+          completionDate: repair.completed_at,
+          estimatedHours: repair.estimated_hours,
+          actualHours: repair.actual_hours
+        }))
+        allTasks.push(...mappedRepairs)
+      }
+
+      // Sort by assigned date (most recent first)
+      allTasks.sort((a, b) => new Date(b.assignedDate).getTime() - new Date(a.assignedDate).getTime())
+
+      setTasks(allTasks)
     } catch (error) {
       console.error("[v0] Error loading assigned tasks:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Helper to map service ticket status to task status
+  const mapTicketStatus = (status: string): AssignedTask["status"] => {
+    switch (status?.toLowerCase()) {
+      case "open":
+      case "new":
+        return "assigned"
+      case "in_progress":
+      case "in-progress":
+        return "in_progress"
+      case "resolved":
+      case "closed":
+      case "completed":
+        return "completed"
+      case "on_hold":
+      case "pending":
+        return "on_hold"
+      default:
+        return "assigned"
+    }
+  }
+
+  // Helper to map repair status to task status
+  const mapRepairStatus = (status: string): AssignedTask["status"] => {
+    switch (status?.toLowerCase()) {
+      case "pending":
+      case "assigned":
+        return "assigned"
+      case "in_progress":
+      case "in-progress":
+      case "with_provider":
+        return "in_progress"
+      case "completed":
+      case "resolved":
+        return "completed"
+      case "on_hold":
+      case "waiting_parts":
+        return "on_hold"
+      default:
+        return "assigned"
     }
   }
 

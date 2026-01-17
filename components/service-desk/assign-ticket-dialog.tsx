@@ -222,14 +222,39 @@ export function AssignTicketDialog({
     setIsSubmitting(true)
 
     try {
-      // Find the selected staff member to get their name
+      // Find the selected staff member to get their ID and name
       const selectedStaffMember = availableStaff.find(s => s.id === assignmentData.assignee)
       
-      // Call the assignment with the staff name for display
+      // Call the API directly with staff ID and name
+      const response = await fetch("/api/service-tickets/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticketId: assignmentData.ticketId,
+          assigneeId: selectedStaffMember?.id || assignmentData.assignee,
+          assignee: selectedStaffMember?.name || assignmentData.assignee,
+          priority: assignmentData.priority,
+          dueDate: assignmentData.dueDate,
+          instructions: assignmentData.instructions,
+          assignedBy: user?.name || user?.email || "IT Head",
+          assignedById: user?.id
+        })
+      })
+
+      const result = await response.json()
+      
+      if (!response.ok) {
+        console.error("Assignment failed:", result.error)
+        return
+      }
+
+      // Call onAssign for any additional handling
       onAssign({
         ...assignmentData,
         assignee: selectedStaffMember?.name || assignmentData.assignee
       })
+    } catch (error) {
+      console.error("Error assigning ticket:", error)
     } finally {
       setIsSubmitting(false)
       onClose()

@@ -84,22 +84,55 @@ export function ITHeadRepairManagement() {
   const [priority, setPriority] = useState<RepairTask["priority"]>("medium")
   const [selectedProvider, setSelectedProvider] = useState("")
   const [estimatedCost, setEstimatedCost] = useState("")
+  const [selectedLocation, setSelectedLocation] = useState<string>("")
+  const [locations, setLocations] = useState<{ code: string; name: string }[]>([])
 
   useEffect(() => {
+    loadLocations()
     loadDevices()
     loadServiceProviders()
     loadRepairTasks()
   }, [user])
 
-  const loadDevices = async () => {
+  // Reload devices when location filter changes
+  useEffect(() => {
+    if (selectedLocation !== undefined) {
+      loadDevices(selectedLocation)
+    }
+  }, [selectedLocation])
+
+  const loadLocations = async () => {
+    try {
+      const response = await fetch("/api/admin/lookup-data?type=locations")
+      if (response.ok) {
+        const data = await response.json()
+        const activeLocations = data
+          .filter((loc: any) => loc.is_active)
+          .map((loc: any) => ({ code: loc.code, name: loc.name }))
+        setLocations(activeLocations)
+        
+        // For IT staff, auto-select their location
+        if (user?.role === "it_staff" && user?.location) {
+          setSelectedLocation(user.location)
+        }
+      }
+    } catch (error) {
+      console.error("[v0] Error loading locations:", error)
+    }
+  }
+
+  const loadDevices = async (filterLocation?: string) => {
     try {
       const canSeeAll = user ? canSeeAllLocations(user) : false
-      const location = user?.location || ""
+      const isItStaff = user?.role === "it_staff"
       
-      // Use API endpoint that bypasses RLS - get ALL devices to select from
+      // For IT staff, always use their location; otherwise use the filter or user's location
+      const locationToUse = isItStaff ? (user?.location || "") : (filterLocation || "")
+      
+      // Use API endpoint that bypasses RLS
       const params = new URLSearchParams({
-        location: location,
-        canSeeAll: String(canSeeAll),
+        location: locationToUse,
+        canSeeAll: String(!isItStaff && canSeeAll && !filterLocation), // IT staff never sees all
       })
       
       const response = await fetch(`/api/devices?${params}`)
@@ -110,10 +143,10 @@ export function ITHeadRepairManagement() {
         return
       }
 
-      console.log("[v0] Raw devices loaded:", result.devices?.length || 0)
+      console.log("[v0] Raw devices loaded:", result.devices?.length || 0, "for location:", locationToUse || "all")
 
       // Map and filter for repair-eligible devices (all devices can be sent for repair)
-      const mappedDevices: Device[] = (result.devices || []).map((d: any) => ({
+      let mappedDevices: Device[] = (result.devices || []).map((d: any) => ({
         id: d.id,
         type: d.device_type || d.type || "Unknown",
         brand: d.brand || "Unknown",
@@ -124,6 +157,14 @@ export function ITHeadRepairManagement() {
         assignedTo: d.assigned_to || "",
         status: d.status || "active",
       }))
+      
+      // Additional client-side filter for the selected location
+      if (filterLocation && !isItStaff) {
+        mappedDevices = mappedDevices.filter((d: Device) => 
+          d.location.toLowerCase().includes(filterLocation.toLowerCase()) ||
+          filterLocation.toLowerCase().includes(d.location.toLowerCase())
+        )
+      }
       
       console.log("[v0] Mapped devices for repair:", mappedDevices.length)
       setDevices(mappedDevices)
@@ -235,32 +276,33 @@ export function ITHeadRepairManagement() {
     if (!device || !provider) return
 
     try {
-      console.log("[v0] Saving repair task to Supabase")
+      console.log("[v0] Saving repair task via API")
 
-      const { data, error } = await supabase
-        .from("repair_requests")
-        .insert([
-          {
-            device_id: device.id,
-            issue_description: issueDescription,
-            priority,
-            status: "assigned",
-            service_provider_id: provider.id,
-            requested_by: user?.id,
-            location: device.location,
-            estimated_cost: estimatedCost ? Number.parseFloat(estimatedCost) : null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-        ])
-        .select()
+      const response = await fetch("/api/repairs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          device_id: device.id,
+          device_name: `${device.assetTag || device.serialNumber} - ${device.type} (${device.brand} ${device.model})`,
+          issue_description: issueDescription,
+          priority,
+          service_provider_id: provider.id,
+          service_provider_name: provider.name,
+          requested_by: user?.id,
+          requested_by_name: user?.name,
+          location: device.location,
+          estimated_cost: estimatedCost ? Number.parseFloat(estimatedCost) : null,
+        }),
+      })
 
-      if (error) {
-        console.error("[v0] Error saving repair task:", error)
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.error("[v0] Error saving repair task:", result.error)
         return
       }
 
-      console.log("[v0] Repair task saved successfully:", data)
+      console.log("[v0] Repair task saved successfully:", result)
 
       // Reload tasks
       await loadRepairTasks()
@@ -370,23 +412,62 @@ export function ITHeadRepairManagement() {
                 <DialogTitle>Create New Repair Task</DialogTitle>
               </DialogHeader>
               <div className="space-y-6">
+                {/* Location filter - only show for non-IT-staff */}
+                {user?.role !== "it_staff" && (
+                  <div>
+                    <Label htmlFor="location">Filter by Location</Label>
+                    <Select 
+                      value={selectedLocation} 
+                      onValueChange={(value) => {
+                        setSelectedLocation(value)
+                        setSelectedDevice("") // Reset device when location changes
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All Locations" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Locations</SelectItem>
+                        {locations.map((loc) => (
+                          <SelectItem key={loc.code} value={loc.code}>
+                            {loc.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {devices.length} device(s) available {selectedLocation && selectedLocation !== "all" ? `in ${locations.find(l => l.code === selectedLocation)?.name || selectedLocation}` : ""}
+                    </p>
+                  </div>
+                )}
+
+                {/* Show current location for IT staff */}
+                {user?.role === "it_staff" && (
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      Showing devices from your location: <strong>{user?.location || "Unknown"}</strong>
+                      <span className="ml-2">({devices.length} device(s))</span>
+                    </p>
+                  </div>
+                )}
+
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="device">Select Device</Label>
                     <Select value={selectedDevice} onValueChange={setSelectedDevice}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Choose device to repair" />
+                        <SelectValue placeholder={devices.length > 0 ? "Choose device to repair" : "No devices available"} />
                       </SelectTrigger>
                       <SelectContent>
                         {devices.length > 0 ? (
                           devices.map((device) => (
                             <SelectItem key={device.id} value={device.id}>
-                              {device.assetTag || device.serialNumber} - {device.type} ({device.brand} {device.model})
+                              {device.assetTag || device.serialNumber} - {device.type} ({device.brand} {device.model} {device.location ? `@ ${device.location}` : ""})
                             </SelectItem>
                           ))
                         ) : (
-                          <SelectItem value="loading" disabled>
-                            Loading devices...
+                          <SelectItem value="no-devices" disabled>
+                            {user?.role === "it_staff" ? "No devices in your location" : "Select a location above"}
                           </SelectItem>
                         )}
                       </SelectContent>
@@ -462,10 +543,11 @@ export function ITHeadRepairManagement() {
                   </Button>
                   <Button
                     onClick={createRepairTask}
+                    disabled={!selectedDevice || !issueDescription || !selectedProvider}
                     className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white"
                   >
-                    <Send className="h-4 w-4 mr-2" />
-                    Assign Task
+                    <Wrench className="h-4 w-4 mr-2" />
+                    Save Repair
                   </Button>
                 </div>
               </div>

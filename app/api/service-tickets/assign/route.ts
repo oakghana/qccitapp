@@ -11,11 +11,11 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    const { ticketId, assignee, priority, dueDate, instructions, assignedBy } = body
+    const { ticketId, assigneeId, assignee, priority, dueDate, instructions, assignedBy, assignedById } = body
 
-    console.log("[v0] Assigning ticket:", ticketId, "to:", assignee)
+    console.log("[v0] Assigning ticket:", ticketId, "to:", assignee, "(ID:", assigneeId, ")")
 
-    if (!ticketId || !assignee) {
+    if (!ticketId || (!assignee && !assigneeId)) {
       return NextResponse.json(
         { error: "Ticket ID and assignee are required" },
         { status: 400 }
@@ -24,10 +24,12 @@ export async function POST(request: NextRequest) {
 
     // Update the service ticket with assignment info
     const updateData: Record<string, any> = {
-      assigned_to_name: assignee,
+      assigned_to: assigneeId, // Store user ID for querying
+      assigned_to_name: assignee, // Store name for display
       status: "in_progress",
       priority: priority?.toLowerCase() || "medium",
       updated_at: new Date().toISOString(),
+      assigned_at: new Date().toISOString(),
     }
 
     // Add due date if provided
