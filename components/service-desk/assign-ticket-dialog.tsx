@@ -83,6 +83,8 @@ export function AssignTicketDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loadingStaff, setLoadingStaff] = useState(true)
   const [availableStaff, setAvailableStaff] = useState<StaffMember[]>([])
+  const [allStaff, setAllStaff] = useState<StaffMember[]>([]) // Keep all staff for admin filtering
+  const [selectedLocation, setSelectedLocation] = useState<string>("all") // Location filter for admin
   const [assignmentData, setAssignmentData] = useState<AssignTicketData>({
     ticketId,
     assignee: "",
@@ -100,6 +102,24 @@ export function AssignTicketDialog({
     }
   }, [isOpen, ticketLocation])
 
+  // Filter staff when location selection changes (for admin/it_head)
+  useEffect(() => {
+    if (user?.role === "admin" || user?.role === "it_head") {
+      if (selectedLocation === "all") {
+        setAvailableStaff(allStaff)
+      } else {
+        const filtered = allStaff.filter(s => {
+          const staffLoc = (s.location || "").toLowerCase().trim()
+          const filterLoc = selectedLocation.toLowerCase().trim()
+          return staffLoc === filterLoc || 
+                 staffLoc.includes(filterLoc) || 
+                 filterLoc.includes(staffLoc)
+        })
+        setAvailableStaff(filtered)
+      }
+    }
+  }, [selectedLocation, allStaff, user?.role])
+
   const loadItStaff = async () => {
     try {
       setLoadingStaff(true)
@@ -112,39 +132,17 @@ export function AssignTicketDialog({
       const data = await response.json()
       const users = data.users || data || []
       
+      console.log("[v0] Loaded users for assignment:", users.length)
+      
       // Filter to IT staff roles only
-      const itRoles = ["it_staff", "it_head", "regional_it_head", "service_desk_head", "service_desk_agent"]
+      const itRoles = ["it_staff", "it_head", "regional_it_head", "service_desk_head", "service_desk_agent", "service_desk_accra", "service_desk_kumasi", "service_desk_takoradi", "service_desk_tema", "service_desk_sunyani", "service_desk_cape_coast"]
       let filteredStaff = users.filter((u: any) => 
         itRoles.includes(u.role) || u.role?.includes("it_") || u.role?.includes("service_desk")
       )
       
-      // Apply location filter based on current user's role
-      if (user?.role === "admin" || user?.role === "it_head") {
-        // IT Head at head office can see all IT staff
-        // No additional filter needed
-      } else if (user?.role === "regional_it_head") {
-        // Regional IT Head can only assign to staff in their region/location
-        const userLoc = (user?.location || "").toLowerCase().trim()
-        filteredStaff = filteredStaff.filter((s: any) => {
-          const staffLoc = (s.location || "").toLowerCase().trim()
-          return staffLoc === userLoc || 
-                 staffLoc.includes(userLoc) || 
-                 userLoc.includes(staffLoc)
-        })
-      } else {
-        // Filter by ticket location for other users
-        if (ticketLocation) {
-          const ticketLoc = ticketLocation.toLowerCase().trim()
-          filteredStaff = filteredStaff.filter((s: any) => {
-            const staffLoc = (s.location || "").toLowerCase().trim()
-            return staffLoc === ticketLoc || 
-                   staffLoc.includes(ticketLoc) || 
-                   ticketLoc.includes(staffLoc)
-          })
-        }
-      }
+      console.log("[v0] Filtered IT staff:", filteredStaff.length)
 
-      // Map to StaffMember format
+      // Map to StaffMember format first
       const mappedStaff: StaffMember[] = filteredStaff.map((s: any) => ({
         id: s.id || s.user_id,
         name: s.full_name || s.name || s.username || "Unknown",
@@ -156,8 +154,44 @@ export function AssignTicketDialog({
         isOnline: s.status === "online" || s.is_online || true,
         currentTickets: s.current_tickets || 0
       }))
-
-      setAvailableStaff(mappedStaff)
+      
+      // Apply location filter based on current user's role
+      if (user?.role === "admin" || user?.role === "it_head") {
+        // IT Head at head office can see all IT staff - store all and show all
+        setAllStaff(mappedStaff)
+        setAvailableStaff(mappedStaff)
+        // Pre-select ticket location if available
+        if (ticketLocation) {
+          setSelectedLocation(ticketLocation)
+        }
+      } else if (user?.role === "regional_it_head") {
+        // Regional IT Head can only assign to staff in their region/location
+        const userLoc = (user?.location || "").toLowerCase().trim()
+        const regionFiltered = mappedStaff.filter((s) => {
+          const staffLoc = (s.location || "").toLowerCase().trim()
+          return staffLoc === userLoc || 
+                 staffLoc.includes(userLoc) || 
+                 userLoc.includes(staffLoc)
+        })
+        setAllStaff(regionFiltered)
+        setAvailableStaff(regionFiltered)
+      } else {
+        // Filter by ticket location for other users
+        if (ticketLocation) {
+          const ticketLoc = ticketLocation.toLowerCase().trim()
+          const locationFiltered = mappedStaff.filter((s) => {
+            const staffLoc = (s.location || "").toLowerCase().trim()
+            return staffLoc === ticketLoc || 
+                   staffLoc.includes(ticketLoc) || 
+                   ticketLoc.includes(staffLoc)
+          })
+          setAllStaff(locationFiltered)
+          setAvailableStaff(locationFiltered)
+        } else {
+          setAllStaff(mappedStaff)
+          setAvailableStaff(mappedStaff)
+        }
+      }
     } catch (error) {
       console.error("Error loading IT staff:", error)
     } finally {
@@ -221,6 +255,30 @@ export function AssignTicketDialog({
 
           {/* Staff Selection */}
           <div className="space-y-4">
+            {/* Location filter for admin/it_head */}
+            {(user?.role === "admin" || user?.role === "it_head") && (
+              <div>
+                <Label htmlFor="locationFilter">Filter by Location</Label>
+                <Select
+                  value={selectedLocation}
+                  onValueChange={setSelectedLocation}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Locations" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Locations ({allStaff.length} staff)</SelectItem>
+                    {/* Get unique locations from staff */}
+                    {Array.from(new Set(allStaff.map(s => s.location).filter(Boolean))).map((loc) => (
+                      <SelectItem key={loc} value={loc}>
+                        {loc} ({allStaff.filter(s => s.location === loc).length} staff)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
             <div>
               <Label htmlFor="assignee">Select Staff Member *</Label>
               {loadingStaff ? (
@@ -232,7 +290,7 @@ export function AssignTicketDialog({
                 <div className="p-4 border rounded-md bg-yellow-50 dark:bg-yellow-950 border-yellow-200">
                   <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-300">
                     <AlertTriangle className="h-4 w-4" />
-                    <span>No IT staff found for this location. Please contact the administrator.</span>
+                    <span>No IT staff found{selectedLocation !== "all" ? ` for ${selectedLocation}` : ""}. {user?.role === "admin" || user?.role === "it_head" ? "Try selecting 'All Locations' above." : "Please contact the administrator."}</span>
                   </div>
                 </div>
               ) : (
