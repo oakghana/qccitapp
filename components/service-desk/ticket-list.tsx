@@ -324,33 +324,33 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
 
   const handleAssignTicket = async (assignment: any) => {
     if (selectedTicket) {
-      const updatedTicket = {
-        ...selectedTicket,
-        assignee: assignment.assignee,
-        status: "In Progress",
-        comments: [
-          ...selectedTicket.comments,
-          {
-            id: `c${Date.now()}`,
-            author: user?.name || "IT Head",
-            message: `Ticket assigned to ${assignment.assignee} with ${assignment.priority} priority. Instructions: ${assignment.instructions}`,
-            timestamp: new Date().toISOString().slice(0, 16).replace("T", " "),
-          },
-        ],
-      }
+      try {
+        // Call API to assign ticket
+        const response = await fetch(`/api/service-tickets/assign`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ticketId: selectedTicket.id,
+            assignee: assignment.assignee,
+            priority: assignment.priority,
+            dueDate: assignment.dueDate,
+            instructions: assignment.instructions,
+            assignedBy: user?.full_name || user?.name || user?.username,
+          }),
+        })
 
-      const updateSuccess = await updateTicketInDatabase(selectedTicket.id, {
-        assignee: updatedTicket.assignee,
-        status: updatedTicket.status,
-        comments: updatedTicket.comments,
-      })
+        if (!response.ok) {
+          const error = await response.json()
+          console.error("[v0] Error assigning ticket:", error)
+          return
+        }
 
-      if (updateSuccess) {
-        setSelectedTicket(updatedTicket)
+        console.log(`[v0] Ticket ${selectedTicket.id} assigned to ${assignment.assignee}`)
+        
         setAssignDialogOpen(false)
-
-        // Simulate email notification
-        console.log(`Email notification sent to ${assignment.assignee} for ticket ${selectedTicket.id}`)
+        await loadTickets()
+      } catch (error) {
+        console.error("[v0] Error assigning ticket:", error)
       }
     }
   }

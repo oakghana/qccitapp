@@ -5,20 +5,32 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Clock, AlertTriangle, Ticket, MapPin, Monitor, Wifi, Smartphone, Printer } from "lucide-react"
+import { Plus, Clock, AlertTriangle, Ticket, MapPin, Monitor, Wifi, Smartphone, Printer, UserPlus } from "lucide-react"
 import { NewTicketForm } from "./new-ticket-form"
 import { TicketList } from "./ticket-list"
 import { KnowledgeBase } from "./knowledge-base"
+import { AssignTicketDialog } from "./assign-ticket-dialog"
 import { useAuth } from "@/lib/auth-context"
 import { createClient } from "@/lib/supabase/client"
+import { useToast } from "@/hooks/use-toast"
 
 export function ServiceDeskDashboard() {
   const [activeTab, setActiveTab] = useState("overview")
   const [showNewTicketForm, setShowNewTicketForm] = useState(false)
+  const [selectedTicketForAssign, setSelectedTicketForAssign] = useState<any>(null)
   const { canViewAllLocations, getUserLocation, user } = useAuth()
+  const { toast } = useToast()
   const [allTickets, setAllTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
+
+  // Check if user can assign tickets (IT Head, Regional IT Head, Admin)
+  const canAssignTickets = () => {
+    return user?.role === "admin" || 
+           user?.role === "it_head" || 
+           user?.role === "regional_it_head" ||
+           user?.role === "service_desk_head"
+  }
 
   useEffect(() => {
     loadTickets()
@@ -52,6 +64,7 @@ export function ServiceDeskDashboard() {
 
       const mappedTickets = (result.tickets || []).map((ticket: any) => ({
         id: ticket.ticket_number || ticket.id,
+        dbId: ticket.id, // Keep database ID for updates
         title: ticket.title,
         category: ticket.category || "Other",
         priority: ticket.priority || "Medium",
@@ -60,6 +73,8 @@ export function ServiceDeskDashboard() {
         locationName: ticket.location || "Unknown Location",
         requester: ticket.requested_by || "Unknown",
         created: new Date(ticket.created_at).toLocaleString(),
+        assignedTo: ticket.assigned_to_name || null,
+        assignedToId: ticket.assigned_to || null,
       }))
 
       setAllTickets(mappedTickets)
@@ -67,6 +82,49 @@ export function ServiceDeskDashboard() {
       console.error("[v0] Error loading tickets:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Handle ticket assignment
+  const handleAssignTicket = async (assignment: any) => {
+    try {
+      console.log("[v0] Assigning ticket:", assignment)
+      
+      // Call API to update ticket with assignment
+      const response = await fetch(`/api/service-tickets/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticketId: selectedTicketForAssign?.dbId || selectedTicketForAssign?.id,
+          assignee: assignment.assignee,
+          priority: assignment.priority,
+          dueDate: assignment.dueDate,
+          instructions: assignment.instructions,
+          assignedBy: user?.full_name || user?.name || user?.username,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || "Failed to assign ticket")
+      }
+
+      toast({
+        title: "Ticket Assigned",
+        description: `Ticket successfully assigned to ${assignment.assignee}`,
+      })
+
+      // Reload tickets to show updated data
+      await loadTickets()
+    } catch (error) {
+      console.error("[v0] Error assigning ticket:", error)
+      toast({
+        title: "Assignment Failed",
+        description: error instanceof Error ? error.message : "Failed to assign ticket",
+        variant: "destructive",
+      })
+    } finally {
+      setSelectedTicketForAssign(null)
     }
   }
 
@@ -203,15 +261,23 @@ export function ServiceDeskDashboard() {
                             <span>{ticket.requester}</span>
                             <span>•</span>
                             <span>{ticket.created}</span>
+                            {ticket.assignedTo && (
+                              <>
+                                <span>•</span>
+                                <span className="text-blue-600 dark:text-blue-400 font-medium">
+                                  Assigned to: {ticket.assignedTo}
+                                </span>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Badge
                           variant={
-                            ticket.priority === "High"
+                            ticket.priority === "High" || ticket.priority === "high"
                               ? "destructive"
-                              : ticket.priority === "Medium"
+                              : ticket.priority === "Medium" || ticket.priority === "medium"
                                 ? "default"
                                 : "secondary"
                           }
@@ -219,9 +285,21 @@ export function ServiceDeskDashboard() {
                         >
                           {ticket.priority}
                         </Badge>
-                        <Badge variant={ticket.status === "Open" ? "outline" : "secondary"} className="text-xs">
+                        <Badge variant={ticket.status === "Open" || ticket.status === "open" ? "outline" : "secondary"} className="text-xs">
                           {ticket.status}
                         </Badge>
+                        {/* Assign button for IT Heads */}
+                        {canAssignTickets() && (ticket.status === "Open" || ticket.status === "open") && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950"
+                            onClick={() => setSelectedTicketForAssign(ticket)}
+                          >
+                            <UserPlus className="h-3 w-3 mr-1" />
+                            Assign
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )
@@ -245,6 +323,18 @@ export function ServiceDeskDashboard() {
         <NewTicketForm 
           onClose={() => setShowNewTicketForm(false)} 
           onTicketCreated={loadTickets}
+        />
+      )}
+
+      {/* Assign Ticket Dialog */}
+      {selectedTicketForAssign && (
+        <AssignTicketDialog
+          ticketId={selectedTicketForAssign.id}
+          ticketTitle={selectedTicketForAssign.title}
+          ticketLocation={selectedTicketForAssign.location}
+          isOpen={!!selectedTicketForAssign}
+          onClose={() => setSelectedTicketForAssign(null)}
+          onAssign={handleAssignTicket}
         />
       )}
     </div>
