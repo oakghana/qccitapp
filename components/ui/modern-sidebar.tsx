@@ -33,6 +33,7 @@ import {
   Rss,
   BookOpen,
   UserCheck,
+  Send,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
@@ -125,6 +126,11 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
         },
         {
+          name: "Stock Transfer Requests",
+          href: "/dashboard/stock-transfer-requests",
+          icon: Send,
+        },
+        {
           name: "Store Summary Report",
           href: "/dashboard/store-summary-report",
           icon: FileText,
@@ -197,6 +203,11 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           href: "/dashboard/store-summary-report",
           icon: FileText,
         },
+        {
+          name: "My Stock Requests",
+          href: "/dashboard/stock-transfer-requests",
+          icon: Send,
+        },
         { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
         { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
       ]
@@ -225,6 +236,11 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           href: "/dashboard/store-requisitions",
           icon: ClipboardList,
           badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
+        },
+        {
+          name: "Stock Transfer Requests",
+          href: "/dashboard/stock-transfer-requests",
+          icon: Send,
         },
         {
           name: "Store Summary Report",

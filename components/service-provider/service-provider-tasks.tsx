@@ -24,7 +24,6 @@ import {
   User,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { createClient } from "@/lib/supabase/client"
 
 interface ServiceProviderRepairTask {
   id: string
@@ -80,7 +79,6 @@ interface ServiceProviderRepairTask {
 
 export function ServiceProviderTasks() {
   const { user } = useAuth()
-  const supabase = createClient()
   const [tasks, setTasks] = useState<ServiceProviderRepairTask[]>([])
   const [selectedTask, setSelectedTask] = useState<ServiceProviderRepairTask | null>(null)
   const [filter, setFilter] = useState<string>("all")
@@ -91,6 +89,7 @@ export function ServiceProviderTasks() {
   const [laborHours, setLaborHours] = useState("")
   const [repairCost, setRepairCost] = useState("")
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     loadServiceProviderTasks()
@@ -100,26 +99,60 @@ export function ServiceProviderTasks() {
     if (!user) return
 
     setLoading(true)
+    setError(null)
     try {
-      const { data, error } = await supabase
-        .from("repair_tasks")
-        .select("*")
-        .eq("service_provider_id", user.id)
-        .order("assigned_date", { ascending: false })
-
-      if (error) {
-        // Table may not exist yet - this is expected during initial setup
-        if (error.code === '42P01' || error.message?.includes('does not exist')) {
-          console.log("[v0] repair_tasks table not yet created - run database migrations")
-        } else {
-          console.error("[v0] Error loading service provider tasks:", error.message || error.code || JSON.stringify(error))
-        }
-        return
+      const response = await fetch(`/api/repairs/tasks?service_provider_id=${user.id}`)
+      
+      if (!response.ok) {
+        const result = await response.json()
+        throw new Error(result.error || "Failed to load tasks")
       }
 
-      setTasks(data || [])
-    } catch (error: any) {
-      console.error("[v0] Error loading service provider tasks:", error?.message || error)
+      const { tasks: data, message } = await response.json()
+      
+      if (message) {
+        console.log("[v0] API message:", message)
+      }
+      
+      // Transform API data to match component interface
+      const transformedTasks: ServiceProviderRepairTask[] = (data || []).map((task: any) => ({
+        id: task.id,
+        taskNumber: task.task_number || `TASK-${task.id.substring(0, 8)}`,
+        deviceInfo: task.device_info || {
+          type: "Unknown",
+          brand: "Unknown",
+          model: "Unknown",
+          serialNumber: "",
+          assetTag: "",
+        },
+        issueDescription: task.issue_description || "",
+        priority: task.priority || "medium",
+        status: task.status || "assigned",
+        assignedBy: {
+          name: task.assigned_by_name || "Unknown",
+          role: "IT Staff",
+          contact: "",
+        },
+        assignedDate: task.assigned_date || new Date().toISOString(),
+        scheduledPickupDate: task.scheduled_pickup_date,
+        collectedDate: task.collected_date,
+        estimatedCompletionDate: task.estimated_completion_date,
+        completedDate: task.completed_date,
+        pickupLocation: task.location || "Unknown",
+        contactPerson: task.assigned_by_name || "Unknown",
+        contactPhone: "",
+        attachments: task.attachments || [],
+        statusHistory: task.status_history || [],
+        repairNotes: task.repair_notes,
+        partsUsed: task.parts_used,
+        laborHours: task.labor_hours,
+        repairCost: task.actual_cost,
+      }))
+      
+      setTasks(transformedTasks)
+    } catch (err: any) {
+      console.error("[v0] Error loading service provider tasks:", err?.message || err)
+      setError(err?.message || "Failed to load tasks")
     } finally {
       setLoading(false)
     }
@@ -331,6 +364,16 @@ export function ServiceProviderTasks() {
           <Card>
             <CardContent className="text-center py-8">
               <p className="text-muted-foreground">Loading repair tasks...</p>
+            </CardContent>
+          </Card>
+        ) : error ? (
+          <Card>
+            <CardContent className="text-center py-8">
+              <p className="text-lg font-semibold mb-2 text-red-600">Error loading tasks</p>
+              <p className="text-muted-foreground mb-4">{error}</p>
+              <Button onClick={loadServiceProviderTasks} variant="outline">
+                Retry
+              </Button>
             </CardContent>
           </Card>
         ) : filteredTasks.length === 0 ? (

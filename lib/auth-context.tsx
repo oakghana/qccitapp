@@ -75,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const canViewAllLocations = () => {
+    // Only admin and IT head can see all locations nationwide
     return user?.role === "admin" || user?.role === "it_head"
   }
 

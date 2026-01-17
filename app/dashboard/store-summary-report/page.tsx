@@ -3,14 +3,25 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Download, Calendar, FileText, Filter } from "lucide-react"
+import { Download, Calendar, FileText, Filter, Package, Send, CheckCircle, XCircle, AlertCircle } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { FormNavigation } from "@/components/ui/form-navigation"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 
 interface StockBalanceItem {
+  id?: string
   code: string
   itemName: string
   category: string
@@ -21,6 +32,7 @@ interface StockBalanceItem {
   closingBalance: number
   location: string
   remarks: string
+  localStock?: number // User's location stock for this item
 }
 
 export default function StoreSummaryReportPage() {
@@ -39,6 +51,125 @@ export default function StoreSummaryReportPage() {
   })
   const [locations, setLocations] = useState<string[]>([])
   const [deviceTypes, setDeviceTypes] = useState<any[]>([])
+  
+  // Stock request dialog state
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<StockBalanceItem | null>(null)
+  const [requestQuantity, setRequestQuantity] = useState("")
+  const [requestNotes, setRequestNotes] = useState("")
+  const [requestLoading, setRequestLoading] = useState(false)
+  const [requestError, setRequestError] = useState("")
+  const [requestSuccess, setRequestSuccess] = useState("")
+  
+  // User's local stock cache
+  const [localStockMap, setLocalStockMap] = useState<Record<string, number>>({})
+
+  // Check if user is regional_it_head viewing Central Stores
+  const isRegionalHead = user?.role === "regional_it_head"
+  const viewingCentralStores = selectedLocation === "Central Stores"
+  const canRequestStock = isRegionalHead && viewingCentralStores
+
+  // Load user's local stock when viewing Central Stores as regional_it_head
+  useEffect(() => {
+    if (canRequestStock && user?.location) {
+      loadLocalStock()
+    }
+  }, [canRequestStock, user?.location])
+
+  async function loadLocalStock() {
+    if (!user?.location) return
+    try {
+      const response = await fetch(`/api/store/items?location=${encodeURIComponent(user.location)}&canSeeAll=false`)
+      if (response.ok) {
+        const { items } = await response.json()
+        const stockMap: Record<string, number> = {}
+        items?.forEach((item: any) => {
+          stockMap[item.name?.toLowerCase() || ""] = item.quantity || 0
+        })
+        setLocalStockMap(stockMap)
+        console.log("[v0] Local stock map loaded:", Object.keys(stockMap).length, "items")
+      }
+    } catch (error) {
+      console.error("[v0] Error loading local stock:", error)
+    }
+  }
+
+  // Get local stock for an item (check if user's location has zero stock)
+  function getLocalStockForItem(itemName: string): number {
+    return localStockMap[itemName?.toLowerCase() || ""] || 0
+  }
+
+  // Open request dialog for an item
+  function openRequestDialog(item: StockBalanceItem) {
+    const localStock = getLocalStockForItem(item.itemName)
+    if (localStock > 0) {
+      alert(`You still have ${localStock} units of "${item.itemName}" at ${user?.location}. Request is only allowed when your local stock is zero.`)
+      return
+    }
+    setSelectedItem(item)
+    setRequestQuantity("")
+    setRequestNotes("")
+    setRequestError("")
+    setRequestSuccess("")
+    setRequestDialogOpen(true)
+  }
+
+  // Submit stock transfer request
+  async function handleSubmitRequest() {
+    if (!selectedItem || !requestQuantity) {
+      setRequestError("Please enter a quantity")
+      return
+    }
+
+    const qty = parseInt(requestQuantity)
+    if (isNaN(qty) || qty <= 0) {
+      setRequestError("Please enter a valid quantity")
+      return
+    }
+
+    if (qty > selectedItem.closingBalance) {
+      setRequestError(`Requested quantity (${qty}) exceeds available stock (${selectedItem.closingBalance})`)
+      return
+    }
+
+    setRequestLoading(true)
+    setRequestError("")
+
+    try {
+      const response = await fetch("/api/store/stock-transfer-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemId: selectedItem.id,
+          itemName: selectedItem.itemName,
+          itemCode: selectedItem.code,
+          requestedQuantity: qty,
+          requestedBy: user?.full_name || user?.name || "Unknown",
+          requestingLocation: user?.location,
+          userRole: user?.role,
+          notes: requestNotes,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        setRequestError(result.error || "Failed to submit request")
+        return
+      }
+
+      setRequestSuccess(`Request ${result.request?.request_number} submitted successfully! Awaiting approval from Admin/Store Head.`)
+      setTimeout(() => {
+        setRequestDialogOpen(false)
+        setRequestSuccess("")
+      }, 3000)
+    } catch (error) {
+      console.error("[v0] Error submitting request:", error)
+      setRequestError("Failed to submit request. Please try again.")
+    } finally {
+      setRequestLoading(false)
+    }
+  }
 
   useEffect(() => {
     async function fetchFilters() {
@@ -329,30 +460,75 @@ export default function StoreSummaryReportPage() {
                     <th className="border border-gray-300 p-2 text-right font-semibold">ISSUES</th>
                     <th className="border border-gray-300 p-2 text-right font-semibold">CLOSING BALANCE</th>
                     <th className="border border-gray-300 p-2 text-left font-semibold print:hidden">REMARKS</th>
+                    {canRequestStock && (
+                      <th className="border border-gray-300 p-2 text-center font-semibold print:hidden bg-blue-50">REQUEST</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {report.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="border border-gray-300 p-4 text-center text-muted-foreground">
+                      <td colSpan={canRequestStock ? 11 : 10} className="border border-gray-300 p-4 text-center text-muted-foreground">
                         No stock data available for the selected filters
                       </td>
                     </tr>
                   ) : (
-                    report.map((item, index) => (
-                      <tr key={item.code} className="hover:bg-gray-50">
-                        <td className="border border-gray-300 p-2">{index + 1}</td>
-                        <td className="border border-gray-300 p-2 font-medium">{item.code}</td>
-                        <td className="border border-gray-300 p-2">{item.itemName}</td>
-                        <td className="border border-gray-300 p-2 text-sm">{item.category || "Accessories"}</td>
-                        <td className="border border-gray-300 p-2 text-center">{item.unitOfMeasure}</td>
-                        <td className="border border-gray-300 p-2 text-right">{item.openingBalance}</td>
-                        <td className="border border-gray-300 p-2 text-right">{item.receipts}</td>
-                        <td className="border border-gray-300 p-2 text-right">{item.issues}</td>
-                        <td className="border border-gray-300 p-2 text-right font-semibold">{item.closingBalance}</td>
-                        <td className="border border-gray-300 p-2 text-sm print:hidden">{item.remarks}</td>
-                      </tr>
-                    ))
+                    report.map((item, index) => {
+                      const localStock = getLocalStockForItem(item.itemName)
+                      const canRequest = localStock === 0 && item.closingBalance > 0
+                      const rowClickable = canRequestStock && canRequest
+                      
+                      return (
+                        <tr 
+                          key={item.code} 
+                          className={`hover:bg-gray-50 ${rowClickable ? 'cursor-pointer hover:bg-blue-50 transition-colors' : ''}`}
+                          onClick={rowClickable ? () => openRequestDialog(item) : undefined}
+                          title={rowClickable ? `Click to request "${item.itemName}" from Central Stores` : undefined}
+                        >
+                          <td className="border border-gray-300 p-2">{index + 1}</td>
+                          <td className="border border-gray-300 p-2 font-medium">{item.code}</td>
+                          <td className="border border-gray-300 p-2">
+                            {item.itemName}
+                            {rowClickable && (
+                              <span className="ml-2 text-blue-600 text-xs">(Click to request)</span>
+                            )}
+                          </td>
+                          <td className="border border-gray-300 p-2 text-sm">{item.category || "Accessories"}</td>
+                          <td className="border border-gray-300 p-2 text-center">{item.unitOfMeasure}</td>
+                          <td className="border border-gray-300 p-2 text-right">{item.openingBalance}</td>
+                          <td className="border border-gray-300 p-2 text-right">{item.receipts}</td>
+                          <td className="border border-gray-300 p-2 text-right">{item.issues}</td>
+                          <td className="border border-gray-300 p-2 text-right font-semibold">{item.closingBalance}</td>
+                          <td className="border border-gray-300 p-2 text-sm print:hidden">{item.remarks}</td>
+                          {canRequestStock && (
+                            <td className="border border-gray-300 p-2 text-center print:hidden">
+                              {canRequest ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="bg-blue-50 hover:bg-blue-100 border-blue-300 text-blue-700"
+                                  onClick={(e) => {
+                                    e.stopPropagation() // Prevent double-trigger from row click
+                                    openRequestDialog(item)
+                                  }}
+                                >
+                                  <Send className="h-3 w-3 mr-1" />
+                                  Request
+                                </Button>
+                              ) : localStock > 0 ? (
+                                <Badge variant="secondary" className="text-xs">
+                                  Local: {localStock}
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs text-muted-foreground">
+                                  No stock
+                                </Badge>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      )
+                    })
                   )}
                 </tbody>
                 {report.length > 0 && (
@@ -374,6 +550,7 @@ export default function StoreSummaryReportPage() {
                         {report.reduce((sum, item) => sum + item.closingBalance, 0)}
                       </td>
                       <td className="border border-gray-300 p-2 print:hidden"></td>
+                      {canRequestStock && <td className="border border-gray-300 p-2 print:hidden"></td>}
                     </tr>
                   </tfoot>
                 )}
@@ -382,6 +559,120 @@ export default function StoreSummaryReportPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Info box for Regional IT Heads */}
+      {isRegionalHead && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <Package className="h-5 w-5 text-blue-600 mt-0.5" />
+              <div>
+                <p className="font-medium text-blue-900">Stock Refill Request</p>
+                <p className="text-sm text-blue-700">
+                  To request items from Central Stores, select &quot;Central Stores&quot; in the Location filter above.
+                  You can only request items when your local stock ({user?.location}) is zero.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Stock Request Dialog */}
+      <Dialog open={requestDialogOpen} onOpenChange={setRequestDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-blue-600" />
+              Request Stock from Central Stores
+            </DialogTitle>
+            <DialogDescription>
+              Request items to be transferred to your location ({user?.location})
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedItem && (
+            <div className="space-y-4">
+              {/* Item Info */}
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Item:</span>
+                    <p className="font-medium">{selectedItem.itemName}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Code:</span>
+                    <p className="font-medium">{selectedItem.code}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Available at Central:</span>
+                    <p className="font-medium text-green-600">{selectedItem.closingBalance} {selectedItem.unitOfMeasure}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Your Location Stock:</span>
+                    <p className="font-medium text-red-600">0 {selectedItem.unitOfMeasure}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Request Quantity */}
+              <div className="space-y-2">
+                <Label htmlFor="request-qty">Quantity to Request *</Label>
+                <Input
+                  id="request-qty"
+                  type="number"
+                  min="1"
+                  max={selectedItem.closingBalance}
+                  value={requestQuantity}
+                  onChange={(e) => setRequestQuantity(e.target.value)}
+                  placeholder={`Max: ${selectedItem.closingBalance}`}
+                />
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-2">
+                <Label htmlFor="request-notes">Notes (Optional)</Label>
+                <Textarea
+                  id="request-notes"
+                  value={requestNotes}
+                  onChange={(e) => setRequestNotes(e.target.value)}
+                  placeholder="Reason for request..."
+                  rows={2}
+                />
+              </div>
+
+              {/* Error Message */}
+              {requestError && (
+                <div className="bg-red-50 text-red-700 px-3 py-2 rounded flex items-center gap-2 text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  {requestError}
+                </div>
+              )}
+
+              {/* Success Message */}
+              {requestSuccess && (
+                <div className="bg-green-50 text-green-700 px-3 py-2 rounded flex items-center gap-2 text-sm">
+                  <CheckCircle className="h-4 w-4" />
+                  {requestSuccess}
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRequestDialogOpen(false)} disabled={requestLoading}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSubmitRequest} 
+              disabled={requestLoading || !!requestSuccess}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {requestLoading ? "Submitting..." : "Submit Request"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <style jsx global>{`
         @media print {

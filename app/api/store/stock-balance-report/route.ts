@@ -97,6 +97,7 @@ export async function GET(request: Request) {
       const openingBalance = currentStock + issues - receipts
 
       return {
+        id: item.id, // Include item ID for stock transfer requests
         code: item.sku || item.id.substring(0, 8),
         itemName: item.name || "Unknown",
         category: item.category || "IT Accessories",
