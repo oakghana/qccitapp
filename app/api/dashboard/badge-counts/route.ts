@@ -57,12 +57,14 @@ export async function GET(request: NextRequest) {
         .from('service_tickets')
         .select('id, status, location')
       
-      if (!error && data) {
+      if (error) {
+        console.error('[v0] Error fetching service tickets:', error.message || error)
+      } else if (data) {
         const filtered = data.filter(t => matchesStatus(t.status, ['open', 'new', 'in_triage']))
         counts.serviceDeskTickets = filterByLocation(filtered, location, canSeeAll).length
       }
-    } catch (e) {
-      console.error('[v0] Error fetching service tickets:', e)
+    } catch (e: any) {
+      console.error('[v0] Exception fetching service tickets:', e?.message || e)
     }
 
     // 2. Repairs (pending + in_progress)
@@ -71,12 +73,14 @@ export async function GET(request: NextRequest) {
         .from('repair_requests')
         .select('id, status, location')
       
-      if (!error && data) {
+      if (error) {
+        console.error('[v0] Error fetching repairs:', error.message || error)
+      } else if (data) {
         const filtered = data.filter(r => matchesStatus(r.status, ['pending', 'in_progress', 'in_repair']))
         counts.repairs = filterByLocation(filtered, location, canSeeAll).length
       }
-    } catch (e) {
-      console.error('[v0] Error fetching repairs:', e)
+    } catch (e: any) {
+      console.error('[v0] Exception fetching repairs:', e?.message || e)
     }
 
     // 3. Devices (count all or active)
@@ -85,12 +89,14 @@ export async function GET(request: NextRequest) {
         .from('devices')
         .select('id, status, location')
       
-      if (!error && data) {
+      if (error) {
+        console.error('[v0] Error fetching devices:', error.message || error)
+      } else if (data) {
         // Count all devices (not just active) for a more useful count
         counts.devices = filterByLocation(data, location, canSeeAll).length
       }
-    } catch (e) {
-      console.error('[v0] Error fetching devices:', e)
+    } catch (e: any) {
+      console.error('[v0] Exception fetching devices:', e?.message || e)
     }
 
     // 4. Store Requisitions (pending)

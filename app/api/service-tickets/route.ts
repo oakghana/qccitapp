@@ -59,17 +59,35 @@ export async function POST(request: NextRequest) {
     // Generate ticket number
     const ticketNumber = `TKT-${Date.now().toString(36).toUpperCase()}`
 
+    // Map category to valid enum values
+    // Database enum: 'hardware', 'software', 'network', 'printer', 'access', 'other'
+    const categoryMap: Record<string, string> = {
+      'hardware': 'hardware',
+      'software': 'software',
+      'network': 'network',
+      'printer': 'printer',
+      'access': 'access',
+      'account': 'access', // Map account to access
+      'mobile': 'hardware', // Map mobile to hardware
+      'other': 'other',
+    }
+    
+    const rawCategory = (body.category || '').toLowerCase().trim()
+    const mappedCategory = categoryMap[rawCategory] || 'other'
+
+    console.log("[v0] Category mapping:", body.category, "->", mappedCategory)
+
     const { data, error } = await supabaseAdmin
       .from("service_tickets")
       .insert({
         ticket_number: ticketNumber,
-        title: body.title,
-        description: body.description,
-        category: body.category,
+        title: body.title || 'IT Support Request',
+        description: body.description || '',
+        category: mappedCategory,
         priority: body.priority?.toLowerCase() || "medium",
         status: "open",
-        location: body.location,
-        requested_by: body.requested_by,
+        location: body.location || '',
+        requested_by: body.requested_by || '',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
