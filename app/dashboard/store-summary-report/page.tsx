@@ -103,9 +103,8 @@ export default function StoreSummaryReportPage() {
 
   // Open request dialog for an item
   function openRequestDialog(item: StockBalanceItem) {
-    const localStock = getLocalStockForItem(item.itemName)
-    if (localStock > 0) {
-      alert(`You still have ${localStock} units of "${item.itemName}" at ${user?.location}. Request is only allowed when your local stock is zero.`)
+    if (item.closingBalance <= 0) {
+      alert(`No stock available for "${item.itemName}" at Central Stores.`)
       return
     }
     setSelectedItem(item)
@@ -624,8 +623,7 @@ export default function StoreSummaryReportPage() {
                     </tr>
                   ) : (
                     report.map((item, index) => {
-                      const localStock = getLocalStockForItem(item.itemName)
-                      const canRequest = localStock === 0 && item.closingBalance > 0
+                      const canRequest = item.closingBalance > 0
                       const rowClickable = canRequestStock && canRequest
                       
                       return (
@@ -665,10 +663,6 @@ export default function StoreSummaryReportPage() {
                                   <Send className="h-3 w-3 mr-1" />
                                   Request
                                 </Button>
-                              ) : localStock > 0 ? (
-                                <Badge variant="secondary" className="text-xs">
-                                  Local: {localStock}
-                                </Badge>
                               ) : (
                                 <Badge variant="outline" className="text-xs text-muted-foreground">
                                   No stock
