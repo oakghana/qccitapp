@@ -49,6 +49,8 @@
     "embla-carousel-react": "8.5.1",
     "geist": "latest",
     "input-otp": "latest",
+    "jspdf": "^4.0.0",
+    "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.454.0",
     "next": "16.0.10",
     "next-themes": "latest",

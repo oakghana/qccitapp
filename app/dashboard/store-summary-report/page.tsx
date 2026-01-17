@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Download, Calendar, FileText, Filter, Package, Send, CheckCircle, XCircle, AlertCircle } from "lucide-react"
+import { Download, Calendar, FileText, Filter, Package, Send, CheckCircle, XCircle, AlertCircle, Loader2 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { FormNavigation } from "@/components/ui/form-navigation"
 import { Label } from "@/components/ui/label"
@@ -19,6 +19,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import jsPDF from "jspdf"
+import autoTable from "jspdf-autotable"
 
 interface StockBalanceItem {
   id?: string
@@ -300,8 +302,147 @@ export default function StoreSummaryReportPage() {
     window.URL.revokeObjectURL(url)
   }
 
+  const [pdfLoading, setPdfLoading] = useState(false)
+
   const exportToPDF = () => {
-    window.print()
+    if (report.length === 0) {
+      alert("No data to export")
+      return
+    }
+
+    setPdfLoading(true)
+    
+    try {
+      // Create PDF in landscape mode
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      })
+
+      // Get location and period info
+      const locationName = selectedLocation === "all" ? "ALL LOCATIONS" : selectedLocation.toUpperCase()
+      const periodEnd = new Date(endDate).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+
+      // Add header
+      doc.setFontSize(16)
+      doc.setFont("helvetica", "bold")
+      doc.text("QUALITY CERAMICS COMPANY LIMITED", 148.5, 15, { align: "center" })
+      
+      doc.setFontSize(12)
+      doc.text(locationName, 148.5, 23, { align: "center" })
+      
+      doc.setFontSize(11)
+      doc.setFont("helvetica", "normal")
+      doc.text(`STOCK BALANCE AS AT ${periodEnd.toUpperCase()}`, 148.5, 30, { align: "center" })
+
+      // Prepare table data
+      const tableHeaders = [
+        "S/N",
+        "CODE",
+        "STOCK ITEM",
+        "CATEGORY",
+        "UNIT",
+        "OPENING BAL.",
+        "RECEIPT",
+        "ISSUES",
+        "CLOSING BAL.",
+        "REMARKS",
+      ]
+
+      const tableData = report.map((item, index) => [
+        (index + 1).toString(),
+        item.code,
+        item.itemName,
+        item.category || "IT Accessories",
+        item.unitOfMeasure,
+        item.openingBalance.toString(),
+        item.receipts.toString(),
+        item.issues.toString(),
+        item.closingBalance.toString(),
+        item.remarks || "",
+      ])
+
+      // Add totals row
+      tableData.push([
+        "",
+        "",
+        "",
+        "",
+        "TOTALS:",
+        report.reduce((sum, item) => sum + item.openingBalance, 0).toString(),
+        report.reduce((sum, item) => sum + item.receipts, 0).toString(),
+        report.reduce((sum, item) => sum + item.issues, 0).toString(),
+        report.reduce((sum, item) => sum + item.closingBalance, 0).toString(),
+        "",
+      ])
+
+      // Generate table
+      autoTable(doc, {
+        head: [tableHeaders],
+        body: tableData,
+        startY: 38,
+        theme: "grid",
+        headStyles: {
+          fillColor: [41, 128, 185],
+          textColor: 255,
+          fontStyle: "bold",
+          fontSize: 8,
+          halign: "center",
+        },
+        bodyStyles: {
+          fontSize: 8,
+          cellPadding: 2,
+        },
+        columnStyles: {
+          0: { halign: "center", cellWidth: 12 },
+          1: { cellWidth: 22 },
+          2: { cellWidth: 50 },
+          3: { cellWidth: 30 },
+          4: { halign: "center", cellWidth: 15 },
+          5: { halign: "right", cellWidth: 25 },
+          6: { halign: "right", cellWidth: 20 },
+          7: { halign: "right", cellWidth: 20 },
+          8: { halign: "right", cellWidth: 25 },
+          9: { cellWidth: 40 },
+        },
+        didParseCell: (data) => {
+          // Style totals row
+          if (data.row.index === tableData.length - 1) {
+            data.cell.styles.fontStyle = "bold"
+            data.cell.styles.fillColor = [240, 240, 240]
+          }
+        },
+        margin: { left: 10, right: 10 },
+      })
+
+      // Add footer
+      const pageCount = doc.getNumberOfPages()
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i)
+        doc.setFontSize(8)
+        doc.setFont("helvetica", "normal")
+        doc.text(
+          `Generated on ${new Date().toLocaleString()} | Page ${i} of ${pageCount}`,
+          148.5,
+          200,
+          { align: "center" }
+        )
+      }
+
+      // Save the PDF - instant download
+      const fileName = `Stock-Balance-${selectedLocation.replace(/\s+/g, "-")}-${endDate}.pdf`
+      doc.save(fileName)
+    } catch (error) {
+      console.error("[v0] Error generating PDF:", error)
+      alert("Error generating PDF. Please try again.")
+    } finally {
+      setPdfLoading(false)
+    }
   }
 
   return (
@@ -315,11 +456,20 @@ export default function StoreSummaryReportPage() {
         </div>
 
         <div className="flex gap-2">
-          <Button onClick={exportToPDF} variant="outline" className="gap-2 bg-red-50 hover:bg-red-100 border-red-200">
-            <FileText className="h-4 w-4 text-red-600" />
-            <span className="text-red-600">Export PDF</span>
+          <Button 
+            onClick={exportToPDF} 
+            variant="outline" 
+            className="gap-2 bg-red-50 hover:bg-red-100 border-red-200"
+            disabled={pdfLoading || report.length === 0}
+          >
+            {pdfLoading ? (
+              <Loader2 className="h-4 w-4 text-red-600 animate-spin" />
+            ) : (
+              <FileText className="h-4 w-4 text-red-600" />
+            )}
+            <span className="text-red-600">{pdfLoading ? "Generating..." : "Download PDF"}</span>
           </Button>
-          <Button onClick={exportToCSV} className="bg-green-600 hover:bg-green-700 gap-2">
+          <Button onClick={exportToCSV} className="bg-green-600 hover:bg-green-700 gap-2" disabled={report.length === 0}>
             <Download className="h-4 w-4" />
             Export CSV
           </Button>
