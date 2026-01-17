@@ -337,6 +337,12 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
         { name: "Store Overview", href: "/dashboard/store-overview", icon: Package },
         { name: "Store Stock Levels", href: "/dashboard/store-snapshot", icon: Database },
         {
+          name: "Store Requisitions",
+          href: "/dashboard/regional-store-requisitions",
+          icon: ClipboardList,
+          badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
+        },
+        {
           name: "Stock Balance Report",
           href: "/dashboard/store-summary-report",
           icon: FileText,

@@ -35,7 +35,7 @@ interface Device {
   assetTag: string
   location: string
   assignedTo: string
-  status: "active" | "inactive" | "under_repair" | "retired"
+  status: string
 }
 
 interface ServiceProvider {
@@ -96,11 +96,10 @@ export function ITHeadRepairManagement() {
       const canSeeAll = user ? canSeeAllLocations(user) : false
       const location = user?.location || ""
       
-      // Use API endpoint that bypasses RLS
+      // Use API endpoint that bypasses RLS - get ALL devices to select from
       const params = new URLSearchParams({
         location: location,
         canSeeAll: String(canSeeAll),
-        status: "under_repair,inactive",
       })
       
       const response = await fetch(`/api/devices?${params}`)
@@ -111,12 +110,23 @@ export function ITHeadRepairManagement() {
         return
       }
 
-      // Filter for repair-eligible devices
-      const repairDevices = (result.devices || []).filter((d: any) => 
-        d.status === "under_repair" || d.status === "inactive"
-      )
+      console.log("[v0] Raw devices loaded:", result.devices?.length || 0)
+
+      // Map and filter for repair-eligible devices (all devices can be sent for repair)
+      const mappedDevices: Device[] = (result.devices || []).map((d: any) => ({
+        id: d.id,
+        type: d.device_type || d.type || "Unknown",
+        brand: d.brand || "Unknown",
+        model: d.model || "Unknown",
+        serialNumber: d.serial_number || "",
+        assetTag: d.asset_tag || d.serial_number || d.id?.substring(0, 8) || "",
+        location: d.location || "",
+        assignedTo: d.assigned_to || "",
+        status: d.status || "active",
+      }))
       
-      setDevices(repairDevices)
+      console.log("[v0] Mapped devices for repair:", mappedDevices.length)
+      setDevices(mappedDevices)
     } catch (error) {
       console.error("[v0] Error loading devices:", error)
     }
@@ -368,13 +378,17 @@ export function ITHeadRepairManagement() {
                         <SelectValue placeholder="Choose device to repair" />
                       </SelectTrigger>
                       <SelectContent>
-                        {devices
-                          .filter((d) => d.status === "under_repair" || d.status === "inactive")
-                          .map((device) => (
+                        {devices.length > 0 ? (
+                          devices.map((device) => (
                             <SelectItem key={device.id} value={device.id}>
-                              {device.assetTag} - {device.type} ({device.brand} {device.model})
+                              {device.assetTag || device.serialNumber} - {device.type} ({device.brand} {device.model})
                             </SelectItem>
-                          ))}
+                          ))
+                        ) : (
+                          <SelectItem value="loading" disabled>
+                            Loading devices...
+                          </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>

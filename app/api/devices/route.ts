@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     }
 
     console.log("[v0] Loaded devices:", data?.length)
-    return NextResponse.json(data || [])
+    return NextResponse.json({ devices: data || [], count: data?.length || 0 })
   } catch (error: any) {
     console.error("[v0] Error in devices API:", error)
     return NextResponse.json({ error: error.message }, { status: 500 })
