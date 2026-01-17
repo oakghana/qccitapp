@@ -101,7 +101,14 @@ export function ServiceProviderTasks() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`/api/repairs/tasks?service_provider_id=${user.id}`)
+      // For admin/IT head, show all repairs assigned to service providers
+      // For service provider users, show only their repairs
+      const isAdmin = user.role === "admin" || user.role === "it_head" || user.role === "regional_it_head"
+      const url = isAdmin 
+        ? `/api/repairs/tasks?viewAll=true`
+        : `/api/repairs/tasks?service_provider_id=${user.id}`
+      
+      const response = await fetch(url)
       
       if (!response.ok) {
         const result = await response.json()

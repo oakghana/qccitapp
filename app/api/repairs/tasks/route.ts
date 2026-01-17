@@ -12,15 +12,37 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const serviceProviderId = searchParams.get("service_provider_id")
     const status = searchParams.get("status")
+    const viewAll = searchParams.get("viewAll") === "true"
 
-    console.log("[v0] API Repair Tasks - service_provider_id:", serviceProviderId, "status:", status)
+    console.log("[v0] API Repair Tasks - service_provider_id:", serviceProviderId, "status:", status, "viewAll:", viewAll)
 
+    // Query from repair_requests table (the actual repairs table)
     let query = supabaseAdmin
-      .from("repair_tasks")
-      .select("*")
-      .order("assigned_date", { ascending: false })
+      .from("repair_requests")
+      .select(`
+        *,
+        devices (
+          id,
+          serial_number,
+          asset_tag,
+          device_type,
+          brand,
+          model,
+          location
+        ),
+        service_providers (
+          id,
+          name,
+          email,
+          phone
+        )
+      `)
+      .order("created_at", { ascending: false })
 
-    if (serviceProviderId) {
+    // If viewAll is true (admin), show all repairs that have a service provider assigned
+    if (viewAll) {
+      query = query.not("service_provider_id", "is", null)
+    } else if (serviceProviderId) {
       query = query.eq("service_provider_id", serviceProviderId)
     }
 
@@ -31,18 +53,44 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
 
     if (error) {
-      // Table may not exist yet
-      if (error.code === '42P01' || error.message?.includes('does not exist')) {
-        console.log("[v0] repair_tasks table not yet created")
-        return NextResponse.json({ tasks: [], message: "Table not yet created" })
-      }
       console.error("[v0] Error loading repair tasks:", error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    console.log("[v0] Loaded repair tasks:", data?.length || 0)
+    // Transform data to match expected format
+    const transformedTasks = (data || []).map((repair: any) => ({
+      id: repair.id,
+      task_number: repair.task_number || `REP-${repair.id.substring(0, 8).toUpperCase()}`,
+      device_info: {
+        type: repair.devices?.device_type || "Unknown",
+        brand: repair.devices?.brand || "Unknown",
+        model: repair.devices?.model || "Unknown",
+        serialNumber: repair.devices?.serial_number || "",
+        assetTag: repair.devices?.asset_tag || repair.devices?.serial_number || "",
+      },
+      issue_description: repair.issue_description || repair.description || "",
+      priority: repair.priority || "medium",
+      status: repair.status || "assigned",
+      assigned_by_name: repair.assigned_by || repair.created_by || "IT Department",
+      assigned_date: repair.assigned_at || repair.created_at,
+      scheduled_pickup_date: repair.scheduled_pickup_date,
+      collected_date: repair.collected_date,
+      estimated_completion_date: repair.estimated_completion_date,
+      completed_date: repair.completed_at,
+      location: repair.devices?.location || repair.location || "",
+      repair_notes: repair.repair_notes || repair.notes,
+      parts_used: repair.parts_used,
+      labor_hours: repair.labor_hours,
+      actual_cost: repair.actual_cost,
+      service_provider_id: repair.service_provider_id,
+      service_provider_name: repair.service_providers?.name || repair.service_provider_name || "Unknown",
+      service_provider_email: repair.service_providers?.email,
+      service_provider_phone: repair.service_providers?.phone,
+    }))
 
-    return NextResponse.json({ tasks: data || [] })
+    console.log("[v0] Loaded repair tasks:", transformedTasks.length)
+
+    return NextResponse.json({ tasks: transformedTasks })
   } catch (error) {
     console.error("[v0] API Repair Tasks error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
