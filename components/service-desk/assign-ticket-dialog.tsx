@@ -104,7 +104,11 @@ export function AssignTicketDialog({
     try {
       setLoadingStaff(true)
       // Fetch IT staff from profiles API
-      const response = await fetch("/api/users")\n      if (!response.ok) {\n        console.error("Failed to load IT staff")\n        return\n      }
+      const response = await fetch("/api/users")
+      if (!response.ok) {
+        console.error("Failed to load IT staff")
+        return
+      }
       const data = await response.json()
       const users = data.users || data || []
       
