@@ -254,6 +254,36 @@ export function AssignedTasksDashboard() {
   }, [tasks, activeTab, statusFilter, priorityFilter, searchQuery])
 
   const updateTaskStatus = (taskId: string, updates: Partial<WorkStatusUpdate>) => {
+    // Update backend
+    const updateBackend = async () => {
+      let endpoint = "";
+      let payload: any = {
+        id: taskId,
+        status: updates.status,
+        workNotes: updates.notes,
+        actualHours: updates.hoursWorked,
+      };
+      // Find the task type
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
+      if (task.type === "service_desk") {
+        endpoint = "/api/service-tickets/update";
+      } else if (task.type === "repair") {
+        endpoint = "/api/repairs/update";
+      }
+      if (!endpoint) return;
+      try {
+        await fetch(endpoint, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } catch (err) {
+        console.error("Error updating task status:", err);
+      }
+    };
+    updateBackend();
+    // Update local state
     setTasks((prev) =>
       prev.map((task) =>
         task.id === taskId
@@ -269,7 +299,7 @@ export function AssignedTasksDashboard() {
             }
           : task,
       ),
-    )
+    );
   }
 
   const handleUpdateStatus = () => {
