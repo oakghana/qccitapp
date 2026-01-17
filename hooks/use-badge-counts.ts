@@ -1,7 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
+import { useEffect, useState, useCallback, useRef } from "react"
 import type { User } from "@/lib/auth-context"
 import { canSeeAllLocations } from "@/lib/location-filter"
 
@@ -15,176 +14,154 @@ export interface BadgeCounts {
   itStaffStatus: number
   notifications: number
   updates: number
+  devices: number
+  stockAllocations: number
+  lowStockItems: number
+  pendingUserApprovals: number
+  readyForPickup: number
 }
 
+const DEFAULT_COUNTS: BadgeCounts = {
+  assignedTasks: 0,
+  serviceDeskTickets: 0,
+  repairs: 0,
+  storeRequisitions: 0,
+  serviceProviders: 0,
+  userAccounts: 0,
+  itStaffStatus: 0,
+  notifications: 0,
+  updates: 0,
+  devices: 0,
+  stockAllocations: 0,
+  lowStockItems: 0,
+  pendingUserApprovals: 0,
+  readyForPickup: 0,
+}
+
+// Cache for badge counts (30 second TTL)
+const CACHE_TTL = 30000
+let cachedCounts: BadgeCounts | null = null
+let cacheTimestamp = 0
+
 export function useBadgeCounts(user: User | null) {
-  const [counts, setCounts] = useState<BadgeCounts>({
-    assignedTasks: 0,
-    serviceDeskTickets: 0,
-    repairs: 0,
-    storeRequisitions: 0,
-    serviceProviders: 0,
-    userAccounts: 0,
-    itStaffStatus: 0,
-    notifications: 0,
-    updates: 0,
-  })
+  const [counts, setCounts] = useState<BadgeCounts>(DEFAULT_COUNTS)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const fetchInProgress = useRef(false)
+  const refreshInterval = useRef<NodeJS.Timeout | null>(null)
 
-  useEffect(() => {
-    async function fetchCounts() {
-      if (!user) {
-        setLoading(false)
-        return
-      }
-
-      const supabase = createClient()
-      const canSeeAll = canSeeAllLocations(user)
-      const userLocation = user.location
-
-      try {
-        // Fetch assigned tasks count (for IT staff)
-        let tasksQuery = supabase
-          .from("service_tickets")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "in_progress")
-
-        if (!canSeeAll && userLocation) {
-          tasksQuery = tasksQuery.ilike("location", userLocation)
-        }
-        const { count: tasksCount } = await tasksQuery
-
-        // Fetch service desk tickets count
-        let ticketsQuery = supabase
-          .from("service_tickets")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "open")
-
-        if (!canSeeAll && userLocation) {
-          ticketsQuery = ticketsQuery.ilike("location", userLocation)
-        }
-        const { count: ticketsCount } = await ticketsQuery
-
-        let repairsCount = 0
-        try {
-          // For IT roles, try to fetch all repairs
-          if (
-            user.role === "admin" ||
-            user.role === "it_head" ||
-            user.role === "regional_it_head" ||
-            user.role === "it_staff"
-          ) {
-            // Query pending repairs
-            let pendingQuery = supabase
-              .from("repair_requests")
-              .select("*", { count: "exact", head: true })
-              .eq("status", "pending")
-
-            if (!canSeeAll && userLocation) {
-              pendingQuery = pendingQuery.ilike("requester_location", userLocation)
-            }
-            const { count: pendingCount, error: pendingError } = await pendingQuery
-
-            // Query in_progress repairs
-            let inProgressQuery = supabase
-              .from("repair_requests")
-              .select("*", { count: "exact", head: true })
-              .eq("status", "in_progress")
-
-            if (!canSeeAll && userLocation) {
-              inProgressQuery = inProgressQuery.ilike("requester_location", userLocation)
-            }
-            const { count: inProgressCount, error: inProgressError } = await inProgressQuery
-
-            if (!pendingError && !inProgressError) {
-              repairsCount = (pendingCount || 0) + (inProgressCount || 0)
-            }
-          } else {
-            // For regular users, only show their own repairs
-            const { count: userRepairsCount } = await supabase
-              .from("repair_requests")
-              .select("*", { count: "exact", head: true })
-              .eq("requested_by", user.username)
-              .in("status", ["pending", "in_progress"])
-
-            repairsCount = userRepairsCount || 0
-          }
-        } catch (repairError) {
-          console.error("[v0] Error fetching repairs count:", repairError)
-          repairsCount = 0
-        }
-
-        // Fetch store requisitions count
-        let requisitionsQuery = supabase
-          .from("store_requisitions")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "pending")
-
-        if (!canSeeAll && userLocation) {
-          requisitionsQuery = requisitionsQuery.ilike("location", userLocation)
-        }
-        const { count: requisitionsCount } = await requisitionsQuery
-
-        // Fetch service providers count (only filter by location if user can't see all)
-        let providersQuery = supabase
-          .from("service_providers")
-          .select("*", { count: "exact", head: true })
-          .eq("is_active", true)
-
-        if (!canSeeAll && userLocation) {
-          providersQuery = providersQuery.ilike("location", userLocation)
-        }
-        const { count: providersCount } = await providersQuery
-
-        // Fetch user accounts pending approval (admins only)
-        const { count: accountsCount } = await supabase
-          .from("profiles")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "pending")
-
-        // Fetch IT staff count (for admins/IT heads)
-        let staffQuery = supabase
-          .from("profiles")
-          .select("*", { count: "exact", head: true })
-          .in("role", ["it_staff", "regional_it_head"])
-          .eq("is_active", true)
-
-        if (!canSeeAll && userLocation) {
-          staffQuery = staffQuery.ilike("location", userLocation)
-        }
-        const { count: staffCount } = await staffQuery
-
-        // Fetch notifications count (user-specific)
-        const { count: notificationsCount } = await supabase
-          .from("notifications")
-          .select("*", { count: "exact", head: true })
-          .eq("is_read", false)
-          .eq("user_id", user.id)
-
-        setCounts({
-          assignedTasks: tasksCount || 0,
-          serviceDeskTickets: ticketsCount || 0,
-          repairs: repairsCount,
-          storeRequisitions: requisitionsCount || 0,
-          serviceProviders: providersCount || 0,
-          userAccounts: accountsCount || 0,
-          itStaffStatus: staffCount || 0,
-          notifications: notificationsCount || 0,
-          updates: 0,
-        })
-      } catch (error) {
-        console.error("[v0] Error fetching badge counts:", error)
-      } finally {
-        setLoading(false)
-      }
+  const fetchCounts = useCallback(async (forceRefresh = false) => {
+    if (!user) {
+      setLoading(false)
+      return
     }
 
-    fetchCounts()
+    // Check cache first (unless force refresh)
+    const now = Date.now()
+    if (!forceRefresh && cachedCounts && (now - cacheTimestamp) < CACHE_TTL) {
+      setCounts(cachedCounts)
+      setLoading(false)
+      return
+    }
 
-    // Refresh counts every 30 seconds
-    const interval = setInterval(fetchCounts, 30000)
-    return () => clearInterval(interval)
+    // Prevent concurrent fetches
+    if (fetchInProgress.current) return
+    fetchInProgress.current = true
+
+    try {
+      const canSeeAll = canSeeAllLocations(user)
+      const location = user.location || ""
+
+      // Build query params
+      const params = new URLSearchParams({
+        location: location,
+        canSeeAll: String(canSeeAll),
+        userId: user.id || "",
+        userRole: user.role || "",
+        region: user.region || "",
+        district: user.district || "",
+      })
+
+      const response = await fetch(`/api/dashboard/badge-counts?${params}`)
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      // Map API response to BadgeCounts interface
+      const newCounts: BadgeCounts = {
+        assignedTasks: data.assignedTasks ?? 0,
+        serviceDeskTickets: data.serviceDeskTickets ?? 0,
+        repairs: data.repairs ?? 0,
+        storeRequisitions: data.storeRequisitions ?? 0,
+        serviceProviders: data.serviceProviders ?? 0,
+        userAccounts: data.userAccounts ?? 0,
+        itStaffStatus: data.itStaffStatus ?? 0,
+        notifications: data.notifications ?? 0,
+        updates: data.updates ?? 0,
+        devices: data.devices ?? 0,
+        stockAllocations: data.stockAllocations ?? 0,
+        lowStockItems: data.lowStockItems ?? 0,
+        pendingUserApprovals: data.pendingUserApprovals ?? 0,
+        readyForPickup: data.readyForPickup ?? 0,
+      }
+
+      // Handle error values (-1 means query failed)
+      for (const key of Object.keys(newCounts) as (keyof BadgeCounts)[]) {
+        if (newCounts[key] === -1) {
+          newCounts[key] = 0 // Display 0 instead of -1 on error
+        }
+      }
+
+      // Update cache
+      cachedCounts = newCounts
+      cacheTimestamp = now
+
+      setCounts(newCounts)
+      setError(null)
+    } catch (err) {
+      console.error("[v0] Error fetching badge counts:", err)
+      setError(err instanceof Error ? err.message : "Unknown error")
+      // Keep previous counts on error
+    } finally {
+      setLoading(false)
+      fetchInProgress.current = false
+    }
   }, [user])
 
-  return { counts, loading }
+  // Initial fetch and interval setup
+  useEffect(() => {
+    fetchCounts()
+
+    // Refresh counts every 60 seconds
+    refreshInterval.current = setInterval(() => {
+      fetchCounts(true) // Force refresh on interval
+    }, 60000)
+
+    return () => {
+      if (refreshInterval.current) {
+        clearInterval(refreshInterval.current)
+      }
+    }
+  }, [fetchCounts])
+
+  // Refresh on route change
+  useEffect(() => {
+    const handleRouteChange = () => {
+      // Debounce route change refreshes
+      setTimeout(() => fetchCounts(), 500)
+    }
+
+    window.addEventListener('popstate', handleRouteChange)
+    return () => window.removeEventListener('popstate', handleRouteChange)
+  }, [fetchCounts])
+
+  // Manual refresh function
+  const refresh = useCallback(() => {
+    fetchCounts(true)
+  }, [fetchCounts])
+
+  return { counts, loading, error, refresh }
 }

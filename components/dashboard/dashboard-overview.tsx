@@ -10,7 +10,6 @@ import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { getRoleColorScheme } from "@/lib/role-colors"
 import { cn } from "@/lib/utils"
-import { createClient } from "@/lib/supabase/client"
 import { canSeeAllLocations } from "@/lib/location-filter"
 
 export function DashboardOverview() {
@@ -34,113 +33,39 @@ export function DashboardOverview() {
     const fetchStats = async () => {
       if (!user) return
 
-      const supabase = createClient()
       const canSeeAll = canSeeAllLocations(user)
-      const userLoc = user.location?.trim()
+      const userLoc = user.location?.trim() || ""
 
       console.log("[v0] Dashboard stats - user:", user.username, "role:", user.role, "location:", userLoc, "canSeeAll:", canSeeAll)
 
       try {
-        // Fetch total devices - use or filter for flexible location matching
-        let devicesQuery = supabase
-          .from("devices")
-          .select("*", { count: "exact", head: true })
-        
-        if (!canSeeAll && userLoc) {
-          // Use or filter for flexible location matching (exact and partial)
-          devicesQuery = devicesQuery.or(`location.ilike.${userLoc},location.ilike.%${userLoc}%`)
+        // Use API endpoint that bypasses RLS
+        const params = new URLSearchParams({
+          location: userLoc,
+          canSeeAll: String(canSeeAll),
+          userRole: user.role || "",
+          userId: user.id || "",
+        })
+
+        const response = await fetch(`/api/dashboard/stats?${params}`)
+        const data = await response.json()
+
+        if (!response.ok) {
+          console.error("[v0] Error fetching dashboard stats:", data.error)
+          return
         }
-        
-        const { count: devicesCount, error: devicesError } = await devicesQuery
-        if (devicesError) console.error("[v0] Error fetching devices:", devicesError, JSON.stringify(devicesError))
-        console.log("[v0] Devices count:", devicesCount)
 
-        // Fetch active repairs (in_progress status) - using repair_requests table
-        let repairsQuery = supabase
-          .from("repair_requests")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "in_progress")
-        
-        if (!canSeeAll && userLoc) {
-          repairsQuery = repairsQuery.or(`location.ilike.${userLoc},location.ilike.%${userLoc}%`)
-        }
-        
-        const { count: activeRepairsCount, error: repairsError } = await repairsQuery
-        if (repairsError) console.error("[v0] Error fetching repairs:", repairsError, JSON.stringify(repairsError))
-        console.log("[v0] Active repairs count:", activeRepairsCount)
-
-        // Fetch completed repairs this month
-        const startOfMonth = new Date()
-        startOfMonth.setDate(1)
-        startOfMonth.setHours(0, 0, 0, 0)
-
-        let completedQuery = supabase
-          .from("repair_requests")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "completed")
-          .gte("updated_at", startOfMonth.toISOString())
-        
-        if (!canSeeAll && userLoc) {
-          completedQuery = completedQuery.or(`location.ilike.${userLoc},location.ilike.%${userLoc}%`)
-        }
-        
-        const { count: completedRepairsCount, error: completedError } = await completedQuery
-        if (completedError) console.error("[v0] Error fetching completed repairs:", completedError)
-        console.log("[v0] Completed repairs count:", completedRepairsCount)
-
-        // Fetch pending approvals (users with pending status)
-        const { count: pendingApprovalsCount, error: pendingError } = await supabase
-          .from("profiles")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "pending")
-        if (pendingError) console.error("[v0] Error fetching pending approvals:", pendingError)
-
-        // For IT staff - fetch assigned tasks
-        let assignedTasksCount = 0
-        let inProgressTasksCount = 0
-        let completedTasksCount = 0
-        let pendingReviewCount = 0
-
-        if (user.role === "it_staff") {
-          const { count: assigned } = await supabase
-            .from("repair_requests")
-            .select("*", { count: "exact", head: true })
-            .eq("assigned_to", user.id)
-
-          const { count: inProgress } = await supabase
-            .from("repair_requests")
-            .select("*", { count: "exact", head: true })
-            .eq("assigned_to", user.id)
-            .eq("status", "in_progress")
-
-          const { count: completed } = await supabase
-            .from("repair_requests")
-            .select("*", { count: "exact", head: true })
-            .eq("assigned_to", user.id)
-            .eq("status", "completed")
-            .gte("updated_at", startOfMonth.toISOString())
-
-          const { count: pending } = await supabase
-            .from("repair_requests")
-            .select("*", { count: "exact", head: true })
-            .eq("assigned_to", user.id)
-            .eq("status", "pending")
-
-          assignedTasksCount = assigned || 0
-          inProgressTasksCount = inProgress || 0
-          completedTasksCount = completed || 0
-          pendingReviewCount = pending || 0
-        }
+        console.log("[v0] Dashboard stats loaded:", data)
 
         setStats({
-          totalDevices: devicesCount || 0,
-          activeRepairs: activeRepairsCount || 0,
-          completedRepairs: completedRepairsCount || 0,
-          pendingApprovals: pendingApprovalsCount || 0,
-          assignedTasks: assignedTasksCount,
-          inProgressTasks: inProgressTasksCount,
-          completedTasks: completedTasksCount,
-          pendingReview: pendingReviewCount,
+          totalDevices: data.totalDevices || 0,
+          activeRepairs: data.activeRepairs || 0,
+          completedRepairs: data.completedRepairs || 0,
+          pendingApprovals: data.pendingApprovals || 0,
+          assignedTasks: data.assignedTasks || 0,
+          inProgressTasks: data.inProgressTasks || 0,
+          completedTasks: data.completedTasks || 0,
+          pendingReview: data.pendingReview || 0,
         })
       } catch (error) {
         console.error("Error fetching dashboard stats:", error)

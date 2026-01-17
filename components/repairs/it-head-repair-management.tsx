@@ -24,7 +24,6 @@ import {
   DollarSign,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { createClient } from "@/lib/supabase/client"
 import { canSeeAllLocations, canCreateRepairs } from "@/lib/location-filter"
 
 interface Device {
@@ -86,8 +85,6 @@ export function ITHeadRepairManagement() {
   const [selectedProvider, setSelectedProvider] = useState("")
   const [estimatedCost, setEstimatedCost] = useState("")
 
-  const supabase = createClient()
-
   useEffect(() => {
     loadDevices()
     loadServiceProviders()
@@ -96,20 +93,30 @@ export function ITHeadRepairManagement() {
 
   const loadDevices = async () => {
     try {
-      let query = supabase.from("devices").select("*").in("status", ["under_repair", "inactive"])
+      const canSeeAll = user ? canSeeAllLocations(user) : false
+      const location = user?.location || ""
+      
+      // Use API endpoint that bypasses RLS
+      const params = new URLSearchParams({
+        location: location,
+        canSeeAll: String(canSeeAll),
+        status: "under_repair,inactive",
+      })
+      
+      const response = await fetch(`/api/devices?${params}`)
+      const result = await response.json()
 
-      if (user && !canSeeAllLocations(user) && user.location) {
-        query = query.ilike("location", user.location)
-      }
-
-      const { data, error } = await query
-
-      if (error) {
-        console.error("[v0] Error loading devices:", error)
+      if (!response.ok) {
+        console.error("[v0] Error loading devices:", result.error)
         return
       }
 
-      setDevices(data || [])
+      // Filter for repair-eligible devices
+      const repairDevices = (result.devices || []).filter((d: any) => 
+        d.status === "under_repair" || d.status === "inactive"
+      )
+      
+      setDevices(repairDevices)
     } catch (error) {
       console.error("[v0] Error loading devices:", error)
     }
@@ -117,35 +124,22 @@ export function ITHeadRepairManagement() {
 
   const loadServiceProviders = async () => {
     try {
-      console.log("[v0] Loading service providers from database...")
+      console.log("[v0] Loading service providers from API...")
       
-      // First check if we can access the table at all
-      const { data, error } = await supabase
-        .from("service_providers")
-        .select("id, name, email, phone, specialization, location, is_active")
-        .eq("is_active", true)
-        .order("name")
+      const response = await fetch("/api/admin/service-providers")
+      const result = await response.json()
 
-      if (error) {
-        console.error("[v0] Error loading service providers:", error)
-        console.error("[v0] Error code:", error.code)
-        console.error("[v0] Error message:", error.message)
-        console.error("[v0] Error details:", JSON.stringify(error))
-        
-        // If RLS is blocking, try to show message
-        if (error.code === 'PGRST301' || error.message?.includes('permission')) {
-          console.error("[v0] RLS policy may be blocking access - run 014_fix_service_providers_rls.sql")
-        }
+      if (!response.ok) {
+        console.error("[v0] Error loading service providers:", result.error)
         return
       }
 
-      console.log("[v0] Successfully loaded service providers:", data)
-      console.log("[v0] Number of providers:", data?.length || 0)
+      console.log("[v0] Successfully loaded service providers:", result.providers?.length || 0)
       
-      if (data && data.length > 0) {
-        setServiceProviders(data)
+      if (result.providers && result.providers.length > 0) {
+        setServiceProviders(result.providers)
       } else {
-        console.warn("[v0] No service providers found - check if data exists in the table")
+        console.warn("[v0] No service providers found")
       }
     } catch (error) {
       console.error("[v0] Exception loading service providers:", error)
@@ -154,26 +148,25 @@ export function ITHeadRepairManagement() {
 
   const loadRepairTasks = async () => {
     try {
-      let query = supabase.from("repair_requests").select("*, devices(*)").order("created_at", { ascending: false })
+      const canSeeAll = user ? canSeeAllLocations(user) : false
+      const location = user?.location || ""
+      
+      // Use API endpoint that bypasses RLS
+      const params = new URLSearchParams({
+        location: location,
+        canSeeAll: String(canSeeAll),
+      })
+      
+      const response = await fetch(`/api/repairs?${params}`)
+      const result = await response.json()
 
-      if (user && !canSeeAllLocations(user) && user.location) {
-        query = query.ilike("location", user.location)
-      }
-
-      const { data, error } = await query
-
-      if (error) {
-        // Table may not exist yet - this is expected during initial setup
-        if (error.code === '42P01' || error.message?.includes('does not exist')) {
-          console.log("[v0] repair_requests table not yet created - run database migrations")
-        } else {
-          console.error("[v0] Error loading repair tasks:", error.message || error.code || JSON.stringify(error))
-        }
+      if (!response.ok) {
+        console.error("[v0] Error loading repair tasks:", result.error)
         return
       }
 
       // Transform data to match RepairTask interface
-      const transformedTasks: RepairTask[] = (data || []).map((item: any) => ({
+      const transformedTasks: RepairTask[] = (result.repairs || []).map((item: any) => ({
         id: item.id,
         taskNumber: item.task_number || item.id?.substring(0, 8) || "N/A",
         device: item.devices || {

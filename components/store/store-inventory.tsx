@@ -28,7 +28,6 @@ import {
 import { AddStoreItemForm } from "./add-store-item-form"
 import { StoreReceiptForm } from "./store-receipt-form"
 import { StockCardDetailModal } from "./stock-card-detail-modal"
-import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations } from "@/lib/location-filter"
 import { useRouter } from "next/navigation"
@@ -61,7 +60,6 @@ export function StoreInventory() {
   const [receiptOpen, setReceiptOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<StoreItem | null>(null)
   const { user } = useAuth()
-  const supabase = createClient()
   const router = useRouter()
 
   useEffect(() => {
@@ -71,22 +69,26 @@ export function StoreInventory() {
   const loadInventory = async () => {
     try {
       setLoading(true)
-      let query = supabase.from("store_items").select("*").order("created_at", { ascending: false })
+      const canSeeAll = user ? canSeeAllLocations(user) : false
+      const location = user?.location || ""
+      
+      // Use API endpoint that bypasses RLS
+      const params = new URLSearchParams({
+        location: location,
+        canSeeAll: String(canSeeAll),
+      })
+      
+      const response = await fetch(`/api/store/items?${params}`)
+      const result = await response.json()
 
-      if (user && !canSeeAllLocations(user) && user.location) {
-        query = query.or(`location.eq.${user.location},location.eq.Central Stores`)
-      }
-
-      const { data, error } = await query
-
-      if (error) {
-        console.error("[v0] Error loading inventory:", error)
+      if (!response.ok) {
+        console.error("[v0] Error loading inventory:", result.error)
         return
       }
 
-      console.log("[v0] Loaded inventory from Supabase:", data)
+      console.log("[v0] Loaded inventory from API:", result.items?.length || 0)
 
-      const mappedInventory: StoreItem[] = data.map((item: any) => ({
+      const mappedInventory: StoreItem[] = (result.items || []).map((item: any) => ({
         id: item.id,
         itemName: item.name,
         category: item.category || "hardware",
