@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -25,7 +25,8 @@ import {
   Mail,
   CheckCircle,
   AlertTriangle,
-  Users
+  Users,
+  Loader2
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { getRoleColorScheme } from "@/lib/role-colors"
@@ -53,43 +54,6 @@ interface StaffMember {
   currentTickets: number
 }
 
-// Mock staff data - in real app, this would come from API
-const mockStaff: StaffMember[] = [
-  {
-    id: "IT001",
-    name: "John Mensah",
-    email: "john.mensah@qcc.com.gh",
-    phone: "+233241234567",
-    role: "IT Staff",
-    location: "Head Office",
-    department: "IT",
-    isOnline: true,
-    currentTickets: 3
-  },
-  {
-    id: "IT002",
-    name: "Kwame Asante",
-    email: "kwame.asante@qcc.com.gh", 
-    phone: "+233241234568",
-    role: "IT Staff",
-    location: "Kumasi",
-    department: "IT",
-    isOnline: true,
-    currentTickets: 2
-  },
-  {
-    id: "IT003",
-    name: "Ama Osei",
-    email: "ama.osei@qcc.com.gh",
-    phone: "+233241234569",
-    role: "IT Staff",
-    location: "Accra",
-    department: "IT",
-    isOnline: false,
-    currentTickets: 5
-  }
-]
-
 const priorityColors = {
   low: { bg: "bg-green-50 dark:bg-green-950", text: "text-green-700 dark:text-green-300", border: "border-green-200 dark:border-green-800" },
   medium: { bg: "bg-yellow-50 dark:bg-yellow-950", text: "text-yellow-700 dark:text-yellow-300", border: "border-yellow-200 dark:border-yellow-800" },
@@ -100,6 +64,7 @@ const priorityColors = {
 interface AssignTicketDialogProps {
   ticketId: string
   ticketTitle: string
+  ticketLocation?: string
   isOpen: boolean
   onClose: () => void
   onAssign: (assignment: AssignTicketData) => void
@@ -107,7 +72,8 @@ interface AssignTicketDialogProps {
 
 export function AssignTicketDialog({ 
   ticketId, 
-  ticketTitle, 
+  ticketTitle,
+  ticketLocation,
   isOpen, 
   onClose, 
   onAssign 
@@ -115,6 +81,8 @@ export function AssignTicketDialog({
   const { user } = useAuth()
   const roleColors = user?.role ? getRoleColorScheme(user.role) : null
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [loadingStaff, setLoadingStaff] = useState(true)
+  const [availableStaff, setAvailableStaff] = useState<StaffMember[]>([])
   const [assignmentData, setAssignmentData] = useState<AssignTicketData>({
     ticketId,
     assignee: "",
@@ -125,38 +93,91 @@ export function AssignTicketDialog({
     notifySMS: false
   })
 
-  // Filter staff based on user's location access
-  const getAvailableStaff = () => {
-    if (user?.role === "admin" || (user?.role === "it_head" && user?.location === "head_office")) {
-      return mockStaff // Can assign to all staff
+  // Load IT staff from database based on ticket location
+  useEffect(() => {
+    if (isOpen) {
+      loadItStaff()
     }
-    
-    // Regional IT Head or location-specific IT Head can only assign to their location
-    if (user?.role === "regional_it_head" || user?.role === "it_head") {
-      return mockStaff.filter(staff => staff.location.toLowerCase().replace(" ", "_") === user.location)
-    }
+  }, [isOpen, ticketLocation])
 
-    return []
+  const loadItStaff = async () => {
+    try {
+      setLoadingStaff(true)
+      // Fetch IT staff from profiles API
+      const response = await fetch("/api/users")\n      if (!response.ok) {\n        console.error("Failed to load IT staff")\n        return\n      }
+      const data = await response.json()
+      const users = data.users || data || []
+      
+      // Filter to IT staff roles only
+      const itRoles = ["it_staff", "it_head", "regional_it_head", "service_desk_head", "service_desk_agent"]
+      let filteredStaff = users.filter((u: any) => 
+        itRoles.includes(u.role) || u.role?.includes("it_") || u.role?.includes("service_desk")
+      )
+      
+      // Apply location filter based on current user's role
+      if (user?.role === "admin" || user?.role === "it_head") {
+        // IT Head at head office can see all IT staff
+        // No additional filter needed
+      } else if (user?.role === "regional_it_head") {
+        // Regional IT Head can only assign to staff in their region/location
+        const userLoc = (user?.location || "").toLowerCase().trim()
+        filteredStaff = filteredStaff.filter((s: any) => {
+          const staffLoc = (s.location || "").toLowerCase().trim()
+          return staffLoc === userLoc || 
+                 staffLoc.includes(userLoc) || 
+                 userLoc.includes(staffLoc)
+        })
+      } else {
+        // Filter by ticket location for other users
+        if (ticketLocation) {
+          const ticketLoc = ticketLocation.toLowerCase().trim()
+          filteredStaff = filteredStaff.filter((s: any) => {
+            const staffLoc = (s.location || "").toLowerCase().trim()
+            return staffLoc === ticketLoc || 
+                   staffLoc.includes(ticketLoc) || 
+                   ticketLoc.includes(staffLoc)
+          })
+        }
+      }
+
+      // Map to StaffMember format
+      const mappedStaff: StaffMember[] = filteredStaff.map((s: any) => ({
+        id: s.id || s.user_id,
+        name: s.full_name || s.name || s.username || "Unknown",
+        email: s.email || "",
+        phone: s.phone || "",
+        role: s.role || "IT Staff",
+        location: s.location || "Unknown",
+        department: s.department || "IT",
+        isOnline: s.status === "online" || s.is_online || true,
+        currentTickets: s.current_tickets || 0
+      }))
+
+      setAvailableStaff(mappedStaff)
+    } catch (error) {
+      console.error("Error loading IT staff:", error)
+    } finally {
+      setLoadingStaff(false)
+    }
   }
-
-  const availableStaff = getAvailableStaff()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000))
-
-    onAssign(assignmentData)
-    
-    // Send notification (mock)
-    if (assignmentData.notifyEmail) {
-      console.log("Email notification sent to assigned staff")
+    try {
+      // Find the selected staff member to get their name
+      const selectedStaffMember = availableStaff.find(s => s.id === assignmentData.assignee)
+      
+      // Call the assignment with the staff name for display
+      onAssign({
+        ...assignmentData,
+        assignee: selectedStaffMember?.name || assignmentData.assignee
+      })
+    } finally {
+      setIsSubmitting(false)
+      onClose()
     }
-    
-    setIsSubmitting(false)
-    onClose()
   }
 
   const selectedStaff = availableStaff.find(staff => staff.id === assignmentData.assignee)
@@ -198,6 +219,19 @@ export function AssignTicketDialog({
           <div className="space-y-4">
             <div>
               <Label htmlFor="assignee">Select Staff Member *</Label>
+              {loadingStaff ? (
+                <div className="flex items-center gap-2 p-4 border rounded-md">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-muted-foreground">Loading IT staff...</span>
+                </div>
+              ) : availableStaff.length === 0 ? (
+                <div className="p-4 border rounded-md bg-yellow-50 dark:bg-yellow-950 border-yellow-200">
+                  <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-300">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span>No IT staff found for this location. Please contact the administrator.</span>
+                  </div>
+                </div>
+              ) : (
               <Select
                 value={assignmentData.assignee}
                 onValueChange={(value) => setAssignmentData(prev => ({ ...prev, assignee: value }))}
@@ -228,6 +262,7 @@ export function AssignTicketDialog({
                   ))}
                 </SelectContent>
               </Select>
+              )}
             </div>
 
             {/* Selected Staff Info */}

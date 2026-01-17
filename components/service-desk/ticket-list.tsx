@@ -74,13 +74,33 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false)
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
+  const [dbLocations, setDbLocations] = useState<{ code: string; name: string }[]>([])
   const supabase = createClient()
 
   useEffect(() => {
     if (!propTickets) {
       loadTickets()
     }
+    loadLocations()
   }, [propTickets])
+
+  const loadLocations = async () => {
+    try {
+      const res = await fetch("/api/admin/lookup-data?type=locations")
+      if (res.ok) {
+        const data = await res.json()
+        const activeLocations = data
+          .filter((loc: any) => loc.is_active && loc.code && loc.code.trim() !== "")
+          .map((loc: any) => ({
+            code: loc.code,
+            name: loc.name,
+          }))
+        setDbLocations(activeLocations)
+      }
+    } catch (error) {
+      console.error("Error loading locations:", error)
+    }
+  }
 
   const loadTickets = async () => {
     try {
@@ -426,11 +446,11 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Locations</SelectItem>
-                <SelectItem value="Head Office - Accra">Head Office - Accra</SelectItem>
-                <SelectItem value="Kumasi District Office">Kumasi District Office</SelectItem>
-                <SelectItem value="Tamale District Office">Tamale District Office</SelectItem>
-                <SelectItem value="Cape Coast District Office">Cape Coast District Office</SelectItem>
-                <SelectItem value="Ho District Office">Ho District Office</SelectItem>
+                {dbLocations.map((loc) => (
+                  <SelectItem key={loc.code} value={loc.code}>
+                    {loc.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -788,6 +808,7 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
         <AssignTicketDialog
           ticketId={selectedTicket.id}
           ticketTitle={selectedTicket.title}
+          ticketLocation={selectedTicket.location}
           isOpen={assignDialogOpen}
           onClose={() => setAssignDialogOpen(false)}
           onAssign={handleAssignTicket}
