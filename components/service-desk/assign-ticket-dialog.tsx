@@ -127,28 +127,46 @@ export function AssignTicketDialog({
       const response = await fetch("/api/users")
       if (!response.ok) {
         console.error("Failed to load IT staff")
+        setLoadingStaff(false)
         return
       }
       const data = await response.json()
       const users = data.users || data || []
       
-      console.log("[v0] Loaded users for assignment:", users.length)
+      console.log("[v0] Loaded users for assignment:", users.length, users)
       
-      // Filter to IT staff roles only
-      const itRoles = ["it_staff", "it_head", "regional_it_head", "service_desk_head", "service_desk_agent", "service_desk_accra", "service_desk_kumasi", "service_desk_takoradi", "service_desk_tema", "service_desk_sunyani", "service_desk_cape_coast"]
-      let filteredStaff = users.filter((u: any) => 
-        itRoles.includes(u.role) || u.role?.includes("it_") || u.role?.includes("service_desk")
-      )
+      // Filter to IT staff roles only - be more inclusive
+      const itRoles = [
+        "it_staff", "it_head", "regional_it_head", "service_desk_head", "service_desk_agent",
+        "service_desk_accra", "service_desk_kumasi", "service_desk_takoradi", 
+        "service_desk_tema", "service_desk_sunyani", "service_desk_cape_coast",
+        "admin" // Include admin as they can also handle tickets
+      ]
       
-      console.log("[v0] Filtered IT staff:", filteredStaff.length)
+      let filteredStaff = users.filter((u: any) => {
+        const role = (u.role || "").toLowerCase()
+        return itRoles.includes(role) || 
+               role.includes("it") || 
+               role.includes("service") ||
+               role.includes("admin") ||
+               role.includes("staff")
+      })
+      
+      console.log("[v0] Filtered IT staff:", filteredStaff.length, filteredStaff.map((s: any) => ({ name: s.full_name, role: s.role, location: s.location })))
+
+      // If no IT staff found with roles, show all users as fallback for admin
+      if (filteredStaff.length === 0 && (user?.role === "admin" || user?.role === "it_head")) {
+        console.log("[v0] No IT staff found with roles, showing all users")
+        filteredStaff = users
+      }
 
       // Map to StaffMember format first
       const mappedStaff: StaffMember[] = filteredStaff.map((s: any) => ({
         id: s.id || s.user_id,
-        name: s.full_name || s.name || s.username || "Unknown",
+        name: s.full_name || s.name || s.username || s.email || "Unknown",
         email: s.email || "",
         phone: s.phone || "",
-        role: s.role || "IT Staff",
+        role: s.role || "Staff",
         location: s.location || "Unknown",
         department: s.department || "IT",
         isOnline: s.status === "online" || s.is_online || true,
