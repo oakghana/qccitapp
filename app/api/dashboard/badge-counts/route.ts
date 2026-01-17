@@ -7,124 +7,21 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Badge count configuration registry - defines what each menu item counts
-const BADGE_CONFIG: Record<string, {
-  table: string
-  countType: 'filtered' | 'total' | 'custom'
-  filters?: Record<string, any>
-  statusIn?: string[]
-  customQuery?: string
-  locationField?: string
-  description: string
-}> = {
-  // Service Desk - Open/New tickets
-  serviceDeskTickets: {
-    table: 'service_tickets',
-    countType: 'filtered',
-    statusIn: ['open', 'Open', 'new', 'New', 'in_triage', 'In Triage'],
-    locationField: 'location',
-    description: 'Open service desk tickets'
-  },
-  // Repairs - Pending and In Progress
-  repairs: {
-    table: 'repair_requests',
-    countType: 'filtered',
-    statusIn: ['pending', 'in_progress', 'in_repair', 'In Repair'],
-    locationField: 'location',
-    description: 'Active repair requests'
-  },
-  // Devices - Total active devices
-  devices: {
-    table: 'devices',
-    countType: 'filtered',
-    statusIn: ['active', 'in_service', 'Active'],
-    locationField: 'location',
-    description: 'Active devices'
-  },
-  // Store Requisitions - Pending approval
-  storeRequisitions: {
-    table: 'requisitions',
-    countType: 'filtered',
-    statusIn: ['pending', 'submitted', 'pending_approval', 'Pending', 'Submitted'],
-    locationField: 'location',
-    description: 'Pending requisitions'
-  },
-  // Stock Allocations - Allocated or In Transit
-  stockAllocations: {
-    table: 'stock_allocations',
-    countType: 'filtered',
-    statusIn: ['allocated', 'in_transit', 'Allocated', 'In Transit'],
-    locationField: 'location',
-    description: 'Active allocations'
-  },
-  // Low Stock Items
-  lowStockItems: {
-    table: 'store_items',
-    countType: 'custom',
-    locationField: 'location',
-    description: 'Low stock items (quantity <= reorder level)'
-  },
-  // Service Providers - Active providers
-  serviceProviders: {
-    table: 'service_providers',
-    countType: 'filtered',
-    filters: { is_active: true },
-    locationField: 'location',
-    description: 'Active service providers'
-  },
-  // IT Staff Status - Active IT staff
-  itStaffStatus: {
-    table: 'profiles',
-    countType: 'custom',
-    locationField: 'location',
-    description: 'Active IT staff members'
-  },
-  // Pending User Approvals
-  pendingUserApprovals: {
-    table: 'profiles',
-    countType: 'filtered',
-    statusIn: ['pending'],
-    locationField: 'location',
-    description: 'Users pending approval'
-  },
-  // Assigned Tasks - In progress tickets assigned
-  assignedTasks: {
-    table: 'service_tickets',
-    countType: 'filtered',
-    statusIn: ['in_progress', 'In Progress'],
-    locationField: 'location',
-    description: 'Tasks in progress'
-  },
-  // Ready for Pickup
-  readyForPickup: {
-    table: 'repair_requests',
-    countType: 'filtered',
-    statusIn: ['ready_for_pickup', 'Ready for Pickup', 'completed'],
-    locationField: 'location',
-    description: 'Repairs ready for pickup'
-  },
-  // Notifications - Unread
-  notifications: {
-    table: 'notifications',
-    countType: 'custom',
-    description: 'Unread notifications'
-  },
-  // User Accounts - Total users
-  userAccounts: {
-    table: 'profiles',
-    countType: 'total',
-    locationField: 'location',
-    description: 'Total user accounts'
-  },
+// Helper to filter data by location in memory
+function filterByLocation(data: any[], location: string, canSeeAll: boolean, field: string = 'location'): any[] {
+  if (canSeeAll || !location) return data
+  const loc = location.toLowerCase()
+  return data.filter((item: any) => {
+    const itemLoc = (item[field] || '').toLowerCase()
+    return itemLoc.includes(loc) || loc.includes(itemLoc)
+  })
 }
 
-// Helper to apply location filter
-function applyLocationFilter(query: any, location: string, canSeeAll: boolean, field: string = 'location') {
-  if (!canSeeAll && location) {
-    // Use flexible matching for location
-    return query.or(`${field}.ilike.${location},${field}.ilike.%${location}%`)
-  }
-  return query
+// Helper to check if status matches any in list (case-insensitive)
+function matchesStatus(itemStatus: string | null | undefined, statusList: string[]): boolean {
+  if (!itemStatus) return false
+  const normalized = itemStatus.toLowerCase()
+  return statusList.some(s => s.toLowerCase() === normalized)
 }
 
 export async function GET(request: NextRequest) {
@@ -134,60 +31,202 @@ export async function GET(request: NextRequest) {
     const canSeeAll = searchParams.get("canSeeAll") === "true"
     const userId = searchParams.get("userId") || ""
     const userRole = searchParams.get("userRole") || ""
-    const region = searchParams.get("region") || ""
-    const district = searchParams.get("district") || ""
 
     console.log("[v0] API Badge Counts - location:", location, "canSeeAll:", canSeeAll, "role:", userRole)
 
-    const counts: Record<string, number> = {}
+    const counts: Record<string, number> = {
+      serviceDeskTickets: 0,
+      repairs: 0,
+      devices: 0,
+      storeRequisitions: 0,
+      stockAllocations: 0,
+      lowStockItems: 0,
+      serviceProviders: 0,
+      itStaffStatus: 0,
+      pendingUserApprovals: 0,
+      assignedTasks: 0,
+      readyForPickup: 0,
+      notifications: 0,
+      userAccounts: 0,
+      updates: 0,
+    }
 
-    // Process each badge configuration
-    for (const [key, config] of Object.entries(BADGE_CONFIG)) {
-      try {
-        let count = 0
-
-        if (config.countType === 'custom') {
-          // Handle custom queries
-          count = await handleCustomQuery(key, config, { location, canSeeAll, userId, userRole, region, district })
-        } else {
-          // Standard query building
-          let query = supabaseAdmin
-            .from(config.table)
-            .select("*", { count: "exact", head: true })
-
-          // Apply status filters
-          if (config.statusIn && config.statusIn.length > 0) {
-            const statusConditions = config.statusIn.map(s => `status.eq.${s}`).join(',')
-            query = query.or(statusConditions)
-          }
-
-          // Apply additional filters
-          if (config.filters) {
-            for (const [field, value] of Object.entries(config.filters)) {
-              query = query.eq(field, value)
-            }
-          }
-
-          // Apply location filter
-          if (config.locationField) {
-            query = applyLocationFilter(query, location, canSeeAll, config.locationField)
-          }
-
-          const { count: resultCount, error } = await query
-          
-          if (error) {
-            console.error(`[v0] Error fetching ${key} count:`, error.message)
-            counts[key] = -1 // Use -1 to indicate error (will show as dash)
-          } else {
-            count = resultCount || 0
-          }
-        }
-
-        counts[key] = count
-      } catch (e) {
-        console.error(`[v0] Exception fetching ${key} count:`, e)
-        counts[key] = -1
+    // 1. Service Desk Tickets (open status)
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('service_tickets')
+        .select('id, status, location')
+      
+      if (!error && data) {
+        const filtered = data.filter(t => matchesStatus(t.status, ['open', 'new', 'in_triage']))
+        counts.serviceDeskTickets = filterByLocation(filtered, location, canSeeAll).length
       }
+    } catch (e) {
+      console.error('[v0] Error fetching service tickets:', e)
+    }
+
+    // 2. Repairs (pending + in_progress)
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('repair_requests')
+        .select('id, status, location')
+      
+      if (!error && data) {
+        const filtered = data.filter(r => matchesStatus(r.status, ['pending', 'in_progress', 'in_repair']))
+        counts.repairs = filterByLocation(filtered, location, canSeeAll).length
+      }
+    } catch (e) {
+      console.error('[v0] Error fetching repairs:', e)
+    }
+
+    // 3. Devices (count all or active)
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('devices')
+        .select('id, status, location')
+      
+      if (!error && data) {
+        // Count all devices (not just active) for a more useful count
+        counts.devices = filterByLocation(data, location, canSeeAll).length
+      }
+    } catch (e) {
+      console.error('[v0] Error fetching devices:', e)
+    }
+
+    // 4. Store Requisitions (pending)
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('requisitions')
+        .select('id, status, location')
+      
+      if (!error && data) {
+        const filtered = data.filter(r => matchesStatus(r.status, ['pending', 'submitted', 'pending_approval']))
+        counts.storeRequisitions = filterByLocation(filtered, location, canSeeAll).length
+      }
+    } catch (e) {
+      console.error('[v0] Error fetching requisitions:', e)
+    }
+
+    // 5. Stock Allocations (allocated/in_transit)
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('stock_allocations')
+        .select('id, status, location')
+      
+      if (!error && data) {
+        const filtered = data.filter(a => matchesStatus(a.status, ['allocated', 'in_transit']))
+        counts.stockAllocations = filterByLocation(filtered, location, canSeeAll).length
+      }
+    } catch (e) {
+      console.error('[v0] Error fetching allocations:', e)
+    }
+
+    // 6. Low Stock Items
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('store_items')
+        .select('id, quantity, reorder_level, location')
+      
+      if (!error && data) {
+        const lowStock = data.filter(item => (item.quantity || 0) <= (item.reorder_level || 0))
+        counts.lowStockItems = filterByLocation(lowStock, location, canSeeAll).length
+      }
+    } catch (e) {
+      console.error('[v0] Error fetching low stock:', e)
+    }
+
+    // 7. Service Providers (active)
+    try {
+      const { count, error } = await supabaseAdmin
+        .from('service_providers')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true)
+      
+      if (!error) counts.serviceProviders = count || 0
+    } catch (e) {
+      console.error('[v0] Error fetching providers:', e)
+    }
+
+    // 8. IT Staff Status
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('profiles')
+        .select('id, role, location')
+        .in('role', ['it_staff', 'regional_it_head', 'it_head', 'admin'])
+      
+      if (!error && data) {
+        counts.itStaffStatus = filterByLocation(data, location, canSeeAll).length
+      }
+    } catch (e) {
+      console.error('[v0] Error fetching IT staff:', e)
+    }
+
+    // 9. Pending User Approvals
+    try {
+      const { count, error } = await supabaseAdmin
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending')
+      
+      if (!error) counts.pendingUserApprovals = count || 0
+    } catch (e) {
+      console.error('[v0] Error fetching pending approvals:', e)
+    }
+
+    // 10. Assigned Tasks (in_progress tickets)
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('service_tickets')
+        .select('id, status, location')
+      
+      if (!error && data) {
+        const filtered = data.filter(t => matchesStatus(t.status, ['in_progress']))
+        counts.assignedTasks = filterByLocation(filtered, location, canSeeAll).length
+      }
+    } catch (e) {
+      console.error('[v0] Error fetching assigned tasks:', e)
+    }
+
+    // 11. Ready for Pickup
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('repair_requests')
+        .select('id, status, location')
+      
+      if (!error && data) {
+        const filtered = data.filter(r => matchesStatus(r.status, ['ready_for_pickup', 'completed']))
+        counts.readyForPickup = filterByLocation(filtered, location, canSeeAll).length
+      }
+    } catch (e) {
+      console.error('[v0] Error fetching ready for pickup:', e)
+    }
+
+    // 12. Notifications (unread for user)
+    if (userId) {
+      try {
+        const { count, error } = await supabaseAdmin
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .eq('is_read', false)
+        
+        if (!error) counts.notifications = count || 0
+      } catch (e) {
+        console.error('[v0] Error fetching notifications:', e)
+      }
+    }
+
+    // 13. User Accounts (total)
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('profiles')
+        .select('id, location')
+      
+      if (!error && data) {
+        counts.userAccounts = filterByLocation(data, location, canSeeAll).length
+      }
+    } catch (e) {
+      console.error('[v0] Error fetching user accounts:', e)
     }
 
     console.log("[v0] Badge counts result:", counts)
@@ -198,62 +237,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
-
-// Handle custom queries that need special logic
-async function handleCustomQuery(
-  key: string, 
-  config: typeof BADGE_CONFIG[string],
-  params: { location: string; canSeeAll: boolean; userId: string; userRole: string; region: string; district: string }
-): Promise<number> {
-  const { location, canSeeAll, userId, userRole, region, district } = params
-
-  switch (key) {
-    case 'lowStockItems': {
-      // Items where quantity <= reorder_level
-      let query = supabaseAdmin
-        .from('store_items')
-        .select('id, quantity, reorder_level', { count: 'exact' })
-      
-      query = applyLocationFilter(query, location, canSeeAll, 'location')
-      
-      const { data, error } = await query
-      if (error) return -1
-      
-      // Filter in code since we can't do column comparison in Supabase easily
-      const lowStock = (data || []).filter((item: any) => 
-        item.quantity <= (item.reorder_level || 0)
-      )
-      return lowStock.length
-    }
-
-    case 'itStaffStatus': {
-      // Count IT staff members
-      let query = supabaseAdmin
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
-        .in('role', ['it_staff', 'regional_it_head', 'it_head', 'admin'])
-      
-      query = applyLocationFilter(query, location, canSeeAll, 'location')
-      
-      const { count, error } = await query
-      return error ? -1 : (count || 0)
-    }
-
-    case 'notifications': {
-      // Unread notifications for current user
-      if (!userId) return 0
-      
-      const { count, error } = await supabaseAdmin
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('is_read', false)
-      
-      return error ? -1 : (count || 0)
-    }
-
-    default:
-      return 0
-  }
-}
-
