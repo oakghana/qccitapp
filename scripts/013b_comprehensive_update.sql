@@ -1735,4 +1735,3 @@ CREATE POLICY "IT managers can manage service providers" ON public.service_provi
       WHERE id = auth.uid() AND role::text IN ('admin', 'it_head')
     )
   );
-

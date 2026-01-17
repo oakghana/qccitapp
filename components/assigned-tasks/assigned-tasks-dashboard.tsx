@@ -22,9 +22,11 @@ import {
   Filter,
   Search,
   Download,
+  Loader2,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { createClient } from "@/lib/supabase/client"
+import { useToast } from "@/hooks/use-toast"
 
 interface AssignedTask {
   id: string
@@ -66,6 +68,7 @@ interface WorkStatusUpdate {
 export function AssignedTasksDashboard() {
   const { user } = useAuth()
   const supabase = createClient()
+  const { toast } = useToast()
   const [tasks, setTasks] = useState<AssignedTask[]>([])
   const [filteredTasks, setFilteredTasks] = useState<AssignedTask[]>([])
   const [selectedTask, setSelectedTask] = useState<AssignedTask | null>(null)
@@ -76,6 +79,9 @@ export function AssignedTasksDashboard() {
   const [workNotes, setWorkNotes] = useState("")
   const [hoursWorked, setHoursWorked] = useState("")
   const [loading, setLoading] = useState(true)
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false)
+  const [newStatus, setNewStatus] = useState<string>("")
 
   useEffect(() => {
     loadAssignedTasks()
@@ -88,11 +94,8 @@ export function AssignedTasksDashboard() {
     try {
       const allTasks: AssignedTask[] = []
 
-      // Build a filter that checks both assigned_to (user ID) and assigned_to_name
-      // This handles both old assignments (name only) and new assignments (with ID)
       const userName = user.name || user.email || ""
-      
-      // Load service desk tickets assigned to this user (by ID or name)
+
       const { data: serviceTickets, error: ticketError } = await supabase
         .from("service_tickets")
         .select("*")
@@ -102,7 +105,6 @@ export function AssignedTasksDashboard() {
       if (ticketError) {
         console.error("[v0] Error loading service tickets:", ticketError)
       } else if (serviceTickets) {
-        // Map service tickets to AssignedTask format
         const mappedTickets: AssignedTask[] = serviceTickets.map((ticket: any) => ({
           id: ticket.id,
           type: "service_desk" as const,
@@ -119,18 +121,17 @@ export function AssignedTasksDashboard() {
           ticketInfo: {
             category: ticket.category || "General",
             subcategory: ticket.subcategory || "",
-            ticketNumber: ticket.ticket_number || ticket.id
+            ticketNumber: ticket.ticket_number || ticket.id,
           },
           attachments: [],
           workNotes: ticket.work_notes ? [ticket.work_notes] : [],
           completionDate: ticket.resolved_at,
           estimatedHours: ticket.estimated_hours,
-          actualHours: ticket.actual_hours
+          actualHours: ticket.actual_hours,
         }))
         allTasks.push(...mappedTickets)
       }
 
-      // Load repair requests assigned to this user (by ID or name)
       const { data: repairs, error: repairError } = await supabase
         .from("repair_requests")
         .select("*, devices(*)")
@@ -140,7 +141,6 @@ export function AssignedTasksDashboard() {
       if (repairError) {
         console.error("[v0] Error loading repair requests:", repairError)
       } else if (repairs) {
-        // Map repairs to AssignedTask format
         const mappedRepairs: AssignedTask[] = repairs.map((repair: any) => ({
           id: repair.id,
           type: "repair" as const,
@@ -154,21 +154,22 @@ export function AssignedTasksDashboard() {
           dueDate: repair.due_date || "",
           location: repair.location || repair.devices?.location || "",
           requestedBy: repair.requested_by || "IT Department",
-          deviceInfo: repair.devices ? {
-            type: repair.devices.device_type || "Unknown",
-            model: repair.devices.brand_model || repair.devices.model || "Unknown",
-            serialNumber: repair.devices.serial_number || ""
-          } : undefined,
+          deviceInfo: repair.devices
+            ? {
+                type: repair.devices.device_type || "Unknown",
+                model: repair.devices.brand_model || repair.devices.model || "Unknown",
+                serialNumber: repair.devices.serial_number || "",
+              }
+            : undefined,
           attachments: [],
           workNotes: repair.work_notes ? [repair.work_notes] : [],
           completionDate: repair.completed_at,
           estimatedHours: repair.estimated_hours,
-          actualHours: repair.actual_hours
+          actualHours: repair.actual_hours,
         }))
         allTasks.push(...mappedRepairs)
       }
 
-      // Sort by assigned date (most recent first)
       allTasks.sort((a, b) => new Date(b.assignedDate).getTime() - new Date(a.assignedDate).getTime())
 
       setTasks(allTasks)
@@ -179,7 +180,6 @@ export function AssignedTasksDashboard() {
     }
   }
 
-  // Helper to map service ticket status to task status
   const mapTicketStatus = (status: string): AssignedTask["status"] => {
     switch (status?.toLowerCase()) {
       case "open":
@@ -200,7 +200,6 @@ export function AssignedTasksDashboard() {
     }
   }
 
-  // Helper to map repair status to task status
   const mapRepairStatus = (status: string): AssignedTask["status"] => {
     switch (status?.toLowerCase()) {
       case "pending":
@@ -221,26 +220,21 @@ export function AssignedTasksDashboard() {
     }
   }
 
-  // Filter tasks based on active filters
   useEffect(() => {
     let filtered = tasks
 
-    // Filter by tab (task type)
     if (activeTab !== "all") {
       filtered = filtered.filter((task) => task.type === activeTab)
     }
 
-    // Filter by status
     if (statusFilter !== "all") {
       filtered = filtered.filter((task) => task.status === statusFilter)
     }
 
-    // Filter by priority
     if (priorityFilter !== "all") {
       filtered = filtered.filter((task) => task.priority === priorityFilter)
     }
 
-    // Filter by search query
     if (searchQuery) {
       filtered = filtered.filter(
         (task) =>
@@ -253,65 +247,108 @@ export function AssignedTasksDashboard() {
     setFilteredTasks(filtered)
   }, [tasks, activeTab, statusFilter, priorityFilter, searchQuery])
 
-  const updateTaskStatus = (taskId: string, updates: Partial<WorkStatusUpdate>) => {
-    // Update backend
-    const updateBackend = async () => {
-      let endpoint = "";
-      let payload: any = {
+  const updateTaskStatus = async (
+    taskId: string,
+    taskType: "repair" | "service_desk",
+    updates: Partial<WorkStatusUpdate>,
+  ) => {
+    try {
+      const endpoint = taskType === "service_desk" ? "/api/service-tickets/update" : "/api/repairs/update"
+
+      const payload: Record<string, any> = {
         id: taskId,
-        status: updates.status,
-        workNotes: updates.notes,
-        actualHours: updates.hoursWorked,
-      };
-      // Find the task type
-      const task = tasks.find(t => t.id === taskId);
-      if (!task) return;
-      if (task.type === "service_desk") {
-        endpoint = "/api/service-tickets/update";
-      } else if (task.type === "repair") {
-        endpoint = "/api/repairs/update";
       }
-      if (!endpoint) return;
-      try {
-        await fetch(endpoint, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } catch (err) {
-        console.error("Error updating task status:", err);
+
+      if (updates.status) {
+        payload.status = updates.status
       }
-    };
-    updateBackend();
-    // Update local state
-    setTasks((prev) =>
-      prev.map((task) =>
-        task.id === taskId
-          ? {
-              ...task,
-              status: updates.status || task.status,
-              workNotes: updates.notes
-                ? [...task.workNotes, `${new Date().toLocaleDateString()}: ${updates.notes}`]
-                : task.workNotes,
-              actualHours: updates.hoursWorked || task.actualHours,
-              completionDate:
-                updates.status === "completed" ? new Date().toISOString().split("T")[0] : task.completionDate,
-            }
-          : task,
-      ),
-    );
+
+      if (updates.notes) {
+        const existingTask = tasks.find((t) => t.id === taskId)
+        const existingNotes = existingTask?.workNotes.join("\n") || ""
+        const newNote = `${new Date().toLocaleDateString()}: ${updates.notes}`
+        payload.work_notes = existingNotes ? `${existingNotes}\n${newNote}` : newNote
+      }
+
+      if (updates.hoursWorked !== undefined) {
+        payload.actual_hours = updates.hoursWorked
+      }
+
+      if (updates.status === "completed") {
+        payload.completed_at = new Date().toISOString()
+      }
+
+      console.log("[v0] Updating task:", taskId, "type:", taskType, "payload:", payload)
+
+      const response = await fetch(endpoint, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to update task")
+      }
+
+      const result = await response.json()
+      console.log("[v0] Task updated successfully:", result)
+
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.id === taskId
+            ? {
+                ...task,
+                status: updates.status || task.status,
+                workNotes: updates.notes
+                  ? [...task.workNotes, `${new Date().toLocaleDateString()}: ${updates.notes}`]
+                  : task.workNotes,
+                actualHours: updates.hoursWorked || task.actualHours,
+                completionDate:
+                  updates.status === "completed" ? new Date().toISOString().split("T")[0] : task.completionDate,
+              }
+            : task,
+        ),
+      )
+
+      return { success: true }
+    } catch (error) {
+      console.error("[v0] Error updating task:", error)
+      throw error
+    }
   }
 
-  const handleUpdateStatus = () => {
-    if (selectedTask) {
-      updateTaskStatus(selectedTask.id, {
-        status: selectedTask.status as AssignedTask["status"],
+  const handleUpdateStatus = async () => {
+    if (!selectedTask || !newStatus) return
+
+    setIsUpdating(true)
+    try {
+      await updateTaskStatus(selectedTask.id, selectedTask.type, {
+        status: newStatus as AssignedTask["status"],
         notes: workNotes,
         hoursWorked: hoursWorked ? Number.parseFloat(hoursWorked) : undefined,
       })
+
+      toast({
+        title: "Task Updated",
+        description: `Task status has been updated to ${newStatus.replace("_", " ")}`,
+      })
+
+      setUpdateDialogOpen(false)
       setSelectedTask(null)
       setWorkNotes("")
       setHoursWorked("")
+      setNewStatus("")
+    } catch (error) {
+      toast({
+        title: "Update Failed",
+        description: error instanceof Error ? error.message : "Failed to update task status",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUpdating(false)
     }
   }
 
@@ -364,7 +401,6 @@ export function AssignedTasksDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header with QCC Branding */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-green-600 to-yellow-600 flex items-center justify-center shadow-lg">
@@ -389,7 +425,6 @@ export function AssignedTasksDashboard() {
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="pb-2">
@@ -420,7 +455,6 @@ export function AssignedTasksDashboard() {
         </Card>
       </div>
 
-      {/* Filters and Search */}
       <Card>
         <CardHeader className="pb-4">
           <div className="flex flex-col md:flex-row gap-4">
@@ -471,7 +505,6 @@ export function AssignedTasksDashboard() {
         </CardHeader>
       </Card>
 
-      {/* Tasks Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="all" className="flex items-center gap-2">
@@ -556,9 +589,23 @@ export function AssignedTasksDashboard() {
                       </div>
 
                       <div className="flex gap-2">
-                        <Dialog>
+                        <Dialog
+                          open={updateDialogOpen && selectedTask?.id === task.id}
+                          onOpenChange={(open) => {
+                            setUpdateDialogOpen(open)
+                            if (open) {
+                              setSelectedTask(task)
+                              setNewStatus(task.status)
+                            } else {
+                              setSelectedTask(null)
+                              setWorkNotes("")
+                              setHoursWorked("")
+                              setNewStatus("")
+                            }
+                          }}
+                        >
                           <DialogTrigger asChild>
-                            <Button variant="outline" size="sm" onClick={() => setSelectedTask(task)}>
+                            <Button variant="default" size="sm">
                               Update Status
                             </Button>
                           </DialogTrigger>
@@ -569,14 +616,7 @@ export function AssignedTasksDashboard() {
                             <div className="space-y-4">
                               <div>
                                 <Label htmlFor="status">Status</Label>
-                                <Select
-                                  value={selectedTask?.status}
-                                  onValueChange={(value) =>
-                                    setSelectedTask((prev) =>
-                                      prev ? { ...prev, status: value as AssignedTask["status"] } : null,
-                                    )
-                                  }
-                                >
+                                <Select value={newStatus} onValueChange={setNewStatus}>
                                   <SelectTrigger>
                                     <SelectValue />
                                   </SelectTrigger>
@@ -611,8 +651,19 @@ export function AssignedTasksDashboard() {
                                 />
                               </div>
 
-                              <Button onClick={handleUpdateStatus} className="w-full">
-                                Update Status
+                              <Button
+                                onClick={handleUpdateStatus}
+                                className="w-full"
+                                disabled={isUpdating || !newStatus}
+                              >
+                                {isUpdating ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Updating...
+                                  </>
+                                ) : (
+                                  "Update Status"
+                                )}
                               </Button>
                             </div>
                           </DialogContent>

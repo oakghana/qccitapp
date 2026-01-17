@@ -41,9 +41,9 @@ The authentication system now uses:
 ### Password Hashing
 
 All passwords are hashed using bcryptjs with 10 salt rounds:
-```typescript
+\`\`\`typescript
 const hashedPassword = await bcrypt.hash(password, 10)
-```
+\`\`\`
 
 ### Login Flow
 

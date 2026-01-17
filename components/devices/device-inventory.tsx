@@ -3,24 +3,13 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DeviceTransferForm } from "./device-transfer-form"
 import { AddDeviceForm } from "./add-device-form"
-import {
-  Plus,
-  Monitor,
-  Smartphone,
-  Printer,
-  HardDrive,
-  MoreHorizontal,
-  Laptop,
-  Server,
-  UsbIcon,
-  Download,
-} from "lucide-react"
+import { Plus, Monitor, Smartphone, Printer, HardDrive, Laptop, Server, UsbIcon, Download } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations } from "@/lib/location-filter"
@@ -180,9 +169,9 @@ export function DeviceInventory() {
 
   // Auto-populate region when location changes
   const handleLocationChange = (locationCode: string) => {
-    const selectedLocation = dbLocations.find(loc => loc.code === locationCode)
+    const selectedLocation = dbLocations.find((loc) => loc.code === locationCode)
     const newRegionId = selectedLocation?.region_id || ""
-    setEditFormData(prev => ({
+    setEditFormData((prev) => ({
       ...prev,
       location: locationCode === "none" ? "" : locationCode,
       region_id: newRegionId,
@@ -192,25 +181,26 @@ export function DeviceInventory() {
   const loadDevices = async () => {
     try {
       setLoading(true)
-      
+
       const canSeeAll = user ? canSeeAllLocations(user) : false
       console.log("[v0] Loading devices for user:", user?.username, "role:", user?.role, "location:", user?.location)
       console.log("[v0] Can see all locations:", canSeeAll)
-      
+
       // Use API endpoint to bypass RLS issues
       const params = new URLSearchParams()
       if (user?.location) params.set("location", user.location)
       params.set("canSeeAll", String(canSeeAll))
-      
+
       const response = await fetch(`/api/devices?${params.toString()}`)
-      
+
       if (!response.ok) {
         const errorData = await response.json()
         console.error("[v0] Error loading devices:", errorData)
         return
       }
-      
-      const data = await response.json()
+
+      const responseData = await response.json()
+      const data = responseData.devices || responseData || []
       console.log("[v0] Loaded devices from API:", data?.length, "devices")
 
       const mappedDevices: Device[] = data.map((device: any) => ({
@@ -234,7 +224,7 @@ export function DeviceInventory() {
 
       console.log(
         "[v0] Mapped devices with locations:",
-        mappedDevices.map((d) => ({ name: d.name, location: d.location })),
+        mappedDevices.slice(0, 3).map((d) => ({ name: d.name, location: d.location })),
       )
 
       setDevices(mappedDevices)
@@ -434,7 +424,7 @@ export function DeviceInventory() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Device Inventory</h1>
           <p className="text-sm text-muted-foreground">
-            {filteredDevices.length} device{filteredDevices.length !== 1 ? "s" : ""} 
+            {filteredDevices.length} device{filteredDevices.length !== 1 ? "s" : ""}
             {user?.location && !canSeeAllLocations(user) ? ` in ${user.location}` : ""}
           </p>
         </div>
@@ -478,11 +468,13 @@ export function DeviceInventory() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Locations</SelectItem>
-            {dbLocations.filter(loc => loc.code && loc.code.trim() !== "").map((loc) => (
-              <SelectItem key={loc.code} value={loc.code}>
-                {loc.name}
-              </SelectItem>
-            ))}
+            {dbLocations
+              .filter((loc) => loc.code && loc.code.trim() !== "")
+              .map((loc) => (
+                <SelectItem key={loc.code} value={loc.code}>
+                  {loc.name}
+                </SelectItem>
+              ))}
           </SelectContent>
         </Select>
       </div>
@@ -510,14 +502,11 @@ export function DeviceInventory() {
                       {device.serialNumber}
                     </p>
                   </div>
-                  <Badge 
-                    variant={statusColors[device.status]} 
-                    className="shrink-0 text-xs px-2 py-0.5"
-                  >
+                  <Badge variant={statusColors[device.status]} className="shrink-0 text-xs px-2 py-0.5">
                     {device.status.charAt(0).toUpperCase() + device.status.slice(1)}
                   </Badge>
                 </div>
-                
+
                 {/* Details: Compact 2-column layout */}
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
                   <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -659,20 +648,19 @@ export function DeviceInventory() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Location</label>
-              <Select
-                value={editFormData.location || "none"}
-                onValueChange={handleLocationChange}
-              >
+              <Select value={editFormData.location || "none"} onValueChange={handleLocationChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select location" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Select location...</SelectItem>
-                  {dbLocations.filter(loc => loc.code && loc.code.trim() !== "").map((loc) => (
-                    <SelectItem key={loc.code} value={loc.code}>
-                      {loc.name}
-                    </SelectItem>
-                  ))}
+                  {dbLocations
+                    .filter((loc) => loc.code && loc.code.trim() !== "")
+                    .map((loc) => (
+                      <SelectItem key={loc.code} value={loc.code}>
+                        {loc.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -680,7 +668,9 @@ export function DeviceInventory() {
               <label className="text-sm font-medium">Region</label>
               <Select
                 value={editFormData.region_id || "none"}
-                onValueChange={(value) => setEditFormData({ ...editFormData, region_id: value === "none" ? "" : value })}
+                onValueChange={(value) =>
+                  setEditFormData({ ...editFormData, region_id: value === "none" ? "" : value })
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select region" />

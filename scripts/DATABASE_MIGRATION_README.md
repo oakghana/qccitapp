@@ -11,7 +11,7 @@ The migration has been split into two scripts that **must be run separately**:
 ### Step 1: Run the enum values script
 Execute `scripts/013a_add_enum_values.sql` in Supabase SQL Editor:
 
-```sql
+\`\`\`sql
 -- Run this FIRST and wait for it to complete
 ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'regional_it_head';
 ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'staff';
@@ -21,7 +21,7 @@ ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'service_desk_takoradi';
 ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'service_desk_tema';
 ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'service_desk_sunyani';
 ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'service_desk_cape_coast';
-```
+\`\`\`
 
 Wait for this to complete successfully.
 
