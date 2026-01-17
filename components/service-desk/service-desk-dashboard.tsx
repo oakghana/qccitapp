@@ -26,10 +26,12 @@ export function ServiceDeskDashboard() {
 
   // Check if user can assign tickets (IT Head, Regional IT Head, Admin)
   const canAssignTickets = () => {
-    return user?.role === "admin" || 
-           user?.role === "it_head" || 
-           user?.role === "regional_it_head" ||
-           user?.role === "service_desk_head"
+    return (
+      user?.role === "admin" ||
+      user?.role === "it_head" ||
+      user?.role === "regional_it_head" ||
+      user?.role === "service_desk_head"
+    )
   }
 
   useEffect(() => {
@@ -41,9 +43,9 @@ export function ServiceDeskDashboard() {
       setLoading(true)
       const location = getUserLocation() || ""
       const canSeeAll = canViewAllLocations()
-      
+
       console.log("[v0] Loading tickets via API for user:", user?.role, "location:", location, "canSeeAll:", canSeeAll)
-      
+
       // Use API endpoint that bypasses RLS
       const params = new URLSearchParams({
         location: location,
@@ -51,7 +53,7 @@ export function ServiceDeskDashboard() {
         userRole: user?.role || "",
         userId: user?.full_name || user?.name || "",
       })
-      
+
       const response = await fetch(`/api/service-tickets?${params}`)
       const result = await response.json()
 
@@ -88,41 +90,12 @@ export function ServiceDeskDashboard() {
   // Handle ticket assignment
   const handleAssignTicket = async (assignment: any) => {
     try {
-      console.log("[v0] Assigning ticket:", assignment)
-      
-      // Call API to update ticket with assignment
-      const response = await fetch(`/api/service-tickets/assign`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ticketId: selectedTicketForAssign?.dbId || selectedTicketForAssign?.id,
-          assignee: assignment.assignee,
-          priority: assignment.priority,
-          dueDate: assignment.dueDate,
-          instructions: assignment.instructions,
-          assignedBy: user?.full_name || user?.name || user?.username,
-        }),
-      })
+      console.log("[v0] Assignment completed, refreshing tickets")
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || "Failed to assign ticket")
-      }
-
-      toast({
-        title: "Ticket Assigned",
-        description: `Ticket successfully assigned to ${assignment.assignee}`,
-      })
-
-      // Reload tickets to show updated data
+      // Just reload tickets - the dialog already made the API call
       await loadTickets()
     } catch (error) {
-      console.error("[v0] Error assigning ticket:", error)
-      toast({
-        title: "Assignment Failed",
-        description: error instanceof Error ? error.message : "Failed to assign ticket",
-        variant: "destructive",
-      })
+      console.error("[v0] Error refreshing tickets:", error)
     } finally {
       setSelectedTicketForAssign(null)
     }
@@ -285,7 +258,10 @@ export function ServiceDeskDashboard() {
                         >
                           {ticket.priority}
                         </Badge>
-                        <Badge variant={ticket.status === "Open" || ticket.status === "open" ? "outline" : "secondary"} className="text-xs">
+                        <Badge
+                          variant={ticket.status === "Open" || ticket.status === "open" ? "outline" : "secondary"}
+                          className="text-xs"
+                        >
                           {ticket.status}
                         </Badge>
                         {/* Assign button for IT Heads */}
@@ -293,7 +269,7 @@ export function ServiceDeskDashboard() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-7 px-2 text-xs border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950"
+                            className="h-7 px-2 text-xs border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950 bg-transparent"
                             onClick={() => setSelectedTicketForAssign(ticket)}
                           >
                             <UserPlus className="h-3 w-3 mr-1" />
@@ -319,12 +295,7 @@ export function ServiceDeskDashboard() {
       </Tabs>
 
       {/* New Ticket Form Modal */}
-      {showNewTicketForm && (
-        <NewTicketForm 
-          onClose={() => setShowNewTicketForm(false)} 
-          onTicketCreated={loadTickets}
-        />
-      )}
+      {showNewTicketForm && <NewTicketForm onClose={() => setShowNewTicketForm(false)} onTicketCreated={loadTickets} />}
 
       {/* Assign Ticket Dialog */}
       {selectedTicketForAssign && (
