@@ -88,11 +88,15 @@ export function AssignedTasksDashboard() {
     try {
       const allTasks: AssignedTask[] = []
 
-      // Load service desk tickets assigned to this user
+      // Build a filter that checks both assigned_to (user ID) and assigned_to_name
+      // This handles both old assignments (name only) and new assignments (with ID)
+      const userName = user.name || user.email || ""
+      
+      // Load service desk tickets assigned to this user (by ID or name)
       const { data: serviceTickets, error: ticketError } = await supabase
         .from("service_tickets")
         .select("*")
-        .eq("assigned_to", user.id)
+        .or(`assigned_to.eq.${user.id},assigned_to_name.ilike.%${userName}%`)
         .order("created_at", { ascending: false })
 
       if (ticketError) {
@@ -126,11 +130,11 @@ export function AssignedTasksDashboard() {
         allTasks.push(...mappedTickets)
       }
 
-      // Load repair requests assigned to this user
+      // Load repair requests assigned to this user (by ID or name)
       const { data: repairs, error: repairError } = await supabase
         .from("repair_requests")
         .select("*, devices(*)")
-        .eq("assigned_to", user.id)
+        .or(`assigned_to.eq.${user.id},assigned_to_name.ilike.%${userName}%`)
         .order("created_at", { ascending: false })
 
       if (repairError) {
