@@ -238,35 +238,58 @@ export function ITHeadRepairManagement() {
       } else {
         console.warn('[v0] Unexpected repairs API response:', result);
       }
-      const transformedTasks: RepairTask[] = repairs.map((item: any) => ({
-        id: item.id,
-        taskNumber: item.task_number || item.id?.substring(0, 8) || "N/A",
-        device: item.devices || {
-          id: item.device_id || "",
-          type: item.device_type || "",
-          brand: item.device_brand || "",
-          model: item.device_model || "",
-          serialNumber: item.serial_number || "",
-          assetTag: item.asset_tag || "",
-          location: item.location || "",
-          assignedTo: item.assigned_to_name || "",
-          status: "under_repair" as const,
-        },
-        issueDescription: item.issue_description || "",
-        priority: item.priority || "medium",
-        status: item.status || "draft",
-        serviceProvider: item.service_provider || undefined,
-        createdBy: item.requested_by || "",
-        createdDate: item.created_at || new Date().toISOString(),
-        estimatedCost: item.estimated_cost,
-        actualCost: item.actual_cost,
-        pickupDate: item.pickup_date,
-        completionDate: item.completion_date,
-        repairNotes: item.repair_notes,
-        laborHours: item.labor_hours,
-        partsUsed: item.parts_used || [],
-        attachments: item.attachments || [],
-      }))
+      const transformedTasks: RepairTask[] = repairs.map((item: any) => {
+        // Map service provider from joined data
+        const serviceProviderData = item.service_provider ? {
+          id: item.service_provider.id,
+          name: item.service_provider.name || item.service_provider_name || "Unknown",
+          company: item.service_provider.company || "",
+          contact: item.service_provider.contact_phone || "",
+          email: item.service_provider.email || "",
+          specialization: item.service_provider.specialization || [],
+          rating: item.service_provider.rating || 0,
+          status: item.service_provider.status || "active",
+        } : (item.service_provider_id ? {
+          id: item.service_provider_id,
+          name: item.service_provider_name || "Unknown Provider",
+          company: "",
+          contact: "",
+          email: "",
+          specialization: [],
+          rating: 0,
+          status: "active",
+        } : undefined)
+
+        return {
+          id: item.id,
+          taskNumber: item.task_number || item.id?.substring(0, 8) || "N/A",
+          device: item.devices || {
+            id: item.device_id || "",
+            type: item.device_type || "",
+            brand: item.device_brand || "",
+            model: item.device_model || "",
+            serialNumber: item.serial_number || "",
+            assetTag: item.asset_tag || "",
+            location: item.location || "",
+            assignedTo: item.assigned_to_name || "",
+            status: "under_repair" as const,
+          },
+          issueDescription: item.issue_description || "",
+          priority: item.priority || "medium",
+          status: item.status || "draft",
+          serviceProvider: serviceProviderData,
+          createdBy: item.requested_by || "",
+          createdDate: item.created_at || new Date().toISOString(),
+          estimatedCost: item.estimated_cost,
+          actualCost: item.actual_cost,
+          pickupDate: item.pickup_date,
+          completionDate: item.completion_date,
+          repairNotes: item.repair_notes,
+          laborHours: item.labor_hours,
+          partsUsed: item.parts_used || [],
+          attachments: item.attachments || [],
+        }
+      })
 
       setTasks(transformedTasks)
     } catch (error) {

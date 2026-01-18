@@ -133,9 +133,22 @@ export async function GET(request: NextRequest) {
 
     console.log("[v0] API Repair Requests - location:", location, "canSeeAll:", canSeeAll)
 
+    // Join with service_providers to get full provider details
     let query = supabaseAdmin
       .from("repair_requests")
-      .select("*")
+      .select(`
+        *,
+        service_provider:service_providers(
+          id,
+          name,
+          company,
+          contact_phone,
+          email,
+          specialization,
+          rating,
+          status
+        )
+      `)
       .order("created_at", { ascending: false })
 
     if (!canSeeAll && location) {
