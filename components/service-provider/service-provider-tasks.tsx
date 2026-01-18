@@ -22,6 +22,10 @@ import {
   Timer,
   Phone,
   User,
+  Download,
+  Upload,
+  DollarSign,
+  AlertCircle,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 
@@ -75,6 +79,16 @@ interface ServiceProviderRepairTask {
     notes: string
     updatedBy: string
   }[]
+
+  // Invoice
+  invoice?: {
+    id: string
+    file_url: string
+    status: "pending" | "approved" | "rejected"
+    total_amount: number
+    invoice_number: string
+    created_at: string
+  }
 }
 
 export function ServiceProviderTasks() {
@@ -90,6 +104,15 @@ export function ServiceProviderTasks() {
   const [repairCost, setRepairCost] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false)
+  const [invoiceFile, setInvoiceFile] = useState<File | null>(null)
+  const [invoiceNumber, setInvoiceNumber] = useState("")
+  const [invoiceDate, setInvoiceDate] = useState("")
+  const [invoiceLaborCost, setInvoiceLaborCost] = useState("")
+  const [invoicePartsCost, setInvoicePartsCost] = useState("")
+  const [invoiceOtherCharges, setInvoiceOtherCharges] = useState("")
+  const [invoiceDescription, setInvoiceDescription] = useState("")
+  const [isUploadingInvoice, setIsUploadingInvoice] = useState(false)
 
   useEffect(() => {
     loadServiceProviderTasks()
@@ -154,6 +177,7 @@ export function ServiceProviderTasks() {
         partsUsed: task.parts_used,
         laborHours: task.labor_hours,
         repairCost: task.actual_cost,
+        invoice: task.invoice || null,
       }))
       
       setTasks(transformedTasks)
@@ -237,6 +261,89 @@ export function ServiceProviderTasks() {
       setRepairNotes("")
       setLaborHours("")
       setRepairCost("")
+    }
+  }
+
+  const handleUploadInvoice = async () => {
+    if (!selectedTask || !invoiceFile || !invoiceNumber) {
+      alert("Please fill in required fields and select a file")
+      return
+    }
+
+    setIsUploadingInvoice(true)
+    try {
+      const totalCost =
+        (invoiceLaborCost ? Number.parseFloat(invoiceLaborCost) : 0) +
+        (invoicePartsCost ? Number.parseFloat(invoicePartsCost) : 0) +
+        (invoiceOtherCharges ? Number.parseFloat(invoiceOtherCharges) : 0)
+
+      const formData = new FormData()
+      formData.append("repair_id", selectedTask.id)
+      formData.append("service_provider_id", user?.id || "")
+      formData.append("service_provider_name", user?.name || "")
+      formData.append("uploaded_by", user?.id || "")
+      formData.append("uploaded_by_name", user?.name || "")
+      formData.append("invoice_number", invoiceNumber)
+      formData.append("invoice_date", invoiceDate)
+      formData.append("labor_cost", invoiceLaborCost)
+      formData.append("parts_cost", invoicePartsCost)
+      formData.append("other_charges", invoiceOtherCharges)
+      formData.append("total_amount", totalCost.toString())
+      formData.append("labor_hours", selectedTask.laborHours?.toString() || "")
+      formData.append("description", invoiceDescription)
+      formData.append("file", invoiceFile)
+
+      console.log("[v0] Uploading invoice for repair:", selectedTask.id)
+
+      const response = await fetch("/api/repairs/invoice", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to upload invoice")
+      }
+
+      const result = await response.json()
+
+      // Update task with invoice
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.id === selectedTask.id
+            ? {
+                ...task,
+                invoice: {
+                  id: result.invoice.id,
+                  file_url: result.invoice.file_url,
+                  status: "pending",
+                  total_amount: result.invoice.total_amount,
+                  invoice_number: result.invoice.invoice_number,
+                  created_at: result.invoice.created_at,
+                },
+              }
+            : task,
+        ),
+      )
+
+      console.log("[v0] Invoice uploaded successfully:", result.invoice.id)
+
+      setInvoiceDialogOpen(false)
+      setSelectedTask(null)
+      setInvoiceFile(null)
+      setInvoiceNumber("")
+      setInvoiceDate("")
+      setInvoiceLaborCost("")
+      setInvoicePartsCost("")
+      setInvoiceOtherCharges("")
+      setInvoiceDescription("")
+
+      alert("Invoice uploaded successfully and is pending approval")
+    } catch (err: any) {
+      console.error("[v0] Error uploading invoice:", err)
+      alert(err.message || "Failed to upload invoice")
+    } finally {
+      setIsUploadingInvoice(false)
     }
   }
 
@@ -568,6 +675,139 @@ export function ServiceProviderTasks() {
                           </div>
                         </DialogContent>
                       </Dialog>
+                    )}
+
+                    {task.status === "completed" && !task.invoice && (
+                      <Dialog open={invoiceDialogOpen && selectedTask?.id === task.id} onOpenChange={setInvoiceDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button
+                            size="sm"
+                            onClick={() => setSelectedTask(task)}
+                            className="bg-gradient-to-r from-blue-600 to-cyan-700 hover:from-blue-700 hover:to-cyan-800 text-white"
+                          >
+                            <Upload className="h-4 w-4 mr-2" />
+                            Upload Invoice
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-lg">
+                          <DialogHeader>
+                            <DialogTitle>Upload Repair Invoice</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <Label htmlFor="invoiceNumber">Invoice Number</Label>
+                                <Input
+                                  id="invoiceNumber"
+                                  placeholder="INV-001"
+                                  value={invoiceNumber}
+                                  onChange={(e) => setInvoiceNumber(e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="invoiceDate">Invoice Date</Label>
+                                <Input
+                                  id="invoiceDate"
+                                  type="date"
+                                  value={invoiceDate}
+                                  onChange={(e) => setInvoiceDate(e.target.value)}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-4">
+                              <div>
+                                <Label htmlFor="laborCost">Labor Cost (GHS)</Label>
+                                <Input
+                                  id="laborCost"
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  value={invoiceLaborCost}
+                                  onChange={(e) => setInvoiceLaborCost(e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="partsCost">Parts Cost (GHS)</Label>
+                                <Input
+                                  id="partsCost"
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  value={invoicePartsCost}
+                                  onChange={(e) => setInvoicePartsCost(e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="otherCharges">Other Charges (GHS)</Label>
+                                <Input
+                                  id="otherCharges"
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  value={invoiceOtherCharges}
+                                  onChange={(e) => setInvoiceOtherCharges(e.target.value)}
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <Label htmlFor="description">Description (Optional)</Label>
+                              <Textarea
+                                id="description"
+                                placeholder="Additional invoice details or notes..."
+                                value={invoiceDescription}
+                                onChange={(e) => setInvoiceDescription(e.target.value)}
+                              />
+                            </div>
+
+                            <div>
+                              <Label htmlFor="invoiceFile">Invoice File (PDF, Image, or Document)</Label>
+                              <Input
+                                id="invoiceFile"
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                onChange={(e) => setInvoiceFile(e.target.files?.[0] || null)}
+                              />
+                              {invoiceFile && (
+                                <p className="text-sm text-muted-foreground mt-2">
+                                  Selected: {invoiceFile.name}
+                                </p>
+                              )}
+                            </div>
+
+                            <Button
+                              onClick={handleUploadInvoice}
+                              disabled={isUploadingInvoice || !invoiceFile || !invoiceNumber}
+                              className="w-full bg-gradient-to-r from-blue-600 to-cyan-700 hover:from-blue-700 hover:to-cyan-800 text-white"
+                            >
+                              {isUploadingInvoice ? "Uploading..." : "Upload Invoice"}
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    )}
+
+                    {task.invoice && (
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+                        <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-blue-900 dark:text-blue-300">Invoice #{task.invoice.invoice_number}</p>
+                          <p className="text-xs text-blue-700 dark:text-blue-400">
+                            Status: <span className="font-semibold">{task.invoice.status}</span>
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          asChild
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
+                        >
+                          <a href={task.invoice.file_url} target="_blank" rel="noopener noreferrer">
+                            <Download className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      </div>
                     )}
 
                     <Dialog>

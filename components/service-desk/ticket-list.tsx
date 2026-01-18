@@ -78,6 +78,8 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
   const [dbLocations, setDbLocations] = useState<{ code: string; name: string }[]>([])
   const [deleteTicketId, setDeleteTicketId] = useState<string | null>(null)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [itRequestFormFile, setItRequestFormFile] = useState<File | null>(null)
+  const [isEscalating, setIsEscalating] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -393,6 +395,61 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
     }
   }
 
+  const handleEscalateTicket = async () => {
+    if (!selectedTicket || !escalationReason) {
+      alert("Please provide an escalation reason")
+      return
+    }
+
+    setIsEscalating(true)
+    try {
+      console.log("[v0] Escalating ticket:", selectedTicket.id)
+
+      // Determine escalation target based on user role and location
+      let escalateTo = "regional_it_head"
+      if (user?.role === "it_staff" && user?.location !== "head_office") {
+        escalateTo = "regional_it_head"
+      } else if (user?.role === "it_staff" && user?.location === "head_office") {
+        escalateTo = "it_head"
+      }
+
+      const response = await fetch("/api/service-tickets/escalate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticketId: selectedTicket.id,
+          escalateTo,
+          escalationReason,
+          itRequestFormUrl: null, // Will add file upload later
+          currentAssignedUser: user?.full_name || user?.name,
+          currentUserRole: user?.role,
+          currentUserLocation: user?.location,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.error("[v0] Error escalating ticket:", result.error)
+        alert(result.error || "Failed to escalate ticket")
+        return
+      }
+
+      console.log("[v0] Ticket escalated successfully")
+      alert("Ticket escalated successfully")
+      
+      setEscalationDialogOpen(false)
+      setEscalationReason("")
+      setViewDetailsOpen(false)
+      await loadTickets()
+    } catch (error) {
+      console.error("[v0] Error escalating ticket:", error)
+      alert("An error occurred while escalating the ticket")
+    } finally {
+      setIsEscalating(false)
+    }
+  }
+
   const isItHeadOrAdmin = user?.role === "it_head" || user?.role === "admin" || user?.role === "regional_it_head" || user?.role?.startsWith("service_desk_")
 
   const clearFilters = () => {
@@ -602,6 +659,21 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
                         >
                           <Trash2 className="h-4 w-4 mr-1" />
                           Delete
+                        </Button>
+                      )}
+
+                      {ticket.status !== "Resolved" && ticket.status !== "Escalated" && user?.role === "it_staff" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedTicket(ticket)
+                            setEscalationDialogOpen(true)
+                          }}
+                          className="text-orange-600 hover:text-orange-800 hover:bg-orange-50"
+                        >
+                          <ArrowUp className="h-4 w-4 mr-1" />
+                          Escalate
                         </Button>
                       )}
                     </div>
@@ -866,6 +938,82 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
           onAssign={handleAssignTicket}
         />
       )}
+
+      {/* Escalation Dialog */}
+      <Dialog open={escalationDialogOpen} onOpenChange={setEscalationDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowUp className="h-5 w-5 text-orange-600" />
+              Escalate Ticket
+            </DialogTitle>
+            <DialogDescription>
+              Escalate this ticket to your supervisor for further action
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedTicket && (
+              <>
+                <div className="bg-blue-50 dark:bg-blue-950/30 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-300">
+                    Ticket: {selectedTicket.title}
+                  </p>
+                  <p className="text-xs text-blue-700 dark:text-blue-400">
+                    Category: {selectedTicket.category}
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="escalationReason">Reason for Escalation</Label>
+                  <Textarea
+                    id="escalationReason"
+                    placeholder="Explain why this ticket needs to be escalated..."
+                    value={escalationReason}
+                    onChange={(e) => setEscalationReason(e.target.value)}
+                    rows={4}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="itRequestForm">IT Request Form (Optional)</Label>
+                  <Input
+                    id="itRequestForm"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                    onChange={(e) => setItRequestFormFile(e.target.files?.[0] || null)}
+                  />
+                  {itRequestFormFile && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Selected: {itRequestFormFile.name}
+                    </p>
+                  )}
+                </div>
+
+                <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/30">
+                  <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                  <AlertDescription className="text-orange-800 dark:text-orange-200 text-sm">
+                    This will escalate the ticket to {user?.location === "head_office" ? "IT Head at Head Office" : "Regional IT Head"} for further action.
+                  </AlertDescription>
+                </Alert>
+              </>
+            )}
+
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setEscalationDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleEscalateTicket}
+                disabled={isEscalating || !escalationReason.trim()}
+                className="bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                {isEscalating ? "Escalating..." : "Escalate Ticket"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>

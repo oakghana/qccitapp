@@ -35,6 +35,14 @@ export async function GET(request: NextRequest) {
           name,
           email,
           phone
+        ),
+        repair_invoices:repair_invoices!repair_id (
+          id,
+          file_url,
+          status,
+          total_amount,
+          invoice_number,
+          created_at
         )
       `)
       .order("created_at", { ascending: false })
@@ -86,6 +94,14 @@ export async function GET(request: NextRequest) {
       service_provider_name: repair.service_providers?.name || repair.service_provider_name || "Unknown",
       service_provider_email: repair.service_providers?.email,
       service_provider_phone: repair.service_providers?.phone,
+      invoice: repair.repair_invoices?.[0] ? {
+        id: repair.repair_invoices[0].id,
+        file_url: repair.repair_invoices[0].file_url,
+        status: repair.repair_invoices[0].status,
+        total_amount: repair.repair_invoices[0].total_amount,
+        invoice_number: repair.repair_invoices[0].invoice_number,
+        created_at: repair.repair_invoices[0].created_at,
+      } : null,
     }))
 
     console.log("[v0] Loaded repair tasks:", transformedTasks.length)

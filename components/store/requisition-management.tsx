@@ -68,8 +68,15 @@ export function RequisitionManagement() {
   })
   const [editError, setEditError] = useState("")
   const [editLoading, setEditLoading] = useState(false)
+  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false)
+  const [approvingReq, setApprovingReq] = useState<Requisition | null>(null)
+  const [approvedQuantity, setApprovedQuantity] = useState("")
+  const [approvalNotes, setApprovalNotes] = useState("")
+  const [isApproving, setIsApproving] = useState(false)
   const { user } = useAuth()
   const supabase = createClient()
+
+  const [filteredRequisitions, setFilteredRequisitions] = useState<Requisition[]>([])
 
   useEffect(() => {
     loadRequisitions()
@@ -112,12 +119,22 @@ export function RequisitionManagement() {
       }))
 
       setRequisitions(mappedRequisitions)
+      setFilteredRequisitions(mappedRequisitions)
     } catch (error) {
       console.error("[v0] Error loading requisitions:", error)
     } finally {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    const filtered = requisitions.filter(
+      (req) =>
+        req.requisition_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        req.requested_by.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    setFilteredRequisitions(filtered)
+  }, [searchTerm, requisitions])
 
   const updateRequisitionStatus = async (reqId: string, newStatus: "approved" | "rejected", approvedBy?: string) => {
     try {
@@ -239,11 +256,48 @@ export function RequisitionManagement() {
     }
   }
 
-  const filteredRequisitions = requisitions.filter(
-    (req) =>
-      req.requisition_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      req.requested_by.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  const handleApproveRequisition = async (requisition: Requisition, action: "approve" | "reject") => {
+    if (!user) return
+
+    setIsApproving(true)
+    try {
+      console.log("[v0] Processing requisition:", requisition.id, "Action:", action)
+
+      const response = await fetch("/api/store/approve-requisition", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requisitionId: requisition.id,
+          approvalAction: action,
+          approvedQuantity: action === "approve" ? Number.parseInt(approvedQuantity) || requisition.items[0]?.quantity : null,
+          approvalNotes,
+          approvedBy: user.full_name || user.email,
+          approvedByRole: user.role,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        alert(result.error || `Failed to ${action} requisition`)
+        return
+      }
+
+      console.log("[v0] Requisition", action, "successfully")
+      alert(`Requisition ${action}ed successfully${action === "approve" ? " and stock has been transferred" : ""}`)
+      
+      setApprovalDialogOpen(false)
+      setApprovingReq(null)
+      setApprovedQuantity("")
+      setApprovalNotes("")
+      await loadRequisitions()
+    } catch (error) {
+      console.error("[v0] Error processing requisition:", error)
+      alert("An error occurred while processing the requisition")
+    } finally {
+      setIsApproving(false)
+    }
+  }
 
   const getFilteredByStatus = (status: string) => {
     if (status === "all") return filteredRequisitions
@@ -404,22 +458,82 @@ export function RequisitionManagement() {
 
                     {req.status === "pending" && (
                       <div className="flex gap-2">
-                        <Button
-                          variant="default"
-                          onClick={() => {
-                            setAllocatingReq(req)
-                            setAllocateLocation(req.location)
-                            setAllocateOpen(true)
-                          }}
-                          className="flex-1"
-                        >
-                          <CheckCircle className="mr-2 h-4 w-4" />
-                          Approve & Allocate
-                        </Button>
+                        <Dialog open={approvalDialogOpen && approvingReq?.id === req.id} onOpenChange={setApprovalDialogOpen}>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="default"
+                              className="flex-1"
+                              onClick={() => {
+                                setApprovingReq(req)
+                                setApprovedQuantity(req.items[0]?.quantity?.toString() || "")
+                              }}
+                            >
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Approve
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-md">
+                            <DialogHeader>
+                              <DialogTitle>Approve Requisition</DialogTitle>
+                              <DialogDescription>
+                                Approve this requisition and transfer stock automatically
+                              </DialogDescription>
+                            </DialogHeader>
+                            {approvingReq && (
+                              <div className="space-y-4">
+                                <div className="bg-blue-50 dark:bg-blue-950/30 p-3 rounded border border-blue-200 dark:border-blue-800">
+                                  <p className="text-sm font-medium">Req. #{approvingReq.requisition_number}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    From: {approvingReq.location}
+                                  </p>
+                                </div>
+
+                                <div>
+                                  <Label htmlFor="approvedQty">Approved Quantity</Label>
+                                  <Input
+                                    id="approvedQty"
+                                    type="number"
+                                    min="0"
+                                    value={approvedQuantity}
+                                    onChange={(e) => setApprovedQuantity(e.target.value)}
+                                  />
+                                </div>
+
+                                <div>
+                                  <Label htmlFor="appNotes">Approval Notes (Optional)</Label>
+                                  <Input
+                                    id="appNotes"
+                                    placeholder="Add any notes..."
+                                    value={approvalNotes}
+                                    onChange={(e) => setApprovalNotes(e.target.value)}
+                                  />
+                                </div>
+
+                                <div className="flex justify-end space-x-2">
+                                  <Button variant="outline" onClick={() => setApprovalDialogOpen(false)}>
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    onClick={() => handleApproveRequisition(approvingReq, "approve")}
+                                    disabled={isApproving}
+                                  >
+                                    {isApproving ? "Approving..." : "Approve & Transfer Stock"}
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </DialogContent>
+                        </Dialog>
+
                         <Button
                           variant="destructive"
-                          onClick={() => updateRequisitionStatus(req.id, "rejected")}
                           className="flex-1"
+                          onClick={() => {
+                            if (confirm("Are you sure you want to reject this requisition?")) {
+                              setApprovingReq(req)
+                              handleApproveRequisition(req, "reject")
+                            }
+                          }}
                         >
                           <XCircle className="mr-2 h-4 w-4" />
                           Reject
