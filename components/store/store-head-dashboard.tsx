@@ -274,9 +274,8 @@ export default function StoreHeadDashboard() {
             id: selectedItem.id,
             item_name: selectedItem.name,
             category: selectedItem.category,
-            quantity_in_stock: selectedItem.quantity,
+            quantity: selectedItem.quantity,
             reorder_level: selectedItem.reorder_level,
-            unit_price: 0, // Removed price-based calculation
             location: selectedItem.location,
           }}
         />

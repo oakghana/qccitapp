@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { dateFmt } from "@/lib/format-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -27,6 +28,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations, canCreateRepairs } from "@/lib/location-filter"
+import { createClient } from "@/supabase/supabase-client"
 
 interface Device {
   id: string
@@ -45,6 +47,10 @@ interface ServiceProvider {
   name: string
   email: string
   phone: string
+  company?: string
+  contact?: string
+  rating?: number
+  status?: string
   specialization: string[]
   location: string
   is_active: boolean
@@ -68,10 +74,12 @@ interface RepairTask {
   laborHours?: number
   partsUsed?: string[]
   attachments: string[]
+  signedRequestForm?: string | null
 }
 
 export function ITHeadRepairManagement() {
   const { user } = useAuth()
+  const supabase = createClient()
   const [tasks, setTasks] = useState<RepairTask[]>([])
   const [devices, setDevices] = useState<Device[]>([])
   const [serviceProviders, setServiceProviders] = useState<ServiceProvider[]>([])
@@ -89,6 +97,8 @@ export function ITHeadRepairManagement() {
   const [selectedProvider, setSelectedProvider] = useState("")
   const [estimatedCost, setEstimatedCost] = useState("")
   const [selectedLocation, setSelectedLocation] = useState<string>("")
+  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null)
+  const [signedRequestFile, setSignedRequestFile] = useState<File | null>(null)
   const [locations, setLocations] = useState<{ code: string; name: string }[]>([])
 
   // Edit form states
@@ -111,6 +121,32 @@ export function ITHeadRepairManagement() {
       loadDevices(selectedLocation)
     }
   }, [selectedLocation])
+
+  // Real-time subscription for repair updates
+  useEffect(() => {
+    if (!user) return
+
+    const channel = supabase
+      .channel('repair-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'repair_requests'
+        },
+        (payload) => {
+          console.log('[v0] Repair updated:', payload)
+          // Reload repair tasks when any repair is updated
+          loadRepairTasks()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user])
 
   const loadLocations = async () => {
     try {
@@ -249,6 +285,9 @@ export function ITHeadRepairManagement() {
           specialization: item.service_provider.specialization || [],
           rating: item.service_provider.rating || 0,
           status: item.service_provider.status || "active",
+          phone: item.service_provider.phone || "",
+          location: item.service_provider.location || "",
+          is_active: typeof item.service_provider.is_active === 'boolean' ? item.service_provider.is_active : true,
         } : (item.service_provider_id ? {
           id: item.service_provider_id,
           name: item.service_provider_name || "Unknown Provider",
@@ -258,6 +297,9 @@ export function ITHeadRepairManagement() {
           specialization: [],
           rating: 0,
           status: "active",
+          phone: "",
+          location: "",
+          is_active: true,
         } : undefined)
 
         return {
@@ -288,6 +330,7 @@ export function ITHeadRepairManagement() {
           laborHours: item.labor_hours,
           partsUsed: item.parts_used || [],
           attachments: item.attachments || [],
+          signedRequestForm: item.signed_request_form || item.signedRequestForm || null,
         }
       })
 
@@ -322,6 +365,53 @@ export function ITHeadRepairManagement() {
     try {
       console.log("[v0] Saving repair task via API")
 
+      // Upload signed request form if provided
+      let signedRequestUrl: string | null = null
+      if (signedRequestFile) {
+        try {
+          const fileName = `signed_request_${Date.now()}-${signedRequestFile.name}`
+          const { data: signedData, error: signedError } = await supabase.storage
+            .from('repairs')
+            .upload(`signed_requests/${fileName}`, signedRequestFile)
+
+          if (signedError) {
+            console.error('[v0] Error uploading signed request form:', signedError)
+          } else {
+            const { data: urlData } = supabase.storage.from('repairs').getPublicUrl(`signed_requests/${fileName}`)
+            signedRequestUrl = urlData.publicUrl
+          }
+        } catch (err) {
+          console.error('[v0] Exception uploading signed request form:', err)
+        }
+      }
+
+      // Upload attachments if any
+      let attachmentUrls: string[] = []
+      if (selectedFiles && selectedFiles.length > 0) {
+        console.log("[v0] Uploading attachments...")
+        for (let i = 0; i < selectedFiles.length; i++) {
+          const file = selectedFiles[i]
+          const fileName = `${Date.now()}-${file.name}`
+          const { data, error } = await supabase.storage
+            .from('repairs')
+            .upload(`attachments/${fileName}`, file)
+
+          if (error) {
+            console.error("[v0] Error uploading file:", error)
+            continue
+          }
+
+          const { data: urlData } = supabase.storage
+            .from('repairs')
+            .getPublicUrl(`attachments/${fileName}`)
+
+          if (urlData.publicUrl) {
+            attachmentUrls.push(urlData.publicUrl)
+          }
+        }
+        console.log("[v0] Uploaded attachments:", attachmentUrls)
+      }
+
       const response = await fetch("/api/repairs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -336,6 +426,8 @@ export function ITHeadRepairManagement() {
           requested_by_name: user?.name,
           location: device.location,
           estimated_cost: estimatedCost ? Number.parseFloat(estimatedCost) : null,
+          attachments: attachmentUrls,
+          signed_request_form: signedRequestUrl,
         }),
       })
 
@@ -357,6 +449,7 @@ export function ITHeadRepairManagement() {
       setPriority("medium")
       setSelectedProvider("")
       setEstimatedCost("")
+      setSelectedFiles(null)
       setShowCreateDialog(false)
     } catch (error) {
       console.error("[v0] Error saving repair task:", error)
@@ -671,6 +764,30 @@ export function ITHeadRepairManagement() {
                       onChange={(e) => setEstimatedCost(e.target.value)}
                     />
                   </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="signed-request">Signed Request Form (optional)</Label>
+                  <Input
+                    id="signed-request"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) => setSignedRequestFile(e.target.files?.[0] ?? null)}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Upload the signed request form if available (PDF or image).</p>
+                </div>
+
+                <div>
+                  <Label htmlFor="attachments">Attachments (optional)</Label>
+                  <Input
+                    id="attachments"
+                    type="file"
+                    multiple
+                    onChange={(e) => setSelectedFiles(e.target.files)}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Upload images, documents, or other files related to the repair request
+                  </p>
                 </div>
 
                 <div className="flex justify-end space-x-3">
@@ -995,7 +1112,7 @@ export function ITHeadRepairManagement() {
                                     <strong>Created By:</strong> {task.createdBy}
                                   </p>
                                   <p>
-                                    <strong>Created Date:</strong> {new Date(task.createdDate).toLocaleString()}
+                                    <strong>Created Date:</strong> {dateFmt(task.createdDate)}
                                   </p>
                                   <p>
                                     <strong>Priority:</strong>{" "}
@@ -1009,6 +1126,19 @@ export function ITHeadRepairManagement() {
                                       {task.status}
                                     </Badge>
                                   </p>
+                                  {task.signedRequestForm && (
+                                    <p>
+                                      <strong>Signed Request:</strong>{" "}
+                                      <a
+                                        href={task.signedRequestForm}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-blue-600 underline"
+                                      >
+                                        View Form
+                                      </a>
+                                    </p>
+                                  )}
                                 </div>
                               </div>
 
@@ -1148,18 +1278,18 @@ export function ITHeadRepairManagement() {
                               <div className="space-y-2">
                                 <div className="flex justify-between text-sm">
                                   <span>Created:</span>
-                                  <span>{new Date(task.createdDate).toLocaleString()}</span>
+                                  <span>{dateFmt(task.createdDate)}</span>
                                 </div>
                                 {task.pickupDate && (
                                   <div className="flex justify-between text-sm">
                                     <span>Pickup Date:</span>
-                                    <span>{new Date(task.pickupDate).toLocaleString()}</span>
+                                    <span>{dateFmt(task.pickupDate)}</span>
                                   </div>
                                 )}
                                 {task.completionDate && (
                                   <div className="flex justify-between text-sm">
                                     <span>Completed:</span>
-                                    <span>{new Date(task.completionDate).toLocaleString()}</span>
+                                    <span>{dateFmt(task.completionDate)}</span>
                                   </div>
                                 )}
                               </div>

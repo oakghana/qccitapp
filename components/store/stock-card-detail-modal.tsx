@@ -354,7 +354,10 @@ export function StockCardDetailModal({ open, onClose, item }: StockCardDetailMod
                         id="edit-quantity"
                         type="number"
                         value={editData.quantity}
-                        onChange={(e) => setEditData({ ...editData, quantity: Number.parseInt(e.target.value) })}
+                        onChange={(e) => {
+                          const v = Number.parseInt(e.target.value, 10)
+                          setEditData({ ...editData, quantity: Number.isFinite(v) ? v : 0 })
+                        }}
                       />
                     </div>
                     <div>
@@ -363,7 +366,10 @@ export function StockCardDetailModal({ open, onClose, item }: StockCardDetailMod
                         id="edit-reorder"
                         type="number"
                         value={editData.reorder_level}
-                        onChange={(e) => setEditData({ ...editData, reorder_level: Number.parseInt(e.target.value) })}
+                        onChange={(e) => {
+                          const v = Number.parseInt(e.target.value, 10)
+                          setEditData({ ...editData, reorder_level: Number.isFinite(v) ? v : 0 })
+                        }}
                       />
                     </div>
                   </div>
@@ -461,7 +467,10 @@ export function StockCardDetailModal({ open, onClose, item }: StockCardDetailMod
                       max={item.quantity}
                       value={centralTransferData.quantity}
                       onChange={(e) =>
-                        setCentralTransferData({ ...centralTransferData, quantity: Number.parseInt(e.target.value) })
+                        {
+                          const v = Number.parseInt(e.target.value, 10)
+                          setCentralTransferData({ ...centralTransferData, quantity: Number.isFinite(v) ? v : 0 })
+                        }
                       }
                     />
                     <p className="text-xs text-muted-foreground mt-1">
@@ -518,7 +527,10 @@ export function StockCardDetailModal({ open, onClose, item }: StockCardDetailMod
                       min="1"
                       max={item.quantity}
                       value={assignData.quantity}
-                      onChange={(e) => setAssignData({ ...assignData, quantity: Number.parseInt(e.target.value) })}
+                      onChange={(e) => {
+                        const v = Number.parseInt(e.target.value, 10)
+                        setAssignData({ ...assignData, quantity: Number.isFinite(v) ? v : 0 })
+                      }}
                     />
                   </div>
                 </div>

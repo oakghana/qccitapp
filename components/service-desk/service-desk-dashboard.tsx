@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { dateFmt } from "@/lib/format-utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -14,6 +15,9 @@ import { useAuth } from "@/lib/auth-context"
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { Separator } from "@/components/ui/separator"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { TicketList } from "./ticket-list" // Import TicketList component
 
 export function ServiceDeskDashboard() {
@@ -23,6 +27,8 @@ export function ServiceDeskDashboard() {
   const [selectedTicketForDetails, setSelectedTicketForDetails] = useState<any>(null)
   const [ticketDetails, setTicketDetails] = useState<any>(null)
   const [loadingDetails, setLoadingDetails] = useState(false)
+  const [editingTicket, setEditingTicket] = useState<any>(null)
+  const [editLoading, setEditLoading] = useState(false)
   const { canViewAllLocations, getUserLocation, user } = useAuth()
   const { toast } = useToast()
   const [allTickets, setAllTickets] = useState<any[]>([])
@@ -31,12 +37,8 @@ export function ServiceDeskDashboard() {
 
   // Check if user can assign tickets (IT Head, Regional IT Head, Admin)
   const canAssignTickets = () => {
-    return (
-      user?.role === "admin" ||
-      user?.role === "it_head" ||
-      user?.role === "regional_it_head" ||
-      user?.role === "service_desk_head"
-    )
+    const allowed = ["admin", "it_head", "regional_it_head", "service_desk_head"] as string[]
+    return allowed.includes((user?.role as string) || "")
   }
 
   useEffect(() => {
@@ -79,7 +81,7 @@ export function ServiceDeskDashboard() {
         location: ticket.location || "head_office",
         locationName: ticket.location || "Unknown Location",
         requester: ticket.requested_by || "Unknown",
-        created: new Date(ticket.created_at).toLocaleString(),
+        created: dateFmt(ticket.created_at),
         assignedTo: ticket.assigned_to_name || null,
         assignedToId: ticket.assigned_to || null,
       }))
@@ -503,11 +505,125 @@ export function ServiceDeskDashboard() {
                     Assign Ticket
                   </Button>
                 )}
+                {/* Owner actions: Edit / Delete (delete blocked if assigned unless admin/it_head) */}
+                {user && ticketDetails && ((ticketDetails.requester && ticketDetails.requester === (user.full_name || user.name)) || (ticketDetails.fullData?.requested_by && ticketDetails.fullData.requested_by === (user.full_name || user.name))) && (
+                  (() => {
+                    const isAssigned = !!(ticketDetails.assignedTo || ticketDetails.fullData?.assigned_to || ticketDetails.fullData?.assigned_to_id)
+                    const canDelete = !isAssigned || user.role === "admin" || user.role === "it_head"
+                    return (
+                      <>
+                        <Button
+                          variant="outline"
+                          onClick={() => setEditingTicket({ ...ticketDetails.fullData, id: ticketDetails.dbId || ticketDetails.fullData?.id })}
+                        >
+                          Edit
+                        </Button>
+                        {canDelete ? (
+                          <Button
+                            variant="destructive"
+                            onClick={async () => {
+                              if (!confirm("Are you sure you want to delete this ticket?")) return
+                              try {
+                                const res = await fetch("/api/service-tickets", {
+                                  method: "DELETE",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ id: ticketDetails.dbId || ticketDetails.fullData?.id, requested_by: user.full_name || user.name, userRole: user.role }),
+                                })
+                                const data = await res.json()
+                                if (!res.ok) throw new Error(data.error || "Failed to delete")
+                                toast?.({ title: "Ticket deleted", description: "Your ticket has been deleted.", variant: "default" })
+                                setSelectedTicketForDetails(null)
+                                await loadTickets()
+                              } catch (err) {
+                                console.error(err)
+                                toast?.({ title: "Delete failed", description: (err as any).message || "Could not delete ticket", variant: "destructive" })
+                              }
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        ) : (
+                          <Button variant="outline" disabled title="Assigned tickets cannot be deleted">
+                            Delete
+                          </Button>
+                        )}
+                      </>
+                    )
+                  })()
+                )}
               </div>
             </div>
           ) : (
             <div className="text-center py-8">
               <p className="text-muted-foreground">No ticket selected</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Ticket Dialog for owners */}
+      <Dialog open={!!editingTicket} onOpenChange={(open) => !open && setEditingTicket(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Ticket</DialogTitle>
+          </DialogHeader>
+
+          {editingTicket && (
+            <div className="space-y-4">
+              <div>
+                <Label>Title</Label>
+                <Input value={editingTicket.title || ""} onChange={(e) => setEditingTicket({ ...editingTicket, title: e.target.value })} />
+              </div>
+              <div>
+                <Label>Category</Label>
+                <Input value={editingTicket.category || ""} onChange={(e) => setEditingTicket({ ...editingTicket, category: e.target.value })} />
+              </div>
+              <div>
+                <Label>Priority</Label>
+                <Input value={editingTicket.priority || ""} onChange={(e) => setEditingTicket({ ...editingTicket, priority: e.target.value })} />
+              </div>
+              <div>
+                <Label>Description</Label>
+                <Textarea value={editingTicket.description || ""} onChange={(e) => setEditingTicket({ ...editingTicket, description: e.target.value })} rows={6} />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setEditingTicket(null)}>Cancel</Button>
+                <Button
+                  onClick={async () => {
+                    setEditLoading(true)
+                    try {
+                      const res = await fetch('/api/service-tickets', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          id: editingTicket.id || editingTicket.dbId || editingTicket.id,
+                          title: editingTicket.title,
+                          description: editingTicket.description,
+                          category: editingTicket.category,
+                          priority: editingTicket.priority,
+                          location: editingTicket.location,
+                          requested_by: user?.full_name || user?.name || '',
+                          userRole: user?.role || '',
+                        }),
+                      })
+                      const data = await res.json()
+                      if (!res.ok) throw new Error(data.error || 'Failed to update ticket')
+                      toast?.({ title: 'Ticket updated', description: 'Your ticket was updated.', variant: 'default' })
+                      setEditingTicket(null)
+                      await loadTickets()
+                      setSelectedTicketForDetails(data.ticket ? { ...data.ticket, fullData: data.ticket } : null)
+                      } catch (err) {
+                      console.error(err)
+                      toast?.({ title: 'Update failed', description: (err as any).message || 'Could not update ticket', variant: 'destructive' })
+                    } finally {
+                      setEditLoading(false)
+                    }
+                  }}
+                  disabled={editLoading}
+                >
+                  Save Changes
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>

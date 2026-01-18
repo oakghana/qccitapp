@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import { AuthProvider } from "@/lib/auth-context"
 import { NotificationProvider } from "@/lib/notification-context"
+import NotificationCenter from '@/components/notifications/notification-center-wrapper'
 import { Toaster } from "sonner"
 import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
@@ -78,6 +79,7 @@ export default function RootLayout({
           <AuthProvider>
             <NotificationProvider>
               <Suspense fallback={null}>{children}</Suspense>
+              <NotificationCenter />
               <Toaster
                 position="top-right"
                 expand={true}

@@ -131,6 +131,32 @@ export function ITHeadRepairReports() {
     generateReports()
   }, [reportPeriod, dateRange, selectedProvider, user])
 
+  // Real-time subscription for repair updates
+  useEffect(() => {
+    if (!user) return
+
+    const channel = supabase
+      .channel('repair-reports-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'repair_requests'
+        },
+        (payload) => {
+          console.log('[v0] Repair updated for reports:', payload)
+          // Regenerate reports when any repair is updated
+          generateReports()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user, reportPeriod, dateRange, selectedProvider])
+
   const generateReports = async () => {
     if (!user) return
 
@@ -170,7 +196,7 @@ export function ITHeadRepairReports() {
           return false
         }).length || 0
 
-      const totalCost = repairs?.reduce((sum, r) => sum + (r.cost || 0), 0) || 0
+      const totalCost = repairs?.reduce((sum, r) => sum + (r.estimated_cost || 0), 0) || 0
 
       // Calculate average repair time for completed tasks
       const completedRepairs =
@@ -219,6 +245,33 @@ export function ITHeadRepairReports() {
     }
   }
 
+  // Safe formatting helpers to avoid calling toFixed on undefined/null
+  const fmt = (v: number | undefined | null, digits: number = 1) => {
+    const n = typeof v === "number" && !isNaN(v) ? v : 0
+    return n.toFixed(digits)
+  }
+
+  const pct = (num: number | undefined | null, denom: number | undefined | null, digits = 1) => {
+    const n = typeof num === "number" && !isNaN(num) ? num : 0
+    const d = typeof denom === "number" && denom > 0 ? denom : 0
+    const val = d > 0 ? (n / d) * 100 : 0
+    return val.toFixed(digits)
+  }
+
+  // Safe number formatting that guards against undefined/null and string values
+  const numFmt = (
+    v: number | string | undefined | null,
+    locale: string = "en-GH",
+    options?: Intl.NumberFormatOptions,
+  ) => {
+    const n = typeof v === "number" && !isNaN(v) ? v : typeof v === "string" && !isNaN(Number(v)) ? Number(v) : 0
+    try {
+      return n.toLocaleString(locale, options)
+    } catch (e) {
+      return String(n)
+    }
+  }
+
   const COLORS = ["#3b82f6", "#ef4444", "#f59e0b", "#10b981", "#8b5cf6", "#f97316", "#06b6d4"]
 
   const exportReport = () => {
@@ -228,7 +281,7 @@ export function ITHeadRepairReports() {
       summary: {
         totalTasks: currentReport.totalTasks,
         completedTasks: currentReport.completedTasks,
-        completionRate: ((currentReport.completedTasks / currentReport.totalTasks) * 100).toFixed(1),
+        completionRate: pct(currentReport.completedTasks, currentReport.totalTasks, 1),
         totalCost: currentReport.totalCost,
         avgRepairTime: currentReport.avgRepairTime,
       },
@@ -373,7 +426,7 @@ export function ITHeadRepairReports() {
             <div className="text-2xl font-bold">{currentReport.completedTasks}</div>
             <p className="text-xs text-muted-foreground">
               {currentReport.totalTasks > 0
-                ? `${((currentReport.completedTasks / currentReport.totalTasks) * 100).toFixed(1)}% completion rate`
+                ? `${pct(currentReport.completedTasks, currentReport.totalTasks, 1)}% completion rate`
                 : "0% completion rate"}
             </p>
           </CardContent>
@@ -409,12 +462,12 @@ export function ITHeadRepairReports() {
           <CardContent>
             <div className="text-2xl font-bold">
               GHS{" "}
-              {currentReport.totalCost.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {numFmt(currentReport.totalCost, "en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground">
               Avg: GHS{" "}
               {currentReport.totalTasks > 0
-                ? (currentReport.totalCost / currentReport.totalTasks).toLocaleString("en-GH", {
+                ? numFmt(currentReport.totalCost / currentReport.totalTasks, "en-GH", {
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 0,
                   })
@@ -632,11 +685,11 @@ export function ITHeadRepairReports() {
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Completion Rate:</span>
-                            <span className="font-medium">{provider.completionRate.toFixed(1)}%</span>
+                            <span className="font-medium">{fmt(provider.completionRate, 1)}%</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>On-time Delivery:</span>
-                            <span className="font-medium">{provider.onTimeDelivery.toFixed(1)}%</span>
+                            <span className="font-medium">{fmt(provider.onTimeDelivery, 1)}%</span>
                           </div>
                         </div>
                       </div>
@@ -648,16 +701,16 @@ export function ITHeadRepairReports() {
                         <div className="space-y-2 mt-2">
                           <div className="flex justify-between text-sm">
                             <span>Avg Repair Time:</span>
-                            <span className="font-medium">{provider.avgRepairTime.toFixed(1)} days</span>
+                            <span className="font-medium">{fmt(provider.avgRepairTime, 1)} days</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Total Cost:</span>
-                            <span className="font-medium">GHS {provider.totalCost.toLocaleString()}</span>
+                            <span className="font-medium">GHS {numFmt(provider.totalCost)}</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Avg Cost per Task:</span>
                             <span className="font-medium">
-                              GHS {(provider.totalCost / provider.tasksCompleted).toFixed(0)}
+                              GHS {fmt(provider.tasksCompleted ? provider.totalCost / provider.tasksCompleted : 0, 0)}
                             </span>
                           </div>
                         </div>
@@ -748,7 +801,7 @@ export function ITHeadRepairReports() {
                     <div key={index} className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="font-medium">{device.type}</span>
-                        <span>{device.avgRepairTime.toFixed(1)} days</span>
+                        <span>{fmt(device.avgRepairTime, 1)} days</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
@@ -800,11 +853,11 @@ export function ITHeadRepairReports() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium">
-                        Total Impact: GHS {(issue.frequency * issue.avgCost).toLocaleString()}
+                        <p className="text-sm font-medium">
+                        Total Impact: GHS {numFmt(issue.frequency * issue.avgCost)}
                       </p>
                       <Badge variant="outline">
-                        {((issue.frequency / currentReport.totalTasks) * 100).toFixed(1)}% of all issues
+                        {pct(issue.frequency, currentReport.totalTasks, 1)}% of all issues
                       </Badge>
                     </div>
                   </div>

@@ -306,7 +306,18 @@ export function StoreInventory() {
       </div>
 
       {selectedItem && (
-        <StockCardDetailModal item={selectedItem} open={!!selectedItem} onClose={() => setSelectedItem(null)} />
+        <StockCardDetailModal
+          open={!!selectedItem}
+          onClose={() => setSelectedItem(null)}
+          item={{
+            id: selectedItem.id,
+            item_name: selectedItem.itemName,
+            category: selectedItem.category,
+            quantity: selectedItem.quantity,
+            reorder_level: selectedItem.reorderLevel,
+            location: selectedItem.location,
+          }}
+        />
       )}
     </div>
   )

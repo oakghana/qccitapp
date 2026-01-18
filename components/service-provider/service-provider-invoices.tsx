@@ -100,25 +100,50 @@ export function ServiceProviderInvoices() {
   const loadRepairsAndInvoices = async () => {
     setLoading(true)
     try {
-      // Load repairs assigned to this service provider
-      // For now, load all repairs with status that allows invoicing
-      const repairsResponse = await fetch(`/api/repairs?canSeeAll=true`)
-      const repairsData = await repairsResponse.json()
+      // Resolve service provider id for provider users so we only show assigned repairs
+      let localProviderId: string | null = null
+      if (user?.role === "service_provider") {
+        try {
+          const provRes = await fetch(`/api/admin/service-providers?activeOnly=true`)
+          if (provRes.ok) {
+            const provJson = await provRes.json()
+            const providers: any[] = provJson.providers || []
+            const match = providers.find((p) => p.email && user.email && p.email.toLowerCase() === user.email.toLowerCase())
+            if (match) {
+              localProviderId = String(match.id)
+            }
+          }
+        } catch (e) {
+          console.warn('[v0] Failed to resolve service provider id', e)
+        }
+      }
 
-      if (repairsData.repairs) {
-        // Filter repairs that are in repair or completed status
-        const eligibleRepairs = repairsData.repairs.filter((r: any) =>
-          ["in_repair", "completed", "returned"].includes(r.status) && !r.has_invoice
-        )
+      // Fetch repairs assigned to this provider (if service provider), otherwise load all eligible repairs
+      let repairsData: any = { repairs: [] }
+      if (user?.role === "service_provider" && localProviderId) {
+        const resp = await fetch(`/api/repairs/tasks?service_provider_id=${localProviderId}`)
+        repairsData = await resp.json()
+      } else {
+        const resp = await fetch(`/api/repairs?canSeeAll=true`)
+        repairsData = await resp.json()
+      }
+
+      if (repairsData.repairs || repairsData.tasks) {
+        const source = repairsData.repairs || repairsData.tasks || []
+        // Filter repairs that are in repair or completed status and don't already have an invoice
+        const eligibleRepairs = source.filter((r: any) => ["in_repair", "completed", "returned"].includes(r.status) && !r.has_invoice)
         setRepairs(eligibleRepairs)
       }
 
-      // Load existing invoices
-      const invoicesResponse = await fetch(`/api/repairs/invoices`)
-      const invoicesData = await invoicesResponse.json()
-
-      if (invoicesData.invoices) {
-        setInvoices(invoicesData.invoices)
+      // Load existing invoices - admins and IT head see invoices; service providers should not see uploaded invoices
+      if (user?.role === "service_provider") {
+        setInvoices([])
+      } else {
+        let invoicesResponse = await fetch(`/api/repairs/invoices`)
+        const invoicesData = await invoicesResponse.json()
+        if (invoicesData.invoices) {
+          setInvoices(invoicesData.invoices)
+        }
       }
     } catch (error) {
       console.error("[v0] Error loading data:", error)

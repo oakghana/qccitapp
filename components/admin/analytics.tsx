@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { numFmt } from "@/lib/format-utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -141,7 +142,7 @@ export function Analytics() {
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₵{totalCost.toLocaleString()}</div>
+            <div className="text-2xl font-bold">₵{numFmt(totalCost)}</div>
             <p className="text-xs text-muted-foreground">Repair costs incurred</p>
           </CardContent>
         </Card>

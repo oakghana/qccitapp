@@ -35,12 +35,15 @@ interface AuthContextType {
   logout: () => void
   canViewAllLocations: () => boolean
   getUserLocation: () => string
+  loading: boolean
 }
+
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState<boolean>(true)
 
   useEffect(() => {
     const savedUser = localStorage.getItem("qcc_current_user")
@@ -58,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem("qcc_current_user")
       }
     }
+    setLoading(false)
   }, [])
 
   const logout = async () => {
@@ -75,8 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const canViewAllLocations = () => {
-    // Only admin and IT head can see all locations nationwide
-    return user?.role === "admin" || user?.role === "it_head"
+    // Only admin, IT head, and IT staff can see all locations nationwide
+    return user?.role === "admin" || user?.role === "it_head" || user?.role === "it_staff"
   }
 
   const getUserLocation = () => {
@@ -93,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, setUser: updateUser, logout, canViewAllLocations, getUserLocation }}>
+    <AuthContext.Provider value={{ user, setUser: updateUser, logout, canViewAllLocations, getUserLocation, loading }}>
       {children}
     </AuthContext.Provider>
   )

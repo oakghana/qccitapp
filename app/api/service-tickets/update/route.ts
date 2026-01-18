@@ -6,14 +6,16 @@ const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, proces
 
 export async function PATCH(request: NextRequest) {
   try {
+    console.log("[v0] Service tickets update API called with request:", request.method, request.url)
+
     const body = await request.json()
     const { id, status, work_notes, actual_hours, completed_at } = body
+
+    console.log("[v0] Updating service ticket:", id, { status, work_notes, actual_hours, completed_at })
 
     if (!id) {
       return NextResponse.json({ error: "Ticket ID is required" }, { status: 400 })
     }
-
-    console.log("[v0] Updating service ticket:", id, { status, work_notes, actual_hours })
 
     // Map task status to service ticket status
     const statusMap: Record<string, string> = {
@@ -43,6 +45,8 @@ export async function PATCH(request: NextRequest) {
       updateData.resolved_at = completed_at || new Date().toISOString()
     }
 
+    console.log("[v0] Update data prepared:", updateData)
+
     const { data, error } = await supabaseAdmin
       .from("service_tickets")
       .update(updateData)
@@ -55,7 +59,8 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    console.log("[v0] Updated service ticket:", data)
+    console.log("[v0] Service ticket updated successfully:", data)
+    console.log("[v0] Verifying update - checking if work_notes was updated:", data.work_notes)
 
     return NextResponse.json({ success: true, ticket: data })
   } catch (error) {

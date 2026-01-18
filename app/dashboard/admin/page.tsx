@@ -4,25 +4,16 @@ import { AdminDashboard } from "@/components/admin/admin-dashboard"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
-import { Loader2 } from "lucide-react"
 
 export default function AdminPage() {
-  const { user, loading } = useAuth()
+  const { user } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    if (!loading && user && user.role !== "admin") {
+    if (user && user.role !== "admin") {
       router.push("/dashboard")
     }
-  }, [user, loading, router])
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
-  }
+  }, [user, router])
 
   if (!user || user.role !== "admin") {
     return (

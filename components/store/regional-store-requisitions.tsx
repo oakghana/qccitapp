@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { dateFmt } from "@/lib/format-utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -817,7 +818,7 @@ function RequisitionsList({
                   <span>By: {req.requested_by}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Created: {new Date(req.created_at).toLocaleString()}
+                  Created: {dateFmt(req.created_at)}
                 </p>
                 {req.approved_by && (
                   <p className="text-xs text-muted-foreground">
@@ -829,7 +830,7 @@ function RequisitionsList({
                 )}
                 {req.fulfilled_by && (
                   <p className="text-xs text-green-600">
-                    Fulfilled by: {req.fulfilled_by} on {new Date(req.fulfilled_at!).toLocaleString()}
+                    Fulfilled by: {req.fulfilled_by} on {dateFmt(req.fulfilled_at)}
                   </p>
                 )}
               </div>

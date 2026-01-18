@@ -16,11 +16,14 @@ export async function GET(request: NextRequest) {
 
     console.log("[v0] API Repair Invoices GET - repairId:", repairId, "status:", status, "providerId:", providerId)
 
+    // Disambiguate embedding relationship between repair_invoices and repair_requests
+    // by specifying the foreign key relationship. This avoids PostgREST PGRST201 errors
+    // when more than one relationship exists between the tables.
     let query = supabaseAdmin
       .from("repair_invoices")
       .select(`
         *,
-        repair:repair_requests(
+        repair:repair_requests!repair_invoices_repair_id_fkey(
           id,
           task_number,
           device_name,
@@ -102,9 +105,9 @@ export async function POST(request: NextRequest) {
       const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_")
       const storagePath = `repair-invoices/${repairId}/${timestamp}_${sanitizedName}`
       
-      // Upload to Supabase Storage
+      // Upload to Supabase Storage (use the shared 'repairs' bucket)
       const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
-        .from("documents")
+        .from("repairs")
         .upload(storagePath, buffer, {
           contentType: file.type,
           upsert: true,
@@ -114,9 +117,9 @@ export async function POST(request: NextRequest) {
         console.error("[v0] Error uploading invoice file:", uploadError)
         // Continue without file - we'll still create the invoice record
       } else {
-        // Get public URL
+        // Get public URL (from the same 'repairs' bucket)
         const { data: urlData } = supabaseAdmin.storage
-          .from("documents")
+          .from("repairs")
           .getPublicUrl(storagePath)
         
         fileUrl = urlData.publicUrl
@@ -131,31 +134,50 @@ export async function POST(request: NextRequest) {
     // Parse parts used
     const partsArray = partsUsed ? partsUsed.split(",").map(p => p.trim()).filter(Boolean) : []
 
-    // Insert invoice record
-    const { data: invoice, error: insertError } = await supabaseAdmin
-      .from("repair_invoices")
-      .insert({
-        repair_id: repairId,
-        invoice_number: invoiceNumber,
-        total_amount: totalAmount,
-        labor_cost: laborCost,
-        parts_cost: partsCost,
-        other_charges: otherCharges,
-        description: description || null,
-        labor_hours: laborHours,
-        parts_used: partsArray.length > 0 ? partsArray : null,
-        file_url: fileUrl,
-        file_name: fileName,
-        file_type: fileType,
-        file_size: fileSize,
-        uploaded_by: uploadedBy || null,
-        uploaded_by_name: uploadedByName || null,
-        service_provider_id: serviceProviderId || null,
-        service_provider_name: serviceProviderName || null,
-        status: "pending",
-      })
-      .select()
-      .single()
+    // Insert invoice record. If the client provides an uploaded_by value
+    // that doesn't exist in the users/profiles table we may get a foreign
+    // key violation. In that case retry without the `uploaded_by` field
+    // and retain provider metadata.
+    let invoice: any = null
+    let insertError: any = null
+
+    const baseInsert = {
+      repair_id: repairId,
+      invoice_number: invoiceNumber,
+      total_amount: totalAmount,
+      labor_cost: laborCost,
+      parts_cost: partsCost,
+      other_charges: otherCharges,
+      description: description || null,
+      labor_hours: laborHours,
+      parts_used: partsArray.length > 0 ? partsArray : null,
+      file_url: fileUrl,
+      file_name: fileName,
+      file_type: fileType,
+      file_size: fileSize,
+      uploaded_by: uploadedBy || null,
+      uploaded_by_name: uploadedByName || null,
+      service_provider_id: serviceProviderId || null,
+      service_provider_name: serviceProviderName || null,
+      status: "pending",
+    }
+
+    const attemptInsert = async (payload: any) => {
+      const { data, error } = await supabaseAdmin.from("repair_invoices").insert(payload).select().single()
+      return { data, error }
+    }
+
+    // First try with uploaded_by as provided
+    ({ data: invoice, error: insertError } = await attemptInsert(baseInsert))
+
+    // If we get a foreign key violation on uploaded_by, retry without the field
+    if (insertError && /foreign key|23503/i.test(insertError.message || "")) {
+      console.warn("[v0] Foreign key violation when inserting invoice.uploaded_by, retrying without uploaded_by")
+      const fallback = { ...baseInsert }
+      // set to null to avoid FK constraint on uploaded_by
+      fallback.uploaded_by = null
+      ;({ data: invoice, error: insertError } = await attemptInsert(fallback))
+    }
 
     if (insertError) {
       console.error("[v0] Error creating invoice:", insertError)

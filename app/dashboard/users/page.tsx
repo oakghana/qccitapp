@@ -7,19 +7,19 @@ import { useEffect } from "react"
 import { Loader2 } from "lucide-react"
 
 export default function UsersPage() {
-  const { user, loading } = useAuth()
+  const { user } = useAuth()
   const router = useRouter()
 
   // Allow admin, it_head, and it_store_head to view users
   const allowedRoles = ["admin", "it_head", "it_store_head"]
 
   useEffect(() => {
-    if (!loading && user && !allowedRoles.includes(user.role)) {
+    if (user && !allowedRoles.includes(user.role)) {
       router.push("/dashboard")
     }
-  }, [user, loading, router])
+  }, [user, router])
 
-  if (loading) {
+  if (!user) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

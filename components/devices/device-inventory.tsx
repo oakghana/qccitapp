@@ -194,6 +194,9 @@ export function DeviceInventory() {
       // Use API endpoint to bypass RLS issues
       const params = new URLSearchParams()
       if (user?.location) params.set("location", user.location)
+      // Include region identifier when available so API can filter by region_id for regional staff
+      const regionId = (user as any)?.region_id || (user as any)?.regionId || (user as any)?.region || ""
+      if (regionId) params.set("regionId", regionId)
       params.set("canSeeAll", String(canSeeAll))
 
       const response = await fetch(`/api/devices?${params.toString()}`)
@@ -693,17 +696,52 @@ export function DeviceInventory() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">District</label>
-              <Input
-                value={editFormData.district_id || ""}
-                onChange={(e) => setEditFormData({ ...editFormData, district_id: e.target.value })}
-                placeholder="Enter district if applicable"
-              />
+              <Select
+                value={editFormData.district_id || "none"}
+                onValueChange={(value) =>
+                  setEditFormData({ ...editFormData, district_id: value === "none" ? "" : value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select district" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">-- No District --</SelectItem>
+                  {dbDistricts
+                    .filter((d) => !editFormData.region_id || d.region_id === editFormData.region_id)
+                    .map((district) => (
+                      <SelectItem key={district.id} value={district.id}>
+                        {district.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => setEditDeviceOpen(false)}>
               Cancel
             </Button>
+            <Button variant="destructive" onClick={async () => {
+              if (!selectedDevice) return
+              const confirmDelete = confirm('Delete this device? This action cannot be undone.')
+              if (!confirmDelete) return
+              try {
+                setEditLoading(true)
+                const res = await fetch(`/api/devices?id=${selectedDevice.id}`, { method: 'DELETE' })
+                if (!res.ok) {
+                  const err = await res.json()
+                  throw new Error(err.error || 'Failed to delete device')
+                }
+                toast({ title: 'Deleted', description: 'Device removed successfully' })
+                setEditDeviceOpen(false)
+                loadDevices()
+              } catch (err: any) {
+                toast({ title: 'Error', description: err.message || 'Failed to delete device', variant: 'destructive' })
+              } finally {
+                setEditLoading(false)
+              }
+            }}>Delete</Button>
             <Button onClick={handleSaveDeviceEdit} disabled={editLoading}>
               {editLoading ? "Saving..." : "Save Changes"}
             </Button>

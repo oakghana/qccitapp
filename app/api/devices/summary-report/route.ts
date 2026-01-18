@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
+import { LOCATIONS } from "@/lib/locations"
 
 export async function GET(request: NextRequest) {
   try {
@@ -48,11 +49,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: devicesError.message }, { status: 500 })
     }
 
-    // Calculate summary statistics by location
+    // Calculate summary statistics by location. Normalize different casing/variants
+    // to canonical labels defined in LOCATIONS so that 'CR' and 'cr' merge.
     const locationSummary: Record<string, any> = {}
+
+    const normalizeLocationLabel = (raw?: string) => {
+      if (!raw) return "Unknown"
+      const lower = String(raw).toLowerCase()
+      // Try keys first (code) then values (label)
+      const key = Object.keys(LOCATIONS).find(
+        (k) => k.toLowerCase() === lower || LOCATIONS[k as keyof typeof LOCATIONS].toLowerCase() === lower,
+      )
+      return key ? LOCATIONS[key as keyof typeof LOCATIONS] : raw
+    }
+
     devices?.forEach((device) => {
-      if (!locationSummary[device.location]) {
-        locationSummary[device.location] = {
+      const label = normalizeLocationLabel(device.location)
+      if (!locationSummary[label]) {
+        locationSummary[label] = {
           total: 0,
           assigned: 0,
           available: 0,
@@ -62,7 +76,7 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      const loc = locationSummary[device.location]
+      const loc = locationSummary[label]
       loc.total++
 
       // Count by status
@@ -101,11 +115,12 @@ export async function GET(request: NextRequest) {
       else if (device.status === "repair") type.inRepair++
       else if (device.status === "retired") type.retired++
 
-      // Count by location
-      if (!type.locations[device.location]) {
-        type.locations[device.location] = 0
+      // Count by (normalized) location
+      const label = normalizeLocationLabel(device.location)
+      if (!type.locations[label]) {
+        type.locations[label] = 0
       }
-      type.locations[device.location]++
+      type.locations[label]++
     })
 
     // Calculate overall totals

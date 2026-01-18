@@ -37,6 +37,7 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
   const [deviceTypes, setDeviceTypes] = useState<{ code: string; name: string }[]>([])
   const [locations, setLocations] = useState<{ code: string; name: string; region_id?: string }[]>([])
   const [regions, setRegions] = useState<{ id: string; name: string; code: string }[]>([])
+  const [districts, setDistricts] = useState<{ id: string; name: string; region_id?: string }[]>([])
   const supabase = createClient()
   
   // Check if user can select all locations or is restricted to their own
@@ -112,6 +113,16 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
           setRegions(regs.filter((r: any) => r.is_active !== false))
         } else {
           console.error("[v0] Failed to load regions:", regionsRes.status)
+        }
+
+        // Load districts
+        const districtsRes = await fetch("/api/admin/lookup-data?type=districts")
+        if (districtsRes.ok) {
+          const dts = await districtsRes.json()
+          console.log("[v0] Loaded districts:", dts)
+          setDistricts(dts.filter((d: any) => d.is_active !== false))
+        } else {
+          console.error("[v0] Failed to load districts:", districtsRes.status)
         }
 
       } catch (error) {
@@ -338,12 +349,25 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
 
           <div className="space-y-2">
             <Label htmlFor="district">District</Label>
-            <Input
-              id="district"
+            <Select
               value={formData.district}
-              onChange={(e) => handleInputChange("district", e.target.value)}
-              placeholder="Enter district if applicable"
-            />
+              onValueChange={(value) => handleInputChange("district", value === "none" ? "" : value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select district" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">-- No District --</SelectItem>
+                {districts
+                  .filter((d) => !formData.region || d.region_id === formData.region)
+                  .map((district) => (
+                    <SelectItem key={district.id} value={district.id}>
+                      {district.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Optional. Choose a district.</p>
           </div>
 
           <div className="space-y-2">

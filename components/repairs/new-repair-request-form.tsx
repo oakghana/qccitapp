@@ -24,12 +24,15 @@ interface RepairRequest {
   description: string
   priority: "low" | "medium" | "high" | "urgent"
   attachments: string[]
+  signedRequestForm: string // Required signed and endorsed form
   location: "head_office" | "kumasi" | "accra" | "kaase_inland_port" | "cape_coast"
 }
 
 interface NewRepairRequestFormProps {
   onSubmit: (
-    request: Omit<RepairRequest, "id" | "requestedBy" | "requestedDate" | "status" | "location" | "locationName">,
+    request: Omit<RepairRequest, "id" | "requestedBy" | "requestedDate" | "status" | "location" | "locationName"> & {
+      attachmentUrls?: string[]
+    },
   ) => void
 }
 
@@ -54,6 +57,7 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
   })
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [signedRequestForm, setSignedRequestForm] = useState<File | null>(null)
 
   const canCreate = user && canCreateRepairs(user)
 
@@ -87,13 +91,78 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const attachmentNames = selectedFiles.map((file) => file.name)
-    onSubmit({
-      ...formData,
-      attachments: attachmentNames,
-    })
+
+    // Validate that signed request form is attached
+    if (!signedRequestForm) {
+      alert("Please attach the signed and endorsed request form before submitting.")
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      // Upload the signed request form to Supabase storage
+      const signedFormFileName = `signed_request_form_${Date.now()}_${signedRequestForm.name.replace(/\s+/g, "_")}`
+      const signedFormBuffer = await signedRequestForm.arrayBuffer()
+
+      const { data: signedFormUploadData, error: signedFormUploadError } = await supabase.storage
+        .from("pdf-documents")
+        .upload(signedFormFileName, signedFormBuffer, {
+          contentType: signedRequestForm.type,
+          cacheControl: "3600",
+        })
+
+      if (signedFormUploadError) {
+        console.error("[v0] Error uploading signed request form:", signedFormUploadError)
+        alert("Failed to upload signed request form. Please try again.")
+        return
+      }
+
+      // Get public URL for signed form
+      const { data: signedFormUrlData } = supabase.storage
+        .from("pdf-documents")
+        .getPublicUrl(signedFormFileName)
+
+      // Upload additional attachments if any
+      const attachmentUrls: string[] = []
+      for (const file of selectedFiles) {
+        const fileName = `attachment_${Date.now()}_${file.name.replace(/\s+/g, "_")}`
+        const fileBuffer = await file.arrayBuffer()
+
+        const { error: uploadError } = await supabase.storage
+          .from("pdf-documents")
+          .upload(fileName, fileBuffer, {
+            contentType: file.type,
+            cacheControl: "3600",
+          })
+
+        if (uploadError) {
+          console.error("[v0] Error uploading attachment:", uploadError)
+          continue // Skip failed uploads but continue with others
+        }
+
+        const { data: urlData } = supabase.storage
+          .from("pdf-documents")
+          .getPublicUrl(fileName)
+
+        attachmentUrls.push(urlData.publicUrl)
+      }
+
+      const attachmentNames = selectedFiles.map((file) => file.name)
+      onSubmit({
+        ...formData,
+        attachments: attachmentNames,
+        signedRequestForm: signedFormUrlData.publicUrl,
+        attachmentUrls: attachmentUrls,
+      })
+    } catch (error) {
+      console.error("[v0] Error in form submission:", error)
+      alert("An error occurred while submitting the form. Please try again.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleInputChange = (field: keyof typeof formData, value: string) => {
@@ -114,6 +183,27 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     setSelectedFiles((prev) => [...prev, ...files])
+  }
+
+  const handleSignedRequestFormUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Validate file type
+      if (!file.type.includes('pdf') && !file.type.includes('image')) {
+        alert("Please upload a PDF or image file for the signed request form.")
+        return
+      }
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert("File size must be less than 10MB.")
+        return
+      }
+      setSignedRequestForm(file)
+    }
+  }
+
+  const removeSignedRequestForm = () => {
+    setSignedRequestForm(null)
   }
 
   const removeFile = (index: number) => {
@@ -180,6 +270,56 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
           />
         </div>
 
+        <Card className="border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-950/20">
+          <CardHeader>
+            <CardTitle className="text-lg text-red-800 dark:text-red-200">Required: Signed Request Form</CardTitle>
+            <CardDescription className="text-red-700 dark:text-red-300">
+              Upload the repair request form signed by you and endorsed by your Head and Regional Head.
+              This is mandatory before the repair request can be submitted.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="border-2 border-dashed border-red-300 dark:border-red-700 rounded-lg p-6 text-center">
+              <Upload className="mx-auto h-8 w-8 text-red-500 mb-2" />
+              <div className="space-y-2">
+                <p className="text-sm text-red-700 dark:text-red-300 font-medium">Upload Signed & Endorsed Form *</p>
+                <p className="text-xs text-red-600 dark:text-red-400">PDF or image files only, max 10MB</p>
+              </div>
+              <Input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={handleSignedRequestFormUpload}
+                className="mt-2 border-red-300 focus:border-red-500"
+                required
+              />
+            </div>
+
+            {signedRequestForm && (
+              <div className="space-y-2">
+                <Label className="text-red-800 dark:text-red-200">Attached Signed Form:</Label>
+                <div className="flex items-center justify-between p-3 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <FileText className="h-5 w-5 text-red-600 dark:text-red-400" />
+                    <span className="text-sm font-medium text-red-800 dark:text-red-200">{signedRequestForm.name}</span>
+                    <span className="text-xs text-red-600 dark:text-red-400">
+                      ({(signedRequestForm.size / 1024 / 1024).toFixed(2)} MB)
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={removeSignedRequestForm}
+                    className="h-6 w-6 text-red-600 hover:text-red-800 hover:bg-red-200 dark:text-red-400 dark:hover:text-red-200 dark:hover:bg-red-800"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Attachments</CardTitle>
@@ -226,8 +366,11 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
         </Card>
 
         <div className="flex justify-end space-x-2 pt-4">
-          <Button type="submit" disabled={!formData.deviceId || !formData.description || !canCreate}>
-            Submit Repair Request
+          <Button
+            type="submit"
+            disabled={!formData.deviceId || !formData.description || !signedRequestForm || !canCreate || loading}
+          >
+            {loading ? "Submitting..." : "Submit Repair Request"}
           </Button>
         </div>
       </form>

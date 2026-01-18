@@ -157,7 +157,7 @@ function ApprovalDialog({ user, isOpen, onClose, onApprove, onReject }: Approval
                 </div>
                 <div>
                   <p className="text-muted-foreground">Location</p>
-                  <p className="font-medium">{locationNames[user.location]}</p>
+                  <p className="font-medium">{locationNames[user.location as keyof typeof locationNames] ?? user.location}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Department</p>
@@ -531,7 +531,7 @@ export function PendingUserApprovals() {
                   <MapPin className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-muted-foreground">Location</p>
-                    <p className="font-medium">{locationNames[pendingUser.location]}</p>
+                    <p className="font-medium">{locationNames[pendingUser.location as keyof typeof locationNames] ?? pendingUser.location}</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">

@@ -55,6 +55,7 @@ interface SystemUser {
     | "service_desk_takoradi"
     | "service_desk_cape_coast"
     | "service_desk_ho"
+    | "service_provider"
   location: string
   status: "active" | "inactive" | "suspended"
   lastLogin: string
@@ -75,6 +76,7 @@ const roleBadgeColors = {
   service_desk_takoradi: "outline",
   service_desk_cape_coast: "outline",
   service_desk_ho: "outline",
+  service_provider: "secondary",
 } as const
 
 const statusColors = {
@@ -107,7 +109,7 @@ export function UserManagement() {
 
   const handleInstallPWA = () => {
     deferredPrompt.prompt()
-    deferredPrompt.userChoice.then((choiceResult) => {
+    deferredPrompt.userChoice.then((choiceResult: any) => {
       if (choiceResult.outcome === "accepted") {
         console.log("User accepted the A2HS prompt")
       } else {

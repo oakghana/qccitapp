@@ -125,6 +125,7 @@ export async function POST(request: NextRequest) {
         priority: body.priority?.toLowerCase() || "medium",
         status: "open",
         location: body.location || '',
+        office_number: body.office_number || '',
         requested_by: body.requested_by || '',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -142,6 +143,116 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ticket: data })
   } catch (error) {
     console.error("[v0] API Service Tickets POST error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json()
+
+    if (!body.id) {
+      return NextResponse.json({ error: "Missing ticket id" }, { status: 400 })
+    }
+
+    // Fetch existing ticket
+    const { data: existing, error: fetchError } = await supabaseAdmin
+      .from("service_tickets")
+      .select("*")
+      .eq("id", body.id)
+      .single()
+
+    if (fetchError) {
+      console.error("[v0] Error fetching ticket for update:", fetchError)
+      return NextResponse.json({ error: fetchError.message }, { status: 500 })
+    }
+
+    // Authorization: allow if requester matches or role provided is admin/it_head
+    const actingRole = body.userRole || ""
+    const actingUser = (body.requested_by || "").toString()
+
+    const isOwner = existing.requested_by && actingUser && existing.requested_by.toLowerCase() === actingUser.toLowerCase()
+    const allowedRole = actingRole === "admin" || actingRole === "it_head"
+
+    if (!isOwner && !allowedRole) {
+      return NextResponse.json({ error: "Not authorized to update this ticket" }, { status: 403 })
+    }
+
+    // Prepare updates - only allow certain fields from user edits
+    const updates: any = {}
+    if (typeof body.title === "string") updates.title = body.title
+    if (typeof body.description === "string") updates.description = body.description
+    if (typeof body.priority === "string") updates.priority = body.priority.toLowerCase()
+    if (typeof body.category === "string") updates.category = body.category
+    if (typeof body.location === "string") updates.location = body.location
+    if (typeof body.office_number === "string") updates.office_number = body.office_number
+    updates.updated_at = new Date().toISOString()
+
+    const { data, error } = await supabaseAdmin
+      .from("service_tickets")
+      .update(updates)
+      .eq("id", body.id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error("[v0] Error updating service ticket:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ ticket: data })
+  } catch (error) {
+    console.error("[v0] API Service Tickets PUT error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const body = await request.json()
+
+    if (!body.id) {
+      return NextResponse.json({ error: "Missing ticket id" }, { status: 400 })
+    }
+
+    const { data: existing, error: fetchError } = await supabaseAdmin
+      .from("service_tickets")
+      .select("*")
+      .eq("id", body.id)
+      .single()
+
+    if (fetchError) {
+      console.error("[v0] Error fetching ticket for delete:", fetchError)
+      return NextResponse.json({ error: fetchError.message }, { status: 500 })
+    }
+
+    const actingRole = body.userRole || ""
+    const actingUser = (body.requested_by || "").toString()
+
+    const isOwner = existing.requested_by && actingUser && existing.requested_by.toLowerCase() === actingUser.toLowerCase()
+    const allowedRole = actingRole === "admin" || actingRole === "it_head"
+
+    // Prevent deletion if ticket is already assigned to an IT staff - only admin/it_head can delete
+    const isAssigned = !!(existing.assigned_to || existing.assigned_to_name || existing.assigned_to_id)
+
+    if (!isOwner && !allowedRole) {
+      return NextResponse.json({ error: "Not authorized to delete this ticket" }, { status: 403 })
+    }
+
+    if (isAssigned && !allowedRole) {
+      return NextResponse.json({ error: "Cannot delete a ticket that has been assigned to staff" }, { status: 403 })
+    }
+
+    const { error } = await supabaseAdmin.from("service_tickets").delete().eq("id", body.id)
+
+    if (error) {
+      console.error("[v0] Error deleting service ticket:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("[v0] API Service Tickets DELETE error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

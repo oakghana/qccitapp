@@ -74,6 +74,14 @@ export function applyLocationFilter<T>(query: T, user: User | null, columnName =
     // @ts-ignore - Dynamic query building
     return query.or(`${columnName}.eq.${locationFilter},${columnName}.eq.Central Stores`)
   }
+  // If user has a region_id set (regional staff), allow filtering by region_id as well
+  // This lets regional IT staff (including regional `it_staff`) see devices within their region
+  const regionId = (user as any)?.region_id || (user as any)?.regionId || (user as any)?.region
+  if (regionId) {
+    // @ts-ignore - Dynamic query building
+    return query.or(`region_id.eq.${regionId},${columnName}.eq.Central Stores`)
+  }
+
   return query
 }
 

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { dateFmt, numFmt } from "@/lib/format-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -22,8 +23,11 @@ import {
   Timer,
   Phone,
   User,
+  Upload,
+  File,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { createClient } from "@/lib/supabase/client"
 
 interface ServiceProviderRepairTask {
   id: string
@@ -77,6 +81,278 @@ interface ServiceProviderRepairTask {
   }[]
 }
 
+interface InvoiceUploadFormProps {
+  repairId: string
+  taskNumber: string
+  serviceProviderId: string | null
+  serviceProviderName: string
+  onUploadSuccess: () => void
+}
+
+function InvoiceUploadForm({
+  repairId,
+  taskNumber,
+  serviceProviderId,
+  serviceProviderName,
+  onUploadSuccess,
+}: InvoiceUploadFormProps) {
+  const { user } = useAuth()
+  const [file, setFile] = useState<File | null>(null)
+  const [invoiceNumber, setInvoiceNumber] = useState("")
+  const [totalAmount, setTotalAmount] = useState("")
+  const [laborCost, setLaborCost] = useState("")
+  const [partsCost, setPartsCost] = useState("")
+  const [otherCharges, setOtherCharges] = useState("")
+  const [laborHours, setLaborHours] = useState("")
+  const [partsUsed, setPartsUsed] = useState("")
+  const [description, setDescription] = useState("")
+  const [uploading, setUploading] = useState(false)
+  const [uploadSuccess, setUploadSuccess] = useState(false)
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0]
+    if (selectedFile) {
+      // Check file type
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg']
+      if (!allowedTypes.includes(selectedFile.type)) {
+        alert('Please select a PDF or image file (JPEG, PNG)')
+        return
+      }
+      // Check file size (max 10MB)
+      if (selectedFile.size > 10 * 1024 * 1024) {
+        alert('File size must be less than 10MB')
+        return
+      }
+      setFile(selectedFile)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!file || !invoiceNumber || !totalAmount) {
+      alert('Please fill in all required fields and select a file')
+      return
+    }
+
+    setUploading(true)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('repairId', repairId)
+      formData.append('invoiceNumber', invoiceNumber)
+      formData.append('totalAmount', totalAmount)
+      formData.append('laborCost', laborCost || '0')
+      formData.append('partsCost', partsCost || '0')
+      formData.append('otherCharges', otherCharges || '0')
+      formData.append('laborHours', laborHours || '')
+      formData.append('partsUsed', partsUsed)
+      formData.append('description', description)
+      // Use the authenticated user's id for uploaded_by (profiles table id)
+      formData.append('uploadedBy', (user?.id as string) || '')
+      formData.append('uploadedByName', serviceProviderName)
+      formData.append('serviceProviderId', serviceProviderId || '')
+      formData.append('serviceProviderName', serviceProviderName)
+
+      const response = await fetch('/api/repairs/invoices', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to upload invoice')
+      }
+
+      setUploadSuccess(true)
+      onUploadSuccess()
+
+      // Reset form
+      setFile(null)
+      setInvoiceNumber("")
+      setTotalAmount("")
+      setLaborCost("")
+      setPartsCost("")
+      setOtherCharges("")
+      setLaborHours("")
+      setPartsUsed("")
+      setDescription("")
+
+      setTimeout(() => setUploadSuccess(false), 3000)
+    } catch (error) {
+      console.error('Error uploading invoice:', error)
+      alert('Failed to upload invoice. Please try again.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {uploadSuccess && (
+        <div className="bg-green-50 dark:bg-green-950/50 p-3 rounded-lg border border-green-200 dark:border-green-800">
+          <p className="text-sm text-green-700 dark:text-green-300">
+            ✅ Invoice uploaded successfully! It will be reviewed by IT Head and Admin.
+          </p>
+        </div>
+      )}
+
+      <div className="grid md:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="invoiceNumber">Invoice Number *</Label>
+          <Input
+            id="invoiceNumber"
+            value={invoiceNumber}
+            onChange={(e) => setInvoiceNumber(e.target.value)}
+            placeholder="e.g., INV-2024-001"
+            required
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="totalAmount">Total Amount (GHS) *</Label>
+          <Input
+            id="totalAmount"
+            type="number"
+            step="0.01"
+            value={totalAmount}
+            onChange={(e) => setTotalAmount(e.target.value)}
+            placeholder="0.00"
+            required
+          />
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-3 gap-4">
+        <div>
+          <Label htmlFor="laborCost">Labor Cost (GHS)</Label>
+          <Input
+            id="laborCost"
+            type="number"
+            step="0.01"
+            value={laborCost}
+            onChange={(e) => setLaborCost(e.target.value)}
+            placeholder="0.00"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="partsCost">Parts Cost (GHS)</Label>
+          <Input
+            id="partsCost"
+            type="number"
+            step="0.01"
+            value={partsCost}
+            onChange={(e) => setPartsCost(e.target.value)}
+            placeholder="0.00"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="otherCharges">Other Charges (GHS)</Label>
+          <Input
+            id="otherCharges"
+            type="number"
+            step="0.01"
+            value={otherCharges}
+            onChange={(e) => setOtherCharges(e.target.value)}
+            placeholder="0.00"
+          />
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="laborHours">Labor Hours</Label>
+          <Input
+            id="laborHours"
+            type="number"
+            step="0.5"
+            value={laborHours}
+            onChange={(e) => setLaborHours(e.target.value)}
+            placeholder="0.0"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="partsUsed">Parts Used</Label>
+          <Input
+            id="partsUsed"
+            value={partsUsed}
+            onChange={(e) => setPartsUsed(e.target.value)}
+            placeholder="e.g., Screen, Battery, Keyboard"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="description">Description</Label>
+        <Textarea
+          id="description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Additional details about the repair work..."
+          rows={3}
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="file">Invoice File *</Label>
+        <div className="mt-1">
+          <input
+            id="file"
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png"
+            onChange={handleFileChange}
+            className="hidden"
+            required
+          />
+          <label
+            htmlFor="file"
+            className="flex items-center justify-center w-full h-32 px-4 transition bg-white border-2 border-gray-300 border-dashed rounded-md appearance-none cursor-pointer hover:border-gray-400 focus:outline-none"
+          >
+            <div className="text-center">
+              {file ? (
+                <div className="flex items-center space-x-2">
+                  <File className="w-8 h-8 text-blue-500" />
+                  <span className="text-sm text-gray-700">{file.name}</span>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center space-y-2">
+                  <Upload className="w-8 h-8 text-gray-400" />
+                  <span className="text-sm text-gray-500">
+                    Click to upload invoice (PDF, JPEG, PNG)
+                  </span>
+                  <span className="text-xs text-gray-400">Max 10MB</span>
+                </div>
+              )}
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <Button
+        type="submit"
+        disabled={uploading}
+        className="w-full"
+      >
+        {uploading ? (
+          <>
+            <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            Uploading...
+          </>
+        ) : (
+          <>
+            <Upload className="w-4 h-4 mr-2" />
+            Upload Invoice
+          </>
+        )}
+      </Button>
+    </form>
+  )
+}
+
 export function ServiceProviderTasks() {
   const { user } = useAuth()
   const [tasks, setTasks] = useState<ServiceProviderRepairTask[]>([])
@@ -90,10 +366,41 @@ export function ServiceProviderTasks() {
   const [repairCost, setRepairCost] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [providerId, setProviderId] = useState<string | null>(null)
+  const supabase = createClient()
 
   useEffect(() => {
     loadServiceProviderTasks()
   }, [user])
+
+  // Real-time subscription for repair updates
+  useEffect(() => {
+    if (!user) return
+
+    const channel = supabase
+      .channel('service-provider-tasks-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'repair_requests'
+        },
+        (payload) => {
+          console.log('[v0] Repair updated for service provider:', payload)
+          // Reload tasks when any repair is updated
+          loadServiceProviderTasks()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user])
+
+  // Only these roles can perform service-provider actions (schedule, update, view details)
+  const canManage = !!user && ["service_provider", "admin", "it_head"].includes(user.role)
 
   const loadServiceProviderTasks = async () => {
     if (!user) return
@@ -101,11 +408,44 @@ export function ServiceProviderTasks() {
     setLoading(true)
     setError(null)
     try {
+      // Resolve service provider id synchronously into a local variable so
+      // we don't rely on React state timing (setProviderId is async).
+      let localProviderId: string | null = null
+
+      if (user.role === "service_provider") {
+        try {
+          const provRes = await fetch(`/api/admin/service-providers?activeOnly=true`)
+          if (provRes.ok) {
+            const provJson = await provRes.json()
+            const providers: any[] = provJson.providers || []
+            const match = providers.find((p) => p.email && user.email && p.email.toLowerCase() === user.email.toLowerCase())
+            if (match) {
+              localProviderId = String(match.id)
+            }
+          }
+        } catch (e) {
+          console.warn("[v0] Failed to resolve service provider by email", e)
+        }
+      }
+
+      // If service provider user and we couldn't resolve a provider record,
+      // show a friendly message and stop instead of querying with an incorrect id.
+      if (user.role === "service_provider" && !localProviderId) {
+        setTasks([])
+        setError("No service provider record found for your account. Contact admin.")
+        setLoading(false)
+        return
+      }
+
+      if (localProviderId) setProviderId(localProviderId)
+
       // For admin/IT head, show all repairs assigned to service providers
-      // For service provider users, show only their repairs
+      // For service provider users, query by the resolved provider id
       const isAdmin = user.role === "admin" || user.role === "it_head" || user.role === "regional_it_head"
-      const url = isAdmin 
+      const url = isAdmin
         ? `/api/repairs/tasks?viewAll=true`
+        : user.role === "service_provider"
+        ? `/api/repairs/tasks?service_provider_id=${localProviderId}`
         : `/api/repairs/tasks?service_provider_id=${user.id}`
       
       const response = await fetch(url)
@@ -122,7 +462,9 @@ export function ServiceProviderTasks() {
       }
       
       // Transform API data to match component interface
-      const transformedTasks: ServiceProviderRepairTask[] = (data || []).map((task: any) => ({
+      const transformedTasks: ServiceProviderRepairTask[] = (data || [])
+        .filter((task: any) => task && task.id) // Filter out null/undefined tasks
+        .map((task: any) => ({
         id: task.id,
         taskNumber: task.task_number || `TASK-${task.id.substring(0, 8)}`,
         deviceInfo: task.device_info || {
@@ -166,50 +508,104 @@ export function ServiceProviderTasks() {
   }
 
   const filteredTasks = tasks.filter((task) => {
+    if (!task || !task.id) return false // Additional null check
     if (filter === "all") return true
     return task.status === filter
   })
 
-  const updateTaskStatus = (taskId: string, newStatus: ServiceProviderRepairTask["status"], notes = "") => {
-    setTasks((prev) =>
-      prev.map((task) =>
-        task.id === taskId
-          ? {
-              ...task,
-              status: newStatus,
-              ...(newStatus === "pickup_scheduled" && scheduledDate && scheduledTime
-                ? {
-                    scheduledPickupDate: `${scheduledDate}T${scheduledTime}:00Z`,
-                  }
-                : {}),
-              ...(newStatus === "collected"
-                ? {
-                    collectedDate: new Date().toISOString(),
-                  }
-                : {}),
-              ...(newStatus === "completed"
-                ? {
-                    completedDate: new Date().toISOString(),
-                  }
-                : {}),
-              statusHistory: [
-                ...task.statusHistory,
-                {
-                  status: newStatus,
-                  date: new Date().toISOString(),
-                  notes: notes || `Status updated to ${newStatus.replace("_", " ")}`,
-                  updatedBy: user?.name || "Service Provider",
-                },
-              ],
-            }
-          : task,
-      ),
-    )
+  const updateTaskStatus = async (taskId: string, newStatus: ServiceProviderRepairTask["status"], notes = "") => {
+    try {
+      // Prepare update data based on status
+      const updateData: any = {
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+      }
+
+      // Add status-specific fields
+      if (newStatus === "pickup_scheduled" && scheduledDate && scheduledTime) {
+        updateData.scheduled_pickup_date = `${scheduledDate}T${scheduledTime}:00Z`
+      } else if (newStatus === "collected") {
+        updateData.collected_date = new Date().toISOString()
+      } else if (newStatus === "completed") {
+        updateData.completed_at = new Date().toISOString()
+        updateData.repair_notes = notes || repairNotes
+        updateData.labor_hours = laborHours ? Number.parseFloat(laborHours) : undefined
+        updateData.actual_cost = repairCost ? Number.parseFloat(repairCost) : undefined
+      } else if (newStatus === "in_repair") {
+        updateData.repair_notes = notes
+      }
+
+      // Call API to update database
+      const response = await fetch("/api/repairs/update", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: taskId,
+          ...updateData,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to update task status")
+      }
+
+      // Update local state
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.id === taskId
+            ? {
+                ...task,
+                status: newStatus,
+                ...(newStatus === "pickup_scheduled" && scheduledDate && scheduledTime
+                  ? {
+                      scheduledPickupDate: `${scheduledDate}T${scheduledTime}:00Z`,
+                    }
+                  : {}),
+                ...(newStatus === "collected"
+                  ? {
+                      collectedDate: new Date().toISOString(),
+                    }
+                  : {}),
+                ...(newStatus === "completed"
+                  ? {
+                      completedDate: new Date().toISOString(),
+                      repairNotes: repairNotes,
+                      laborHours: laborHours ? Number.parseFloat(laborHours) : undefined,
+                      repairCost: repairCost ? Number.parseFloat(repairCost) : undefined,
+                    }
+                  : {}),
+                ...(newStatus === "in_repair"
+                  ? {
+                      repairNotes: notes,
+                    }
+                  : {}),
+                statusHistory: [
+                  ...task.statusHistory,
+                  {
+                    status: newStatus,
+                    date: new Date().toISOString(),
+                    notes: notes || `Status updated to ${newStatus.replace("_", " ")}`,
+                    updatedBy: user?.name || "Service Provider",
+                  },
+                ],
+              }
+            : task,
+        ),
+      )
+
+      console.log("[v0] Successfully updated task status:", taskId, newStatus)
+    } catch (error) {
+      console.error("[v0] Error updating task status:", error)
+      setError("Failed to update task status. Please try again.")
+    }
   }
 
-  const handleSchedulePickup = () => {
+  const handleSchedulePickup = async () => {
     if (selectedTask && scheduledDate && scheduledTime) {
-      updateTaskStatus(
+      await updateTaskStatus(
         selectedTask.id,
         "pickup_scheduled",
         `Pickup scheduled for ${scheduledDate} at ${scheduledTime}. ${pickupNotes}`,
@@ -221,18 +617,9 @@ export function ServiceProviderTasks() {
     }
   }
 
-  const handleCompleteRepair = () => {
+  const handleCompleteRepair = async () => {
     if (selectedTask) {
-      const updatedTask = {
-        ...selectedTask,
-        repairNotes,
-        laborHours: laborHours ? Number.parseFloat(laborHours) : undefined,
-        repairCost: repairCost ? Number.parseFloat(repairCost) : undefined,
-      }
-
-      setTasks((prev) => prev.map((task) => (task.id === selectedTask.id ? updatedTask : task)))
-
-      updateTaskStatus(selectedTask.id, "completed", `Repair completed. ${repairNotes}`)
+      await updateTaskStatus(selectedTask.id, "completed", `Repair completed. ${repairNotes}`)
       setSelectedTask(null)
       setRepairNotes("")
       setLaborHours("")
@@ -430,7 +817,7 @@ export function ServiceProviderTasks() {
                   </div>
 
                   <div className="flex gap-2">
-                    {task.status === "assigned" && (
+                    {task.status === "assigned" && canManage && (
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button
@@ -487,10 +874,10 @@ export function ServiceProviderTasks() {
                       </Dialog>
                     )}
 
-                    {task.status === "pickup_scheduled" && (
+                    {task.status === "pickup_scheduled" && canManage && (
                       <Button
                         size="sm"
-                        onClick={() => updateTaskStatus(task.id, "collected", "Device collected successfully")}
+                        onClick={async () => await updateTaskStatus(task.id, "collected", "Device collected successfully")}
                         className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white"
                       >
                         <Package className="h-4 w-4 mr-2" />
@@ -498,10 +885,10 @@ export function ServiceProviderTasks() {
                       </Button>
                     )}
 
-                    {task.status === "collected" && (
+                    {task.status === "collected" && canManage && (
                       <Button
                         size="sm"
-                        onClick={() => updateTaskStatus(task.id, "in_repair", "Repair work started")}
+                        onClick={async () => await updateTaskStatus(task.id, "in_repair", "Repair work started")}
                         className="bg-gradient-to-r from-orange-600 to-red-700 hover:from-orange-700 hover:to-red-800 text-white"
                       >
                         <Wrench className="h-4 w-4 mr-2" />
@@ -509,7 +896,7 @@ export function ServiceProviderTasks() {
                       </Button>
                     )}
 
-                    {task.status === "in_repair" && (
+                    {task.status === "in_repair" && canManage && (
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button
@@ -577,6 +964,7 @@ export function ServiceProviderTasks() {
                           View Details
                         </Button>
                       </DialogTrigger>
+
                       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                         <DialogHeader>
                           <DialogTitle className="flex items-center gap-2">
@@ -584,10 +972,12 @@ export function ServiceProviderTasks() {
                             {task.taskNumber} - Repair Details
                           </DialogTitle>
                         </DialogHeader>
+
                         <Tabs defaultValue="details" className="w-full">
-                          <TabsList className="grid w-full grid-cols-3">
+                          <TabsList className="grid w-full grid-cols-4">
                             <TabsTrigger value="details">Task Details</TabsTrigger>
                             <TabsTrigger value="progress">Progress</TabsTrigger>
+                            {user?.role === "service_provider" && <TabsTrigger value="invoices">Upload Invoice</TabsTrigger>}
                             <TabsTrigger value="history">Status History</TabsTrigger>
                           </TabsList>
 
@@ -619,6 +1009,24 @@ export function ServiceProviderTasks() {
                                   <Label className="font-semibold">Issue Description</Label>
                                   <p className="text-sm bg-muted p-3 rounded-lg">{task.issueDescription}</p>
                                 </div>
+                                {task.attachments && task.attachments.length > 0 && (
+                                  <div>
+                                    <Label className="font-semibold">Attachments</Label>
+                                    <div className="flex gap-2 flex-wrap mt-2">
+                                      {task.attachments.map((att, idx) => (
+                                        <Button
+                                          key={idx}
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => window.open(att, "_blank")}
+                                        >
+                                          <FileText className="h-4 w-4 mr-2" />
+                                          {att.split("/").pop()}
+                                        </Button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
 
                               <div className="space-y-4">
@@ -660,24 +1068,24 @@ export function ServiceProviderTasks() {
                                 <div className="space-y-2">
                                   <div className="flex justify-between text-sm">
                                     <span>Assigned:</span>
-                                    <span>{new Date(task.assignedDate).toLocaleString()}</span>
+                                    <span>{dateFmt(task.assignedDate)}</span>
                                   </div>
                                   {task.scheduledPickupDate && (
                                     <div className="flex justify-between text-sm">
                                       <span>Scheduled Pickup:</span>
-                                      <span>{new Date(task.scheduledPickupDate).toLocaleString()}</span>
+                                      <span>{dateFmt(task.scheduledPickupDate)}</span>
                                     </div>
                                   )}
                                   {task.collectedDate && (
                                     <div className="flex justify-between text-sm">
                                       <span>Collected:</span>
-                                      <span>{new Date(task.collectedDate).toLocaleString()}</span>
+                                      <span>{dateFmt(task.collectedDate)}</span>
                                     </div>
                                   )}
                                   {task.completedDate && (
                                     <div className="flex justify-between text-sm">
                                       <span>Completed:</span>
-                                      <span>{new Date(task.completedDate).toLocaleString()}</span>
+                                      <span>{dateFmt(task.completedDate)}</span>
                                     </div>
                                   )}
                                 </div>
@@ -724,7 +1132,7 @@ export function ServiceProviderTasks() {
                                     <div className="flex items-center justify-between">
                                       <span className="font-medium capitalize">{entry.status.replace("_", " ")}</span>
                                       <span className="text-xs text-muted-foreground">
-                                        {new Date(entry.date).toLocaleString()}
+                                        {dateFmt(entry.date)}
                                       </span>
                                     </div>
                                     <p className="text-sm text-muted-foreground">{entry.notes}</p>
@@ -734,6 +1142,34 @@ export function ServiceProviderTasks() {
                               </div>
                             </div>
                           </TabsContent>
+
+                          {user?.role === "service_provider" && (
+                            <TabsContent value="invoices" className="space-y-4">
+                              
+                            </TabsContent>
+                          )}
+                            <div className="space-y-4">
+                              <div className="bg-blue-50 dark:bg-blue-950/50 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                                <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                                  Upload Repair Invoice
+                                </h4>
+                                <p className="text-sm text-blue-700 dark:text-blue-300 mb-4">
+                                  Upload your invoice for this repair. This will be reviewed by IT Head and Admin only.
+                                </p>
+
+                                <InvoiceUploadForm
+                                  repairId={task.id}
+                                  taskNumber={task.taskNumber}
+                                  serviceProviderId={providerId}
+                                  serviceProviderName={user?.name || ""}
+                                  onUploadSuccess={() => {
+                                    // Refresh the task data or show success message
+                                    console.log("Invoice uploaded successfully")
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          
                         </Tabs>
                       </DialogContent>
                     </Dialog>
@@ -751,7 +1187,7 @@ export function ServiceProviderTasks() {
                       <span className="font-medium">Pickup Scheduled</span>
                     </div>
                     <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
-                      {new Date(task.scheduledPickupDate).toLocaleString()}
+                      {dateFmt(task.scheduledPickupDate)}
                     </p>
                   </div>
                 )}
