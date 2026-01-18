@@ -30,6 +30,7 @@ import {
   Wrench,
   AlertTriangle,
   Send,
+  Trash2,
 } from "lucide-react"
 import { AssignTicketDialog } from "./assign-ticket-dialog"
 import { useAuth } from "@/lib/auth-context"
@@ -75,6 +76,8 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [dbLocations, setDbLocations] = useState<{ code: string; name: string }[]>([])
+  const [deleteTicketId, setDeleteTicketId] = useState<string | null>(null)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -355,6 +358,41 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
     }
   }
 
+  const handleDeleteTicket = async (ticketId: string) => {
+    try {
+      console.log("[v0] Deleting ticket:", ticketId)
+
+      const response = await fetch("/api/service-tickets/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticketId: ticketId,
+          userId: user?.full_name || user?.name || user?.username,
+          userRole: user?.role,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.error("[v0] Error deleting ticket:", result.error)
+        alert(result.error || "Failed to delete ticket")
+        return
+      }
+
+      console.log("[v0] Ticket deleted successfully:", result.message)
+      alert(result.message || "Ticket deleted successfully")
+      
+      setDeleteConfirmOpen(false)
+      setDeleteTicketId(null)
+      setViewDetailsOpen(false)
+      await loadTickets()
+    } catch (error) {
+      console.error("[v0] Error deleting ticket:", error)
+      alert("An error occurred while deleting the ticket")
+    }
+  }
+
   const isItHeadOrAdmin = user?.role === "it_head" || user?.role === "admin" || user?.role === "regional_it_head" || user?.role?.startsWith("service_desk_")
 
   const clearFilters = () => {
@@ -550,6 +588,20 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
                         <Button variant="ghost" size="sm" onClick={() => handleStatusChange(ticket.id, "Resolved")}>
                           <CheckCircle className="h-4 w-4 mr-1" />
                           Resolve
+                        </Button>
+                      )}
+                      {ticket.assignee === "Unassigned" && (user?.full_name === ticket.requester || user?.name === ticket.requester || user?.role === "admin" || user?.role === "it_head") && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setDeleteTicketId(ticket.id)
+                            setDeleteConfirmOpen(true)
+                          }}
+                          className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Delete
                         </Button>
                       )}
                     </div>
@@ -814,6 +866,40 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
           onAssign={handleAssignTicket}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-600" />
+              Delete Ticket
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this ticket? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30">
+            <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+            <AlertDescription className="text-red-800 dark:text-red-200">
+              Only unassigned tickets can be deleted by their creators. Contact your IT Head or Admin for help.
+            </AlertDescription>
+          </Alert>
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteTicketId && handleDeleteTicket(deleteTicketId)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Ticket
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,9 +11,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle, Clock, AlertTriangle, Paperclip, Send } from "lucide-react"
+import { CheckCircle, Clock, AlertTriangle, Paperclip, Send, Trash2, Edit } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { FormNavigation } from "@/components/ui/form-navigation"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 interface Complaint {
   id: string
@@ -21,49 +22,27 @@ interface Complaint {
   description: string
   category: string
   priority: "low" | "medium" | "high" | "urgent"
-  status: "submitted" | "assigned" | "in_progress" | "resolved" | "escalated"
+  status: "submitted" | "assigned" | "in_progress" | "resolved" | "escalated" | "open" | "Open"
   submittedBy: string
   submittedAt: string
   location: string
   assignedTo?: string
   resolvedAt?: string
   attachments?: string[]
+  dbId?: string  // Database ID for deleting
 }
 
 // In-memory storage for complaints
-const complaints: Complaint[] = [
-  {
-    id: "CMP-001",
-    title: "Computer won't start",
-    description:
-      "My desktop computer is not turning on when I press the power button. The power light doesn't come on at all.",
-    category: "hardware",
-    priority: "high",
-    status: "in_progress",
-    submittedBy: "John Mensah",
-    submittedAt: "2024-01-15T09:30:00Z",
-    location: "head_office",
-    assignedTo: "Head Office Service Desk Staff",
-  },
-  {
-    id: "CMP-002",
-    title: "Email not working",
-    description: "I cannot send or receive emails. Getting error message 'Cannot connect to server'.",
-    category: "software",
-    priority: "medium",
-    status: "resolved",
-    submittedBy: "Akosua Asante",
-    submittedAt: "2024-01-14T14:20:00Z",
-    location: "kumasi",
-    assignedTo: "Kumasi Service Desk Staff",
-    resolvedAt: "2024-01-14T16:45:00Z",
-  },
-]
+const complaints: Complaint[] = []
 
 export function StaffComplaintForm() {
   const { user } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [userComplaintsList, setUserComplaintsList] = useState<Complaint[]>([])
+  const [loading, setLoading] = useState(true)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -82,6 +61,60 @@ export function StaffComplaintForm() {
     { value: "other", label: "Other" },
   ]
 
+  const userComplaints = userComplaintsList; // Declare userComplaints variable
+
+  const setUserComplaints = setUserComplaintsList; // Declare setUserComplaints variable
+
+  useEffect(() => {
+    loadUserComplaints()
+  }, [user])
+
+  const loadUserComplaints = async () => {
+    try {
+      setLoading(true)
+      console.log("[v0] Loading complaints for user:", user?.name || user?.full_name)
+
+      // Fetch tickets from API (which filters by requester for staff)
+      const params = new URLSearchParams({
+        location: user?.location || "",
+        canSeeAll: "false",
+        userRole: user?.role || "staff",
+        userId: user?.full_name || user?.name || "",
+      })
+
+      const response = await fetch(`/api/service-tickets?${params}`)
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.error("[v0] Error loading complaints:", result.error)
+        return
+      }
+
+      console.log("[v0] Loaded", result.tickets?.length || 0, "complaints for user")
+
+      const mappedComplaints: Complaint[] = (result.tickets || []).map((ticket: any) => ({
+        id: ticket.ticket_number || ticket.id,
+        dbId: ticket.id,
+        title: ticket.title,
+        description: ticket.description || "",
+        category: ticket.category || "other",
+        priority: (ticket.priority?.toLowerCase() as any) || "medium",
+        status: ticket.status as any,
+        submittedBy: ticket.requested_by || user?.name || "",
+        submittedAt: ticket.created_at,
+        location: ticket.location || user?.location || "",
+        assignedTo: ticket.assigned_to_name || undefined,
+        attachments: [],
+      }))
+
+      setUserComplaints(mappedComplaints) // Use setUserComplaints
+    } catch (error) {
+      console.error("[v0] Error loading complaints:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const priorities = [
     { value: "low", label: "Low", color: "bg-blue-100 text-blue-800" },
     { value: "medium", label: "Medium", color: "bg-yellow-100 text-yellow-800" },
@@ -94,22 +127,27 @@ export function StaffComplaintForm() {
     setIsSubmitting(true)
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      const response = await fetch("/api/service-tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: formData.title,
+          category: formData.category,
+          priority: formData.priority || "medium",
+          location: user?.location,
+          requested_by: user?.full_name || user?.name,
+          description: formData.description,
+        }),
+      })
 
-      const newComplaint: Complaint = {
-        id: `CMP-${String(complaints.length + 1).padStart(3, "0")}`,
-        title: formData.title,
-        description: formData.description,
-        category: formData.category,
-        priority: formData.priority,
-        status: "submitted",
-        submittedBy: user?.name || "Unknown User",
-        submittedAt: new Date().toISOString(),
-        location: user?.location || "head_office",
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.error("[v0] Error creating ticket:", result.error)
+        return
       }
 
-      complaints.push(newComplaint)
+      console.log("[v0] Ticket created successfully:", result.ticket)
 
       setFormData({
         title: "",
@@ -120,6 +158,9 @@ export function StaffComplaintForm() {
 
       setShowSuccess(true)
       setTimeout(() => setShowSuccess(false), 5000)
+      
+      // Reload complaints list
+      await loadUserComplaints()
     } catch (error) {
       console.error("Error submitting complaint:", error)
     } finally {
@@ -127,7 +168,39 @@ export function StaffComplaintForm() {
     }
   }
 
-  const userComplaints = complaints.filter((c) => c.submittedBy === user?.name)
+  const handleDeleteComplaint = async (complaintId: string, complaintDbId: string) => {
+    try {
+      console.log("[v0] Deleting complaint:", complaintId)
+
+      const response = await fetch("/api/service-tickets/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticketId: complaintDbId,
+          userId: user?.full_name || user?.name || user?.username,
+          userRole: user?.role,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.error("[v0] Error deleting complaint:", result.error)
+        alert(result.error || "Failed to delete complaint")
+        return
+      }
+
+      console.log("[v0] Complaint deleted successfully")
+      alert(result.message || "Complaint deleted successfully")
+      
+      setShowDeleteConfirm(false)
+      setDeleteConfirmId(null)
+      await loadUserComplaints()
+    } catch (error) {
+      console.error("[v0] Error deleting complaint:", error)
+      alert("An error occurred while deleting the complaint")
+    }
+  }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -279,7 +352,11 @@ export function StaffComplaintForm() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {userComplaints.length === 0 ? (
+              {loading ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>Loading your complaints...</p>
+                </div>
+              ) : userComplaints.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <AlertTriangle className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>No complaints submitted yet</p>
@@ -303,10 +380,36 @@ export function StaffComplaintForm() {
 
                     <p className="text-sm text-muted-foreground line-clamp-2">{complaint.description}</p>
 
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
                       <span>Submitted: {new Date(complaint.submittedAt).toLocaleDateString()}</span>
                       {complaint.assignedTo && <span>Assigned to: {complaint.assignedTo}</span>}
                     </div>
+
+                    {/* Action buttons for unassigned complaints */}
+                    {!complaint.assignedTo && (
+                      <div className="flex gap-2 pt-2 border-t">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs h-7 bg-transparent"
+                        >
+                          <Edit className="h-3 w-3 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="text-xs h-7"
+                          onClick={() => {
+                            setDeleteConfirmId(complaint.dbId || complaint.id)
+                            setShowDeleteConfirm(true)
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          Delete
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))
               )}
@@ -314,6 +417,39 @@ export function StaffComplaintForm() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-600" />
+              Delete Complaint
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this complaint? This action cannot be undone. Only unassigned complaints can be deleted.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (deleteConfirmId) {
+                  const complaint = userComplaints.find(c => c.dbId === deleteConfirmId || c.id === deleteConfirmId)
+                  handleDeleteComplaint(complaint?.id || deleteConfirmId, complaint?.dbId || deleteConfirmId)
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
