@@ -53,16 +53,16 @@ export function SystemOverview() {
       // Calculate average repair time from completed repairs
       const { data: completedRepairs } = await supabase
         .from("repair_tasks")
-        .select("created_at, completed_at")
+        .select("created_at, completed_date")
         .eq("status", "completed")
-        .not("completed_at", "is", null)
+        .not("completed_date", "is", null)
         .limit(50)
 
       let avgRepairDays = 0
       if (completedRepairs && completedRepairs.length > 0) {
         const totalDays = completedRepairs.reduce((sum, repair) => {
           const start = new Date(repair.created_at).getTime()
-          const end = new Date(repair.completed_at!).getTime()
+          const end = new Date(repair.completed_date!).getTime()
           const days = (end - start) / (1000 * 60 * 60 * 24)
           return sum + days
         }, 0)

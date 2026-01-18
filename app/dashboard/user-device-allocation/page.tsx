@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Monitor, Wrench, Archive, CheckCircle, Download, User } from "lucide-react"
+import { Search, Monitor, Wrench, Archive, CheckCircle, Download, User, MapPin, Filter, Loader2 } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
+import { useRouter } from "next/navigation"
 
 interface Device {
   id: string
@@ -40,17 +43,32 @@ interface AllocationStats {
 }
 
 export default function UserDeviceAllocationPage() {
+  const { user: authUser, loading: authLoading } = useAuth()
+  const router = useRouter()
   const [users, setUsers] = useState<UserProfile[]>([])
   const [devices, setDevices] = useState<Device[]>([])
   const [stats, setStats] = useState<AllocationStats | null>(null)
   const [selectedUser, setSelectedUser] = useState<string>("")
   const [searchTerm, setSearchTerm] = useState("")
+  const [locationFilter, setLocationFilter] = useState<string>("all")
+  const [activeTab, setActiveTab] = useState("overview")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
+  // Allowed roles for this page
+  const allowedRoles = ["admin", "it_head"]
+
   useEffect(() => {
-    loadData()
-  }, [])
+    if (!authLoading && authUser && !allowedRoles.includes(authUser.role)) {
+      router.push("/dashboard")
+    }
+  }, [authUser, authLoading, router])
+
+  useEffect(() => {
+    if (authUser && allowedRoles.includes(authUser.role)) {
+      loadData()
+    }
+  }, [authUser])
 
   const loadData = async (userName?: string) => {
     try {
@@ -142,10 +160,35 @@ export default function UserDeviceAllocationPage() {
       user.username?.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
+  // Filter devices by location
+  const filteredDevices = locationFilter === "all" 
+    ? devices 
+    : devices.filter(d => d.location?.toLowerCase() === locationFilter.toLowerCase())
+  
+  // Get unique locations from devices
+  const uniqueLocations = [...new Set(devices.map(d => d.location).filter(Boolean))]
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (!authUser || !allowedRoles.includes(authUser.role)) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p className="text-muted-foreground">You do not have access to this page.</p>
+      </div>
+    )
+  }
+
   if (loading && !users.length) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">Loading user device allocation...</p>
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground ml-2">Loading user device allocation...</p>
       </div>
     )
   }
@@ -270,95 +313,193 @@ export default function UserDeviceAllocationPage() {
         </div>
       )}
 
-      {/* Devices by Type and Location */}
-      {stats && (
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Devices by Type</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {Object.entries(stats.byDeviceType).map(([type, count]) => (
-                  <div key={type} className="flex items-center justify-between">
-                    <span className="text-sm capitalize">{type}</span>
-                    <Badge variant="secondary">{count}</Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+      {/* Tabbed Content for better organization */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="devices">Allocated Devices</TabsTrigger>
+          <TabsTrigger value="by-type">By Device Type</TabsTrigger>
+          <TabsTrigger value="by-location">By Location</TabsTrigger>
+        </TabsList>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Devices by Location</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {Object.entries(stats.byLocation).map(([location, count]) => (
-                  <div key={location} className="flex items-center justify-between">
-                    <span className="text-sm">{location}</span>
-                    <Badge variant="secondary">{count}</Badge>
+        <TabsContent value="overview">
+          {stats && (
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Monitor className="h-5 w-5" />
+                    Devices by Type
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {Object.entries(stats.byDeviceType).map(([type, count]) => (
+                      <div key={type} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
+                        <span className="text-sm capitalize">{type}</span>
+                        <Badge variant="secondary">{count}</Badge>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+                </CardContent>
+              </Card>
 
-      {/* Device List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Allocated Devices</CardTitle>
-          <CardDescription>
-            {selectedUser ? `Devices assigned to ${selectedUser}` : "All devices assigned to users in the system"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {devices.length === 0 ? (
-            <div className="text-center py-12">
-              <Monitor className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">
-                {selectedUser
-                  ? `No devices found for ${selectedUser}`
-                  : "No devices found. Try selecting a different user."}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {devices.map((device) => (
-                <div key={device.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <Monitor className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">
-                        {device.brand} {device.model}
-                      </span>
-                      <Badge variant="outline" className="text-xs">
-                        {device.device_type}
-                      </Badge>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Serial: {device.serial_number} | Location: {device.location}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Assigned to: <span className="font-medium">{device.assigned_to}</span>
-                    </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    Devices by Location
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {Object.entries(stats.byLocation).map(([location, count]) => (
+                      <div key={location} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
+                        <span className="text-sm">{location}</span>
+                        <Badge variant="secondary">{count}</Badge>
+                      </div>
+                    ))}
                   </div>
-                  <Badge
-                    variant={
-                      device.status === "active" ? "default" : device.status === "repair" ? "destructive" : "secondary"
-                    }
-                  >
-                    {device.status}
-                  </Badge>
-                </div>
-              ))}
+                </CardContent>
+              </Card>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </TabsContent>
+
+        <TabsContent value="devices">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <CardTitle>Allocated Devices</CardTitle>
+                  <CardDescription>
+                    {selectedUser ? `Devices assigned to ${selectedUser}` : "All devices assigned to users in the system"}
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <Select value={locationFilter} onValueChange={setLocationFilter}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Filter by location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Locations</SelectItem>
+                      {uniqueLocations.map((loc) => (
+                        <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {filteredDevices.length === 0 ? (
+                <div className="text-center py-12">
+                  <Monitor className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">
+                    {selectedUser
+                      ? `No devices found for ${selectedUser}`
+                      : "No devices found. Try selecting a different user or location."}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                  {filteredDevices.map((device) => (
+                    <div key={device.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Monitor className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">
+                            {device.brand} {device.model}
+                          </span>
+                          <Badge variant="outline" className="text-xs">
+                            {device.device_type}
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Serial: {device.serial_number} | Location: {device.location}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Assigned to: <span className="font-medium">{device.assigned_to}</span>
+                        </div>
+                      </div>
+                      <Badge
+                        variant={
+                          device.status === "active" ? "default" : device.status === "repair" ? "destructive" : "secondary"
+                        }
+                      >
+                        {device.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="by-type">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Monitor className="h-5 w-5" />
+                Devices by Type
+              </CardTitle>
+              <CardDescription>Breakdown of all allocated devices by device type</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {stats ? (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {Object.entries(stats.byDeviceType).map(([type, count]) => (
+                    <div key={type} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <Monitor className="h-5 w-5 text-primary" />
+                        </div>
+                        <span className="font-medium capitalize">{type}</span>
+                      </div>
+                      <Badge variant="secondary" className="text-lg px-3 py-1">{count}</Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-8">No data available</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="by-location">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Devices by Location
+              </CardTitle>
+              <CardDescription>Breakdown of all allocated devices by location</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {stats ? (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {Object.entries(stats.byLocation).map(([location, count]) => (
+                    <div key={location} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                          <MapPin className="h-5 w-5 text-green-600" />
+                        </div>
+                        <span className="font-medium">{location}</span>
+                      </div>
+                      <Badge variant="secondary" className="text-lg px-3 py-1">{count}</Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-8">No data available</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

@@ -7,19 +7,31 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { name, email, phone, role, location, department, password, createdBy } = body
+    const { name, email, phone, role, location, department, password, createdBy, username, status } = body
 
-    console.log("[v0] Creating user:", { email, role, location })
+    console.log("[v0] Creating user:", { email, role, location, username })
 
     const passwordToHash = password || "qcc@123"
     const hashedPassword = await bcrypt.hash(passwordToHash, 10)
 
-    console.log("[v0] Generated password hash:", hashedPassword.substring(0, 30))
+    // Use provided username or fall back to email
+    const finalUsername = username || email
+
+    // Check if username already exists
+    const { data: existingUser } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("username", finalUsername)
+      .single()
+
+    if (existingUser) {
+      return NextResponse.json({ error: "Username already exists" }, { status: 400 })
+    }
 
     const { data, error } = await supabase
       .from("profiles")
       .insert({
-        username: email,
+        username: finalUsername,
         email: email,
         full_name: name,
         role: role,
@@ -27,7 +39,7 @@ export async function POST(request: Request) {
         phone: phone || "+233XXXXXXXXX",
         department: department || "ITD",
         password_hash: hashedPassword,
-        status: "approved",
+        status: status || "approved",
         is_active: true,
       })
       .select()

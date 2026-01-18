@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
   Menu,
   X,
@@ -24,6 +25,7 @@ import {
   ClipboardList,
   Plus,
   ChevronDown,
+  ChevronRight,
   Building2,
   Truck,
   FileText,
@@ -34,6 +36,7 @@ import {
   BookOpen,
   UserCheck,
   Send,
+  Store,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
@@ -46,6 +49,13 @@ interface NavigationItem {
   href: string
   icon: React.ElementType
   badge?: string | number
+}
+
+interface NavigationGroup {
+  name: string
+  icon: React.ElementType
+  badge?: number
+  items: NavigationItem[]
 }
 
 interface ModernSidebarProps {
@@ -61,6 +71,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
   const [isProfileExpanded, setIsProfileExpanded] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
+  const [expandedGroups, setExpandedGroups] = useState<string[]>(["IT Operations", "Service & Repairs", "Device Management", "Store Management", "User Management"])
 
   useEffect(() => {
     setIsMounted(true)
@@ -74,363 +85,487 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
 
   const roleColors = user?.role ? getRoleColorScheme(user.role) : null
 
-  const getNavigationItems = (): NavigationItem[] => {
+  const toggleGroup = (groupName: string) => {
+    setExpandedGroups(prev => 
+      prev.includes(groupName) 
+        ? prev.filter(g => g !== groupName)
+        : [...prev, groupName]
+    )
+  }
+
+  const getNavigationItems = (): { items: NavigationItem[]; groups: NavigationGroup[] } => {
     const baseItems: NavigationItem[] = [{ name: "Dashboard", href: "/dashboard", icon: Home }]
 
     if (user?.role === "staff" || user?.role === "user") {
-      return [
-        ...baseItems,
-        {
-          name: "Service Desk",
-          href: "/dashboard/service-desk",
-          icon: Headphones,
-          badge: counts.serviceDeskTickets > 0 ? counts.serviceDeskTickets : undefined,
-        },
-        { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
-      ]
+      return {
+        items: [
+          ...baseItems,
+          {
+            name: "Service Desk",
+            href: "/dashboard/service-desk",
+            icon: Headphones,
+            badge: counts.serviceDeskTickets > 0 ? counts.serviceDeskTickets : undefined,
+          },
+          { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
+        ],
+        groups: [],
+      }
     }
 
     if (user?.role === "admin") {
-      const fullNavigation: NavigationItem[] = [
-        ...baseItems,
-        {
-          name: "IT Staff Status",
-          href: "/dashboard/it-staff-status",
-          icon: Building2,
-          badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
-        },
-        {
-          name: "Service Desk",
-          href: "/dashboard/service-desk",
-          icon: Headphones,
-          badge: counts.serviceDeskTickets > 0 ? counts.serviceDeskTickets : undefined,
-        },
-        {
-          name: "Repairs",
-          href: "/dashboard/repairs",
-          icon: Wrench,
-          badge: counts.repairs > 0 ? counts.repairs : undefined,
-        },
-        { 
-          name: "Devices", 
-          href: "/dashboard/devices", 
-          icon: Monitor,
-          badge: counts.devices > 0 ? counts.devices : undefined,
-        },
-        { name: "Store Overview", href: "/dashboard/store-overview", icon: Package },
-        { name: "Store Inventory", href: "/dashboard/store-inventory", icon: Database },
-        {
-          name: "Store Requisitions",
-          href: "/dashboard/store-requisitions",
-          icon: ClipboardList,
-          badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
-        },
-        {
-          name: "Stock Transfer Requests",
-          href: "/dashboard/stock-transfer-requests",
-          icon: Send,
-        },
-        {
-          name: "Store Summary Report",
-          href: "/dashboard/store-summary-report",
-          icon: FileText,
-        },
-        // Adding Device Summary Report link for admin
-        {
-          name: "Device Summary Report",
-          href: "/dashboard/device-summary-report",
-          icon: Monitor,
-        },
-        {
-          name: "User Device Allocation",
-          href: "/dashboard/user-device-allocation",
-          icon: UserCheck,
-        },
-        {
-          name: "IT Service Provider",
-          href: "/dashboard/service-provider",
-          icon: Truck,
-          badge: counts.serviceProviders > 0 ? counts.serviceProviders : undefined,
-        },
-        { name: "IT Reports", href: "/dashboard/it-reports", icon: FileText },
-        { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
-        { name: "Users", href: "/dashboard/users", icon: Users },
-        {
-          name: "Pending User Approvals",
-          href: "/dashboard/user-accounts",
-          icon: UserPlus,
-          badge: counts.userAccounts > 0 ? counts.userAccounts : undefined,
-        },
-        {
-          name: "Notifications",
-          href: "/dashboard/notifications",
-          icon: Bell,
-          badge: counts.notifications > 0 ? counts.notifications : undefined,
-        },
-        { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-        { name: "Lookup Data", href: "/dashboard/lookup-data", icon: Database },
-        { name: "System Settings", href: "/dashboard/system-settings", icon: Settings },
-        {
-          name: "Updates",
-          href: "/dashboard/updates",
-          icon: Rss,
-          badge: counts.updates > 0 ? counts.updates : undefined,
-        },
-        { name: "Help Guide", href: "/dashboard/help-guide", icon: BookOpen },
-      ]
-      return fullNavigation
+      return {
+        items: [
+          ...baseItems,
+          {
+            name: "Service Desk",
+            href: "/dashboard/service-desk",
+            icon: Headphones,
+            badge: counts.serviceDeskTickets > 0 ? counts.serviceDeskTickets : undefined,
+          },
+          {
+            name: "Notifications",
+            href: "/dashboard/notifications",
+            icon: Bell,
+            badge: counts.notifications > 0 ? counts.notifications : undefined,
+          },
+          { name: "Lookup Data", href: "/dashboard/lookup-data", icon: Database },
+          { name: "System Settings", href: "/dashboard/system-settings", icon: Settings },
+          {
+            name: "Updates",
+            href: "/dashboard/updates",
+            icon: Rss,
+            badge: counts.updates > 0 ? counts.updates : undefined,
+          },
+          { name: "Help Guide", href: "/dashboard/help-guide", icon: BookOpen },
+        ],
+        groups: [
+          {
+            name: "IT Operations",
+            icon: Building2,
+            badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
+            items: [
+              {
+                name: "IT Staff Status",
+                href: "/dashboard/it-staff-status",
+                icon: Users,
+                badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
+              },
+              { name: "IT Reports", href: "/dashboard/it-reports", icon: BarChart3 },
+              { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
+            ],
+          },
+          {
+            name: "Service & Repairs",
+            icon: Wrench,
+            badge: counts.repairs > 0 ? counts.repairs : undefined,
+            items: [
+              {
+                name: "Repairs",
+                href: "/dashboard/repairs",
+                icon: Wrench,
+                badge: counts.repairs > 0 ? counts.repairs : undefined,
+              },
+              {
+                name: "IT Service Provider",
+                href: "/dashboard/service-provider",
+                icon: Truck,
+                badge: counts.serviceProviders > 0 ? counts.serviceProviders : undefined,
+              },
+              { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
+            ],
+          },
+          {
+            name: "Device Management",
+            icon: Monitor,
+            badge: counts.devices > 0 ? counts.devices : undefined,
+            items: [
+              { 
+                name: "All Devices", 
+                href: "/dashboard/devices", 
+                icon: Monitor,
+                badge: counts.devices > 0 ? counts.devices : undefined,
+              },
+              {
+                name: "Device Summary Report",
+                href: "/dashboard/device-summary-report",
+                icon: FileText,
+              },
+              {
+                name: "User Device Allocation",
+                href: "/dashboard/user-device-allocation",
+                icon: UserCheck,
+              },
+            ],
+          },
+          {
+            name: "Store Management",
+            icon: Store,
+            badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
+            items: [
+              { name: "Store Overview", href: "/dashboard/store-overview", icon: Package },
+              { name: "Store Inventory", href: "/dashboard/store-inventory", icon: Database },
+              {
+                name: "Store Requisitions",
+                href: "/dashboard/store-requisitions",
+                icon: ClipboardList,
+                badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
+              },
+              {
+                name: "Stock Transfer Requests",
+                href: "/dashboard/stock-transfer-requests",
+                icon: Send,
+              },
+              {
+                name: "Stock Balance Report",
+                href: "/dashboard/store-summary-report",
+                icon: FileText,
+              },
+            ],
+          },
+          {
+            name: "User Management",
+            icon: Users,
+            badge: counts.userAccounts > 0 ? counts.userAccounts : undefined,
+            items: [
+              { name: "All Users", href: "/dashboard/users", icon: Users },
+              {
+                name: "Pending Approvals",
+                href: "/dashboard/user-accounts",
+                icon: UserPlus,
+                badge: counts.userAccounts > 0 ? counts.userAccounts : undefined,
+              },
+            ],
+          },
+        ],
+      }
     }
 
     if (user?.role === "it_staff") {
-      return [
-        ...baseItems,
-        {
-          name: "Assigned Tasks",
-          href: "/dashboard/assigned-tasks",
-          icon: ClipboardList,
-          badge: counts.assignedTasks > 0 ? counts.assignedTasks : undefined,
-        },
-        {
-          name: "Repairs",
-          href: "/dashboard/repairs",
-          icon: Wrench,
-          badge: counts.repairs > 0 ? counts.repairs : undefined,
-        },
-        { name: "Devices", href: "/dashboard/devices", icon: Monitor },
-        { name: "Store Stock Levels", href: "/dashboard/store-snapshot", icon: Package },
-        {
-          name: "Stock Balance Report",
-          href: "/dashboard/store-summary-report",
-          icon: FileText,
-        },
-        {
-          name: "My Stock Requests",
-          href: "/dashboard/stock-transfer-requests",
-          icon: Send,
-        },
-        { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
-        { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
-      ]
+      return {
+        items: [
+          ...baseItems,
+          {
+            name: "Assigned Tasks",
+            href: "/dashboard/assigned-tasks",
+            icon: ClipboardList,
+            badge: counts.assignedTasks > 0 ? counts.assignedTasks : undefined,
+          },
+          {
+            name: "Repairs",
+            href: "/dashboard/repairs",
+            icon: Wrench,
+            badge: counts.repairs > 0 ? counts.repairs : undefined,
+          },
+          { name: "Devices", href: "/dashboard/devices", icon: Monitor },
+          { name: "Store Stock Levels", href: "/dashboard/store-snapshot", icon: Package },
+          {
+            name: "Stock Balance Report",
+            href: "/dashboard/store-summary-report",
+            icon: FileText,
+          },
+          {
+            name: "My Stock Requests",
+            href: "/dashboard/stock-transfer-requests",
+            icon: Send,
+          },
+          { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
+          { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
+        ],
+        groups: [],
+      }
     }
 
     if (user?.role === "it_store_head") {
-      return [
-        ...baseItems,
-        {
-          name: "Assigned Tasks",
-          href: "/dashboard/assigned-tasks",
-          icon: ClipboardList,
-          badge: counts.assignedTasks > 0 ? counts.assignedTasks : undefined,
-        },
-        {
-          name: "Repairs",
-          href: "/dashboard/repairs",
-          icon: Wrench,
-          badge: counts.repairs > 0 ? counts.repairs : undefined,
-        },
-        { name: "Devices", href: "/dashboard/devices", icon: Monitor },
-        { name: "Store Overview", href: "/dashboard/store-overview", icon: Package },
-        { name: "Store Inventory", href: "/dashboard/store-inventory", icon: Database },
-        {
-          name: "Store Requisitions",
-          href: "/dashboard/store-requisitions",
-          icon: ClipboardList,
-          badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
-        },
-        {
-          name: "Stock Transfer Requests",
-          href: "/dashboard/stock-transfer-requests",
-          icon: Send,
-        },
-        {
-          name: "Store Summary Report",
-          href: "/dashboard/store-summary-report",
-          icon: FileText,
-        },
-        { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
-        { name: "Users", href: "/dashboard/users", icon: Users },
-        { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
-      ]
+      return {
+        items: [
+          ...baseItems,
+          {
+            name: "Assigned Tasks",
+            href: "/dashboard/assigned-tasks",
+            icon: ClipboardList,
+            badge: counts.assignedTasks > 0 ? counts.assignedTasks : undefined,
+          },
+          {
+            name: "Repairs",
+            href: "/dashboard/repairs",
+            icon: Wrench,
+            badge: counts.repairs > 0 ? counts.repairs : undefined,
+          },
+          { name: "Devices", href: "/dashboard/devices", icon: Monitor },
+          { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
+          { name: "Users", href: "/dashboard/users", icon: Users },
+          { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
+        ],
+        groups: [
+          {
+            name: "Store Management",
+            icon: Store,
+            badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
+            items: [
+              { name: "Store Overview", href: "/dashboard/store-overview", icon: Package },
+              { name: "Store Inventory", href: "/dashboard/store-inventory", icon: Database },
+              {
+                name: "Store Requisitions",
+                href: "/dashboard/store-requisitions",
+                icon: ClipboardList,
+                badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
+              },
+              {
+                name: "Stock Transfer Requests",
+                href: "/dashboard/stock-transfer-requests",
+                icon: Send,
+              },
+              {
+                name: "Stock Balance Report",
+                href: "/dashboard/store-summary-report",
+                icon: FileText,
+              },
+            ],
+          },
+        ],
+      }
     }
 
     if (user?.role === "it_head") {
-      const itHeadNavigation: NavigationItem[] = [
-        ...baseItems,
-        {
-          name: "IT Staff Status",
-          href: "/dashboard/it-staff-status",
-          icon: UserPlus,
-          badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
-        },
-        {
-          name: "Service Desk",
-          href: "/dashboard/service-desk",
-          icon: Headphones,
-          badge: counts.serviceDeskTickets > 0 ? counts.serviceDeskTickets : undefined,
-        },
-        {
-          name: "Repairs",
-          href: "/dashboard/repairs",
-          icon: Wrench,
-          badge: counts.repairs > 0 ? counts.repairs : undefined,
-        },
-        { name: "Devices", href: "/dashboard/devices", icon: Monitor },
-        { name: "Store Inventory", href: "/dashboard/store-inventory", icon: Package },
-        {
-          name: "Store Requisitions",
-          href: "/dashboard/store-requisitions",
-          icon: ClipboardList,
-          badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
-        },
-        {
-          name: "Stock Balance Report",
-          href: "/dashboard/store-summary-report",
-          icon: FileText,
-        },
-        {
-          name: "IT Service Provider",
-          href: "/dashboard/service-provider",
-          icon: Truck,
-          badge: counts.serviceProviders > 0 ? counts.serviceProviders : undefined,
-        },
-        { name: "IT Reports", href: "/dashboard/it-reports", icon: FileText },
-        { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
-        {
-          name: "Notifications",
-          href: "/dashboard/notifications",
-          icon: Bell,
-          badge: counts.notifications > 0 ? counts.notifications : undefined,
-        },
-        { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-      ]
-      return itHeadNavigation
+      return {
+        items: [
+          ...baseItems,
+          {
+            name: "Service Desk",
+            href: "/dashboard/service-desk",
+            icon: Headphones,
+            badge: counts.serviceDeskTickets > 0 ? counts.serviceDeskTickets : undefined,
+          },
+          {
+            name: "Notifications",
+            href: "/dashboard/notifications",
+            icon: Bell,
+            badge: counts.notifications > 0 ? counts.notifications : undefined,
+          },
+        ],
+        groups: [
+          {
+            name: "IT Operations",
+            icon: Building2,
+            badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
+            items: [
+              {
+                name: "IT Staff Status",
+                href: "/dashboard/it-staff-status",
+                icon: Users,
+                badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
+              },
+              { name: "IT Reports", href: "/dashboard/it-reports", icon: BarChart3 },
+              { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
+            ],
+          },
+          {
+            name: "Service & Repairs",
+            icon: Wrench,
+            badge: counts.repairs > 0 ? counts.repairs : undefined,
+            items: [
+              {
+                name: "Repairs",
+                href: "/dashboard/repairs",
+                icon: Wrench,
+                badge: counts.repairs > 0 ? counts.repairs : undefined,
+              },
+              {
+                name: "IT Service Provider",
+                href: "/dashboard/service-provider",
+                icon: Truck,
+                badge: counts.serviceProviders > 0 ? counts.serviceProviders : undefined,
+              },
+              { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
+            ],
+          },
+          {
+            name: "Device Management",
+            icon: Monitor,
+            badge: counts.devices > 0 ? counts.devices : undefined,
+            items: [
+              { 
+                name: "All Devices", 
+                href: "/dashboard/devices", 
+                icon: Monitor,
+                badge: counts.devices > 0 ? counts.devices : undefined,
+              },
+              {
+                name: "Device Summary Report",
+                href: "/dashboard/device-summary-report",
+                icon: FileText,
+              },
+              {
+                name: "User Device Allocation",
+                href: "/dashboard/user-device-allocation",
+                icon: UserCheck,
+              },
+            ],
+          },
+          {
+            name: "Store Management",
+            icon: Store,
+            badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
+            items: [
+              { name: "Store Inventory", href: "/dashboard/store-inventory", icon: Package },
+              {
+                name: "Store Requisitions",
+                href: "/dashboard/store-requisitions",
+                icon: ClipboardList,
+                badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
+              },
+              {
+                name: "Stock Balance Report",
+                href: "/dashboard/store-summary-report",
+                icon: FileText,
+              },
+            ],
+          },
+        ],
+      }
     }
 
     // Regional IT Head role - manages regional IT operations (location-based)
     if (user?.role === "regional_it_head") {
-      const regionalNavigation: NavigationItem[] = [
-        ...baseItems,
-        {
-          name: "IT Staff Status",
-          href: "/dashboard/it-staff-status",
-          icon: Users,
-          badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
-        },
-        {
-          name: "Service Desk",
-          href: "/dashboard/service-desk",
-          icon: Headphones,
-          badge: counts.serviceDeskTickets > 0 ? counts.serviceDeskTickets : undefined,
-        },
-        {
-          name: "Repairs",
-          href: "/dashboard/repairs",
-          icon: Wrench,
-          badge: counts.repairs > 0 ? counts.repairs : undefined,
-        },
-        { 
-          name: "Devices", 
-          href: "/dashboard/devices", 
-          icon: Monitor,
-          badge: counts.devices > 0 ? counts.devices : undefined,
-        },
-        { name: "Store Overview", href: "/dashboard/store-overview", icon: Package },
-        { name: "Store Stock Levels", href: "/dashboard/store-snapshot", icon: Database },
-        {
-          name: "Store Requisitions",
-          href: "/dashboard/regional-store-requisitions",
-          icon: ClipboardList,
-          badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
-        },
-        {
-          name: "Stock Balance Report",
-          href: "/dashboard/store-summary-report",
-          icon: FileText,
-        },
-        {
-          name: "IT Service Provider",
-          href: "/dashboard/service-provider",
-          icon: Truck,
-          badge: counts.serviceProviders > 0 ? counts.serviceProviders : undefined,
-        },
-        { name: "IT Reports", href: "/dashboard/it-reports", icon: FileText },
-        { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
-        {
-          name: "Notifications",
-          href: "/dashboard/notifications",
-          icon: Bell,
-          badge: counts.notifications > 0 ? counts.notifications : undefined,
-        },
-        { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-      ]
-      return regionalNavigation
+      return {
+        items: [
+          ...baseItems,
+          {
+            name: "Service Desk",
+            href: "/dashboard/service-desk",
+            icon: Headphones,
+            badge: counts.serviceDeskTickets > 0 ? counts.serviceDeskTickets : undefined,
+          },
+          { 
+            name: "Devices", 
+            href: "/dashboard/devices", 
+            icon: Monitor,
+            badge: counts.devices > 0 ? counts.devices : undefined,
+          },
+        ],
+        groups: [
+          {
+            name: "IT Operations",
+            icon: Building2,
+            badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
+            items: [
+              {
+                name: "IT Staff Status",
+                href: "/dashboard/it-staff-status",
+                icon: Users,
+                badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
+              },
+              { name: "IT Reports", href: "/dashboard/it-reports", icon: BarChart3 },
+              { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
+            ],
+          },
+          {
+            name: "Service & Repairs",
+            icon: Wrench,
+            badge: counts.repairs > 0 ? counts.repairs : undefined,
+            items: [
+              {
+                name: "Repairs",
+                href: "/dashboard/repairs",
+                icon: Wrench,
+                badge: counts.repairs > 0 ? counts.repairs : undefined,
+              },
+              {
+                name: "IT Service Provider",
+                href: "/dashboard/service-provider",
+                icon: Truck,
+                badge: counts.serviceProviders > 0 ? counts.serviceProviders : undefined,
+              },
+              { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
+            ],
+          },
+          {
+            name: "Store Management",
+            icon: Store,
+            badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
+            items: [
+              { name: "Store Overview", href: "/dashboard/store-overview", icon: Package },
+              { name: "Store Stock Levels", href: "/dashboard/store-snapshot", icon: Database },
+              {
+                name: "Store Requisitions",
+                href: "/dashboard/regional-store-requisitions",
+                icon: ClipboardList,
+                badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
+              },
+              {
+                name: "Stock Balance Report",
+                href: "/dashboard/store-summary-report",
+                icon: FileText,
+              },
+            ],
+          },
+        ],
+      }
     }
 
     if (user?.role === "service_provider") {
-      const serviceProviderNavigation: NavigationItem[] = [
-        { name: "Dashboard", href: "/dashboard", icon: Home },
-        {
-          name: "My Tasks",
-          href: "/dashboard/service-provider",
-          icon: Wrench,
-          badge: counts.assignedTasks > 0 ? counts.assignedTasks : undefined,
-        },
-        {
-          name: "Notifications",
-          href: "/dashboard/notifications",
-          icon: Bell,
-          badge: counts.notifications > 0 ? counts.notifications : undefined,
-        },
-      ]
-      return serviceProviderNavigation
+      return {
+        items: [
+          { name: "Dashboard", href: "/dashboard", icon: Home },
+          {
+            name: "My Tasks",
+            href: "/dashboard/service-provider",
+            icon: Wrench,
+            badge: counts.assignedTasks > 0 ? counts.assignedTasks : undefined,
+          },
+        ],
+        groups: [],
+      }
     }
 
     // Location-based Service Desk roles
     if (user?.role?.startsWith("service_desk_")) {
-      const serviceDeskNavigation: NavigationItem[] = [
-        ...baseItems,
-        {
-          name: "Service Desk",
-          href: "/dashboard/service-desk",
-          icon: Headphones,
-          badge: counts.serviceDeskTickets > 0 ? counts.serviceDeskTickets : undefined,
-        },
-        {
-          name: "Assigned Tasks",
-          href: "/dashboard/assigned-tasks",
-          icon: ClipboardList,
-          badge: counts.assignedTasks > 0 ? counts.assignedTasks : undefined,
-        },
-        {
-          name: "IT Staff Status",
-          href: "/dashboard/it-staff-status",
-          icon: Users,
-          badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
-        },
-        { name: "Devices", href: "/dashboard/devices", icon: Monitor },
-        {
-          name: "Repairs",
-          href: "/dashboard/repairs",
-          icon: Wrench,
-          badge: counts.repairs > 0 ? counts.repairs : undefined,
-        },
-        { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
-        {
-          name: "Notifications",
-          href: "/dashboard/notifications",
-          icon: Bell,
-          badge: counts.notifications > 0 ? counts.notifications : undefined,
-        },
-      ]
-      return serviceDeskNavigation
+      return {
+        items: [
+          ...baseItems,
+          {
+            name: "Service Desk",
+            href: "/dashboard/service-desk",
+            icon: Headphones,
+            badge: counts.serviceDeskTickets > 0 ? counts.serviceDeskTickets : undefined,
+          },
+          {
+            name: "Assigned Tasks",
+            href: "/dashboard/assigned-tasks",
+            icon: ClipboardList,
+            badge: counts.assignedTasks > 0 ? counts.assignedTasks : undefined,
+          },
+          {
+            name: "IT Staff Status",
+            href: "/dashboard/it-staff-status",
+            icon: Users,
+            badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
+          },
+          { name: "Devices", href: "/dashboard/devices", icon: Monitor },
+          {
+            name: "Repairs",
+            href: "/dashboard/repairs",
+            icon: Wrench,
+            badge: counts.repairs > 0 ? counts.repairs : undefined,
+          },
+          { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
+        ],
+        groups: [],
+      }
     }
 
-    return baseItems
+    return { items: baseItems, groups: [] }
   }
 
   const handleLogout = () => {
-    // Clear cache before logout
+    // Clear ALL cached data before logout
     offlineCacheManager.clearCache()
+    
+    // Clear localStorage and sessionStorage
+    if (typeof window !== "undefined") {
+      localStorage.clear()
+      sessionStorage.clear()
+    }
 
     // Wait a moment for cache to clear, then logout
     setTimeout(() => {
@@ -578,12 +713,13 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           {/* Navigation */}
           <ScrollArea className="flex-1 px-3 py-4">
             <nav className="space-y-1">
-              {navigation.map((item, index) => (
+              {/* Regular navigation items */}
+              {navigation.items.map((item) => (
                 <div key={item.name} className="relative group">
                   <a
                     href={item.href}
                     className={cn(
-                      "flex items-center space-x-3 px-3 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100 transition-all duration-200 group relative",
+                      "flex items-center space-x-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100 transition-all duration-200 group relative",
                       isCollapsed ? "justify-center" : "justify-between",
                     )}
                     title={isCollapsed ? item.name : undefined}
@@ -616,6 +752,90 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                   )}
                 </div>
               ))}
+
+              {/* Collapsible navigation groups */}
+              {navigation.groups.length > 0 && !isCollapsed && (
+                <div className="pt-3 mt-3 border-t border-gray-100 dark:border-gray-800 space-y-1">
+                  {navigation.groups.map((group) => (
+                    <Collapsible
+                      key={group.name}
+                      open={expandedGroups.includes(group.name)}
+                      onOpenChange={() => toggleGroup(group.name)}
+                    >
+                      <CollapsibleTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-between px-3 py-2.5 h-auto font-medium text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        >
+                          <div className="flex items-center space-x-3">
+                            <group.icon className="h-5 w-5" />
+                            <span>{group.name}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {group.badge && (
+                              <Badge variant="secondary" className="h-5 px-2 text-xs bg-red-500 text-white border-none">
+                                {group.badge}
+                              </Badge>
+                            )}
+                            <ChevronRight
+                              className={cn(
+                                "h-4 w-4 transition-transform duration-200",
+                                expandedGroups.includes(group.name) && "rotate-90"
+                              )}
+                            />
+                          </div>
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="pl-4 space-y-1 mt-1">
+                        {group.items.map((item) => (
+                          <a
+                            key={item.name}
+                            href={item.href}
+                            className="flex items-center justify-between px-3 py-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100 transition-all duration-200 text-sm"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.name}</span>
+                            </div>
+                            {item.badge && (
+                              <Badge variant="secondary" className="h-5 px-2 text-xs bg-red-500 text-white border-none">
+                                {item.badge}
+                              </Badge>
+                            )}
+                          </a>
+                        ))}
+                      </CollapsibleContent>
+                    </Collapsible>
+                  ))}
+                </div>
+              )}
+
+              {/* Collapsed state for groups */}
+              {navigation.groups.length > 0 && isCollapsed && (
+                <div className="pt-3 mt-3 border-t border-gray-100 dark:border-gray-800 space-y-1">
+                  {navigation.groups.map((group) => (
+                    <div key={group.name} className="relative group">
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-center px-3 py-2.5 h-auto"
+                        onClick={() => window.location.href = group.items[0]?.href || "#"}
+                      >
+                        <div className="relative">
+                          <group.icon className="h-5 w-5" />
+                          {group.badge && (
+                            <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 text-xs bg-red-500 text-white border-2 border-white dark:border-gray-950">
+                              {group.badge > 9 ? "9+" : group.badge}
+                            </Badge>
+                          )}
+                        </div>
+                      </Button>
+                      <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                        {group.name}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </nav>
 
             {/* Quick Actions - only when not collapsed */}
@@ -651,14 +871,16 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           <div className="border-t border-gray-100 dark:border-gray-800 p-3 space-y-1">
             {!isCollapsed ? (
               <>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start text-sm h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
-                  onClick={() => (window.location.href = "/dashboard/settings")}
-                >
-                  <Settings className="mr-3 h-4 w-4" />
-                  Settings
-                </Button>
+                {(user?.role === "admin" || user?.role === "it_head") && (
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-sm h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+                    onClick={() => (window.location.href = "/dashboard/settings")}
+                  >
+                    <Settings className="mr-3 h-4 w-4" />
+                    Settings
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   className="w-full justify-start text-sm h-10 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
@@ -670,14 +892,16 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
               </>
             ) : (
               <div className="space-y-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-full h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
-                  onClick={() => (window.location.href = "/dashboard/settings")}
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
+                {(user?.role === "admin" || user?.role === "it_head") && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-full h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+                    onClick={() => (window.location.href = "/dashboard/settings")}
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"

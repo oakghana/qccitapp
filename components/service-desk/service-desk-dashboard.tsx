@@ -5,19 +5,24 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Clock, AlertTriangle, Ticket, MapPin, Monitor, Wifi, Smartphone, Printer, UserPlus } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Plus, Clock, AlertTriangle, Ticket, MapPin, Monitor, Wifi, Smartphone, Printer, UserPlus, Eye, CheckCircle, User, Calendar, FileText } from "lucide-react"
 import { NewTicketForm } from "./new-ticket-form"
-import { TicketList } from "./ticket-list"
 import { KnowledgeBase } from "./knowledge-base"
 import { AssignTicketDialog } from "./assign-ticket-dialog"
 import { useAuth } from "@/lib/auth-context"
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
+import { Separator } from "@/components/ui/separator"
+import { TicketList } from "./ticket-list" // Import TicketList component
 
 export function ServiceDeskDashboard() {
   const [activeTab, setActiveTab] = useState("overview")
   const [showNewTicketForm, setShowNewTicketForm] = useState(false)
   const [selectedTicketForAssign, setSelectedTicketForAssign] = useState<any>(null)
+  const [selectedTicketForDetails, setSelectedTicketForDetails] = useState<any>(null)
+  const [ticketDetails, setTicketDetails] = useState<any>(null)
+  const [loadingDetails, setLoadingDetails] = useState(false)
   const { canViewAllLocations, getUserLocation, user } = useAuth()
   const { toast } = useToast()
   const [allTickets, setAllTickets] = useState<any[]>([])
@@ -98,6 +103,46 @@ export function ServiceDeskDashboard() {
       console.error("[v0] Error refreshing tickets:", error)
     } finally {
       setSelectedTicketForAssign(null)
+    }
+  }
+
+  // Load ticket details with updates history
+  const loadTicketDetails = async (ticket: any) => {
+    setSelectedTicketForDetails(ticket)
+    setLoadingDetails(true)
+    
+    try {
+      // Get ticket updates/history
+      const { data: updates, error: updatesError } = await supabase
+        .from("service_ticket_updates")
+        .select("*")
+        .eq("ticket_id", ticket.dbId)
+        .order("created_at", { ascending: false })
+
+      if (updatesError) {
+        console.error("[v0] Error loading ticket updates:", updatesError)
+      }
+
+      // Get full ticket details
+      const { data: fullTicket, error: ticketError } = await supabase
+        .from("service_tickets")
+        .select("*")
+        .eq("id", ticket.dbId)
+        .single()
+
+      if (ticketError) {
+        console.error("[v0] Error loading ticket details:", ticketError)
+      }
+
+      setTicketDetails({
+        ...ticket,
+        fullData: fullTicket,
+        updates: updates || []
+      })
+    } catch (error) {
+      console.error("[v0] Error loading ticket details:", error)
+    } finally {
+      setLoadingDetails(false)
     }
   }
 
@@ -198,7 +243,6 @@ export function ServiceDeskDashboard() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="tickets">All Tickets</TabsTrigger>
           <TabsTrigger value="knowledge">Knowledge Base</TabsTrigger>
         </TabsList>
 
@@ -264,6 +308,16 @@ export function ServiceDeskDashboard() {
                         >
                           {ticket.status}
                         </Badge>
+                        {/* View Details button */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs border-green-200 text-green-700 hover:bg-green-50 dark:border-green-800 dark:text-green-300 dark:hover:bg-green-950 bg-transparent"
+                          onClick={() => loadTicketDetails(ticket)}
+                        >
+                          <Eye className="h-3 w-3 mr-1" />
+                          Details
+                        </Button>
                         {/* Assign button for IT Heads */}
                         {canAssignTickets() && (ticket.status === "Open" || ticket.status === "open") && (
                           <Button
@@ -285,10 +339,6 @@ export function ServiceDeskDashboard() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="tickets">
-          <TicketList tickets={filteredTickets} />
-        </TabsContent>
-
         <TabsContent value="knowledge">
           <KnowledgeBase />
         </TabsContent>
@@ -308,6 +358,160 @@ export function ServiceDeskDashboard() {
           onAssign={handleAssignTicket}
         />
       )}
+
+      {/* Ticket Details Dialog */}
+      <Dialog open={!!selectedTicketForDetails} onOpenChange={(open) => !open && setSelectedTicketForDetails(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-green-600" />
+              Ticket Details
+            </DialogTitle>
+            <DialogDescription>
+              Complete information about this service request
+            </DialogDescription>
+          </DialogHeader>
+          
+          {loadingDetails ? (
+            <div className="flex items-center justify-center py-8">
+              <p className="text-muted-foreground">Loading ticket details...</p>
+            </div>
+          ) : ticketDetails ? (
+            <div className="space-y-6">
+              {/* Ticket Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Ticket ID</p>
+                  <p className="font-mono text-sm">{ticketDetails.id}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Status</p>
+                  <Badge variant={ticketDetails.status === "Open" || ticketDetails.status === "open" ? "outline" : "secondary"}>
+                    {ticketDetails.status}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Priority</p>
+                  <Badge variant={
+                    ticketDetails.priority === "High" || ticketDetails.priority === "high" ? "destructive" :
+                    ticketDetails.priority === "Medium" || ticketDetails.priority === "medium" ? "default" : "secondary"
+                  }>
+                    {ticketDetails.priority}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Category</p>
+                  <p>{ticketDetails.category || "General"}</p>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Title & Description */}
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Title</p>
+                <p className="font-medium">{ticketDetails.title}</p>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Description</p>
+                <p className="text-sm">{ticketDetails.fullData?.description || "No description provided"}</p>
+              </div>
+
+              <Separator />
+
+              {/* Requester Info */}
+              <div className="bg-muted/50 rounded-lg p-4">
+                <h4 className="font-medium flex items-center gap-2 mb-3">
+                  <User className="h-4 w-4" />
+                  Requester Information
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Requested By</p>
+                    <p>{ticketDetails.requester}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Location</p>
+                    <p>{ticketDetails.locationName}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Created</p>
+                    <p>{ticketDetails.created}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Assignment Info */}
+              {ticketDetails.assignedTo && (
+                <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-4">
+                  <h4 className="font-medium flex items-center gap-2 mb-3">
+                    <CheckCircle className="h-4 w-4 text-blue-600" />
+                    Assignment Information
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Assigned To</p>
+                      <p className="text-blue-700 dark:text-blue-300 font-medium">{ticketDetails.assignedTo}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Current Status</p>
+                      <Badge variant="secondary">{ticketDetails.status}</Badge>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Work History */}
+              {ticketDetails.updates && ticketDetails.updates.length > 0 && (
+                <div>
+                  <h4 className="font-medium flex items-center gap-2 mb-3">
+                    <Calendar className="h-4 w-4" />
+                    Work History
+                  </h4>
+                  <div className="space-y-3">
+                    {ticketDetails.updates.map((update: any, index: number) => (
+                      <div key={index} className="border-l-2 border-green-200 pl-4 py-2">
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium text-sm">{update.status || update.action}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(update.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                        {update.notes && <p className="text-sm text-muted-foreground mt-1">{update.notes}</p>}
+                        <p className="text-xs text-muted-foreground">By: {update.updated_by || "System"}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => setSelectedTicketForDetails(null)}>
+                  Close
+                </Button>
+                {canAssignTickets() && (ticketDetails.status === "Open" || ticketDetails.status === "open") && (
+                  <Button 
+                    onClick={() => {
+                      setSelectedTicketForDetails(null)
+                      setSelectedTicketForAssign(ticketDetails)
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Assign Ticket
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">No ticket selected</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

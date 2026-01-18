@@ -16,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Bell, Search, User, LogOut, ChevronDown, WifiOff, Zap, Loader2, RefreshCw } from "lucide-react"
+import { Bell, Search, User, LogOut, ChevronDown, WifiOff, Zap, Loader2 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useNotifications } from "@/lib/notification-context"
 import { useOfflineCache } from "@/lib/offline-cache"
@@ -64,29 +64,25 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
   }, [])
 
   const handleLogout = () => {
-    // Clear cache before logout
+    // Clear ALL cached data before logout
     clearCache()
+    
+    // Clear localStorage
+    if (typeof window !== "undefined") {
+      localStorage.clear()
+      sessionStorage.clear()
+    }
+    
     // Wait a moment for cache to clear, then logout
     setTimeout(() => {
       logout()
     }, 100)
   }
 
-  const handleClearCache = () => {
-    clearCache()
-    // Show toast notification
-    const toast = document.createElement("div")
-    toast.textContent = "Cache cleared! Refreshing..."
-    toast.className = "fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50"
-    document.body.appendChild(toast)
-
-    // Reload page after short delay
-    setTimeout(() => {
-      window.location.reload()
-    }, 500)
-  }
-
   const recentNotifications = notifications.slice(0, 5)
+  
+  // Check if user can see notifications menu (IT Head and Admin only)
+  const canSeeNotifications = user?.role === "it_head" || user?.role === "admin"
 
   if (!isMounted) {
     return (
@@ -164,18 +160,6 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
               </span>
             </Button>
 
-            {/* Clear Cache & Refresh button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClearCache}
-              className="flex items-center gap-2 h-12 px-4 bg-gradient-to-r from-blue-100 to-cyan-100 hover:from-blue-200 hover:to-cyan-200 text-blue-700 border-none rounded-xl shadow-sm dark:from-blue-900/30 dark:to-cyan-900/30 dark:text-blue-300"
-              title="Clear cache and refresh to get latest updates"
-            >
-              <RefreshCw className="h-4 w-4" />
-              <span className="hidden lg:inline text-sm">Clear Cache</span>
-            </Button>
-
             {/* Offline Indicator */}
             <div className="flex items-center gap-2">
               {isOnline ? (
@@ -191,84 +175,86 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
               )}
             </div>
 
-            {/* Notifications */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
-                  <Bell className="h-5 w-5" />
-                  {unreadCount > 0 && (
-                    <Badge
-                      variant="destructive"
-                      className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center"
-                    >
-                      {unreadCount}
-                    </Badge>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80">
-                <DropdownMenuLabel className="flex items-center justify-between">
-                  Notifications
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">{unreadCount}</Badge>
+            {/* Notifications - Only visible to IT Head and Admin */}
+            {canSeeNotifications && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="relative">
+                    <Bell className="h-5 w-5" />
                     {unreadCount > 0 && (
-                      <Button variant="ghost" size="sm" onClick={markAllAsRead} className="h-6 text-xs">
-                        Mark all read
-                      </Button>
+                      <Badge
+                        variant="destructive"
+                        className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center"
+                      >
+                        {unreadCount}
+                      </Badge>
                     )}
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {recentNotifications.length > 0 ? (
-                  recentNotifications.map((notification) => (
-                    <DropdownMenuItem
-                      key={notification.id}
-                      className="flex flex-col items-start p-4 cursor-pointer"
-                      onClick={() => !notification.isRead && markAsRead(notification.id)}
-                    >
-                      <div className="flex w-full items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className={cn("font-medium text-sm", !notification.isRead && "text-primary")}>
-                              {notification.title}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80">
+                  <DropdownMenuLabel className="flex items-center justify-between">
+                    Notifications
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">{unreadCount}</Badge>
+                      {unreadCount > 0 && (
+                        <Button variant="ghost" size="sm" onClick={markAllAsRead} className="h-6 text-xs">
+                          Mark all read
+                        </Button>
+                      )}
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {recentNotifications.length > 0 ? (
+                    recentNotifications.map((notification) => (
+                      <DropdownMenuItem
+                        key={notification.id}
+                        className="flex flex-col items-start p-4 cursor-pointer"
+                        onClick={() => !notification.isRead && markAsRead(notification.id)}
+                      >
+                        <div className="flex w-full items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className={cn("font-medium text-sm", !notification.isRead && "text-primary")}>
+                                {notification.title}
+                              </span>
+                              {!notification.isRead && <div className="w-2 h-2 bg-primary rounded-full"></div>}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{notification.message}</p>
+                            <span className="text-xs text-muted-foreground mt-1">
+                              {new Date(notification.timestamp).toLocaleTimeString()}
                             </span>
-                            {!notification.isRead && <div className="w-2 h-2 bg-primary rounded-full"></div>}
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{notification.message}</p>
-                          <span className="text-xs text-muted-foreground mt-1">
-                            {new Date(notification.timestamp).toLocaleTimeString()}
-                          </span>
+                          <Badge
+                            variant={
+                              notification.type === "success"
+                                ? "default"
+                                : notification.type === "warning"
+                                  ? "secondary"
+                                  : notification.type === "error"
+                                    ? "destructive"
+                                    : "outline"
+                            }
+                            className="text-xs ml-2"
+                          >
+                            {notification.type}
+                          </Badge>
                         </div>
-                        <Badge
-                          variant={
-                            notification.type === "success"
-                              ? "default"
-                              : notification.type === "warning"
-                                ? "secondary"
-                                : notification.type === "error"
-                                  ? "destructive"
-                                  : "outline"
-                          }
-                          className="text-xs ml-2"
-                        >
-                          {notification.type}
-                        </Badge>
-                      </div>
+                      </DropdownMenuItem>
+                    ))
+                  ) : (
+                    <DropdownMenuItem className="text-center text-muted-foreground py-8">
+                      No notifications
                     </DropdownMenuItem>
-                  ))
-                ) : (
-                  <DropdownMenuItem className="text-center text-muted-foreground py-8">
-                    No notifications
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-center text-primary">
+                    <a href="/dashboard/notifications" className="w-full">
+                      View all notifications
+                    </a>
                   </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-center text-primary">
-                  <a href="/dashboard/notifications" className="w-full">
-                    View all notifications
-                  </a>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
             {/* User Menu */}
             <DropdownMenu>

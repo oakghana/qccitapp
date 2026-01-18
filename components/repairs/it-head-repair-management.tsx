@@ -127,8 +127,8 @@ export function ITHeadRepairManagement() {
         activeLocations.push({ code: "takoradi_port", name: "Takoradi Port" })
       }
       setLocations(activeLocations)
-      // For IT staff, auto-select their location
-      if (user?.role === "it_staff" && user?.location) {
+      // Auto-select user's location for ALL users (not just IT staff)
+      if (user?.location) {
         setSelectedLocation(user.location)
       }
     } catch (error) {

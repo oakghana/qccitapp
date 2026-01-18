@@ -654,15 +654,21 @@ export function ITReportsDashboard() {
                     <td className="p-3">{location.totalTickets}</td>
                     <td className="p-3">
                       <div className="flex items-center gap-2">
-                        <span>{Math.round((location.resolvedTickets / location.totalTickets) * 100)}%</span>
-                        <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-green-500 transition-all duration-300"
-                            style={{
-                              width: `${(location.resolvedTickets / location.totalTickets) * 100}%`,
-                            }}
-                          ></div>
-                        </div>
+                        {location.totalTickets > 0 ? (
+                          <>
+                            <span>{Math.round((location.resolvedTickets / location.totalTickets) * 100)}%</span>
+                            <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-green-500 transition-all duration-300"
+                                style={{
+                                  width: `${(location.resolvedTickets / location.totalTickets) * 100}%`,
+                                }}
+                              ></div>
+                            </div>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">N/A</span>
+                        )}
                       </div>
                     </td>
                     <td className="p-3">{location.avgResolutionTime}h</td>

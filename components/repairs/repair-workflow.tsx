@@ -431,11 +431,13 @@ function RepairRequestCard({ request, onViewDetails, onApprove, onReject, showAc
   const StatusIcon = statusIcons[request.status]
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={onViewDetails}>
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="space-y-1">
-            <CardTitle className="text-lg">{request.deviceName}</CardTitle>
+            <CardTitle className="text-lg text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
+              {request.deviceName}
+            </CardTitle>
             <CardDescription className="flex items-center gap-2">
               <span>{request.id}</span>
               <span>•</span>
@@ -495,15 +497,15 @@ function RepairRequestCard({ request, onViewDetails, onApprove, onReject, showAc
           )}
 
           <div className="flex justify-between items-center pt-2">
-            <Button variant="outline" onClick={onViewDetails}>
-              View Details
+            <Button variant="outline" onClick={(e) => { e.stopPropagation(); onViewDetails(); }}>
+              View Details & Track Progress
             </Button>
             {showActions && (
               <div className="flex space-x-2">
-                <Button variant="outline" size="sm" onClick={onReject}>
+                <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onReject?.(); }}>
                   Reject
                 </Button>
-                <Button size="sm" onClick={onApprove}>
+                <Button size="sm" onClick={(e) => { e.stopPropagation(); onApprove?.(); }}>
                   Approve
                 </Button>
               </div>

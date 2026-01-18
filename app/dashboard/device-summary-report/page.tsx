@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Download, Package, MapPin, TrendingUp, Monitor, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { useAuth } from "@/lib/auth-context"
+import { useRouter } from "next/navigation"
 
 interface DeviceSummaryData {
   overall: {
@@ -45,6 +47,8 @@ interface DeviceSummaryData {
 }
 
 export default function DeviceSummaryReportPage() {
+  const { user, loading: authLoading } = useAuth()
+  const router = useRouter()
   const [data, setData] = useState<DeviceSummaryData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -52,9 +56,20 @@ export default function DeviceSummaryReportPage() {
   const [locationDevices, setLocationDevices] = useState<any[]>([])
   const [loadingDevices, setLoadingDevices] = useState(false)
 
+  // Allowed roles for this page
+  const allowedRoles = ["admin", "it_head"]
+
   useEffect(() => {
-    fetchSummaryData()
-  }, [])
+    if (!authLoading && user && !allowedRoles.includes(user.role)) {
+      router.push("/dashboard")
+    }
+  }, [user, authLoading, router])
+
+  useEffect(() => {
+    if (user && allowedRoles.includes(user.role)) {
+      fetchSummaryData()
+    }
+  }, [user])
 
   const fetchSummaryData = async () => {
     try {
@@ -166,10 +181,18 @@ export default function DeviceSummaryReportPage() {
     window.URL.revokeObjectURL(url)
   }
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (!user || !allowedRoles.includes(user.role)) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p className="text-muted-foreground">You do not have access to this page.</p>
       </div>
     )
   }
