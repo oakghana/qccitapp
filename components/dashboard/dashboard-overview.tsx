@@ -45,7 +45,6 @@ export function DashboardOverview() {
           canSeeAll: String(canSeeAll),
           userRole: user.role || "",
           userId: user.id || "",
-          userName: (user?.name || user?.username || user?.email || "") as string,
         })
 
         const response = await fetch(`/api/dashboard/stats?${params}`)
@@ -358,7 +357,10 @@ export function DashboardOverview() {
             ) : (
               <>
                 {/* IT roles quick actions */}
-                {(user && ["it_staff", "it_head", "regional_it_head", "admin"].includes(user.role as string)) && (
+                {(user?.role === "it_staff" ||
+                  user?.role === "it_head" ||
+                  user?.role === "regional_it_head" ||
+                  user?.role === "admin") && (
                   <>
                     <Button
                       variant="outline"
@@ -394,7 +396,7 @@ export function DashboardOverview() {
                   </>
                 )}
 
-                {(user && ["admin", "it_head", "regional_it_head"].includes(user.role as string)) && (
+                {(user?.role === "admin" || user?.role === "it_head" || user?.role === "regional_it_head") && (
                   <Button
                     variant="outline"
                     className="w-full justify-start bg-transparent hover:bg-green-50 hover:border-green-200 transition-colors"

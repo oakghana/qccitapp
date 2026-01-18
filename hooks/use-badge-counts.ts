@@ -78,8 +78,8 @@ export function useBadgeCounts(user: User | null) {
         canSeeAll: String(canSeeAll),
         userId: user.id || "",
         userRole: user.role || "",
-        region: (user as any).region || "",
-        district: (user as any).district || "",
+        region: user.region || "",
+        district: user.district || "",
       })
 
       const response = await fetch(`/api/dashboard/badge-counts?${params}`)

@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { dateFmt } from "@/lib/format-utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -189,7 +188,7 @@ export function AuditLogs() {
                         <CardDescription className="flex items-center gap-2">
                           <span>{log.user}</span>
                           <span>•</span>
-                          <span>{dateFmt(log.timestamp)}</span>
+                          <span>{new Date(log.timestamp).toLocaleString()}</span>
                         </CardDescription>
                       </div>
                     </div>

@@ -14,7 +14,6 @@ export async function GET(request: NextRequest) {
     const canSeeAll = searchParams.get("canSeeAll") === "true"
     const userId = searchParams.get("userId")
     const userRole = searchParams.get("userRole")
-    const userName = searchParams.get("userName") || ""
 
     console.log("[v0] Dashboard stats API - location:", location, "canSeeAll:", canSeeAll, "role:", userRole)
 
@@ -84,52 +83,33 @@ export async function GET(request: NextRequest) {
     let pendingReviewCount = 0
 
     if (userRole === "it_staff" && userId) {
-      // When tasks may have been assigned without a user UUID (assigned_to_name used),
-      // count by assigned_to OR assigned_to_name matching the user's name.
-      // Build queries conditionally to avoid accidental broad matches when userName is empty.
-
-      // Assigned (pending or in_progress)
-      let assignedQuery: any = supabase.from("repair_requests").select("*", { count: "exact", head: true })
-      if (userName) {
-        assignedQuery = assignedQuery.or(`assigned_to.eq.${userId},assigned_to_name.ilike.%${userName}%`)
-      } else {
-        assignedQuery = assignedQuery.eq("assigned_to", userId)
-      }
-      assignedQuery = assignedQuery.in("status", ["pending", "in_progress"])
-      const { count: assigned } = await assignedQuery
+      const { count: assigned } = await supabase
+        .from("repair_requests")
+        .select("*", { count: "exact", head: true })
+        .eq("assigned_to", userId)
+        .in("status", ["pending", "in_progress"])
       assignedTasksCount = assigned || 0
 
-      // In progress
-      let inProgressQuery: any = supabase.from("repair_requests").select("*", { count: "exact", head: true })
-      if (userName) {
-        inProgressQuery = inProgressQuery.or(`assigned_to.eq.${userId},assigned_to_name.ilike.%${userName}%`)
-      } else {
-        inProgressQuery = inProgressQuery.eq("assigned_to", userId)
-      }
-      inProgressQuery = inProgressQuery.eq("status", "in_progress")
-      const { count: inProgress } = await inProgressQuery
+      const { count: inProgress } = await supabase
+        .from("repair_requests")
+        .select("*", { count: "exact", head: true })
+        .eq("assigned_to", userId)
+        .eq("status", "in_progress")
       inProgressTasksCount = inProgress || 0
 
-      // Completed this month
-      let completedQueryForUser: any = supabase.from("repair_requests").select("*", { count: "exact", head: true })
-      if (userName) {
-        completedQueryForUser = completedQueryForUser.or(`assigned_to.eq.${userId},assigned_to_name.ilike.%${userName}%`)
-      } else {
-        completedQueryForUser = completedQueryForUser.eq("assigned_to", userId)
-      }
-      completedQueryForUser = completedQueryForUser.eq("status", "completed").gte("updated_at", startOfMonth.toISOString())
-      const { count: completed } = await completedQueryForUser
+      const { count: completed } = await supabase
+        .from("repair_requests")
+        .select("*", { count: "exact", head: true })
+        .eq("assigned_to", userId)
+        .eq("status", "completed")
+        .gte("updated_at", startOfMonth.toISOString())
       completedTasksCount = completed || 0
 
-      // Pending review
-      let reviewQuery: any = supabase.from("repair_requests").select("*", { count: "exact", head: true })
-      if (userName) {
-        reviewQuery = reviewQuery.or(`assigned_to.eq.${userId},assigned_to_name.ilike.%${userName}%`)
-      } else {
-        reviewQuery = reviewQuery.eq("assigned_to", userId)
-      }
-      reviewQuery = reviewQuery.eq("status", "pending_review")
-      const { count: review } = await reviewQuery
+      const { count: review } = await supabase
+        .from("repair_requests")
+        .select("*", { count: "exact", head: true })
+        .eq("assigned_to", userId)
+        .eq("status", "pending_review")
       pendingReviewCount = review || 0
     }
 

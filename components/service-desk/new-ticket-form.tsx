@@ -34,7 +34,6 @@ export function NewTicketForm({ onClose, onTicketCreated }: NewTicketFormProps) 
     department: "",
     officeNumber: "",
   })
-  
 
   const locations = [
     "Head Office - Accra",
@@ -83,9 +82,7 @@ export function NewTicketForm({ onClose, onTicketCreated }: NewTicketFormProps) 
           category: formData.category,
           priority: formData.priority || "medium",
           location: formData.location || user?.location,
-          office_number: formData.officeNumber || '',
-          // prefer stable id for requested_by so server-side filtering works
-          requested_by: user?.id || formData.requesterName || user?.full_name || user?.name,
+          requested_by: formData.requesterName || user?.full_name || user?.name,
           description: formData.description,
         }),
       })
@@ -146,8 +143,86 @@ export function NewTicketForm({ onClose, onTicketCreated }: NewTicketFormProps) 
           <FormNavigation currentPage="/dashboard/service-desk" className="mb-4" />
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Requester Information */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">New Request</h3>
+              <h3 className="text-lg font-medium">Requester Information</h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="requesterName">Full Name</Label>
+                  <Input
+                    id="requesterName"
+                    value={formData.requesterName}
+                    onChange={(e) => setFormData({ ...formData, requesterName: e.target.value })}
+                    placeholder="Enter your full name"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="department">Department</Label>
+                  <Input
+                    id="department"
+                    value={formData.department}
+                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                    placeholder="Your department"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="requesterEmail">Email Address</Label>
+                  <Input
+                    id="requesterEmail"
+                    type="email"
+                    value={formData.requesterEmail}
+                    onChange={(e) => setFormData({ ...formData, requesterEmail: e.target.value })}
+                    placeholder="your.email@qcc.gov.gh"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="requesterPhone">Phone Number</Label>
+                  <Input
+                    id="requesterPhone"
+                    value={formData.requesterPhone}
+                    onChange={(e) => setFormData({ ...formData, requesterPhone: e.target.value })}
+                    placeholder="+233 XX XXX XXXX"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="officeNumber">Office Number</Label>
+                  <Input
+                    id="officeNumber"
+                    value={formData.officeNumber}
+                    onChange={(e) => setFormData({ ...formData, officeNumber: e.target.value })}
+                    placeholder="Room/Office number"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Issue Details */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Issue Details</h3>
+
+              <div className="space-y-2">
+                <Label htmlFor="location">Office Location</Label>
+                <Select
+                  value={formData.location}
+                  onValueChange={(value) => setFormData({ ...formData, location: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select your office location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map((location) => (
+                      <SelectItem key={location} value={location}>
+                        {location}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="title">Issue Title</Label>
@@ -161,25 +236,21 @@ export function NewTicketForm({ onClose, onTicketCreated }: NewTicketFormProps) 
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="officeNumber">Office Number</Label>
-                <Input
-                  id="officeNumber"
-                  value={formData.officeNumber}
-                  onChange={(e) => setFormData({ ...formData, officeNumber: e.target.value })}
-                  placeholder="Room/Office number"
-                />
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
-                <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+                <Select
+                  value={formData.category}
+                  onValueChange={(value) => setFormData({ ...formData, category: value })}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select issue category" />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((category) => (
                       <SelectItem key={category.value} value={category.value}>
-                        {category.label}
+                        <div>
+                          <div className="font-medium">{category.label}</div>
+                          <div className="text-xs text-muted-foreground">{category.description}</div>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -187,31 +258,29 @@ export function NewTicketForm({ onClose, onTicketCreated }: NewTicketFormProps) 
               </div>
 
               <div className="space-y-2">
-                <Label>Priority</Label>
-                <Select value={formData.priority} onValueChange={(value) => setFormData({ ...formData, priority: value })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {priorities.map((p) => (
-                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="location">Office Location</Label>
-                <Select value={formData.location} onValueChange={(value) => setFormData({ ...formData, location: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your office location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations.map((loc) => (
-                      <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Priority Level</Label>
+                <div className="grid gap-2 md:grid-cols-3">
+                  {priorities.map((priority) => {
+                    const IconComponent = priority.icon
+                    return (
+                      <div
+                        key={priority.value}
+                        className={`p-2 border rounded-lg cursor-pointer transition-colors ${
+                          formData.priority === priority.value
+                            ? "border-green-300 bg-green-50 dark:bg-green-950/30 dark:border-green-700"
+                            : "border-border hover:border-green-200 hover:bg-green-50/50 dark:hover:bg-green-950/10"
+                        }`}
+                        onClick={() => setFormData({ ...formData, priority: priority.value })}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <IconComponent className={`h-4 w-4 ${priority.color}`} />
+                          <span className="font-medium text-sm">{priority.label}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">{priority.description}</div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -220,7 +289,7 @@ export function NewTicketForm({ onClose, onTicketCreated }: NewTicketFormProps) 
                   id="description"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Please provide detailed information about the issue, including error messages and steps you've tried..."
+                  placeholder="Please provide detailed information about the issue, including any error messages, when it started, and steps you've already tried..."
                   rows={4}
                   required
                 />
@@ -231,6 +300,7 @@ export function NewTicketForm({ onClose, onTicketCreated }: NewTicketFormProps) 
                 <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
                   <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">Drag and drop files here, or click to browse</p>
+                  <p className="text-xs text-muted-foreground mt-1">Screenshots, error logs, or other relevant files</p>
                 </div>
               </div>
             </div>
@@ -241,25 +311,26 @@ export function NewTicketForm({ onClose, onTicketCreated }: NewTicketFormProps) 
                 {error}
               </div>
             )}
-            {/* Navigation / Submit Buttons */}
-            <div className="flex justify-between items-center gap-4 pt-4 border-t">
-              <div>
-                <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
-                  Cancel
-                </Button>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button type="submit" disabled={submitting} className="bg-green-600 hover:bg-green-700 text-white">
-                  {submitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    "Submit Ticket"
-                  )}
-                </Button>
-              </div>
+
+            {/* Submit Buttons */}
+            <div className="flex justify-end space-x-2 pt-4 border-t">
+              <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={submitting}
+                className="bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-600"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  "Submit Ticket"
+                )}
+              </Button>
             </div>
           </form>
         </CardContent>

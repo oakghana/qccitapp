@@ -11,7 +11,6 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
     const location = searchParams.get("location")
-    const regionId = searchParams.get("regionId")
     const canSeeAll = searchParams.get("canSeeAll") === "true"
 
     console.log("[v0] API Devices - location:", location, "canSeeAll:", canSeeAll)
@@ -21,15 +20,10 @@ export async function GET(request: NextRequest) {
       .select("*")
       .order("created_at", { ascending: false })
 
-    // Apply location or region filter if user can't see all locations
-    if (!canSeeAll) {
-      if (regionId) {
-        // Filter by region_id OR Central Stores
-        query = query.or(`region_id.eq.${regionId},location.eq.Central Stores`)
-      } else if (location) {
-        // Use case-insensitive matching with ilike for location names
-        query = query.or(`location.ilike.${location},location.ilike.%${location}%`)
-      }
+    // Apply location filter if user can't see all locations
+    if (!canSeeAll && location) {
+      // Use case-insensitive matching with ilike
+      query = query.or(`location.ilike.${location},location.ilike.%${location}%`)
     }
 
     const { data, error } = await query
@@ -82,40 +76,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data)
   } catch (error: any) {
     console.error("[v0] Error in devices API:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-}
-
-export async function DELETE(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams
-    const id = searchParams.get("id")
-
-    // Support JSON body as well
-    let bodyId = id
-    try {
-      const body = await request.json().catch(() => null)
-      if (!bodyId && body && body.id) bodyId = body.id
-    } catch (e) {
-      // ignore
-    }
-
-    if (!bodyId) {
-      return NextResponse.json({ error: "Device ID is required" }, { status: 400 })
-    }
-
-    console.log("[v0] Deleting device:", bodyId)
-
-    const { data, error } = await supabase.from("devices").delete().eq("id", bodyId).select()
-
-    if (error) {
-      console.error("[v0] Error deleting device:", error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    return NextResponse.json({ success: true, deleted: data })
-  } catch (error: any) {
-    console.error("[v0] Error in devices DELETE:", error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }

@@ -23,8 +23,6 @@ export function AddStoreItemForm({ onSubmit }: { onSubmit: () => void }) {
     sivNumber: "",
     supplier: "",
   })
-  const [customCategory, setCustomCategory] = useState("")
-  const [showCustomCategory, setShowCustomCategory] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const { user } = useAuth()
@@ -110,89 +108,20 @@ export function AddStoreItemForm({ onSubmit }: { onSubmit: () => void }) {
 
         <div className="space-y-2">
           <Label htmlFor="category">Category *</Label>
-          {!showCustomCategory ? (
-            <Select
-              value={formData.category}
-              onValueChange={(value) => {
-                if (value === "__create_category__") {
-                  setShowCustomCategory(true)
-                  setFormData({ ...formData, category: "" })
-                } else {
-                  setFormData({ ...formData, category: value })
-                }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Hardware">Hardware</SelectItem>
-                <SelectItem value="Network Switches">Network Switches</SelectItem>
-                <SelectItem value="Routers">Routers</SelectItem>
-                <SelectItem value="Access Points">Access Points</SelectItem>
-                <SelectItem value="Network Cables">Network Cables</SelectItem>
-                <SelectItem value="Cat6">Cat6 Cables</SelectItem>
-                <SelectItem value="Cat5e">Cat5e Cables</SelectItem>
-                <SelectItem value="Patch Panels">Patch Panels</SelectItem>
-                <SelectItem value="Power Supplies">Power Supplies</SelectItem>
-                <SelectItem value="Batteries">Batteries</SelectItem>
-                <SelectItem value="Storage">Storage (SSD/HDD)</SelectItem>
-                <SelectItem value="Memory">Memory (RAM)</SelectItem>
-                <SelectItem value="Motherboards">Motherboards</SelectItem>
-                <SelectItem value="Graphics Cards">Graphics Cards</SelectItem>
-                <SelectItem value="Monitors">Monitors</SelectItem>
-                <SelectItem value="Keyboards">Keyboards</SelectItem>
-                <SelectItem value="Mice">Mice</SelectItem>
-                <SelectItem value="Webcams">Webcams</SelectItem>
-                <SelectItem value="Headsets">Headsets</SelectItem>
-                <SelectItem value="Printers">Printers</SelectItem>
-                <SelectItem value="Printer Toner">Printer Toner</SelectItem>
-                <SelectItem value="Cables">Cables</SelectItem>
-                <SelectItem value="Accessories">Accessories</SelectItem>
-                <SelectItem value="Consumables">Consumables</SelectItem>
-                <SelectItem value="Peripherals">Peripherals</SelectItem>
-                <SelectItem value="Laptop Parts">Laptop Parts</SelectItem>
-                <SelectItem value="Software Licenses">Software Licenses</SelectItem>
-                <SelectItem value="Tools">Tools</SelectItem>
-                <SelectItem value="Adapters">Adapters & Converters</SelectItem>
-                <SelectItem value="UPS">UPS / Power Backup</SelectItem>
-                <SelectItem value="Racks">Racks & Enclosures</SelectItem>
-                <SelectItem value="Labels">Labels & Tags</SelectItem>
-                <SelectItem value="__create_category__">+ Add custom category</SelectItem>
-              </SelectContent>
-            </Select>
-          ) : (
-            <div className="space-y-2">
-              <Input
-                placeholder="Enter custom category (e.g., SWITCH)"
-                value={customCategory}
-                onChange={(e) => setCustomCategory(e.target.value)}
-              />
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  onClick={() => {
-                    if (customCategory.trim()) {
-                      setFormData({ ...formData, category: customCategory.trim() })
-                      setShowCustomCategory(false)
-                    }
-                  }}
-                >
-                  Save Category
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setCustomCategory("")
-                    setShowCustomCategory(false)
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
+          <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Hardware">Hardware</SelectItem>
+              <SelectItem value="Software">Software</SelectItem>
+              <SelectItem value="Accessories">Accessories</SelectItem>
+              <SelectItem value="Consumables">Consumables</SelectItem>
+              <SelectItem value="Peripherals">Peripherals</SelectItem>
+              <SelectItem value="Laptop Parts">Laptop Parts</SelectItem>
+              <SelectItem value="Cables">Cables</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-2">

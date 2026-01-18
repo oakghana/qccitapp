@@ -2,8 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
-import { dateFmt } from "@/lib/format-utils"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,7 +14,6 @@ import { Loader2, Shield, Lock, Mail, ArrowRight } from "lucide-react"
 export function LoginForm() {
   const [error, setError] = useState("")
   const [isPending, setIsPending] = useState(false)
-  const [appVersion, setAppVersion] = useState<{ version: string; lastUpdated: string } | null>(null)
   const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -48,7 +46,6 @@ export function LoginForm() {
         email: data.user.email,
         role: data.user.role,
         location: data.user.location || "Head Office",
-        region_id: data.user.region_id || data.user.regionId || data.user.region || null,
         name: data.user.full_name || data.user.name || data.user.username,
         full_name: data.user.full_name,
         department: data.user.department,
@@ -73,20 +70,6 @@ export function LoginForm() {
     }
   }
 
-  // Fetch app version info from public/version.json (falls back to package.json externally)
-  useEffect(() => {
-    let mounted = true
-    fetch("/version.json")
-      .then((r) => r.json())
-      .then((data) => {
-        if (mounted && data) setAppVersion({ version: data.version || "0.0.0", lastUpdated: data.lastUpdated || "" })
-      })
-      .catch(() => {})
-    return () => {
-      mounted = false
-    }
-  }, [])
-
   return (
     <div className="space-y-6">
       <Card className="w-full border shadow-lg">
@@ -97,11 +80,6 @@ export function LoginForm() {
           <div className="text-center space-y-2">
             <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
             <CardDescription className="text-base">Sign in to access the IT management system</CardDescription>
-            {appVersion && (
-              <div className="text-xs text-muted-foreground mt-1">
-                V{appVersion.version}|{dateFmt(appVersion.lastUpdated, { year: "numeric", month: "numeric", day: "numeric" }, "en-US")}
-              </div>
-            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-6">

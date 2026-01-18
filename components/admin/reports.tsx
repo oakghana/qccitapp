@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Download, FileText, BarChart3, PieChart, TrendingUp, Calendar } from "lucide-react"
 import { useState, useEffect } from "react"
-import { numFmt, dateFmt } from "@/lib/format-utils"
 import { createClient } from "@/lib/supabase/client"
 
 export function Reports() {
@@ -154,7 +153,7 @@ export function Reports() {
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{numFmt(dataPoints)}</div>
+            <div className="text-2xl font-bold">{dataPoints.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Tracked metrics</p>
           </CardContent>
         </Card>
@@ -197,7 +196,7 @@ export function Reports() {
               <CardContent>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                    <span>Last generated: {dateFmt(report.lastGenerated)}</span>
+                    <span>Last generated: {new Date(report.lastGenerated).toLocaleDateString()}</span>
                     <span>•</span>
                     <div className="flex items-center space-x-1">
                       <span>Formats:</span>

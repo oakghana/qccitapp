@@ -141,9 +141,12 @@ export async function GET(request: NextRequest) {
         service_provider:service_providers(
           id,
           name,
-          phone,
+          company,
+          contact_phone,
           email,
-          specialization
+          specialization,
+          rating,
+          status
         )
       `)
       .order("created_at", { ascending: false })
@@ -193,8 +196,6 @@ export async function POST(request: NextRequest) {
         service_provider_name: body.service_provider_name || null,
         estimated_cost: body.estimated_cost || null,
         task_number: taskNumber,
-        signed_request_form_url: body.signedRequestForm, // Required signed form
-        attachments: body.attachments || [],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })

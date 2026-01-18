@@ -1,8 +1,6 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
-import { dateFmt } from "@/lib/format-utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -71,7 +69,7 @@ const recipientTypeIcons = {
   it_head: Users,
 }
 
-export default function NotificationCenter() {
+export function NotificationCenter() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -334,7 +332,7 @@ function NotificationList({ notifications }: NotificationListProps) {
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center space-x-4">
                     <span className="text-muted-foreground">
-                      Sent: {dateFmt(notification.sentDate)}
+                      Sent: {new Date(notification.sentDate).toLocaleString()}
                     </span>
                     {notification.attachments && notification.attachments.length > 0 && (
                       <Badge variant="outline" className="text-xs">

@@ -6,8 +6,7 @@ import { useRouter } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ITHeadRepairManagement } from "@/components/repairs/it-head-repair-management"
 import { ITHeadRepairReports } from "@/components/reports/it-head-repair-reports"
-import { RepairInvoicesAdmin } from "@/components/repairs/repair-invoices-admin"
-import { Wrench, BarChart3, FileText, ShieldAlert } from "lucide-react"
+import { Wrench, BarChart3, ShieldAlert } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function RepairsPage() {
@@ -45,12 +44,10 @@ export default function RepairsPage() {
     )
   }
 
-  const isAdminOrItHead = user && ["admin", "it_head", "regional_it_head"].includes(user.role)
-
   return (
     <div className="space-y-6">
       <Tabs defaultValue="management" className="space-y-6">
-        <TabsList className={`grid w-full ${isAdminOrItHead ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="management" className="flex items-center gap-2">
             <Wrench className="h-4 w-4" />
             Repair Management
@@ -59,12 +56,6 @@ export default function RepairsPage() {
             <BarChart3 className="h-4 w-4" />
             Analytics & Reports
           </TabsTrigger>
-          {isAdminOrItHead && (
-            <TabsTrigger value="invoices" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Repair Invoices
-            </TabsTrigger>
-          )}
         </TabsList>
 
         <TabsContent value="management" className="space-y-0">
@@ -74,12 +65,6 @@ export default function RepairsPage() {
         <TabsContent value="reports" className="space-y-0">
           <ITHeadRepairReports />
         </TabsContent>
-
-        {isAdminOrItHead && (
-          <TabsContent value="invoices" className="space-y-0">
-            <RepairInvoicesAdmin />
-          </TabsContent>
-        )}
       </Tabs>
     </div>
   )

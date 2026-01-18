@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp"
 import { Loader2, Mail, MessageSquare, Shield, CheckCircle, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -240,13 +241,20 @@ export function OTPAuth({ onVerifySuccess, onCancel, phoneNumber, email, method 
                 Enter Verification Code
               </Label>
               <div className="flex justify-center">
-                <Input
-                  id="otp"
+                <InputOTP
                   value={state.otpCode}
-                  onChange={(e: any) => setState(prev => ({ ...prev, otpCode: String(e.target.value).replace(/\D/g, "").slice(0, 6), error: null }))}
+                  onChange={(value: string) => setState(prev => ({ ...prev, otpCode: value, error: null }))}
                   maxLength={6}
-                  className="text-center tracking-widest w-48 text-xl"
-                />
+                >
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
               </div>
             </div>
 

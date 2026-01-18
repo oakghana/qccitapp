@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Download, Package, MapPin, TrendingUp, Monitor, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
@@ -48,7 +47,7 @@ interface DeviceSummaryData {
 }
 
 export default function DeviceSummaryReportPage() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [data, setData] = useState<DeviceSummaryData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -61,10 +60,10 @@ export default function DeviceSummaryReportPage() {
   const allowedRoles = ["admin", "it_head"]
 
   useEffect(() => {
-    if (user && !allowedRoles.includes(user.role)) {
+    if (!authLoading && user && !allowedRoles.includes(user.role)) {
       router.push("/dashboard")
     }
-  }, [user, router])
+  }, [user, authLoading, router])
 
   useEffect(() => {
     if (user && allowedRoles.includes(user.role)) {
@@ -182,7 +181,7 @@ export default function DeviceSummaryReportPage() {
     window.URL.revokeObjectURL(url)
   }
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -226,184 +225,175 @@ export default function DeviceSummaryReportPage() {
         </Button>
       </div>
 
-      <Tabs defaultValue="overview">
-        <TabsList className="grid grid-cols-3 gap-2 mb-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="by-location">By Location</TabsTrigger>
-          <TabsTrigger value="by-device">By Device Type</TabsTrigger>
-        </TabsList>
+      {/* Overall Statistics */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Devices</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{data.overall.totalDevices}</div>
+            <p className="text-xs text-muted-foreground">
+              {data.overall.uniqueDeviceTypes} types • {data.overall.uniqueLocations} locations
+            </p>
+          </CardContent>
+        </Card>
 
-        <TabsContent value="overview">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Devices</CardTitle>
-                <Package className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{data.overall.totalDevices}</div>
-                <p className="text-xs text-muted-foreground">
-                  {data.overall.uniqueDeviceTypes} types • {data.overall.uniqueLocations} locations
-                </p>
-              </CardContent>
-            </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Assigned</CardTitle>
+            <TrendingUp className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{data.overall.totalAssigned}</div>
+            <p className="text-xs text-muted-foreground">
+              {data.overall.totalDevices > 0
+                ? Math.round((data.overall.totalAssigned / data.overall.totalDevices) * 100)
+                : 0}
+              % utilization
+            </p>
+          </CardContent>
+        </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Assigned</CardTitle>
-                <TrendingUp className="h-4 w-4 text-green-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{data.overall.totalAssigned}</div>
-                <p className="text-xs text-muted-foreground">
-                  {data.overall.totalDevices > 0
-                    ? Math.round((data.overall.totalAssigned / data.overall.totalDevices) * 100)
-                    : 0}
-                  % utilization
-                </p>
-              </CardContent>
-            </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Available</CardTitle>
+            <Monitor className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{data.overall.totalAvailable}</div>
+            <p className="text-xs text-muted-foreground">Ready for assignment</p>
+          </CardContent>
+        </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Available</CardTitle>
-                <Monitor className="h-4 w-4 text-blue-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{data.overall.totalAvailable}</div>
-                <p className="text-xs text-muted-foreground">Ready for assignment</p>
-              </CardContent>
-            </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">In Repair</CardTitle>
+            <MapPin className="h-4 w-4 text-orange-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{data.overall.totalInRepair}</div>
+            <p className="text-xs text-muted-foreground">{data.overall.totalRetired} retired</p>
+          </CardContent>
+        </Card>
+      </div>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">In Repair</CardTitle>
-                <MapPin className="h-4 w-4 text-orange-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{data.overall.totalInRepair}</div>
-                <p className="text-xs text-muted-foreground">{data.overall.totalRetired} retired</p>
-              </CardContent>
-            </Card>
+      {/* By Location */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MapPin className="h-5 w-5" />
+            Devices by Location
+          </CardTitle>
+          <CardDescription>Distribution of devices across all locations (Click to view details)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {Object.entries(data.byLocation).map(([location, stats]) => (
+              <div
+                key={location}
+                className="border rounded-lg p-4 cursor-pointer hover:shadow-lg hover:border-primary transition-all"
+                onClick={() => fetchLocationDevices(location)}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-lg">{location}</h3>
+                  <Badge variant="secondary">{stats.total} devices</Badge>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Assigned</p>
+                    <p className="font-semibold text-green-600">{stats.assigned}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Available</p>
+                    <p className="font-semibold text-blue-600">{stats.available}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">In Repair</p>
+                    <p className="font-semibold text-orange-600">{stats.inRepair}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Retired</p>
+                    <p className="font-semibold text-gray-600">{stats.retired}</p>
+                  </div>
+                </div>
+
+                {/* Device types breakdown for this location */}
+                {Object.keys(stats.byType).length > 0 && (
+                  <div className="mt-3 pt-3 border-t">
+                    <p className="text-xs text-muted-foreground mb-2">By Device Type:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(stats.byType).map(([type, count]) => (
+                        <Badge key={type} variant="outline">
+                          {type}: {count}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
-        </TabsContent>
+        </CardContent>
+      </Card>
 
-        <TabsContent value="by-location">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="h-5 w-5" />
-                Devices by Location
-              </CardTitle>
-              <CardDescription>Distribution of devices across all locations (Click to view details)</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {Object.entries(data.byLocation).map(([location, stats]) => (
-                  <div
-                    key={location}
-                    className="border rounded-lg p-4 cursor-pointer hover:shadow-lg hover:border-primary transition-all"
-                    onClick={() => fetchLocationDevices(location)}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold text-lg">{location}</h3>
-                      <Badge variant="secondary">{stats.total} devices</Badge>
-                    </div>
+      {/* By Device Type */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Monitor className="h-5 w-5" />
+            Devices by Type
+          </CardTitle>
+          <CardDescription>Breakdown of all device types and their distribution</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {Object.entries(data.byDeviceType).map(([type, stats]) => (
+              <div key={type} className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-lg">{type}</h3>
+                  <Badge variant="secondary">{stats.total} devices</Badge>
+                </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Assigned</p>
-                        <p className="font-semibold text-green-600">{stats.assigned}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Available</p>
-                        <p className="font-semibold text-blue-600">{stats.available}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">In Repair</p>
-                        <p className="font-semibold text-orange-600">{stats.inRepair}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Retired</p>
-                        <p className="font-semibold text-gray-600">{stats.retired}</p>
-                      </div>
-                    </div>
-
-                    {Object.keys(stats.byType).length > 0 && (
-                      <div className="mt-3 pt-3 border-t">
-                        <p className="text-xs text-muted-foreground mb-2">By Device Type:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {Object.entries(stats.byType).map(([type, count]) => (
-                            <Badge key={type} variant="outline">
-                              {type}: {count}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Assigned</p>
+                    <p className="font-semibold text-green-600">{stats.assigned}</p>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="by-device">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Monitor className="h-5 w-5" />
-                Devices by Type
-              </CardTitle>
-              <CardDescription>Breakdown of all device types and their distribution</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {Object.entries(data.byDeviceType).map(([type, stats]) => (
-                  <div key={type} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold text-lg">{type}</h3>
-                      <Badge variant="secondary">{stats.total} devices</Badge>
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Assigned</p>
-                        <p className="font-semibold text-green-600">{stats.assigned}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Available</p>
-                        <p className="font-semibold text-blue-600">{stats.available}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">In Repair</p>
-                        <p className="font-semibold text-orange-600">{stats.inRepair}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Retired</p>
-                        <p className="font-semibold text-gray-600">{stats.retired}</p>
-                      </div>
-                    </div>
-
-                    {Object.keys(stats.locations).length > 0 && (
-                      <div className="mt-3 pt-3 border-t">
-                        <p className="text-xs text-muted-foreground mb-2">By Location:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {Object.entries(stats.locations).map(([location, count]) => (
-                            <Badge key={location} variant="outline">
-                              {location}: {count}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                  <div>
+                    <p className="text-muted-foreground">Available</p>
+                    <p className="font-semibold text-blue-600">{stats.available}</p>
                   </div>
-                ))}
+                  <div>
+                    <p className="text-muted-foreground">In Repair</p>
+                    <p className="font-semibold text-orange-600">{stats.inRepair}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Retired</p>
+                    <p className="font-semibold text-gray-600">{stats.retired}</p>
+                  </div>
+                </div>
+
+                {/* Locations breakdown for this device type */}
+                {Object.keys(stats.locations).length > 0 && (
+                  <div className="mt-3 pt-3 border-t">
+                    <p className="text-xs text-muted-foreground mb-2">By Location:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(stats.locations).map(([location, count]) => (
+                        <Badge key={location} variant="outline">
+                          {location}: {count}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Detailed Device Table Modal */}
       {selectedLocation && (

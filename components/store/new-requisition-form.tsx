@@ -35,7 +35,7 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
     beneficiary: "",
     location: user?.location || "",
     notes: "",
-    items: [{ item_id: "", itemName: "", quantity: "", unit: "pcs", availableQty: 0, newItem: false }],
+    items: [{ item_id: "", itemName: "", quantity: "", unit: "pcs", availableQty: 0 }],
   })
 
   useEffect(() => {
@@ -45,11 +45,11 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
   const loadAvailableItems = async () => {
     try {
       setLoadingItems(true)
-      // Load all store items across locations including Central Stores so store heads can pick
       const { data, error } = await supabase
         .from("store_items")
         .select("*")
         .gt("quantity", 0)
+        .neq("location", "Central Stores")
         .order("name")
 
       if (error) {
@@ -57,7 +57,7 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
         return
       }
 
-      console.log("[v0] Loaded available store items (including Central Stores):", data)
+      console.log("[v0] Loaded available store items (excluding Central Stores):", data)
       setAvailableItems(data || [])
     } catch (err) {
       console.error("[v0] Error loading items:", err)
@@ -69,10 +69,7 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
   const addItem = () => {
     setFormData({
       ...formData,
-      items: [
-        ...formData.items,
-        { item_id: "", itemName: "", quantity: "", unit: "pcs", availableQty: 0, newItem: false },
-      ],
+      items: [...formData.items, { item_id: "", itemName: "", quantity: "", unit: "pcs", availableQty: 0 }],
     })
   }
 
@@ -87,28 +84,15 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
     const updatedItems = [...formData.items]
 
     if (field === "item_id") {
-      if (value === "__create__") {
-        // Switch this item row to a custom new item entry
+      // Find the selected item details
+      const selectedItem = availableItems.find((item) => item.id === value)
+      if (selectedItem) {
         updatedItems[index] = {
           ...updatedItems[index],
-          item_id: "",
-          itemName: "",
-          unit: "pcs",
-          availableQty: 0,
-          newItem: true,
-        }
-      } else {
-        // Find the selected item details
-        const selectedItem = availableItems.find((item) => item.id === value)
-        if (selectedItem) {
-          updatedItems[index] = {
-            ...updatedItems[index],
-            item_id: value,
-            itemName: selectedItem.name,
-            unit: selectedItem.unit,
-            availableQty: selectedItem.quantity,
-            newItem: false,
-          }
+          item_id: value,
+          itemName: selectedItem.name,
+          unit: selectedItem.unit,
+          availableQty: selectedItem.quantity,
         }
       }
     } else {
@@ -123,20 +107,15 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
     setError("")
 
     for (const item of formData.items) {
-      // Allow either selecting an existing item (item_id) or providing a new item (newItem with name)
-      if (!item.item_id && !item.itemName) {
-        setError("Please select an item from inventory or enter a new item")
+      if (!item.item_id) {
+        setError("Please select items from the available inventory")
         return
       }
       const requestedQty = Number.parseInt(item.quantity)
-      if (item.item_id && requestedQty > item.availableQty) {
+      if (requestedQty > item.availableQty) {
         setError(
           `Requested quantity for ${item.itemName} (${requestedQty}) exceeds available stock (${item.availableQty})`,
         )
-        return
-      }
-      if (!Number.isFinite(requestedQty) || requestedQty <= 0) {
-        setError("Please enter a valid requested quantity for all items")
         return
       }
     }
@@ -162,7 +141,7 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
             beneficiary: formData.beneficiary,
             location: formData.location,
             items: formData.items.map((item) => ({
-              item_id: item.item_id || null,
+              item_id: item.item_id,
               itemName: item.itemName,
               quantity: Number.parseInt(item.quantity),
               unit: item.unit,
@@ -270,33 +249,18 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
               <div className="grid grid-cols-12 gap-2 items-end">
                 <div className="col-span-6 space-y-2">
                   <Label>Select Item from Stock *</Label>
-                  {item.newItem ? (
-                    <div className="space-y-2">
-                      <Input
-                        placeholder="Enter item name"
-                        value={item.itemName}
-                        onChange={(e) => updateItem(index, "itemName", e.target.value)}
-                        required
-                      />
-                      <Label>Unit</Label>
-                      <Input value={item.unit} onChange={(e) => updateItem(index, "unit", e.target.value)} />
-                      <p className="text-xs text-muted-foreground">This will be created as an ad-hoc item for this requisition.</p>
-                    </div>
-                  ) : (
-                    <Select value={item.item_id} onValueChange={(value) => updateItem(index, "item_id", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose an item" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableItems.map((storeItem) => (
-                          <SelectItem key={storeItem.id} value={storeItem.id}>
-                            {storeItem.name} ({storeItem.quantity} {storeItem.unit} available)
-                          </SelectItem>
-                        ))}
-                        <SelectItem value="__create__">+ Add new item (not in list)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
+                  <Select value={item.item_id} onValueChange={(value) => updateItem(index, "item_id", value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose an item" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableItems.map((storeItem) => (
+                        <SelectItem key={storeItem.id} value={storeItem.id}>
+                          {storeItem.name} ({storeItem.quantity} {storeItem.unit} available)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="col-span-2 space-y-2">
                   <Label>Quantity *</Label>
@@ -305,18 +269,13 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
                     value={item.quantity}
                     onChange={(e) => updateItem(index, "quantity", e.target.value)}
                     placeholder="0"
-                    max={item.newItem ? undefined : item.availableQty}
+                    max={item.availableQty}
                     required
                   />
                 </div>
                 <div className="col-span-3 space-y-2">
                   <Label>Unit</Label>
-                  <Input
-                    value={item.unit}
-                    disabled={!item.newItem}
-                    className={!item.newItem ? "bg-muted" : undefined}
-                    onChange={(e) => item.newItem && updateItem(index, "unit", e.target.value)}
-                  />
+                  <Input value={item.unit} disabled className="bg-muted" />
                 </div>
                 <div className="col-span-1">
                   {formData.items.length > 1 && (

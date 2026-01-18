@@ -72,11 +72,10 @@
     "@tailwindcss/postcss": "^4.1.9",
     "@types/bcryptjs": "2.4.6",
     "@types/node": "^22",
-    "@types/nodemailer": "^7.0.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
-    "typescript": "^5.9.3"
+    "typescript": "^5"
   }
 }

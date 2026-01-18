@@ -68,7 +68,7 @@ const navigationItems: NavigationItem[] = [
     name: "Notifications",
     href: "/dashboard/notifications",
     icon: Bell,
-    roles: ["admin", "it_head"],
+    roles: ["admin", "it_head", "service_desk_head"],
   },
   {
     name: "Analytics",

@@ -95,15 +95,12 @@ export function AssignedTasksDashboard() {
       const allTasks: AssignedTask[] = []
 
       const userName = user.name || user.email || ""
-      console.log("[v0] Loading assigned tasks for user:", { id: user.id, name: userName, role: user.role })
 
       const { data: serviceTickets, error: ticketError } = await supabase
         .from("service_tickets")
         .select("*")
         .or(`assigned_to.eq.${user.id},assigned_to_name.ilike.%${userName}%`)
         .order("created_at", { ascending: false })
-
-      console.log("[v0] Service tickets query result:", { count: serviceTickets?.length, error: ticketError })
 
       if (ticketError) {
         console.error("[v0] Error loading service tickets:", ticketError)
@@ -297,8 +294,7 @@ export function AssignedTasksDashboard() {
       }
 
       const result = await response.json()
-      console.log("[v0] Task update API response:", result)
-      console.log("[v0] Task updated successfully - returned data:", result.ticket || result.repair)
+      console.log("[v0] Task updated successfully:", result)
 
       setTasks((prev) =>
         prev.map((task) =>

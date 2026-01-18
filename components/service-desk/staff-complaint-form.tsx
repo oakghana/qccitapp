@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,7 +13,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle, Clock, AlertTriangle, Paperclip, Send } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { useToast } from "@/hooks/use-toast"
 import { FormNavigation } from "@/components/ui/form-navigation"
 
 interface Complaint {
@@ -31,8 +30,35 @@ interface Complaint {
   attachments?: string[]
 }
 
-// We'll load complaints (service tickets) from the API
-const initialComplaints: Complaint[] = []
+// In-memory storage for complaints
+const complaints: Complaint[] = [
+  {
+    id: "CMP-001",
+    title: "Computer won't start",
+    description:
+      "My desktop computer is not turning on when I press the power button. The power light doesn't come on at all.",
+    category: "hardware",
+    priority: "high",
+    status: "in_progress",
+    submittedBy: "John Mensah",
+    submittedAt: "2024-01-15T09:30:00Z",
+    location: "head_office",
+    assignedTo: "Head Office Service Desk Staff",
+  },
+  {
+    id: "CMP-002",
+    title: "Email not working",
+    description: "I cannot send or receive emails. Getting error message 'Cannot connect to server'.",
+    category: "software",
+    priority: "medium",
+    status: "resolved",
+    submittedBy: "Akosua Asante",
+    submittedAt: "2024-01-14T14:20:00Z",
+    location: "kumasi",
+    assignedTo: "Kumasi Service Desk Staff",
+    resolvedAt: "2024-01-14T16:45:00Z",
+  },
+]
 
 export function StaffComplaintForm() {
   const { user } = useAuth()
@@ -43,7 +69,6 @@ export function StaffComplaintForm() {
     description: "",
     category: "",
     priority: "medium" as const,
-    officeNumber: "",
   })
 
   const categories = [
@@ -69,31 +94,30 @@ export function StaffComplaintForm() {
     setIsSubmitting(true)
 
     try {
-      // Call API to create ticket
-      const body = {
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+
+      const newComplaint: Complaint = {
+        id: `CMP-${String(complaints.length + 1).padStart(3, "0")}`,
         title: formData.title,
         description: formData.description,
-        category: formData.category || 'other',
-        priority: formData.priority || 'medium',
-        location: user?.location || '',
-        office_number: formData.officeNumber || '',
-        // prefer stable id for requested_by so server filtering is reliable
-        requested_by: user?.id || user?.full_name || user?.name || '',
+        category: formData.category,
+        priority: formData.priority,
+        status: "submitted",
+        submittedBy: user?.name || "Unknown User",
+        submittedAt: new Date().toISOString(),
+        location: user?.location || "head_office",
       }
 
-      const res = await fetch('/api/service-tickets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+      complaints.push(newComplaint)
+
+      setFormData({
+        title: "",
+        description: "",
+        category: "",
+        priority: "medium",
       })
 
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to submit complaint')
-
-      // refresh list
-      await loadComplaints()
-
-      setFormData({ title: '', description: '', category: '', priority: 'medium', officeNumber: '' })
       setShowSuccess(true)
       setTimeout(() => setShowSuccess(false), 5000)
     } catch (error) {
@@ -103,54 +127,7 @@ export function StaffComplaintForm() {
     }
   }
 
-  const [loadedComplaints, setLoadedComplaints] = useState<Complaint[]>(initialComplaints)
-  const userComplaints = useMemo(
-    () => loadedComplaints.filter((c) => c.submittedBy === (user?.id || user?.full_name || user?.name)),
-    [loadedComplaints, user?.id, user?.full_name, user?.name]
-  )
-  const { toast } = useToast()
-  const { getUserLocation } = useAuth()
-
-  const loadComplaints = async () => {
-    try {
-      const location = getUserLocation() || ''
-      const params = new URLSearchParams({
-        location,
-        canSeeAll: 'false',
-        userRole: user?.role || '',
-        // pass a stable identifier for server-side filtering
-        userId: (user?.id || user?.full_name || user?.name || ''),
-      })
-      const res = await fetch(`/api/service-tickets?${params.toString()}`)
-      const data = await res.json()
-      if (!res.ok) {
-        console.error('Failed to load complaints', data)
-        return
-      }
-
-      const mapped = (data.tickets || []).map((t: any) => ({
-        id: t.ticket_number || t.id,
-        title: t.title,
-        description: t.description,
-        category: t.category,
-        priority: t.priority,
-        status: t.status || 'submitted',
-        submittedBy: t.requested_by || '',
-        submittedAt: t.created_at || new Date().toISOString(),
-        location: t.location || '',
-        assignedTo: t.assigned_to_name || t.assigned_to || null,
-        attachments: t.attachments || [],
-      }))
-
-      setLoadedComplaints(mapped)
-    } catch (error) {
-      console.error('Error loading complaints', error)
-    }
-  }
-
-  useEffect(() => {
-    loadComplaints()
-  }, [user?.id, user?.full_name, user?.role])
+  const userComplaints = complaints.filter((c) => c.submittedBy === user?.name)
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -221,16 +198,6 @@ export function StaffComplaintForm() {
                   value={formData.title}
                   onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
                   required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="officeNumber">Office Number (optional)</Label>
-                <Input
-                  id="officeNumber"
-                  placeholder="e.g. B-204 or Office 12"
-                  value={formData.officeNumber}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, officeNumber: e.target.value }))}
                 />
               </div>
 
@@ -312,14 +279,14 @@ export function StaffComplaintForm() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {loadedComplaints.length === 0 ? (
+              {userComplaints.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <AlertTriangle className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>No complaints submitted yet</p>
                   <p className="text-sm">Submit your first IT support request above</p>
                 </div>
               ) : (
-                ((user?.role === 'admin' || user?.role === 'it_head') ? loadedComplaints : userComplaints).map((complaint) => (
+                userComplaints.map((complaint) => (
                   <div key={complaint.id} className="border rounded-lg p-4 space-y-3">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -339,73 +306,6 @@ export function StaffComplaintForm() {
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>Submitted: {new Date(complaint.submittedAt).toLocaleDateString()}</span>
                       {complaint.assignedTo && <span>Assigned to: {complaint.assignedTo}</span>}
-                    </div>
-
-                    <div className="flex justify-end gap-2">
-                      {/* Allow edit/delete only if not assigned */}
-                      {(!complaint.assignedTo || complaint.assignedTo === null) ? (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={async () => {
-                              const newTitle = prompt('Edit title', complaint.title)
-                              if (newTitle === null) return
-                              const newDesc = prompt('Edit description', complaint.description)
-                              try {
-                                const res = await fetch('/api/service-tickets', {
-                                  method: 'PUT',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({
-                                    id: complaint.id,
-                                    title: newTitle || complaint.title,
-                                    description: newDesc || complaint.description,
-                                    requested_by: user?.id || user?.full_name || user?.name || '',
-                                    userRole: user?.role || '',
-                                  }),
-                                })
-                                const data = await res.json()
-                                if (!res.ok) throw new Error(data.error || 'Failed to update')
-                                toast?.({ title: 'Complaint updated', description: 'Your complaint was updated.', variant: 'default' })
-                                await loadComplaints()
-                              } catch (err) {
-                                console.error(err)
-                                toast?.({ title: 'Update failed', description: (err as any).message || 'Could not update complaint', variant: 'destructive' })
-                              }
-                            }}
-                          >
-                            Edit
-                          </Button>
-
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={async () => {
-                              if (!confirm('Are you sure you want to delete this complaint?')) return
-                              try {
-                                const res = await fetch('/api/service-tickets', {
-                                  method: 'DELETE',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ id: complaint.id, requested_by: user?.id || user?.full_name || user?.name || '', userRole: user?.role || '' }),
-                                })
-                                const data = await res.json()
-                                if (!res.ok) throw new Error(data.error || 'Failed to delete')
-                                toast?.({ title: 'Complaint deleted', description: 'Your complaint was deleted.', variant: 'default' })
-                                await loadComplaints()
-                              } catch (err) {
-                                console.error(err)
-                                toast?.({ title: 'Delete failed', description: (err as any).message || 'Could not delete complaint', variant: 'destructive' })
-                              }
-                            }}
-                          >
-                            Delete
-                          </Button>
-                        </>
-                      ) : (
-                        <Button size="sm" variant="outline" disabled title="Assigned complaints cannot be edited or deleted">
-                          Edit
-                        </Button>
-                      )}
                     </div>
                   </div>
                 ))

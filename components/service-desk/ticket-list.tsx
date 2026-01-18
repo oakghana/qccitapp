@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { dateFmt } from "@/lib/format-utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -138,8 +137,8 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
         location: ticket.location || "Unknown",
         requester: ticket.requested_by || "Unknown",
         assignee: ticket.assigned_to || "Unassigned",
-        created: dateFmt(ticket.created_at),
-        updated: dateFmt(ticket.updated_at || ticket.created_at),
+        created: new Date(ticket.created_at).toLocaleString(),
+        updated: new Date(ticket.updated_at || ticket.created_at).toLocaleString(),
         description: ticket.description || "",
         comments: [],
       }))

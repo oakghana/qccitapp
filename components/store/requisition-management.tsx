@@ -191,12 +191,6 @@ export function RequisitionManagement() {
     }
   }
 
-  function toLocationValue(loc: string) {
-    const options = getLocationOptions()
-    const found = options.find((o) => o.label === loc || o.value === loc)
-    return found ? found.value : loc
-  }
-
   const handleEditRequisition = (req: Requisition) => {
     setEditingReq(req)
     setEditFormData({
@@ -414,7 +408,7 @@ export function RequisitionManagement() {
                           variant="default"
                           onClick={() => {
                             setAllocatingReq(req)
-                            setAllocateLocation(toLocationValue(req.location))
+                            setAllocateLocation(req.location)
                             setAllocateOpen(true)
                           }}
                           className="flex-1"
@@ -470,7 +464,7 @@ export function RequisitionManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   {getLocationOptions().map((location) => (
-                    <SelectItem key={location.value} value={location.value}>
+                    <SelectItem key={location.value} value={location.label}>
                       {location.label}
                     </SelectItem>
                   ))}

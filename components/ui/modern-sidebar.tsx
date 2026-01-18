@@ -279,7 +279,22 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
       return {
         items: [
           ...baseItems,
+          {
+            name: "Assigned Tasks",
+            href: "/dashboard/assigned-tasks",
+            icon: ClipboardList,
+            badge: counts.assignedTasks > 0 ? counts.assignedTasks : undefined,
+          },
+          {
+            name: "Repairs",
+            href: "/dashboard/repairs",
+            icon: Wrench,
+            badge: counts.repairs > 0 ? counts.repairs : undefined,
+          },
           { name: "Devices", href: "/dashboard/devices", icon: Monitor },
+          { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
+          { name: "Users", href: "/dashboard/users", icon: Users },
+          { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
         ],
         groups: [
           {

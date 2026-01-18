@@ -13,16 +13,15 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Pencil, Trash2, Database } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
-type LookupType = "locations" | "departments" | "device_types" | "item_categories" | "regions" | "districts"
+type LookupType = "locations" | "departments" | "device_types" | "item_categories"
 
 interface LookupItem {
-  id: any
+  id: number
   code: string
   name: string
   is_active: boolean
   created_at: string
   updated_at: string
-  region_id?: string
 }
 
 const LOOKUP_TYPES: Record<LookupType, { label: string; description: string }> = {
@@ -30,39 +29,20 @@ const LOOKUP_TYPES: Record<LookupType, { label: string; description: string }> =
   departments: { label: "Departments", description: "Manage organizational departments" },
   device_types: { label: "Device Types", description: "Manage device categories" },
   item_categories: { label: "Item Categories", description: "Manage store item categories" },
-  regions: { label: "Regions", description: "Manage regions for locations and districts" },
-  districts: { label: "Districts", description: "Manage districts and link them to regions" },
 }
 
 export function LookupDataManagement() {
   const [selectedType, setSelectedType] = useState<LookupType>("locations")
   const [items, setItems] = useState<LookupItem[]>([])
-  const [regions, setRegions] = useState<LookupItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [showDialog, setShowDialog] = useState(false)
   const [editingItem, setEditingItem] = useState<LookupItem | null>(null)
-  const [formData, setFormData] = useState({ code: "", name: "", is_active: true, region_id: "" })
+  const [formData, setFormData] = useState({ code: "", name: "", is_active: true })
   const { toast } = useToast()
 
   useEffect(() => {
     fetchItems()
   }, [selectedType])
-
-  useEffect(() => {
-    // preload regions for district linking
-    const loadRegions = async () => {
-      try {
-        const res = await fetch(`/api/admin/lookup-data?type=regions`)
-        if (res.ok) {
-          const data = await res.json()
-          setRegions(data || [])
-        }
-      } catch (e) {
-        console.error("Failed to preload regions", e)
-      }
-    }
-    loadRegions()
-  }, [])
 
   const fetchItems = async () => {
     setIsLoading(true)
@@ -104,15 +84,8 @@ export function LookupDataManagement() {
         })
         setShowDialog(false)
         setEditingItem(null)
-        setFormData({ code: "", name: "", is_active: true, region_id: "" })
+        setFormData({ code: "", name: "", is_active: true })
         fetchItems()
-        // refresh regions so districts list stays in sync
-        try {
-          const r = await fetch(`/api/admin/lookup-data?type=regions`)
-          if (r.ok) setRegions(await r.json())
-        } catch (e) {
-          /* ignore */
-        }
       } else {
         const error = await res.json()
         toast({
@@ -144,12 +117,6 @@ export function LookupDataManagement() {
           description: "Item deleted successfully",
         })
         fetchItems()
-        try {
-          const r = await fetch(`/api/admin/lookup-data?type=regions`)
-          if (r.ok) setRegions(await r.json())
-        } catch (e) {
-          /* ignore */
-        }
       } else {
         toast({
           title: "Error",
@@ -173,11 +140,10 @@ export function LookupDataManagement() {
         code: item.code,
         name: item.name,
         is_active: item.is_active,
-        region_id: (item as any).region_id || "",
       })
     } else {
       setEditingItem(null)
-      setFormData({ code: "", name: "", is_active: true, region_id: "" })
+      setFormData({ code: "", name: "", is_active: true })
     }
     setShowDialog(true)
   }
@@ -241,7 +207,6 @@ export function LookupDataManagement() {
                 <TableRow>
                   <TableHead>Code</TableHead>
                   <TableHead>Name</TableHead>
-                  {selectedType === "districts" && <TableHead>Region</TableHead>}
                   <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -252,11 +217,6 @@ export function LookupDataManagement() {
                   <TableRow key={item.id}>
                     <TableCell className="font-mono">{item.code}</TableCell>
                     <TableCell className="font-medium">{item.name}</TableCell>
-                    {selectedType === "districts" && (
-                      <TableCell>
-                        {regions.find((r) => String(r.id) === String(item.region_id))?.name || "-"}
-                      </TableCell>
-                    )}
                     <TableCell>
                       <Badge variant={item.is_active ? "default" : "secondary"}>
                         {item.is_active ? "Active" : "Inactive"}
@@ -314,25 +274,6 @@ export function LookupDataManagement() {
                 required
               />
             </div>
-            {selectedType === "districts" && (
-              <div>
-                <Label htmlFor="region">Region *</Label>
-                <select
-                  id="region"
-                  value={formData.region_id}
-                  onChange={(e) => setFormData({ ...formData, region_id: e.target.value })}
-                  className="w-full border rounded px-2 py-1"
-                  required
-                >
-                  <option value="">-- Select Region --</option>
-                  {regions.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"

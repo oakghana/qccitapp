@@ -2,15 +2,13 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
 import { createClient } from "@/lib/supabase/client"
 import { AlertCircle } from "lucide-react"
-import { useAuth } from "@/lib/auth-context"
 
 interface Requisition {
   id: string
@@ -36,15 +34,6 @@ export function IssueItemsForm({
   const [error, setError] = useState("")
   const [notes, setNotes] = useState("")
   const supabase = createClient()
-  const { user } = useAuth()
-
-  const [issuedQuantities, setIssuedQuantities] = useState<number[]>(
-    requisition.items.map((i) => i.quantity),
-  )
-
-  useEffect(() => {
-    setIssuedQuantities(requisition.items.map((i) => i.quantity))
-  }, [requisition])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,10 +43,7 @@ export function IssueItemsForm({
     try {
       console.log("[v0] Issuing items for requisition:", requisition.id)
 
-      for (const [idx, item] of requisition.items.entries()) {
-        const issueQty = issuedQuantities[idx] || 0
-        if (issueQty <= 0) continue
-
+      for (const item of requisition.items) {
         if (item.item_id) {
           // Get current stock level
           const { data: currentItem, error: fetchError } = await supabase
@@ -73,15 +59,15 @@ export function IssueItemsForm({
             return
           }
 
-          if (issueQty > currentItem.quantity) {
+          const newQuantity = currentItem.quantity - item.quantity
+
+          if (newQuantity < 0) {
             setError(
-              `Insufficient stock for ${item.itemName}. Available: ${currentItem.quantity}, Attempting to issue: ${issueQty}`,
+              `Insufficient stock for ${item.itemName}. Available: ${currentItem.quantity}, Required: ${item.quantity}`,
             )
             setLoading(false)
             return
           }
-
-          const newQuantity = currentItem.quantity - issueQty
 
           // Update stock level
           const { error: updateError } = await supabase
@@ -144,26 +130,10 @@ export function IssueItemsForm({
           <div className="space-y-2">
             {requisition.items.map((item, idx) => (
               <div key={idx} className="flex justify-between items-center p-2 bg-background rounded">
-                <div className="flex-1">
-                  <span className="font-medium">{item.itemName}</span>
-                  <div className="text-xs text-muted-foreground">Requested: {item.quantity} {item.unit}</div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Input
-                    type="number"
-                    min={0}
-                    max={item.quantity}
-                    value={issuedQuantities[idx]}
-                    onChange={(e) => {
-                      const v = Number(e.target.value || 0)
-                      const copy = [...issuedQuantities]
-                      copy[idx] = v
-                      setIssuedQuantities(copy)
-                    }}
-                    className="w-28"
-                  />
-                  <Badge variant="destructive">-{issuedQuantities[idx] || 0} {item.unit}</Badge>
-                </div>
+                <span className="font-medium">{item.itemName}</span>
+                <Badge variant="destructive">
+                  -{item.quantity} {item.unit}
+                </Badge>
               </div>
             ))}
           </div>

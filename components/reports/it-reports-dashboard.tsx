@@ -416,7 +416,7 @@ export function ITReportsDashboard() {
                   {availableLocations.map((loc) => (
                     <SelectItem key={loc} value={loc}>{loc}</SelectItem>
                   ))}
-                  {availableLocations.length === 0 && Object.values(LOCATIONS).map((loc) => (
+                  {availableLocations.length === 0 && LOCATIONS.map((loc) => (
                     <SelectItem key={loc} value={loc}>{loc}</SelectItem>
                   ))}
                 </SelectContent>
@@ -604,7 +604,7 @@ export function ITReportsDashboard() {
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie
-                  data={categoryData as any}
+                  data={categoryData}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
