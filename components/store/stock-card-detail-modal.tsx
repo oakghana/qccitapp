@@ -54,7 +54,7 @@ interface StockCardDetailModalProps {
   }
 }
 
-export default function StockCardDetailModal({ open, onClose, item }: StockCardDetailModalProps) {
+export function StockCardDetailModal({ open, onClose, item }: StockCardDetailModalProps) {
   const { user } = useAuth()
   const [transfers, setTransfers] = useState<StockTransfer[]>([])
   const [loading, setLoading] = useState(false)
@@ -167,6 +167,8 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
           itemId: item.id,
           deletedBy: user.full_name || user.username,
           reason: deleteReason,
+          userRole: user.role,
+          userLocation: user.location,
         }),
       })
 
@@ -424,10 +426,12 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
                   <Edit className="h-4 w-4 mr-2" />
                   Edit Stock
                 </Button>
-                <Button onClick={() => setShowDeleteConfirm(true)} variant="destructive" size="sm">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Item
-                </Button>
+                {(user.role === "admin" || user.role === "it_head") && (
+                  <Button onClick={() => setShowDeleteConfirm(true)} variant="destructive" size="sm">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Item
+                  </Button>
+                )}
               </>
             )}
 
@@ -648,4 +652,4 @@ export default function StockCardDetailModal({ open, onClose, item }: StockCardD
   )
 }
 
-export { StockCardDetailModal }
+export default StockCardDetailModal

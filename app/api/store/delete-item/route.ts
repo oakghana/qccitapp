@@ -10,12 +10,12 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Item ID, deleted by, reason, and user role are required" }, { status: 400 })
     }
 
-    const canManage =
-      userRole === "admin" || userRole === "it_store_head" || (userRole === "it_head" && userLocation === "Head Office")
+    // Only admin and it_head can delete stock items
+    const canDelete = userRole === "admin" || userRole === "it_head"
 
-    if (!canManage) {
+    if (!canDelete) {
       console.error("[v0] Unauthorized stock deletion attempt by:", deletedBy, userRole)
-      return NextResponse.json({ error: "Unauthorized: You don't have permission to delete stock" }, { status: 403 })
+      return NextResponse.json({ error: "Unauthorized: Only Admin and IT Head can delete stock items" }, { status: 403 })
     }
 
     const supabase = await createServerClient()

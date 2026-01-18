@@ -617,12 +617,7 @@ export function ServiceProviderManagement() {
                           Deactivate Provider
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem 
-                        onClick={() => handleDeleteProvider(provider.id)}
-                        className="text-destructive"
-                      >
-                        Delete Provider
-                      </DropdownMenuItem>
+                      
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

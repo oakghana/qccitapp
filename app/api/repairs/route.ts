@@ -291,14 +291,20 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { id } = body
+  const body = await request.json()
+  const { id, userRole } = body
+  
+  if (!id) {
+  return NextResponse.json({ error: "Repair ID is required" }, { status: 400 })
+  }
 
-    if (!id) {
-      return NextResponse.json({ error: "Repair ID is required" }, { status: 400 })
-    }
-
-    console.log("[v0] Deleting repair request:", id)
+  // Only admin and it_head can delete repair requests
+  if (userRole !== "admin" && userRole !== "it_head") {
+    console.error("[v0] Unauthorized delete attempt - role:", userRole)
+    return NextResponse.json({ error: "Unauthorized: Only Admin and IT Head can delete repair requests" }, { status: 403 })
+  }
+  
+  console.log("[v0] Deleting repair request:", id, "by role:", userRole)
 
     const { error } = await supabaseAdmin
       .from("repair_requests")

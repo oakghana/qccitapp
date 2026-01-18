@@ -413,7 +413,7 @@ export function ITHeadRepairManagement() {
       const response = await fetch("/api/repairs", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: taskId }),
+        body: JSON.stringify({ id: taskId, userRole: user?.role }),
       })
 
       const result = await response.json()
@@ -925,16 +925,18 @@ export function ITHeadRepairManagement() {
                     <Edit className="h-4 w-4 mr-2" />
                     Edit
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => deleteRepairTask(task.id)}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    disabled={task.status === "completed" || task.status === "returned"}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </Button>
+                  {(user?.role === "admin" || user?.role === "it_head") && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => deleteRepairTask(task.id)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      disabled={task.status === "completed" || task.status === "returned"}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
+                  )}
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button variant="outline" size="sm">
