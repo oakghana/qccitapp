@@ -263,13 +263,20 @@ export function RequisitionManagement() {
     try {
       console.log("[v0] Processing requisition:", requisition.id, "Action:", action)
 
+      // Ensure we have quantity value
+      let finalApprovedQuantity = approvedQuantity ? Number.parseInt(approvedQuantity) : null
+      
+      if (action === "approve" && !finalApprovedQuantity && requisition.items?.length > 0) {
+        finalApprovedQuantity = requisition.items[0].quantity
+      }
+
       const response = await fetch("/api/store/approve-requisition", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           requisitionId: requisition.id,
           approvalAction: action,
-          approvedQuantity: action === "approve" ? Number.parseInt(approvedQuantity) || requisition.items[0]?.quantity : null,
+          approvedQuantity: finalApprovedQuantity,
           approvalNotes,
           approvedBy: user.full_name || user.email,
           approvedByRole: user.role,
@@ -279,6 +286,7 @@ export function RequisitionManagement() {
       const result = await response.json()
 
       if (!response.ok) {
+        console.error("[v0] API error response:", result)
         alert(result.error || `Failed to ${action} requisition`)
         return
       }

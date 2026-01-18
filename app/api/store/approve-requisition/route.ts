@@ -32,6 +32,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Requisition not found" }, { status: 404 })
     }
 
+    console.log("[v0] Requisition details:", {
+      id: requisition.id,
+      itemsArray: requisition.items,
+      itemId: requisition.item_id,
+    })
+
+    // Get item_id from requisition - could be in items array or item_id field
+    let itemId = requisition.item_id
+    if (!itemId && Array.isArray(requisition.items) && requisition.items.length > 0) {
+      itemId = requisition.items[0].item_id
+    }
+
+    if (!itemId) {
+      console.error("[v0] No item_id found in requisition")
+      return NextResponse.json({ error: "No item_id found in requisition" }, { status: 400 })
+    }
+
     if (approvalAction === "approve") {
       // Update requisition status to approved
       const { error: updateError } = await supabaseAdmin
@@ -55,14 +72,14 @@ export async function POST(request: NextRequest) {
         .from("stock_levels")
         .select("*")
         .eq("location_code", "central")
-        .eq("item_id", requisition.item_id)
+        .eq("item_id", itemId)
         .single()
 
       const { data: destStock } = await supabaseAdmin
         .from("stock_levels")
         .select("*")
         .eq("location_code", requisition.location_code)
-        .eq("item_id", requisition.item_id)
+        .eq("item_id", itemId)
         .single()
 
       const quantityToTransfer = approvedQuantity || requisition.quantity
@@ -80,7 +97,7 @@ export async function POST(request: NextRequest) {
         await supabaseAdmin
           .from("stock_transactions")
           .insert({
-            item_id: requisition.item_id,
+            item_id: itemId,
             from_location: "central",
             to_location: requisition.location_code,
             quantity: quantityToTransfer,
@@ -105,7 +122,7 @@ export async function POST(request: NextRequest) {
         await supabaseAdmin
           .from("stock_levels")
           .insert({
-            item_id: requisition.item_id,
+            item_id: itemId,
             location_code: requisition.location_code,
             quantity: quantityToTransfer,
           })
@@ -115,7 +132,7 @@ export async function POST(request: NextRequest) {
       await supabaseAdmin
         .from("stock_transactions")
         .insert({
-          item_id: requisition.item_id,
+          item_id: itemId,
           from_location: "central",
           to_location: requisition.location_code,
           quantity: quantityToTransfer,

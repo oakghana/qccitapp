@@ -1,3 +1,4 @@
+import { put } from "@vercel/blob"
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
@@ -33,38 +34,16 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Uploading invoice for repair:", repairId, "file:", file.name)
 
-    // Upload file to Supabase Storage (using existing pdf-documents bucket)
-    const fileName = `repair-invoices/${repairId}/${Date.now()}-${file.name.replace(/\s+/g, "_")}`
-    const fileBuffer = await file.arrayBuffer()
+    // Upload file to Vercel Blob
+    const blobFileName = `repair-invoices/${repairId}/${Date.now()}-${file.name.replace(/\s+/g, "_")}`
 
-    console.log("[v0] Uploading to storage with path:", fileName)
+    console.log("[v0] Uploading to Vercel Blob with filename:", blobFileName)
 
-    const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
-      .from("pdf-documents")
-      .upload(fileName, fileBuffer, {
-        contentType: file.type || "application/pdf",
-        upsert: false,
-      })
+    const blob = await put(blobFileName, file, {
+      access: "public",
+    })
 
-    if (uploadError) {
-      console.error("[v0] Error uploading file to storage:", uploadError)
-      console.error("[v0] Upload error details:", {
-        message: uploadError.message,
-        status: uploadError.status,
-        statusCode: uploadError.statusCode,
-        code: (uploadError as any).code,
-      })
-      return NextResponse.json({ error: `Failed to upload file: ${uploadError.message}` }, { status: 500 })
-    }
-
-    console.log("[v0] File uploaded successfully to:", uploadData.path)
-
-    // Get public URL
-    const {
-      data: { publicUrl },
-    } = supabaseAdmin.storage.from("pdf-documents").getPublicUrl(uploadData.path)
-
-    console.log("[v0] File uploaded successfully:", publicUrl)
+    console.log("[v0] File uploaded successfully to Vercel Blob:", blob.url)
 
     // Create invoice record in database
     const { data: invoice, error: invoiceError } = await supabaseAdmin
@@ -77,7 +56,7 @@ export async function POST(request: NextRequest) {
         uploaded_by_name: uploadedByName,
         invoice_number: invoiceNumber,
         invoice_date: invoiceDate,
-        file_url: publicUrl,
+        file_url: blob.url,
         file_name: file.name,
         file_type: file.type,
         file_size: file.size,
@@ -117,7 +96,7 @@ export async function POST(request: NextRequest) {
       {
         message: "Invoice uploaded successfully",
         invoice,
-        publicUrl,
+        publicUrl: blob.url,
       },
       { status: 201 }
     )
