@@ -48,6 +48,8 @@ export function StaffComplaintForm() {
     description: "",
     category: "",
     priority: "medium" as const,
+    officeNumber: "",
+    attachments: [] as File[],
   })
 
   const categories = [
@@ -127,6 +129,9 @@ export function StaffComplaintForm() {
     setIsSubmitting(true)
 
     try {
+      // Convert attachments to base64 or store file names
+      const attachmentNames = formData.attachments.map((file) => file.name)
+
       const response = await fetch("/api/service-tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -135,8 +140,10 @@ export function StaffComplaintForm() {
           category: formData.category,
           priority: formData.priority || "medium",
           location: user?.location,
+          office_number: formData.officeNumber,
           requested_by: user?.full_name || user?.name,
           description: formData.description,
+          attachments: attachmentNames,
         }),
       })
 
@@ -154,6 +161,8 @@ export function StaffComplaintForm() {
         description: "",
         category: "",
         priority: "medium",
+        officeNumber: "",
+        attachments: [],
       })
 
       setShowSuccess(true)
@@ -329,11 +338,58 @@ export function StaffComplaintForm() {
               </div>
 
               <div className="space-y-2">
-                <Label>Attachments (Optional)</Label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                  <Paperclip className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600">Drag and drop files here or click to browse</p>
-                  <p className="text-xs text-gray-500 mt-1">Screenshots, error logs, or other relevant files</p>
+                <Label htmlFor="officeNumber">Office Room Number</Label>
+                <Input
+                  id="officeNumber"
+                  placeholder="e.g., Room 101, Block A"
+                  value={formData.officeNumber}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, officeNumber: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="attachments">Attachments (Optional)</Label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                  <input
+                    id="attachments"
+                    type="file"
+                    multiple
+                    accept="image/*,.pdf,.doc,.docx,.txt,.log"
+                    onChange={(e) => {
+                      const files = Array.from(e.currentTarget.files || [])
+                      setFormData((prev) => ({ ...prev, attachments: files }))
+                    }}
+                    className="hidden"
+                  />
+                  <label htmlFor="attachments" className="cursor-pointer">
+                    <div className="text-center">
+                      <Paperclip className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-600">Drag and drop files here or click to browse</p>
+                      <p className="text-xs text-gray-500 mt-1">Screenshots, error logs, or other relevant files</p>
+                    </div>
+                  </label>
+                  {formData.attachments.length > 0 && (
+                    <div className="mt-3 space-y-1">
+                      <p className="text-xs font-medium text-gray-700">Selected files:</p>
+                      {formData.attachments.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                          <span className="truncate">{file.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormData((prev) => ({
+                                ...prev,
+                                attachments: prev.attachments.filter((_, i) => i !== index),
+                              }))
+                            }}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 

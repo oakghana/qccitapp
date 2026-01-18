@@ -90,6 +90,7 @@ export function ITHeadRepairManagement() {
   const [estimatedCost, setEstimatedCost] = useState("")
   const [selectedLocation, setSelectedLocation] = useState<string>("")
   const [locations, setLocations] = useState<{ code: string; name: string }[]>([])
+  const [attachments, setAttachments] = useState<File[]>([])
 
   // Edit form states
   const [editSelectedDevice, setEditSelectedDevice] = useState("")
@@ -243,21 +244,17 @@ export function ITHeadRepairManagement() {
         const serviceProviderData = item.service_provider ? {
           id: item.service_provider.id,
           name: item.service_provider.name || item.service_provider_name || "Unknown",
-          company: item.service_provider.company || "",
-          contact: item.service_provider.contact_phone || "",
+          phone: item.service_provider.phone || "",
           email: item.service_provider.email || "",
+          location: item.service_provider.location || "",
           specialization: item.service_provider.specialization || [],
-          rating: item.service_provider.rating || 0,
-          status: item.service_provider.status || "active",
         } : (item.service_provider_id ? {
           id: item.service_provider_id,
           name: item.service_provider_name || "Unknown Provider",
-          company: "",
-          contact: "",
+          phone: "",
           email: "",
+          location: "",
           specialization: [],
-          rating: 0,
-          status: "active",
         } : undefined)
 
         return {
@@ -322,6 +319,9 @@ export function ITHeadRepairManagement() {
     try {
       console.log("[v0] Saving repair task via API")
 
+      // Convert attachments to base64 or file names
+      const attachmentNames = attachments.map((file) => file.name)
+
       const response = await fetch("/api/repairs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -336,6 +336,7 @@ export function ITHeadRepairManagement() {
           requested_by_name: user?.name,
           location: device.location,
           estimated_cost: estimatedCost ? Number.parseFloat(estimatedCost) : null,
+          attachments: attachmentNames,
         }),
       })
 
@@ -357,6 +358,7 @@ export function ITHeadRepairManagement() {
       setPriority("medium")
       setSelectedProvider("")
       setEstimatedCost("")
+      setAttachments([])
       setShowCreateDialog(false)
     } catch (error) {
       console.error("[v0] Error saving repair task:", error)
@@ -670,6 +672,49 @@ export function ITHeadRepairManagement() {
                       value={estimatedCost}
                       onChange={(e) => setEstimatedCost(e.target.value)}
                     />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="attachments">Attachments (Optional)</Label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                    <input
+                      id="attachments"
+                      type="file"
+                      multiple
+                      accept="image/*,.pdf,.doc,.docx"
+                      onChange={(e) => {
+                        const files = Array.from(e.currentTarget.files || [])
+                        setAttachments(files)
+                      }}
+                      className="hidden"
+                    />
+                    <label htmlFor="attachments" className="cursor-pointer">
+                      <div className="text-center">
+                        <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-600">Click to upload photos or documents</p>
+                        <p className="text-xs text-gray-500 mt-1">Images, PDFs, or device photos</p>
+                      </div>
+                    </label>
+                    {attachments.length > 0 && (
+                      <div className="mt-3 space-y-1">
+                        <p className="text-xs font-medium text-gray-700">Selected files:</p>
+                        {attachments.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                            <span className="truncate">{file.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAttachments(attachments.filter((_, i) => i !== index))
+                              }}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1107,22 +1152,16 @@ export function ITHeadRepairManagement() {
                                     <strong>Name:</strong> {task.serviceProvider.name}
                                   </p>
                                   <p>
-                                    <strong>Company:</strong> {task.serviceProvider.company}
-                                  </p>
-                                  <p>
-                                    <strong>Contact:</strong> {task.serviceProvider.contact}
+                                    <strong>Phone:</strong> {task.serviceProvider.phone || "Not provided"}
                                   </p>
                                   <p>
                                     <strong>Email:</strong> {task.serviceProvider.email}
                                   </p>
+                                  <p>
+                                    <strong>Location:</strong> {task.serviceProvider.location || "Not specified"}
+                                  </p>
                                 </div>
                                 <div className="space-y-2">
-                                  <p>
-                                    <strong>Rating:</strong> ⭐ {task.serviceProvider.rating}/5.0
-                                  </p>
-                                  <p>
-                                    <strong>Status:</strong> <Badge size="sm">{task.serviceProvider.status}</Badge>
-                                  </p>
                                   <div>
                                     <p>
                                       <strong>Specialization:</strong>

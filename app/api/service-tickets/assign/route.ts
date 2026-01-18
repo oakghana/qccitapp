@@ -97,20 +97,24 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Ticket assigned successfully:", data)
 
-    // Create a ticket history/audit entry if the table exists
+    // Create a ticket update/audit entry using the correct table
     try {
       await supabaseAdmin
-        .from("ticket_history")
+        .from("service_ticket_updates")
         .insert({
           ticket_id: dbTicketId,
-          action: "assigned",
-          description: `Ticket assigned to ${assignee} by ${assignedBy}`,
-          created_by: assignedBy,
-          created_at: new Date().toISOString(),
+          update_type: "assignment",
+          old_status: "open",
+          new_status: "in_progress",
+          new_assignee: assigneeId,
+          notes: `Ticket assigned to ${assignee} by ${assignedBy}. Instructions: ${instructions || "None"}`,
+          created_by: assignedById || assigneeId,
+          created_by_name: assignedBy,
+          is_internal: false,
         })
-    } catch (historyError) {
-      // History table may not exist, that's okay
-      console.log("[v0] Ticket history not recorded (table may not exist)")
+    } catch (updateError) {
+      // History update may fail, but don't block the assignment
+      console.warn("[v0] Could not record ticket update:", updateError)
     }
 
     return NextResponse.json({ 

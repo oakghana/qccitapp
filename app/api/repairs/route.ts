@@ -141,12 +141,10 @@ export async function GET(request: NextRequest) {
         service_provider:service_providers(
           id,
           name,
-          company,
-          contact_phone,
+          phone,
           email,
-          specialization,
-          rating,
-          status
+          location,
+          specialization
         )
       `)
       .order("created_at", { ascending: false })
