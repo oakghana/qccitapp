@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { createClient } from "@supabase/supabase-js"
 import {
   Clock,
   MapPin,
@@ -90,6 +91,10 @@ interface ServiceProviderRepairTask {
     created_at: string
   }
 }
+
+const supabaseUrl = "https://your-supabase-url.supabase.co"
+const supabaseKey = "your-supabase-key"
+const supabase = createClient(supabaseUrl, supabaseKey)
 
 export function ServiceProviderTasks() {
   const { user } = useAuth()
@@ -284,7 +289,8 @@ export function ServiceProviderTasks() {
 
       const formData = new FormData()
       formData.append("repair_id", selectedTask.id)
-      formData.append("service_provider_id", user?.id || "")
+      // Pass the user ID to the API, which will look up the service provider ID
+      formData.append("user_id", user?.id || "")
       formData.append("service_provider_name", user?.name || "")
       formData.append("uploaded_by", user?.id || "")
       formData.append("uploaded_by_name", user?.name || "")
@@ -298,7 +304,7 @@ export function ServiceProviderTasks() {
       formData.append("description", invoiceDescription)
       formData.append("file", invoiceFile)
 
-      console.log("[v0] Uploading invoice for repair:", selectedTask.id)
+      console.log("[v0] Uploading invoice for repair:", selectedTask.id, "User ID:", user?.id)
 
       const response = await fetch("/api/repairs/invoice", {
         method: "POST",

@@ -88,13 +88,18 @@ export async function POST(request: NextRequest) {
       if (sourceStock) {
         const newSourceQuantity = Math.max(0, (sourceStock.quantity || 0) - quantityToTransfer)
 
-        await supabaseAdmin
+        const { error: updateError } = await supabaseAdmin
           .from("stock_levels")
           .update({ quantity: newSourceQuantity })
           .eq("id", sourceStock.id)
 
+        if (updateError) {
+          console.error("[v0] Error updating source stock:", updateError)
+          throw new Error(`Failed to update central store stock: ${updateError.message}`)
+        }
+
         // Record stock transaction for central store
-        await supabaseAdmin
+        const { error: transactionError } = await supabaseAdmin
           .from("stock_transactions")
           .insert({
             item_id: itemId,
@@ -107,29 +112,46 @@ export async function POST(request: NextRequest) {
             created_by: approvedBy,
             notes: `Requisition approved: ${approvalNotes || ""}`,
           })
+
+        if (transactionError) {
+          console.error("[v0] Error creating transaction:", transactionError)
+          throw new Error(`Failed to record stock transaction: ${transactionError.message}`)
+        }
+      } else {
+        console.warn("[v0] No source stock found for central store, item:", itemId)
       }
 
       // Update destination location stock (increase)
       if (destStock) {
         const newDestQuantity = (destStock.quantity || 0) + quantityToTransfer
 
-        await supabaseAdmin
+        const { error: updateError } = await supabaseAdmin
           .from("stock_levels")
           .update({ quantity: newDestQuantity })
           .eq("id", destStock.id)
+
+        if (updateError) {
+          console.error("[v0] Error updating destination stock:", updateError)
+          throw new Error(`Failed to update destination stock: ${updateError.message}`)
+        }
       } else {
         // Create new stock level if it doesn't exist
-        await supabaseAdmin
+        const { error: insertError } = await supabaseAdmin
           .from("stock_levels")
           .insert({
             item_id: itemId,
             location_code: requisition.location_code,
             quantity: quantityToTransfer,
           })
+
+        if (insertError) {
+          console.error("[v0] Error creating destination stock:", insertError)
+          throw new Error(`Failed to create destination stock: ${insertError.message}`)
+        }
       }
 
       // Record stock transaction for destination
-      await supabaseAdmin
+      const { error: destTransactionError } = await supabaseAdmin
         .from("stock_transactions")
         .insert({
           item_id: itemId,
@@ -142,6 +164,11 @@ export async function POST(request: NextRequest) {
           created_by: approvedBy,
           notes: `Stock received from central store`,
         })
+
+      if (destTransactionError) {
+        console.error("[v0] Error creating destination transaction:", destTransactionError)
+        throw new Error(`Failed to record receipt transaction: ${destTransactionError.message}`)
+      }
 
       console.log("[v0] Stock transfer completed successfully:", {
         requisitionId,

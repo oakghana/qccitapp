@@ -18,10 +18,10 @@ export async function GET(request: NextRequest) {
     console.log("[v0] Dashboard stats API - location:", location, "canSeeAll:", canSeeAll, "role:", userRole)
 
     // Helper function to build location filter
-    const applyLocationFilter = (query: any, table: string = "") => {
+    const applyLocationFilter = (query: any) => {
       if (!canSeeAll && location) {
-        const col = table ? `${table}.location` : "location"
-        return query.or(`location.ilike.${location},location.ilike.%${location}%`)
+        // Use ilike for case-insensitive filtering
+        return query.ilike("location", `%${location}%`)
       }
       return query
     }
@@ -31,9 +31,7 @@ export async function GET(request: NextRequest) {
       .from("devices")
       .select("*", { count: "exact", head: true })
     
-    if (!canSeeAll && location) {
-      devicesQuery = devicesQuery.or(`location.ilike.${location},location.ilike.%${location}%`)
-    }
+    devicesQuery = applyLocationFilter(devicesQuery)
     
     const { count: devicesCount, error: devicesError } = await devicesQuery
     if (devicesError) console.error("[v0] Error fetching devices:", devicesError)
@@ -44,9 +42,7 @@ export async function GET(request: NextRequest) {
       .select("*", { count: "exact", head: true })
       .eq("status", "in_progress")
     
-    if (!canSeeAll && location) {
-      repairsQuery = repairsQuery.or(`location.ilike.${location},location.ilike.%${location}%`)
-    }
+    repairsQuery = applyLocationFilter(repairsQuery)
     
     const { count: activeRepairsCount, error: repairsError } = await repairsQuery
     if (repairsError) console.error("[v0] Error fetching repairs:", repairsError)
@@ -62,9 +58,7 @@ export async function GET(request: NextRequest) {
       .eq("status", "completed")
       .gte("updated_at", startOfMonth.toISOString())
     
-    if (!canSeeAll && location) {
-      completedQuery = completedQuery.or(`location.ilike.${location},location.ilike.%${location}%`)
-    }
+    completedQuery = applyLocationFilter(completedQuery)
     
     const { count: completedRepairsCount, error: completedError } = await completedQuery
     if (completedError) console.error("[v0] Error fetching completed repairs:", completedError)

@@ -11,7 +11,8 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
     const repairId = formData.get("repair_id") as string
-    const serviceProviderId = formData.get("service_provider_id") as string
+    let serviceProviderId = formData.get("service_provider_id") as string
+    const userId = formData.get("user_id") as string
     const serviceProviderName = formData.get("service_provider_name") as string
     const uploadedBy = formData.get("uploaded_by") as string
     const uploadedByName = formData.get("uploaded_by_name") as string
@@ -25,14 +26,35 @@ export async function POST(request: NextRequest) {
     const description = formData.get("description") as string
     const file = formData.get("file") as File
 
+    // If service_provider_id is not provided, look it up using user_id
+    if (!serviceProviderId && userId) {
+      console.log("[v0] Looking up service provider ID for user:", userId)
+      const { data: spData, error: spError } = await supabaseAdmin
+        .from("service_providers")
+        .select("id")
+        .eq("user_id", userId)
+        .single()
+
+      if (spError || !spData) {
+        console.error("[v0] Error looking up service provider:", spError?.message || "Not found")
+        return NextResponse.json(
+          { error: "Service provider profile not found for this user" },
+          { status: 404 }
+        )
+      }
+
+      serviceProviderId = spData.id
+      console.log("[v0] Found service provider ID:", serviceProviderId)
+    }
+
     if (!repairId || !file || !serviceProviderId) {
       return NextResponse.json(
-        { error: "Missing required fields: repair_id, service_provider_id, or file" },
+        { error: "Missing required fields: repair_id, service_provider_id (or user_id), or file" },
         { status: 400 }
       )
     }
 
-    console.log("[v0] Uploading invoice for repair:", repairId, "file:", file.name)
+    console.log("[v0] Uploading invoice for repair:", repairId, "file:", file.name, "Service Provider ID:", serviceProviderId)
 
     // Upload file to Vercel Blob
     const blobFileName = `repair-invoices/${repairId}/${Date.now()}-${file.name.replace(/\s+/g, "_")}`
