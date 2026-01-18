@@ -48,8 +48,8 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
       const { data, error } = await supabase
         .from("store_items")
         .select("*")
+        .eq("location", "Central Stores")
         .gt("quantity", 0)
-        .neq("location", "Central Stores")
         .order("name")
 
       if (error) {
@@ -57,8 +57,12 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
         return
       }
 
-      console.log("[v0] Loaded available store items (excluding Central Stores):", data)
-      setAvailableItems(data || [])
+      console.log("[v0] Loaded available store items from Central Stores:", data)
+      // Remove duplicates by keeping only the first instance of each item
+      const uniqueItems = Array.from(
+        new Map((data || []).map((item) => [item.name, item])).values()
+      )
+      setAvailableItems(uniqueItems)
     } catch (err) {
       console.error("[v0] Error loading items:", err)
     } finally {

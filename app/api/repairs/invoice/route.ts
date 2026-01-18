@@ -33,26 +33,36 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Uploading invoice for repair:", repairId, "file:", file.name)
 
-    // Upload file to Supabase Storage
-    const fileName = `repair-invoices/${repairId}/${Date.now()}-${file.name}`
+    // Upload file to Supabase Storage (using existing pdf-documents bucket)
+    const fileName = `repair-invoices/${repairId}/${Date.now()}-${file.name.replace(/\s+/g, "_")}`
     const fileBuffer = await file.arrayBuffer()
 
+    console.log("[v0] Uploading to storage with path:", fileName)
+
     const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
-      .from("repair-documents")
+      .from("pdf-documents")
       .upload(fileName, fileBuffer, {
-        contentType: file.type,
+        contentType: file.type || "application/pdf",
         upsert: false,
       })
 
     if (uploadError) {
-      console.error("[v0] Error uploading file:", uploadError)
-      return NextResponse.json({ error: "Failed to upload file" }, { status: 500 })
+      console.error("[v0] Error uploading file to storage:", uploadError)
+      console.error("[v0] Upload error details:", {
+        message: uploadError.message,
+        status: uploadError.status,
+        statusCode: uploadError.statusCode,
+        code: (uploadError as any).code,
+      })
+      return NextResponse.json({ error: `Failed to upload file: ${uploadError.message}` }, { status: 500 })
     }
+
+    console.log("[v0] File uploaded successfully to:", uploadData.path)
 
     // Get public URL
     const {
       data: { publicUrl },
-    } = supabaseAdmin.storage.from("repair-documents").getPublicUrl(uploadData.path)
+    } = supabaseAdmin.storage.from("pdf-documents").getPublicUrl(uploadData.path)
 
     console.log("[v0] File uploaded successfully:", publicUrl)
 
