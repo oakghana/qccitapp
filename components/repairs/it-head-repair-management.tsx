@@ -22,6 +22,8 @@ import {
   Download,
   Clock,
   DollarSign,
+  Edit,
+  Trash2,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations, canCreateRepairs } from "@/lib/location-filter"
@@ -77,6 +79,8 @@ export function ITHeadRepairManagement() {
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [priorityFilter, setPriorityFilter] = useState<string>("all")
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [editingTask, setEditingTask] = useState<RepairTask | null>(null)
 
   // Form states
   const [selectedDevice, setSelectedDevice] = useState("")
@@ -86,6 +90,13 @@ export function ITHeadRepairManagement() {
   const [estimatedCost, setEstimatedCost] = useState("")
   const [selectedLocation, setSelectedLocation] = useState<string>("")
   const [locations, setLocations] = useState<{ code: string; name: string }[]>([])
+
+  // Edit form states
+  const [editSelectedDevice, setEditSelectedDevice] = useState("")
+  const [editIssueDescription, setEditIssueDescription] = useState("")
+  const [editPriority, setEditPriority] = useState<RepairTask["priority"]>("medium")
+  const [editSelectedProvider, setEditSelectedProvider] = useState("")
+  const [editEstimatedCost, setEditEstimatedCost] = useState("")
 
   useEffect(() => {
     loadLocations()
@@ -104,17 +115,21 @@ export function ITHeadRepairManagement() {
   const loadLocations = async () => {
     try {
       const response = await fetch("/api/admin/lookup-data?type=locations")
+      let activeLocations: { code: string; name: string }[] = [];
       if (response.ok) {
         const data = await response.json()
-        const activeLocations = data
+        activeLocations = data
           .filter((loc: any) => loc.is_active)
           .map((loc: any) => ({ code: loc.code, name: loc.name }))
-        setLocations(activeLocations)
-        
-        // For IT staff, auto-select their location
-        if (user?.role === "it_staff" && user?.location) {
-          setSelectedLocation(user.location)
-        }
+      }
+      // Always include Takoradi Port if not present
+      if (!activeLocations.some(loc => loc.code === "takoradi_port")) {
+        activeLocations.push({ code: "takoradi_port", name: "Takoradi Port" })
+      }
+      setLocations(activeLocations)
+      // For IT staff, auto-select their location
+      if (user?.role === "it_staff" && user?.location) {
+        setSelectedLocation(user.location)
       }
     } catch (error) {
       console.error("[v0] Error loading locations:", error)
@@ -216,8 +231,14 @@ export function ITHeadRepairManagement() {
         return
       }
 
-      // Transform data to match RepairTask interface
-      const transformedTasks: RepairTask[] = (result.repairs || []).map((item: any) => ({
+      // Robustly handle undefined/null/invalid result or repairs
+      let repairs: any[] = [];
+      if (result && typeof result === 'object' && Array.isArray(result.repairs)) {
+        repairs = result.repairs;
+      } else {
+        console.warn('[v0] Unexpected repairs API response:', result);
+      }
+      const transformedTasks: RepairTask[] = repairs.map((item: any) => ({
         id: item.id,
         taskNumber: item.task_number || item.id?.substring(0, 8) || "N/A",
         device: item.devices || {
@@ -316,6 +337,98 @@ export function ITHeadRepairManagement() {
       setShowCreateDialog(false)
     } catch (error) {
       console.error("[v0] Error saving repair task:", error)
+    }
+  }
+
+  const openEditDialog = (task: RepairTask) => {
+    setEditingTask(task)
+    setEditSelectedDevice(task.device.id)
+    setEditIssueDescription(task.issueDescription)
+    setEditPriority(task.priority)
+    setEditSelectedProvider(task.serviceProvider?.id || "")
+    setEditEstimatedCost(task.estimatedCost?.toString() || "")
+    setShowEditDialog(true)
+  }
+
+  const updateRepairTask = async () => {
+    if (!editingTask || !editSelectedDevice || !editIssueDescription || !editSelectedProvider) return
+
+    const device = devices.find((d) => d.id === editSelectedDevice)
+    const provider = serviceProviders.find((p) => p.id === editSelectedProvider)
+
+    if (!device || !provider) return
+
+    try {
+      console.log("[v0] Updating repair task via API")
+
+      const response = await fetch("/api/repairs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingTask.id,
+          device_id: device.id,
+          device_name: `${device.assetTag || device.serialNumber} - ${device.type} (${device.brand} ${device.model})`,
+          issue_description: editIssueDescription,
+          priority: editPriority,
+          service_provider_id: provider.id,
+          service_provider_name: provider.name,
+          location: device.location,
+          estimated_cost: editEstimatedCost ? Number.parseFloat(editEstimatedCost) : null,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.error("[v0] Error updating repair task:", result.error)
+        return
+      }
+
+      console.log("[v0] Repair task updated successfully:", result)
+
+      // Reload tasks
+      await loadRepairTasks()
+
+      // Reset form and close dialog
+      setEditingTask(null)
+      setEditSelectedDevice("")
+      setEditIssueDescription("")
+      setEditPriority("medium")
+      setEditSelectedProvider("")
+      setEditEstimatedCost("")
+      setShowEditDialog(false)
+    } catch (error) {
+      console.error("[v0] Error updating repair task:", error)
+    }
+  }
+
+  const deleteRepairTask = async (taskId: string) => {
+    if (!confirm("Are you sure you want to delete this repair task? This action cannot be undone.")) {
+      return
+    }
+
+    try {
+      console.log("[v0] Deleting repair task via API")
+
+      const response = await fetch("/api/repairs", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: taskId }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.error("[v0] Error deleting repair task:", result.error)
+        return
+      }
+
+      console.log("[v0] Repair task deleted successfully")
+
+      // Reload tasks
+      await loadRepairTasks()
+    } catch (error) {
+      console.error("[v0] Error deleting repair task:", error)
     }
   }
 
@@ -428,7 +541,7 @@ export function ITHeadRepairManagement() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Locations</SelectItem>
-                        {locations.map((loc) => (
+                        {(locations || []).map((loc) => (
                           <SelectItem key={loc.code} value={loc.code}>
                             {loc.name}
                           </SelectItem>
@@ -459,8 +572,8 @@ export function ITHeadRepairManagement() {
                         <SelectValue placeholder={devices.length > 0 ? "Choose device to repair" : "No devices available"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {devices.length > 0 ? (
-                          devices.map((device) => (
+                        {(devices || []).length > 0 ? (
+                          (devices || []).map((device) => (
                             <SelectItem key={device.id} value={device.id}>
                               {device.assetTag || device.serialNumber} - {device.type} ({device.brand} {device.model} {device.location ? `@ ${device.location}` : ""})
                             </SelectItem>
@@ -481,8 +594,8 @@ export function ITHeadRepairManagement() {
                         <SelectValue placeholder="Choose service provider" />
                       </SelectTrigger>
                       <SelectContent>
-                        {serviceProviders.length > 0 ? (
-                          serviceProviders.map((provider) => (
+                        {(serviceProviders || []).length > 0 ? (
+                          (serviceProviders || []).map((provider) => (
                             <SelectItem key={provider.id} value={provider.id}>
                               {provider.name}
                             </SelectItem>
@@ -554,6 +667,104 @@ export function ITHeadRepairManagement() {
             </DialogContent>
           </Dialog>
         )}
+
+        {/* Edit Dialog */}
+        <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Repair Task</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-device">Select Device</Label>
+                  <Select value={editSelectedDevice} onValueChange={setEditSelectedDevice}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose device to repair" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(devices || []).map((device) => (
+                        <SelectItem key={device.id} value={device.id}>
+                          {device.assetTag || device.serialNumber} - {device.type} ({device.brand} {device.model} {device.location ? `@ ${device.location}` : ""})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="edit-provider">Service Provider</Label>
+                  <Select value={editSelectedProvider} onValueChange={setEditSelectedProvider}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose service provider" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(serviceProviders || []).map((provider) => (
+                        <SelectItem key={provider.id} value={provider.id}>
+                          {provider.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="edit-issue">Issue Description</Label>
+                <Textarea
+                  id="edit-issue"
+                  placeholder="Describe the problem with the device..."
+                  value={editIssueDescription}
+                  onChange={(e) => setEditIssueDescription(e.target.value)}
+                  rows={4}
+                />
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-priority">Priority Level</Label>
+                  <Select value={editPriority} onValueChange={(value) => setEditPriority(value as RepairTask["priority"])}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low Priority</SelectItem>
+                      <SelectItem value="medium">Medium Priority</SelectItem>
+                      <SelectItem value="high">High Priority</SelectItem>
+                      <SelectItem value="critical">Critical Priority</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="edit-cost">Estimated Cost (GHS)</Label>
+                  <Input
+                    id="edit-cost"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={editEstimatedCost}
+                    onChange={(e) => setEditEstimatedCost(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={updateRepairTask}
+                  disabled={!editSelectedDevice || !editIssueDescription || !editSelectedProvider}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Update Repair
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Stats Cards */}
@@ -705,6 +916,25 @@ export function ITHeadRepairManagement() {
                 </div>
 
                 <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openEditDialog(task)}
+                    disabled={task.status === "completed" || task.status === "returned"}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => deleteRepairTask(task.id)}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    disabled={task.status === "completed" || task.status === "returned"}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button variant="outline" size="sm">
@@ -787,7 +1017,7 @@ export function ITHeadRepairManagement() {
                                         <strong>Parts Used:</strong>
                                       </p>
                                       <ul className="list-disc list-inside ml-4 text-sm">
-                                        {task.partsUsed.map((part, index) => (
+                                        {(task.partsUsed || []).map((part, index) => (
                                           <li key={index}>{part}</li>
                                         ))}
                                       </ul>
@@ -873,7 +1103,7 @@ export function ITHeadRepairManagement() {
                                       <strong>Specialization:</strong>
                                     </p>
                                     <div className="flex flex-wrap gap-1 mt-1">
-                                      {task.serviceProvider.specialization.map((spec, index) => (
+                                      {(task.serviceProvider.specialization || []).map((spec, index) => (
                                         <Badge key={index} variant="outline" size="sm">
                                           {spec}
                                         </Badge>
@@ -914,7 +1144,7 @@ export function ITHeadRepairManagement() {
                               <div>
                                 <Label className="font-semibold">Attachments</Label>
                                 <div className="space-y-2">
-                                  {task.attachments.map((attachment, index) => (
+                                  {(task.attachments || []).map((attachment, index) => (
                                     <div key={index} className="flex items-center gap-2 text-sm">
                                       <FileText className="h-4 w-4" />
                                       <span>{attachment}</span>

@@ -144,7 +144,7 @@ importers:
         specifier: latest
         version: 0.4.6(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       nodemailer:
-        specifier: 7.0.12
+        specifier: ^7.0.12
         version: 7.0.12
       react:
         specifier: ^19.0.0

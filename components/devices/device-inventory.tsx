@@ -151,17 +151,22 @@ export function DeviceInventory() {
   const loadLocations = async () => {
     try {
       const res = await fetch("/api/admin/lookup-data?type=locations")
+      let activeLocations: { code: string; name: string; region_id?: string }[] = [];
       if (res.ok) {
         const data = await res.json()
-        const activeLocations = data
+        activeLocations = data
           .filter((loc: any) => loc.is_active && loc.code && loc.code.trim() !== "")
           .map((loc: any) => ({
             code: loc.code || loc.name, // Fallback to name if code is empty
             name: loc.name,
             region_id: loc.region_id || null, // Include region_id for auto-population
           }))
-        setDbLocations(activeLocations)
       }
+      // Always include Takoradi Port if not present
+      if (!activeLocations.some(loc => loc.code === "takoradi_port")) {
+        activeLocations.push({ code: "takoradi_port", name: "Takoradi Port" })
+      }
+      setDbLocations(activeLocations)
     } catch (error) {
       console.error("Error loading locations:", error)
     }

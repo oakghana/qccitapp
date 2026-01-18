@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
         location: body.location,
         requested_by: body.requested_by,
         service_provider_id: body.service_provider_id || null,
-        service_provider: body.service_provider_name || null,
+        service_provider_name: body.service_provider_name || null,
         estimated_cost: body.estimated_cost || null,
         task_number: taskNumber,
         created_at: new Date().toISOString(),
@@ -241,6 +241,80 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ repair: data, taskNumber })
   } catch (error) {
     console.error("[v0] API Repair Requests POST error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { id, device_id, device_name, issue_description, priority, service_provider_id, service_provider_name, location, estimated_cost } = body
+
+    if (!id) {
+      return NextResponse.json({ error: "Repair ID is required" }, { status: 400 })
+    }
+
+    console.log("[v0] Updating repair request:", id)
+
+    const updateData: any = {
+      device_id,
+      device_name,
+      issue_description,
+      priority,
+      service_provider_id,
+      service_provider_name,
+      location,
+      estimated_cost,
+      updated_at: new Date().toISOString(),
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("repair_requests")
+      .update(updateData)
+      .eq("id", id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error("[v0] Error updating repair request:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    console.log("[v0] Updated repair request:", data)
+
+    return NextResponse.json({ repair: data })
+  } catch (error) {
+    console.error("[v0] API Repair Requests PUT error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { id } = body
+
+    if (!id) {
+      return NextResponse.json({ error: "Repair ID is required" }, { status: 400 })
+    }
+
+    console.log("[v0] Deleting repair request:", id)
+
+    const { error } = await supabaseAdmin
+      .from("repair_requests")
+      .delete()
+      .eq("id", id)
+
+    if (error) {
+      console.error("[v0] Error deleting repair request:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    console.log("[v0] Deleted repair request:", id)
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("[v0] API Repair Requests DELETE error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

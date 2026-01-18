@@ -47,14 +47,29 @@ export async function POST(request: NextRequest) {
       updateData.assigned_by = assignedBy
     }
 
-    // Try to find ticket by ticket_number first, then by id
-    let query = supabaseAdmin
-      .from("service_tickets")
-      .select("id, ticket_number")
-      .or(`id.eq.${ticketId},ticket_number.eq.${ticketId}`)
-      .limit(1)
+    // Only query id if ticketId is a valid UUID, else use ticket_number
+    function isUUID(str: string) {
+      return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)
+    }
 
-    const { data: ticketData, error: findError } = await query
+    let ticketData, findError, dbTicketId
+    if (isUUID(ticketId)) {
+      // Search by id (UUID)
+      ({ data: ticketData, error: findError } = await supabaseAdmin
+        .from("service_tickets")
+        .select("id, ticket_number")
+        .eq("id", ticketId)
+        .limit(1)
+      )
+    } else {
+      // Search by ticket_number (string)
+      ({ data: ticketData, error: findError } = await supabaseAdmin
+        .from("service_tickets")
+        .select("id, ticket_number")
+        .eq("ticket_number", ticketId)
+        .limit(1)
+      )
+    }
 
     if (findError) {
       console.error("[v0] Error finding ticket:", findError)
@@ -65,7 +80,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Ticket not found" }, { status: 404 })
     }
 
-    const dbTicketId = ticketData[0].id
+    dbTicketId = ticketData[0].id
 
     // Update the ticket
     const { data, error } = await supabaseAdmin
