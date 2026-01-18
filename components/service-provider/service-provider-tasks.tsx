@@ -131,14 +131,19 @@ export function ServiceProviderTasks() {
         ? `/api/repairs/tasks?viewAll=true`
         : `/api/repairs/tasks?service_provider_id=${user.id}`
       
+      console.log("[v0] Loading service provider tasks from:", url, "User ID:", user.id, "User Role:", user.role)
+      
       const response = await fetch(url)
       
       if (!response.ok) {
         const result = await response.json()
+        console.error("[v0] API error response:", result)
         throw new Error(result.error || "Failed to load tasks")
       }
 
       const { tasks: data, message } = await response.json()
+      
+      console.log("[v0] Loaded tasks response:", data?.length || 0, "tasks")
       
       if (message) {
         console.log("[v0] API message:", message)

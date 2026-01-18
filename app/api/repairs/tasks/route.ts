@@ -16,6 +16,25 @@ export async function GET(request: NextRequest) {
 
     console.log("[v0] API Repair Tasks - service_provider_id:", serviceProviderId, "status:", status, "viewAll:", viewAll)
 
+    // If service_provider_id is a user ID, look up the actual service provider ID
+    let actualServiceProviderId = serviceProviderId
+    
+    if (serviceProviderId && !viewAll) {
+      // Check if this is a user ID by looking up service_providers table
+      const { data: spData } = await supabaseAdmin
+        .from("service_providers")
+        .select("id")
+        .eq("user_id", serviceProviderId)
+        .single()
+      
+      if (spData) {
+        console.log("[v0] Found service provider ID from user_id:", spData.id)
+        actualServiceProviderId = spData.id
+      } else {
+        console.log("[v0] No user->service_provider mapping found, using provided ID directly:", serviceProviderId)
+      }
+    }
+
     // Query from repair_requests table (the actual repairs table)
     let query = supabaseAdmin
       .from("repair_requests")
@@ -50,8 +69,10 @@ export async function GET(request: NextRequest) {
     // If viewAll is true (admin), show all repairs that have a service provider assigned
     if (viewAll) {
       query = query.not("service_provider_id", "is", null)
-    } else if (serviceProviderId) {
-      query = query.eq("service_provider_id", serviceProviderId)
+      console.log("[v0] Querying all repairs with service provider assigned")
+    } else if (actualServiceProviderId) {
+      query = query.eq("service_provider_id", actualServiceProviderId)
+      console.log("[v0] Querying repairs for service_provider_id:", actualServiceProviderId)
     }
 
     if (status && status !== "all") {
