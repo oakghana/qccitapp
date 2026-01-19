@@ -120,8 +120,12 @@ export function PDFUploadsDashboard() {
   const canDelete = user && ["admin", "it_head"].includes(user.role)
 
   useEffect(() => {
+    // Auto-set location filter for regional IT staff
+    if (user && user.role === "regional_it_head" && user.location) {
+      setSelectedLocation(user.location)
+    }
     fetchUploads()
-  }, [selectedType, selectedLocation])
+  }, [selectedType, selectedLocation, user])
 
   const fetchUploads = async () => {
     setLoading(true)
@@ -281,14 +285,16 @@ export function PDFUploadsDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header with Location Info for Regional Staff */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             IT Documents & Reports
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            View and confirm official IT documents and reports
+            {user?.role === "regional_it_head" && user?.location
+              ? `Documents for ${LOCATIONS[user.location as keyof typeof LOCATIONS] || user.location}`
+              : "View and confirm official IT documents and reports"}
           </p>
         </div>
         {canUpload && (
@@ -498,7 +504,7 @@ export function PDFUploadsDashboard() {
                 <SelectItem value="information">Information</SelectItem>
               </SelectContent>
             </Select>
-            {["admin", "it_head", "regional_it_head"].includes(user?.role || "") && (
+            {["admin", "it_head"].includes(user?.role || "") && (
               <Select value={selectedLocation} onValueChange={setSelectedLocation}>
                 <SelectTrigger className="w-48">
                   <SelectValue placeholder="Location" />
@@ -512,6 +518,11 @@ export function PDFUploadsDashboard() {
                   ))}
                 </SelectContent>
               </Select>
+            )}
+            {user?.role === "regional_it_head" && (
+              <div className="px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 rounded border border-blue-200 dark:border-blue-800">
+                📍 Viewing documents for: <span className="font-semibold">{LOCATIONS[user?.location as keyof typeof LOCATIONS] || user?.location}</span>
+              </div>
             )}
           </div>
         </CardContent>
@@ -575,10 +586,22 @@ export function PDFUploadsDashboard() {
                         </TableCell>
                         <TableCell>{upload.uploaded_by_name}</TableCell>
                         <TableCell>
-                          {upload.target_location
-                            ? LOCATIONS[upload.target_location as keyof typeof LOCATIONS] ||
-                              upload.target_location
-                            : "All Locations"}
+                          <div className="flex items-center gap-2">
+                            {upload.target_location ? (
+                              <>
+                                <span className="px-2 py-1 text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 rounded">
+                                  {LOCATIONS[upload.target_location as keyof typeof LOCATIONS] || upload.target_location}
+                                </span>
+                                {user?.location === upload.target_location && (
+                                  <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" title="This document is for your location">
+                                    ✓ Your Location
+                                  </Badge>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-gray-500 italic">All Locations</span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           {format(new Date(upload.created_at), "MMM d, yyyy")}
@@ -637,7 +660,7 @@ export function PDFUploadsDashboard() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="gap-1"
+                                className="gap-1 bg-transparent"
                                 onClick={() => {
                                   setSelectedUpload(upload)
                                   setShowConfirmDialog(true)
