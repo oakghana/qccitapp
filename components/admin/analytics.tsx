@@ -26,6 +26,14 @@ export function Analytics() {
 
   useEffect(() => {
     loadAnalyticsData()
+    
+    // Set up auto-refresh every 30 seconds to show real-time analytics updates
+    const refreshInterval = setInterval(() => {
+      console.log("[v0] Auto-refreshing analytics data...")
+      loadAnalyticsData()
+    }, 30000)
+    
+    return () => clearInterval(refreshInterval)
   }, [timeRange])
 
   const loadAnalyticsData = async () => {

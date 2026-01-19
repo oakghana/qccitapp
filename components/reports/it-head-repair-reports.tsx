@@ -228,7 +228,7 @@ export function ITHeadRepairReports() {
       summary: {
         totalTasks: currentReport.totalTasks,
         completedTasks: currentReport.completedTasks,
-        completionRate: ((currentReport.completedTasks / currentReport.totalTasks) * 100).toFixed(1),
+        completionRate: currentReport.totalTasks > 0 ? ((currentReport.completedTasks / currentReport.totalTasks) * 100).toFixed(1) : "0",
         totalCost: currentReport.totalCost,
         avgRepairTime: currentReport.avgRepairTime,
       },
@@ -632,11 +632,11 @@ export function ITHeadRepairReports() {
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Completion Rate:</span>
-                            <span className="font-medium">{provider.completionRate.toFixed(1)}%</span>
+                            <span className="font-medium">{(provider.completionRate || 0).toFixed(1)}%</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>On-time Delivery:</span>
-                            <span className="font-medium">{provider.onTimeDelivery.toFixed(1)}%</span>
+                            <span className="font-medium">{(provider.onTimeDelivery || 0).toFixed(1)}%</span>
                           </div>
                         </div>
                       </div>
@@ -648,16 +648,16 @@ export function ITHeadRepairReports() {
                         <div className="space-y-2 mt-2">
                           <div className="flex justify-between text-sm">
                             <span>Avg Repair Time:</span>
-                            <span className="font-medium">{provider.avgRepairTime.toFixed(1)} days</span>
+                            <span className="font-medium">{(provider.avgRepairTime || 0).toFixed(1)} days</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Total Cost:</span>
-                            <span className="font-medium">GHS {provider.totalCost.toLocaleString()}</span>
+                            <span className="font-medium">GHS {(provider.totalCost || 0).toLocaleString()}</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Avg Cost per Task:</span>
                             <span className="font-medium">
-                              GHS {(provider.totalCost / provider.tasksCompleted).toFixed(0)}
+                              GHS {provider.tasksCompleted > 0 ? ((provider.totalCost || 0) / provider.tasksCompleted).toFixed(0) : "0"}
                             </span>
                           </div>
                         </div>
@@ -748,12 +748,12 @@ export function ITHeadRepairReports() {
                     <div key={index} className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="font-medium">{device.type}</span>
-                        <span>{device.avgRepairTime.toFixed(1)} days</span>
+                        <span>{(device.avgRepairTime || 0).toFixed(1)} days</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
                           className="bg-blue-600 h-2 rounded-full"
-                          style={{ width: `${(device.avgRepairTime / 6) * 100}%` }}
+                          style={{ width: `${((device.avgRepairTime || 0) / 6) * 100}%` }}
                         ></div>
                       </div>
                     </div>
@@ -801,10 +801,10 @@ export function ITHeadRepairReports() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium">
-                        Total Impact: GHS {(issue.frequency * issue.avgCost).toLocaleString()}
+                        Total Impact: GHS {((issue.frequency || 0) * (issue.avgCost || 0)).toLocaleString()}
                       </p>
                       <Badge variant="outline">
-                        {((issue.frequency / currentReport.totalTasks) * 100).toFixed(1)}% of all issues
+                        {currentReport.totalTasks > 0 ? ((issue.frequency / currentReport.totalTasks) * 100).toFixed(1) : "0"}% of all issues
                       </Badge>
                     </div>
                   </div>

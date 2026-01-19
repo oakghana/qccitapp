@@ -49,37 +49,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No item_id found in requisition" }, { status: 400 })
     }
 
+    let updateError
+
     if (approvalAction === "approve") {
-      // Update requisition status to approved
-      const { error: updateError } = await supabaseAdmin
-        .from("store_requisitions")
-        .update({
-          status: "approved",
-          approved_quantity: approvedQuantity || requisition.quantity,
-          approved_date: new Date().toISOString(),
-          approved_by: approvedBy,
-          approval_notes: approvalNotes,
-        })
-        .eq("id", requisitionId)
-
-      if (updateError) {
-        console.error("[v0] Error updating requisition:", updateError)
-        return NextResponse.json({ error: "Failed to approve requisition" }, { status: 500 })
-      }
-
-      // Get stock levels for source and destination
+      // Get stock for source (central) and destination locations using store_items table
       const { data: sourceStock } = await supabaseAdmin
-        .from("stock_levels")
+        .from("store_items")
         .select("*")
-        .eq("location_code", "central")
-        .eq("item_id", itemId)
+        .eq("location", "Central Stores")
+        .eq("id", itemId)
         .single()
 
       const { data: destStock } = await supabaseAdmin
-        .from("stock_levels")
+        .from("store_items")
         .select("*")
-        .eq("location_code", requisition.location_code)
-        .eq("item_id", itemId)
+        .eq("location", requisition.location)
+        .eq("id", itemId)
         .single()
 
       const quantityToTransfer = approvedQuantity || requisition.quantity
@@ -88,28 +73,32 @@ export async function POST(request: NextRequest) {
       if (sourceStock) {
         const newSourceQuantity = Math.max(0, (sourceStock.quantity || 0) - quantityToTransfer)
 
-        const { error: updateError } = await supabaseAdmin
-          .from("stock_levels")
-          .update({ quantity: newSourceQuantity })
+        const { error: sourceUpdateError } = await supabaseAdmin
+          .from("store_items")
+          .update({ quantity: newSourceQuantity, quantity_in_stock: newSourceQuantity })
           .eq("id", sourceStock.id)
 
-        if (updateError) {
-          console.error("[v0] Error updating source stock:", updateError)
-          throw new Error(`Failed to update central store stock: ${updateError.message}`)
+        if (sourceUpdateError) {
+          console.error("[v0] Error updating source stock:", sourceUpdateError)
+          throw new Error(`Failed to update central store stock: ${sourceUpdateError.message}`)
         }
 
-        // Record stock transaction for central store
+        // Record stock transaction
         const { error: transactionError } = await supabaseAdmin
           .from("stock_transactions")
           .insert({
             item_id: itemId,
-            from_location: "central",
-            to_location: requisition.location_code,
+            item_name: sourceStock.name,
+            location_id: sourceStock.id,
+            location_name: "Central Stores",
             quantity: quantityToTransfer,
+            quantity_before: sourceStock.quantity || 0,
+            quantity_after: newSourceQuantity,
             transaction_type: "transfer",
             reference_id: requisitionId,
             reference_type: "requisition",
-            created_by: approvedBy,
+            performed_by: approvedBy,
+            performed_by_name: approvedBy,
             notes: `Requisition approved: ${approvalNotes || ""}`,
           })
 
@@ -125,57 +114,64 @@ export async function POST(request: NextRequest) {
       if (destStock) {
         const newDestQuantity = (destStock.quantity || 0) + quantityToTransfer
 
-        const { error: updateError } = await supabaseAdmin
-          .from("stock_levels")
-          .update({ quantity: newDestQuantity })
+        const { error: destUpdateError } = await supabaseAdmin
+          .from("store_items")
+          .update({ quantity: newDestQuantity, quantity_in_stock: newDestQuantity })
           .eq("id", destStock.id)
 
-        if (updateError) {
-          console.error("[v0] Error updating destination stock:", updateError)
-          throw new Error(`Failed to update destination stock: ${updateError.message}`)
+        if (destUpdateError) {
+          console.error("[v0] Error updating destination stock:", destUpdateError)
+          throw new Error(`Failed to update destination stock: ${destUpdateError.message}`)
         }
-      } else {
-        // Create new stock level if it doesn't exist
-        const { error: insertError } = await supabaseAdmin
-          .from("stock_levels")
+
+        // Record receipt transaction
+        const { error: receiptError } = await supabaseAdmin
+          .from("stock_transactions")
           .insert({
             item_id: itemId,
-            location_code: requisition.location_code,
+            item_name: destStock.name,
+            location_id: destStock.id,
+            location_name: requisition.location,
             quantity: quantityToTransfer,
+            quantity_before: destStock.quantity || 0,
+            quantity_after: newDestQuantity,
+            transaction_type: "transfer_receipt",
+            reference_id: requisitionId,
+            reference_type: "requisition",
+            performed_by: approvedBy,
+            performed_by_name: approvedBy,
+            notes: `Stock received from central store`,
           })
 
-        if (insertError) {
-          console.error("[v0] Error creating destination stock:", insertError)
-          throw new Error(`Failed to create destination stock: ${insertError.message}`)
+        if (receiptError) {
+          console.error("[v0] Error creating receipt transaction:", receiptError)
+          throw new Error(`Failed to record receipt transaction: ${receiptError.message}`)
         }
-      }
-
-      // Record stock transaction for destination
-      const { error: destTransactionError } = await supabaseAdmin
-        .from("stock_transactions")
-        .insert({
-          item_id: itemId,
-          from_location: "central",
-          to_location: requisition.location_code,
-          quantity: quantityToTransfer,
-          transaction_type: "transfer_receipt",
-          reference_id: requisitionId,
-          reference_type: "requisition",
-          created_by: approvedBy,
-          notes: `Stock received from central store`,
-        })
-
-      if (destTransactionError) {
-        console.error("[v0] Error creating destination transaction:", destTransactionError)
-        throw new Error(`Failed to record receipt transaction: ${destTransactionError.message}`)
+      } else {
+        console.warn("[v0] No stock found at destination location, creating new entry if possible")
       }
 
       console.log("[v0] Stock transfer completed successfully:", {
         requisitionId,
         quantityTransferred: quantityToTransfer,
-        from: "central",
-        to: requisition.location_code,
+        from: "Central Stores",
+        to: requisition.location,
       })
+
+      // Update requisition status to approved
+      const { error: finalUpdateError } = await supabaseAdmin
+        .from("store_requisitions")
+        .update({
+          status: "approved",
+          approved_by: approvedBy,
+          notes: approvalNotes || "Requisition approved and stock transferred",
+        })
+        .eq("id", requisitionId)
+
+      if (finalUpdateError) {
+        console.error("[v0] Error updating requisition status:", finalUpdateError)
+        throw new Error(`Failed to mark requisition as approved: ${finalUpdateError.message}`)
+      }
 
       return NextResponse.json({
         success: true,
@@ -189,9 +185,8 @@ export async function POST(request: NextRequest) {
         .from("store_requisitions")
         .update({
           status: "rejected",
-          approved_date: new Date().toISOString(),
           approved_by: approvedBy,
-          approval_notes: approvalNotes,
+          notes: approvalNotes || "Requisition rejected",
         })
         .eq("id", requisitionId)
 

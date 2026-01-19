@@ -104,6 +104,14 @@ export function ITHeadRepairManagement() {
     loadDevices()
     loadServiceProviders()
     loadRepairTasks()
+    
+    // Set up auto-refresh every 30 seconds to catch service provider updates
+    const refreshInterval = setInterval(() => {
+      console.log("[v0] Auto-refreshing repairs data...")
+      loadRepairTasks()
+    }, 30000)
+    
+    return () => clearInterval(refreshInterval)
   }, [user])
 
   // Reload devices when location filter changes

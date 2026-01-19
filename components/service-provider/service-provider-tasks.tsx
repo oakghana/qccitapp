@@ -121,6 +121,14 @@ export function ServiceProviderTasks() {
 
   useEffect(() => {
     loadServiceProviderTasks()
+    
+    // Set up auto-refresh every 20 seconds so admins see real-time updates
+    const refreshInterval = setInterval(() => {
+      console.log("[v0] Auto-refreshing service provider tasks...")
+      loadServiceProviderTasks()
+    }, 20000)
+    
+    return () => clearInterval(refreshInterval)
   }, [user])
 
   const loadServiceProviderTasks = async () => {
