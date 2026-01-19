@@ -290,7 +290,8 @@ export function RequisitionManagement() {
           approvalAction: action,
           approvedQuantity: finalApprovedQuantity,
           approvalNotes,
-          approvedBy: user.full_name || user.email,
+          approvedBy: user.id,
+          approvedByName: user.full_name || user.email,
           approvedByRole: user.role,
         }),
       })

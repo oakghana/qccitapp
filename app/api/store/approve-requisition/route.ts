@@ -14,7 +14,8 @@ export async function POST(request: NextRequest) {
       approvalAction, // "approve" or "reject"
       approvedQuantity,
       approvalNotes,
-      approvedBy,
+      approvedBy, // Now this is the user ID (UUID)
+      approvedByName, // Display name
       approvedByRole,
     } = await request.json()
 
@@ -130,7 +131,7 @@ export async function POST(request: NextRequest) {
             reference_id: requisitionId,
             reference_type: "requisition",
             performed_by: approvedBy,
-            performed_by_name: approvedBy,
+            performed_by_name: approvedByName || approvedBy,
             notes: `Requisition approved: ${approvalNotes || ""}`,
           })
 
@@ -171,7 +172,7 @@ export async function POST(request: NextRequest) {
             reference_id: requisitionId,
             reference_type: "requisition",
             performed_by: approvedBy,
-            performed_by_name: approvedBy,
+            performed_by_name: approvedByName || approvedBy,
             notes: `Stock received from central store`,
           })
 
@@ -195,7 +196,7 @@ export async function POST(request: NextRequest) {
         .from("store_requisitions")
         .update({
           status: "approved",
-          approved_by: approvedBy,
+          approved_by: approvedByName || approvedBy,
           notes: approvalNotes || "Requisition approved and stock transferred",
         })
         .eq("id", requisitionId)

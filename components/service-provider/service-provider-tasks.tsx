@@ -249,36 +249,102 @@ export function ServiceProviderTasks() {
     )
   }
 
-  const handleSchedulePickup = () => {
+  const handleSchedulePickup = async () => {
     if (selectedTask && scheduledDate && scheduledTime) {
-      updateTaskStatus(
-        selectedTask.id,
-        "pickup_scheduled",
-        `Pickup scheduled for ${scheduledDate} at ${scheduledTime}. ${pickupNotes}`,
-      )
-      setSelectedTask(null)
-      setScheduledDate("")
-      setScheduledTime("")
-      setPickupNotes("")
+      try {
+        const scheduledDateTime = `${scheduledDate}T${scheduledTime}:00Z`
+        
+        console.log("[v0] Scheduling pickup for repair:", selectedTask.id, "Date:", scheduledDateTime)
+        
+        // Call API to save schedule to database
+        const response = await fetch("/api/repairs/update", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: selectedTask.id,
+            status: "pickup_scheduled",
+            scheduled_pickup_date: scheduledDateTime,
+            notes: pickupNotes,
+          }),
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || "Failed to schedule pickup")
+        }
+        
+        const result = await response.json()
+        console.log("[v0] Pickup scheduled successfully:", result)
+        
+        // Update local state only after API success
+        updateTaskStatus(
+          selectedTask.id,
+          "pickup_scheduled",
+          `Pickup scheduled for ${scheduledDate} at ${scheduledTime}. ${pickupNotes}`,
+        )
+        
+        // Close dialog and reset form
+        setSelectedTask(null)
+        setScheduledDate("")
+        setScheduledTime("")
+        setPickupNotes("")
+        
+        alert("Pickup scheduled successfully")
+      } catch (error: any) {
+        console.error("[v0] Error scheduling pickup:", error)
+        alert(`Error scheduling pickup: ${error.message}`)
+      }
     }
   }
 
-  const handleCompleteRepair = () => {
+  const handleCompleteRepair = async () => {
     if (selectedTask) {
-      const updatedTask = {
-        ...selectedTask,
-        repairNotes,
-        laborHours: laborHours ? Number.parseFloat(laborHours) : undefined,
-        repairCost: repairCost ? Number.parseFloat(repairCost) : undefined,
+      try {
+        console.log("[v0] Completing repair:", selectedTask.id)
+        
+        // Call API to save repair completion to database
+        const response = await fetch("/api/repairs/update", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: selectedTask.id,
+            status: "completed",
+            work_notes: repairNotes,
+            actual_hours: laborHours ? Number.parseFloat(laborHours) : undefined,
+            completed_at: new Date().toISOString(),
+          }),
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || "Failed to complete repair")
+        }
+        
+        const result = await response.json()
+        console.log("[v0] Repair completed successfully:", result)
+        
+        const updatedTask = {
+          ...selectedTask,
+          repairNotes,
+          laborHours: laborHours ? Number.parseFloat(laborHours) : undefined,
+          repairCost: repairCost ? Number.parseFloat(repairCost) : undefined,
+        }
+
+        // Update local state only after API success
+        setTasks((prev) => prev.map((task) => (task.id === selectedTask.id ? updatedTask : task)))
+        updateTaskStatus(selectedTask.id, "completed", `Repair completed. ${repairNotes}`)
+        
+        // Close dialog and reset form
+        setSelectedTask(null)
+        setRepairNotes("")
+        setLaborHours("")
+        setRepairCost("")
+        
+        alert("Repair marked as completed successfully")
+      } catch (error: any) {
+        console.error("[v0] Error completing repair:", error)
+        alert(`Error completing repair: ${error.message}`)
       }
-
-      setTasks((prev) => prev.map((task) => (task.id === selectedTask.id ? updatedTask : task)))
-
-      updateTaskStatus(selectedTask.id, "completed", `Repair completed. ${repairNotes}`)
-      setSelectedTask(null)
-      setRepairNotes("")
-      setLaborHours("")
-      setRepairCost("")
     }
   }
 
