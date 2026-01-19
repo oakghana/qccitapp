@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,16 +17,179 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Settings, Mail, MessageSquare, Shield, Upload, Download, Database, HardDrive, Trash2, AlertTriangle } from "lucide-react"
+import { Settings, Mail, MessageSquare, Shield, Upload, Download, Database, HardDrive, Trash2, AlertTriangle, Loader2 } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
 
 export function SystemSettings() {
+  const { user } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteType, setDeleteType] = useState<"service_desk" | "repairs" | "assignments" | null>(null)
   const [deleteConfirmation, setDeleteConfirmation] = useState("")
   const [restoreFile, setRestoreFile] = useState<File | null>(null)
   const [backupData, setBackupData] = useState<any>(null)
+
+  // General Settings
+  const [companyName, setCompanyName] = useState("Quality Control Company Limited")
+  const [systemEmail, setSystemEmail] = useState("system@qccghana.com")
+  const [repairDeadline, setRepairDeadline] = useState("14")
+  const [backupFrequency, setBackupFrequency] = useState("24")
+
+  // Email Settings
+  const [smtpServer, setSmtpServer] = useState("smtp.gmail.com")
+  const [smtpPort, setSmtpPort] = useState("587")
+  const [smtpUsername, setSmtpUsername] = useState("notifications@qccghana.com")
+  const [smtpPassword, setSmtpPassword] = useState("••••••••")
+  const [enableEmailNotifications, setEnableEmailNotifications] = useState(true)
+  const [enableEmailReports, setEnableEmailReports] = useState(true)
+
+  // SMS Settings
+  const [smsProvider, setSmsProvider] = useState("Twilio")
+  const [smsApiKey, setSmsApiKey] = useState("••••••••••••••••")
+  const [smsFromNumber, setSmsFromNumber] = useState("+233XXXXXXXXX")
+  const [smsRateLimit, setSmsRateLimit] = useState("100")
+  const [enableSmsNotifications, setEnableSmsNotifications] = useState(true)
+  const [enableSmsReports, setEnableSmsReports] = useState(true)
+
+  // Security Settings
+  const [sessionTimeout, setSessionTimeout] = useState("30")
+  const [otpExpiry, setOtpExpiry] = useState("5")
+  const [maxLoginAttempts, setMaxLoginAttempts] = useState("3")
+  const [passwordMinLength, setPasswordMinLength] = useState("8")
+  const [requireOtp, setRequireOtp] = useState(true)
+  const [enableAuditLogging, setEnableAuditLogging] = useState(true)
+  const [autoLockInactive, setAutoLockInactive] = useState(true)
+
+  // Load settings from database on mount
+  useEffect(() => {
+    loadSettings()
+  }, [])
+
+  const loadSettings = async () => {
+    try {
+      setIsLoading(true)
+      const response = await fetch("/api/admin/system-settings")
+      const data = await response.json()
+
+      if (response.ok && data.settings) {
+        const settings = data.settings
+        console.log("[v0] Loaded system settings from database:", settings)
+
+        // Load General Settings
+        if (settings.companyName?.value) setCompanyName(settings.companyName.value)
+        if (settings.systemEmail?.value) setSystemEmail(settings.systemEmail.value)
+        if (settings.repairDeadline?.value) setRepairDeadline(settings.repairDeadline.value.toString())
+        if (settings.backupFrequency?.value) setBackupFrequency(settings.backupFrequency.value.toString())
+
+        // Load Email Settings
+        if (settings.smtpServer?.value) setSmtpServer(settings.smtpServer.value)
+        if (settings.smtpPort?.value) setSmtpPort(settings.smtpPort.value.toString())
+        if (settings.smtpUsername?.value) setSmtpUsername(settings.smtpUsername.value)
+        if (settings.smtpPassword?.value && settings.smtpPassword.value !== "••••••••") setSmtpPassword(settings.smtpPassword.value)
+        if (settings.enableEmailNotifications?.value !== undefined) setEnableEmailNotifications(settings.enableEmailNotifications.value === true || settings.enableEmailNotifications.value === "true")
+        if (settings.enableEmailReports?.value !== undefined) setEnableEmailReports(settings.enableEmailReports.value === true || settings.enableEmailReports.value === "true")
+
+        // Load SMS Settings
+        if (settings.smsProvider?.value) setSmsProvider(settings.smsProvider.value)
+        if (settings.smsApiKey?.value && settings.smsApiKey.value !== "••••••••••••••••") setSmsApiKey(settings.smsApiKey.value)
+        if (settings.smsFromNumber?.value) setSmsFromNumber(settings.smsFromNumber.value)
+        if (settings.smsRateLimit?.value) setSmsRateLimit(settings.smsRateLimit.value.toString())
+        if (settings.enableSmsNotifications?.value !== undefined) setEnableSmsNotifications(settings.enableSmsNotifications.value === true || settings.enableSmsNotifications.value === "true")
+        if (settings.enableSmsReports?.value !== undefined) setEnableSmsReports(settings.enableSmsReports.value === true || settings.enableSmsReports.value === "true")
+
+        // Load Security Settings
+        if (settings.sessionTimeout?.value) setSessionTimeout(settings.sessionTimeout.value.toString())
+        if (settings.otpExpiry?.value) setOtpExpiry(settings.otpExpiry.value.toString())
+        if (settings.maxLoginAttempts?.value) setMaxLoginAttempts(settings.maxLoginAttempts.value.toString())
+        if (settings.passwordMinLength?.value) setPasswordMinLength(settings.passwordMinLength.value.toString())
+        if (settings.requireOtp?.value !== undefined) setRequireOtp(settings.requireOtp.value === true || settings.requireOtp.value === "true")
+        if (settings.enableAuditLogging?.value !== undefined) setEnableAuditLogging(settings.enableAuditLogging.value === true || settings.enableAuditLogging.value === "true")
+        if (settings.autoLockInactive?.value !== undefined) setAutoLockInactive(settings.autoLockInactive.value === true || settings.autoLockInactive.value === "true")
+
+        setMessage({ type: "info", text: "Settings loaded from database" })
+      }
+    } catch (error) {
+      console.error("[v0] Error loading settings:", error)
+      setMessage({ type: "error", text: "Failed to load settings from database" })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSaveAllSettings = async () => {
+    if (!user) {
+      setMessage({ type: "error", text: "User not authenticated" })
+      return
+    }
+
+    setIsSaving(true)
+    setMessage(null)
+
+    try {
+      const allSettings = {
+        // General Settings
+        companyName: { value: companyName, category: "general" },
+        systemEmail: { value: systemEmail, category: "general" },
+        repairDeadline: { value: Number(repairDeadline), category: "general" },
+        backupFrequency: { value: Number(backupFrequency), category: "general" },
+
+        // Email Settings
+        smtpServer: { value: smtpServer, category: "email" },
+        smtpPort: { value: Number(smtpPort), category: "email" },
+        smtpUsername: { value: smtpUsername, category: "email" },
+        smtpPassword: { value: smtpPassword, category: "email" },
+        enableEmailNotifications: { value: enableEmailNotifications, category: "email" },
+        enableEmailReports: { value: enableEmailReports, category: "email" },
+
+        // SMS Settings
+        smsProvider: { value: smsProvider, category: "sms" },
+        smsApiKey: { value: smsApiKey, category: "sms" },
+        smsFromNumber: { value: smsFromNumber, category: "sms" },
+        smsRateLimit: { value: Number(smsRateLimit), category: "sms" },
+        enableSmsNotifications: { value: enableSmsNotifications, category: "sms" },
+        enableSmsReports: { value: enableSmsReports, category: "sms" },
+
+        // Security Settings
+        sessionTimeout: { value: Number(sessionTimeout), category: "security" },
+        otpExpiry: { value: Number(otpExpiry), category: "security" },
+        maxLoginAttempts: { value: Number(maxLoginAttempts), category: "security" },
+        passwordMinLength: { value: Number(passwordMinLength), category: "security" },
+        requireOtp: { value: requireOtp, category: "security" },
+        enableAuditLogging: { value: enableAuditLogging, category: "security" },
+        autoLockInactive: { value: autoLockInactive, category: "security" },
+      }
+
+      console.log("[v0] Saving all system settings...")
+
+      const response = await fetch("/api/admin/system-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          settings: allSettings,
+          updatedBy: user.full_name || user.email,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to save settings")
+      }
+
+      console.log("[v0] System settings saved successfully:", result.settingsCount)
+      setMessage({
+        type: "success",
+        text: `All system settings saved successfully! (${result.settingsCount} settings updated)`,
+      })
+    } catch (error: any) {
+      console.error("[v0] Error saving settings:", error)
+      setMessage({ type: "error", text: error.message || "Failed to save settings" })
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const handleBackupDatabase = async () => {
     setIsLoading(true)
@@ -357,19 +520,19 @@ export function SystemSettings() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="companyName">Company Name</Label>
-                <Input id="companyName" defaultValue="Quality Control Company Limited" />
+                <Input id="companyName" value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="systemEmail">System Email</Label>
-                <Input id="systemEmail" type="email" defaultValue="system@qccghana.com" />
+                <Input id="systemEmail" type="email" value={systemEmail} onChange={(e) => setSystemEmail(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="repairDeadline">Default Repair Deadline (days)</Label>
-                <Input id="repairDeadline" type="number" defaultValue="14" />
+                <Input id="repairDeadline" type="number" value={repairDeadline} onChange={(e) => setRepairDeadline(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="backupFrequency">Backup Frequency (hours)</Label>
-                <Input id="backupFrequency" type="number" defaultValue="24" />
+                <Input id="backupFrequency" type="number" value={backupFrequency} onChange={(e) => setBackupFrequency(e.target.value)} />
               </div>
             </div>
           </CardContent>
@@ -388,19 +551,19 @@ export function SystemSettings() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="smtpServer">SMTP Server</Label>
-                <Input id="smtpServer" defaultValue="smtp.gmail.com" />
+                <Input id="smtpServer" value={smtpServer} onChange={(e) => setSmtpServer(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="smtpPort">SMTP Port</Label>
-                <Input id="smtpPort" type="number" defaultValue="587" />
+                <Input id="smtpPort" type="number" value={smtpPort} onChange={(e) => setSmtpPort(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="smtpUsername">SMTP Username</Label>
-                <Input id="smtpUsername" defaultValue="notifications@qccghana.com" />
+                <Input id="smtpUsername" value={smtpUsername} onChange={(e) => setSmtpUsername(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="smtpPassword">SMTP Password</Label>
-                <Input id="smtpPassword" type="password" defaultValue="••••••••" />
+                <Input id="smtpPassword" type="password" value={smtpPassword} onChange={(e) => setSmtpPassword(e.target.value)} />
               </div>
             </div>
             <Separator />
@@ -410,14 +573,14 @@ export function SystemSettings() {
                   <Label>Enable Email Notifications</Label>
                   <p className="text-sm text-muted-foreground">Send email notifications for system events</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch checked={enableEmailNotifications} onCheckedChange={setEnableEmailNotifications} />
               </div>
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Email Delivery Reports</Label>
                   <p className="text-sm text-muted-foreground">Track email delivery status</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch checked={enableEmailReports} onCheckedChange={setEnableEmailReports} />
               </div>
             </div>
           </CardContent>
@@ -436,19 +599,19 @@ export function SystemSettings() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="smsProvider">SMS Provider</Label>
-                <Input id="smsProvider" defaultValue="Twilio" />
+                <Input id="smsProvider" value={smsProvider} onChange={(e) => setSmsProvider(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="smsApiKey">API Key</Label>
-                <Input id="smsApiKey" type="password" defaultValue="••••••••••••••••" />
+                <Input id="smsApiKey" type="password" value={smsApiKey} onChange={(e) => setSmsApiKey(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="smsFromNumber">From Number</Label>
-                <Input id="smsFromNumber" defaultValue="+233XXXXXXXXX" />
+                <Input id="smsFromNumber" value={smsFromNumber} onChange={(e) => setSmsFromNumber(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="smsRateLimit">Rate Limit (per hour)</Label>
-                <Input id="smsRateLimit" type="number" defaultValue="100" />
+                <Input id="smsRateLimit" type="number" value={smsRateLimit} onChange={(e) => setSmsRateLimit(e.target.value)} />
               </div>
             </div>
             <Separator />
@@ -458,14 +621,14 @@ export function SystemSettings() {
                   <Label>Enable SMS Notifications</Label>
                   <p className="text-sm text-muted-foreground">Send SMS notifications for urgent events</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch checked={enableSmsNotifications} onCheckedChange={setEnableSmsNotifications} />
               </div>
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>SMS Delivery Reports</Label>
                   <p className="text-sm text-muted-foreground">Track SMS delivery status</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch checked={enableSmsReports} onCheckedChange={setEnableSmsReports} />
               </div>
             </div>
           </CardContent>
@@ -484,19 +647,19 @@ export function SystemSettings() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="sessionTimeout">Session Timeout (minutes)</Label>
-                <Input id="sessionTimeout" type="number" defaultValue="30" />
+                <Input id="sessionTimeout" type="number" value={sessionTimeout} onChange={(e) => setSessionTimeout(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="otpExpiry">OTP Expiry (minutes)</Label>
-                <Input id="otpExpiry" type="number" defaultValue="5" />
+                <Input id="otpExpiry" type="number" value={otpExpiry} onChange={(e) => setOtpExpiry(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="maxLoginAttempts">Max Login Attempts</Label>
-                <Input id="maxLoginAttempts" type="number" defaultValue="3" />
+                <Input id="maxLoginAttempts" type="number" value={maxLoginAttempts} onChange={(e) => setMaxLoginAttempts(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="passwordMinLength">Min Password Length</Label>
-                <Input id="passwordMinLength" type="number" defaultValue="8" />
+                <Input id="passwordMinLength" type="number" value={passwordMinLength} onChange={(e) => setPasswordMinLength(e.target.value)} />
               </div>
             </div>
             <Separator />
@@ -506,29 +669,45 @@ export function SystemSettings() {
                   <Label>Require OTP for Login</Label>
                   <p className="text-sm text-muted-foreground">Enable two-factor authentication</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch checked={requireOtp} onCheckedChange={setRequireOtp} />
               </div>
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Enable Audit Logging</Label>
                   <p className="text-sm text-muted-foreground">Log all user actions for security</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch checked={enableAuditLogging} onCheckedChange={setEnableAuditLogging} />
               </div>
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Auto-lock Inactive Accounts</Label>
                   <p className="text-sm text-muted-foreground">Lock accounts after 90 days of inactivity</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch checked={autoLockInactive} onCheckedChange={setAutoLockInactive} />
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Save Button */}
-        <div className="flex justify-end">
-          <Button size="lg">Save All Settings</Button>
+        <div className="flex justify-end gap-2">
+          <Button onClick={loadSettings} variant="outline" disabled={isSaving || isLoading}>
+            <Download className="h-4 w-4 mr-2" />
+            Reload Settings
+          </Button>
+          <Button onClick={handleSaveAllSettings} size="lg" disabled={isSaving} className="bg-green-600 hover:bg-green-700">
+            {isSaving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Settings className="h-4 w-4 mr-2" />
+                Save All Settings
+              </>
+            )}
+          </Button>
         </div>
       </div>
     </div>

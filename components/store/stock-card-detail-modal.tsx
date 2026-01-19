@@ -65,6 +65,8 @@ export function StockCardDetailModal({ open, onClose, item }: StockCardDetailMod
   })
   const [deleteReason, setDeleteReason] = useState("")
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showForceDeleteConfirm, setShowForceDeleteConfirm] = useState(false)
+  const [forceDeleteMode, setForceDeleteMode] = useState(false)
   const [showAssignForm, setShowAssignForm] = useState(false)
   const [showCentralTransfer, setShowCentralTransfer] = useState(false)
   const [centralTransferData, setCentralTransferData] = useState({
@@ -160,8 +162,11 @@ export function StockCardDetailModal({ open, onClose, item }: StockCardDetailMod
     setActionError("")
 
     try {
-      const response = await fetch("/api/store/delete-item", {
-        method: "DELETE",
+      const endpoint = forceDeleteMode ? "/api/store/force-delete-item" : "/api/store/delete-item"
+      const method = forceDeleteMode ? "POST" : "DELETE"
+
+      const response = await fetch(endpoint, {
+        method: method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           itemId: item.id,
@@ -176,19 +181,29 @@ export function StockCardDetailModal({ open, onClose, item }: StockCardDetailMod
 
       if (!response.ok) {
         // Handle detailed error responses (409 Conflict with active requests)
-        if (response.status === 409 && data.activeRequests) {
+        if (response.status === 409 && data.activeRequests && !forceDeleteMode) {
           const requestsList = data.activeRequests
             .map((req: any) => `• Request #${req.requestNumber} from ${req.location} (${req.quantity} units, Status: ${req.status})`)
             .join("\n")
-          setActionError(`${data.reason}\n\nActive Transfer Requests:\n${requestsList}\n\nPlease cancel or reject these requests first.`)
+          setActionError(
+            `${data.reason}\n\nActive Transfer Requests:\n${requestsList}\n\nAs admin, you can use "Force Delete" to remove this item and all related actions.`
+          )
         } else {
           setActionError(data.reason || data.error || "Failed to delete item")
         }
         return
       }
 
+      // Show success message with summary if force delete
+      if (forceDeleteMode && data.deletionSummary) {
+        const summary = data.deletionSummary
+        alert(
+          `Item deleted successfully!\n\nDeleted:\n• 1 Stock Item\n• ${summary.transferRequests} Transfer Request(s)\n• ${summary.transactions} Transaction(s)\n• ${summary.assignments} Assignment(s)`
+        )
+      }
+
       onClose()
-      window.location.reload() // Refresh to show updated list
+      window.location.reload()
     } catch (error: any) {
       setActionError(error.message || "Failed to delete item")
     } finally {
@@ -566,6 +581,39 @@ export function StockCardDetailModal({ open, onClose, item }: StockCardDetailMod
             <Card className="border-destructive">
               <CardContent className="pt-6 space-y-4">
                 <h3 className="font-semibold text-destructive">Confirm Deletion</h3>
+                
+                {user?.role === "admin" && (
+                  <div className="space-y-2 p-3 bg-amber-50 dark:bg-amber-950/30 rounded border border-amber-200 dark:border-amber-800">
+                    <Label className="text-sm font-medium text-amber-900 dark:text-amber-100">Deletion Mode</Label>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          checked={!forceDeleteMode}
+                          onChange={() => setForceDeleteMode(false)}
+                          className="h-4 w-4"
+                        />
+                        <span className="text-sm">
+                          <span className="font-medium">Normal Delete</span>
+                          <p className="text-xs text-muted-foreground">Delete only if no active transfer requests exist</p>
+                        </span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          checked={forceDeleteMode}
+                          onChange={() => setForceDeleteMode(true)}
+                          className="h-4 w-4"
+                        />
+                        <span className="text-sm">
+                          <span className="font-medium text-red-600 dark:text-red-400">Force Delete (Admin Only)</span>
+                          <p className="text-xs text-muted-foreground">Delete item and all related requests, transactions, and assignments</p>
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
                 <p className="text-sm text-muted-foreground">
                   This action cannot be undone. Please provide a reason for deleting this item.
                 </p>
@@ -579,15 +627,29 @@ export function StockCardDetailModal({ open, onClose, item }: StockCardDetailMod
                     required
                   />
                 </div>
+
+                {actionError && (
+                  <Alert variant="destructive">
+                    <AlertDescription className="whitespace-pre-wrap text-xs">{actionError}</AlertDescription>
+                  </Alert>
+                )}
+
                 <div className="flex gap-2">
-                  <Button onClick={handleDelete} variant="destructive" disabled={actionLoading || !deleteReason.trim()}>
+                  <Button
+                    onClick={handleDelete}
+                    variant={forceDeleteMode ? "destructive" : "default"}
+                    disabled={actionLoading || !deleteReason.trim()}
+                    className={forceDeleteMode ? "flex-1 bg-red-600 hover:bg-red-700" : "flex-1"}
+                  >
                     <Trash2 className="h-4 w-4 mr-2" />
-                    Confirm Delete
+                    {actionLoading ? "Processing..." : forceDeleteMode ? "Force Delete Item & Actions" : "Confirm Delete"}
                   </Button>
                   <Button
                     onClick={() => {
                       setShowDeleteConfirm(false)
                       setDeleteReason("")
+                      setForceDeleteMode(false)
+                      setActionError("")
                     }}
                     variant="outline"
                     disabled={actionLoading}
