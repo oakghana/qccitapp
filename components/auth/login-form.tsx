@@ -150,10 +150,12 @@ export function LoginForm() {
                 <a href="/create-account" className="font-semibold text-primary hover:underline">
                   Request Access
                 </a>
+                  <p className="text-sm text-muted-foreground">
                  <a href="/create-account" className="font-semibold text-primary hover:underline">
                   |Powered By the ITD |V1.01.19-26
                 </a>
               </p>
+               </p>
             </div>
           </form>
         </CardContent>
