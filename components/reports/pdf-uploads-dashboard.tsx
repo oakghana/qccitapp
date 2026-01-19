@@ -265,13 +265,26 @@ export function PDFUploadsDashboard() {
   }
 
   const filteredUploads = uploads.filter((upload) => {
-    // If user's location doesn't match target and target is not null, hide it
+    // Filter by location
     if (upload.target_location && upload.target_location !== user?.location) {
       // Unless user is admin or it_head who can see all
       if (!["admin", "it_head"].includes(user?.role || "")) {
         return false
       }
     }
+    
+    // Filter by document type
+    if (selectedType !== "all" && upload.document_type !== selectedType) {
+      return false
+    }
+    
+    // Filter by location dropdown (for admins/it_head only)
+    if (["admin", "it_head"].includes(user?.role || "") && selectedLocation !== "all") {
+      if (!upload.target_location || upload.target_location !== selectedLocation) {
+        return false
+      }
+    }
+    
     return true
   })
 
