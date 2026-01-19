@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { put } from "@vercel/blob"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -68,26 +69,16 @@ export async function POST(request: Request) {
       )
     }
 
-    // Upload file to Supabase Storage
-    const fileName = `${Date.now()}_${file.name.replace(/\s+/g, "_")}`
+    // Upload file to Vercel Blob
+    const fileName = `pdf-documents/${Date.now()}_${file.name.replace(/\s+/g, "_")}`
     const fileBuffer = await file.arrayBuffer()
-    
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from("pdf-documents")
-      .upload(fileName, fileBuffer, {
-        contentType: "application/pdf",
-        cacheControl: "3600",
-      })
 
-    if (uploadError) {
-      console.error("Error uploading file:", uploadError)
-      return NextResponse.json({ error: "Failed to upload file" }, { status: 500 })
-    }
+    const { url } = await put(fileName, fileBuffer, {
+      access: "public",
+      contentType: "application/pdf",
+    })
 
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from("pdf-documents")
-      .getPublicUrl(fileName)
+    console.log("[v0] File uploaded to Vercel Blob successfully:", url)
 
     // Create database record
     const { data, error } = await supabase
@@ -97,7 +88,7 @@ export async function POST(request: Request) {
         description,
         document_type: documentType,
         file_name: file.name,
-        file_url: urlData.publicUrl,
+        file_url: url,
         file_size: file.size,
         uploaded_by: uploadedBy,
         uploaded_by_name: uploadedByName,
