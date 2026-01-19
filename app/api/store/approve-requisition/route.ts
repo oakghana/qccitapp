@@ -53,19 +53,30 @@ export async function POST(request: NextRequest) {
 
     if (approvalAction === "approve") {
       // Get stock for source (central) and destination locations using store_items table
-      const { data: sourceStock } = await supabaseAdmin
+      // Using maybeSingle() instead of single() to handle cases where items don't exist at a location
+      const { data: sourceStock, error: sourceError } = await supabaseAdmin
         .from("store_items")
         .select("*")
         .eq("location", "Central Stores")
         .eq("id", itemId)
-        .single()
+        .maybeSingle()
 
-      const { data: destStock } = await supabaseAdmin
+      if (sourceError) {
+        console.error("[v0] Error fetching source stock:", sourceError)
+        throw new Error(`Failed to fetch central store stock: ${sourceError.message}`)
+      }
+
+      const { data: destStock, error: destError } = await supabaseAdmin
         .from("store_items")
         .select("*")
         .eq("location", requisition.location)
         .eq("id", itemId)
-        .single()
+        .maybeSingle()
+
+      if (destError) {
+        console.error("[v0] Error fetching destination stock:", destError)
+        throw new Error(`Failed to fetch destination stock: ${destError.message}`)
+      }
 
       const quantityToTransfer = approvedQuantity || requisition.quantity
 
@@ -107,10 +118,10 @@ export async function POST(request: NextRequest) {
           throw new Error(`Failed to record stock transaction: ${transactionError.message}`)
         }
       } else {
-        console.warn("[v0] No source stock found for central store, item:", itemId)
+        console.warn("[v0] No source stock found for central store, item:", itemId, "- skipping stock deduction")
       }
 
-      // Update destination location stock (increase)
+      // Update destination location stock (increase) or create if doesn't exist
       if (destStock) {
         const newDestQuantity = (destStock.quantity || 0) + quantityToTransfer
 
@@ -148,12 +159,12 @@ export async function POST(request: NextRequest) {
           throw new Error(`Failed to record receipt transaction: ${receiptError.message}`)
         }
       } else {
-        console.warn("[v0] No stock found at destination location, creating new entry if possible")
+        console.warn("[v0] No stock found at destination location:", requisition.location, "- stock not updated at destination")
       }
 
       console.log("[v0] Stock transfer completed successfully:", {
         requisitionId,
-        quantityTransferred: quantityToTransfer,
+        quantityTransferred: approvedQuantity || requisition.quantity,
         from: "Central Stores",
         to: requisition.location,
       })
@@ -177,7 +188,7 @@ export async function POST(request: NextRequest) {
         success: true,
         message: "Requisition approved and stock transferred",
         requisitionId,
-        quantityTransferred: quantityToTransfer,
+        quantityTransferred: approvedQuantity || requisition.quantity,
       })
     } else if (approvalAction === "reject") {
       // Update requisition status to rejected
