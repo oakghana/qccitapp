@@ -142,6 +142,7 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
           {
             requisition_number: requisitionNumber,
             requested_by: formData.requestedBy,
+            requested_by_role: user.role,
             beneficiary: formData.beneficiary,
             location: formData.location,
             items: formData.items.map((item) => ({

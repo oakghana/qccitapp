@@ -165,24 +165,38 @@
   }
 
   .scrollbar-thin::-webkit-scrollbar-track {
-    @apply bg-gray-100 dark:bg-gray-800;
+    background-color: rgb(243, 244, 246);
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    @apply bg-orange-500 rounded-full;
+    background-color: rgb(249, 115, 22);
+    border-radius: 9999px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    @apply bg-orange-600;
+    background-color: rgb(234, 88, 12);
   }
 
   /* Firefox scrollbar */
   .scrollbar-thin {
-    scrollbar-color: rgb(249 115 22) rgb(243 244 246);
+    scrollbar-color: rgb(249, 115, 22) rgb(243, 244, 246);
     scrollbar-width: thin;
   }
 
+  /* Dark mode scrollbar */
+  .dark .scrollbar-thin::-webkit-scrollbar-track {
+    background-color: rgb(31, 41, 55);
+  }
+
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgb(249, 115, 22);
+  }
+
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(234, 88, 12);
+  }
+
   .dark .scrollbar-thin {
-    scrollbar-color: rgb(249 115 22) rgb(31 41 55);
+    scrollbar-color: rgb(249, 115, 22) rgb(31, 41, 55);
   }
 }
