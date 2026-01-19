@@ -13,6 +13,8 @@ export async function GET(request: Request) {
     const documentType = searchParams.get("type")
     const location = searchParams.get("location")
 
+    console.log("[v0] PDF Uploads GET - type:", documentType, "location:", location)
+
     let query = supabase
       .from("pdf_uploads")
       .select(`
@@ -34,19 +36,22 @@ export async function GET(request: Request) {
     }
 
     if (location && location !== "all") {
+      console.log("[v0] Filtering by location:", location)
       query = query.or(`target_location.eq.${location},target_location.is.null`)
     }
 
     const { data, error } = await query
 
+    console.log("[v0] PDF Uploads query result - count:", data?.length, "error:", error)
+    
     if (error) {
-      console.error("Error fetching PDF uploads:", error)
+      console.error("[v0] Error fetching PDF uploads:", error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     return NextResponse.json({ success: true, uploads: data })
   } catch (error) {
-    console.error("Error in GET /api/pdf-uploads:", error)
+    console.error("[v0] Error in GET /api/pdf-uploads:", error)
     return NextResponse.json({ error: "Failed to fetch PDF uploads" }, { status: 500 })
   }
 }

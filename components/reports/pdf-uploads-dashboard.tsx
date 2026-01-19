@@ -131,19 +131,29 @@ export function PDFUploadsDashboard() {
     setLoading(true)
     try {
       const params = new URLSearchParams()
+      
+      // Add type filter if selected
       if (selectedType !== "all") params.append("type", selectedType)
-      if (selectedLocation !== "all") params.append("location", selectedLocation)
+      
+      // Add location filter - regional staff always filter by their location
+      if (user?.role === "regional_it_head" && user?.location) {
+        params.append("location", user.location)
+      } else if (selectedLocation !== "all") {
+        params.append("location", selectedLocation)
+      }
 
+      console.log("[v0] Fetching documents with params:", params.toString())
       const response = await fetch(`/api/pdf-uploads?${params.toString()}`)
       const data = await response.json()
 
+      console.log("[v0] Documents fetched:", data)
       if (data.success) {
         setUploads(data.uploads || [])
       } else {
         toast.error(data.error || "Failed to fetch uploads")
       }
     } catch (error) {
-      console.error("Error fetching uploads:", error)
+      console.error("[v0] Error fetching uploads:", error)
       toast.error("Failed to fetch uploads")
     } finally {
       setLoading(false)
