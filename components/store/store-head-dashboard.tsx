@@ -46,6 +46,19 @@ export default function StoreHeadDashboard() {
     fetchAllInventory()
   }, [user])
 
+  useEffect(() => {
+    // Listen for inventory refresh events triggered after requisition approval
+    const handleInventoryRefresh = () => {
+      console.log("[v0] Inventory refresh event received, refetching data...")
+      fetchAllInventory()
+    }
+
+    window.addEventListener("inventory-updated", handleInventoryRefresh)
+    return () => {
+      window.removeEventListener("inventory-updated", handleInventoryRefresh)
+    }
+  }, [])
+
   const fetchAllInventory = async () => {
     try {
       const supabase = createBrowserClient()

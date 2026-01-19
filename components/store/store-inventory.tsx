@@ -66,6 +66,19 @@ export function StoreInventory() {
     loadInventory()
   }, [])
 
+  useEffect(() => {
+    // Listen for inventory refresh events triggered after requisition approval
+    const handleInventoryRefresh = () => {
+      console.log("[v0] Inventory refresh event received in StoreInventory, refetching data...")
+      loadInventory()
+    }
+
+    window.addEventListener("inventory-updated", handleInventoryRefresh)
+    return () => {
+      window.removeEventListener("inventory-updated", handleInventoryRefresh)
+    }
+  }, [])
+
   const loadInventory = async () => {
     try {
       setLoading(true)

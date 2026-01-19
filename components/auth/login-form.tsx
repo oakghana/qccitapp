@@ -150,6 +150,9 @@ export function LoginForm() {
                 <a href="/create-account" className="font-semibold text-primary hover:underline">
                   Request Access
                 </a>
+                 <a href="/create-account" className="font-semibold text-primary hover:underline">
+                  |Powered By the ITD |V1.01.19-26
+                </a>
               </p>
             </div>
           </form>

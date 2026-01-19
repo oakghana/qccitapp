@@ -28,6 +28,58 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Item not found" }, { status: 404 })
     }
 
+    // Check for related stock transfer requests
+    const { data: transferRequests, error: transferError } = await supabase
+      .from("stock_transfer_requests")
+      .select("*")
+      .eq("item_id", itemId)
+      .in("status", ["pending", "approved"])
+
+    if (transferError) {
+      console.error("[v0] Error checking transfer requests:", transferError)
+    }
+
+    if (transferRequests && transferRequests.length > 0) {
+      console.log(`[v0] Cannot delete item ${itemId}: ${transferRequests.length} active transfer requests found`)
+      return NextResponse.json(
+        {
+          error: "Cannot delete this item",
+          reason: `This item has ${transferRequests.length} active transfer request(s) that must be cancelled or rejected first.`,
+          activeRequests: transferRequests.map((req) => ({
+            id: req.id,
+            requestNumber: req.request_number,
+            quantity: req.requested_quantity,
+            status: req.status,
+            location: req.requesting_location,
+          })),
+        },
+        { status: 409 },
+      )
+    }
+
+    // Check for related stock assignments
+    const { data: assignments, error: assignmentError } = await supabase
+      .from("stock_assignments")
+      .select("*")
+      .eq("item_id", itemId)
+      .neq("status", "returned")
+
+    if (assignmentError) {
+      console.error("[v0] Error checking assignments:", assignmentError)
+    }
+
+    if (assignments && assignments.length > 0) {
+      console.log(`[v0] Cannot delete item ${itemId}: ${assignments.length} active assignments found`)
+      return NextResponse.json(
+        {
+          error: "Cannot delete this item",
+          reason: `This item has ${assignments.length} active assignment(s) that must be returned first.`,
+        },
+        { status: 409 },
+      )
+    }
+
+    // If we get here, it's safe to delete
     await supabase.from("stock_audit_log").insert({
       item_id: itemId,
       action: "delete",

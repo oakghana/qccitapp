@@ -172,8 +172,19 @@ export function StockCardDetailModal({ open, onClose, item }: StockCardDetailMod
         }),
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        throw new Error("Failed to delete item")
+        // Handle detailed error responses (409 Conflict with active requests)
+        if (response.status === 409 && data.activeRequests) {
+          const requestsList = data.activeRequests
+            .map((req: any) => `• Request #${req.requestNumber} from ${req.location} (${req.quantity} units, Status: ${req.status})`)
+            .join("\n")
+          setActionError(`${data.reason}\n\nActive Transfer Requests:\n${requestsList}\n\nPlease cancel or reject these requests first.`)
+        } else {
+          setActionError(data.reason || data.error || "Failed to delete item")
+        }
+        return
       }
 
       onClose()

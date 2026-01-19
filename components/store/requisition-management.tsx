@@ -327,6 +327,11 @@ export function RequisitionManagement() {
       console.log("[v0] Requisition", action, "successfully")
       alert(`Requisition ${action}ed successfully${action === "approve" ? " and stock has been transferred" : ""}`)
       
+      // Dispatch event to refresh inventory in all dashboards
+      if (action === "approve") {
+        window.dispatchEvent(new CustomEvent("inventory-updated", { detail: { requisitionId: requisition.id } }))
+      }
+      
       setApprovalDialogOpen(false)
       setApprovingReq(null)
       setApprovedQuantity("")
