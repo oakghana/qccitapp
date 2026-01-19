@@ -132,17 +132,48 @@ export async function POST(request: NextRequest) {
         }
 
         // Get destination stock at requesting location
-        const { data: destStock, error: destError } = await supabaseAdmin
+        let { data: destStock, error: destError } = await supabaseAdmin
           .from("store_items")
           .select("*")
           .eq("location", requisition.location)
-          .eq("id", itemId)
+          .eq("name", item.itemName)
           .maybeSingle()
 
-        if (destError) {
+        if (destError && destError.code !== 'PGRST116') {
           console.error(`[v0] Error fetching destination stock for ${itemId}:`, destError)
           errorCount++
           continue
+        }
+
+        // If item doesn't exist at destination location, create it
+        if (!destStock && sourceStock) {
+          console.log(`[v0] Creating new stock entry for ${item.itemName} at ${requisition.location}`)
+          const { data: newDestStock, error: createError } = await supabaseAdmin
+            .from("store_items")
+            .insert({
+              name: sourceStock.name || item.itemName,
+              category: sourceStock.category,
+              sku: sourceStock.sku,
+              siv_number: `${sourceStock.siv_number}-${requisition.location.substring(0, 3).toUpperCase()}`,
+              quantity: 0,
+              reorder_level: sourceStock.reorder_level,
+              unit: sourceStock.unit,
+              location: requisition.location,
+              supplier: sourceStock.supplier,
+              last_restocked: new Date().toISOString().split("T")[0],
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .select()
+            .single()
+
+          if (createError) {
+            console.error(`[v0] Error creating destination stock for ${item.itemName}:`, createError)
+            errorCount++
+            continue
+          }
+
+          destStock = newDestStock
         }
 
         // Update central store stock (decrease)
@@ -193,20 +224,27 @@ export async function POST(request: NextRequest) {
 
           const { error: destUpdateError } = await supabaseAdmin
             .from("store_items")
-            .update({ quantity: newDestQuantity, quantity_in_stock: newDestQuantity, updated_at: new Date().toISOString() })
+            .update({ 
+              quantity: newDestQuantity, 
+              quantity_in_stock: newDestQuantity, 
+              last_restocked: new Date().toISOString().split("T")[0],
+              updated_at: new Date().toISOString() 
+            })
             .eq("id", destStock.id)
 
           if (destUpdateError) {
-            console.error(`[v0] Error updating destination stock for ${itemId}:`, destUpdateError)
+            console.error(`[v0] Error updating destination stock for ${item.itemName}:`, destUpdateError)
             errorCount++
             continue
           }
+
+          console.log(`[v0] Updated destination stock: ${item.itemName} at ${requisition.location}, new quantity: ${newDestQuantity}`)
 
           // Record transfer_in transaction
           const { error: receiptError } = await supabaseAdmin
             .from("stock_transactions")
             .insert({
-              item_id: itemId,
+              item_id: destStock.id,
               item_name: destStock.name || item.itemName,
               location_id: destStock.id,
               location_name: requisition.location,
@@ -218,15 +256,18 @@ export async function POST(request: NextRequest) {
               reference_type: "requisition",
               performed_by: approvedBy,
               performed_by_name: approvedByName || approvedBy,
-              notes: `Stock received from Central Stores`,
+              notes: `Stock received from Central Stores via requisition ${requisition.requisition_number}`,
               created_at: new Date().toISOString(),
             })
 
           if (receiptError) {
-            console.error(`[v0] Error creating transfer_in transaction for ${itemId}:`, receiptError)
+            console.error(`[v0] Error creating transfer_in transaction for ${item.itemName}:`, receiptError)
             errorCount++
             continue
           }
+        } else if (!destStock) {
+          console.error(`[v0] Destination stock is null for ${item.itemName} after creation attempt`)
+          errorCount++
         }
 
         processedCount++
