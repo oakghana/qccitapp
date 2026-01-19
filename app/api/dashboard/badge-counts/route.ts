@@ -90,16 +90,19 @@ export async function GET(request: NextRequest) {
       console.error("[v0] Exception fetching devices:", e?.message || e)
     }
 
-    // 4. Store Requisitions (pending)
+    // 4. Store Requisitions (pending approval)
     try {
-      const { data, error } = await supabaseAdmin.from("requisitions").select("id, status, location_id")
+      const { data, error } = await supabaseAdmin.from("store_requisitions").select("id, status, location, requires_approval")
 
       if (!error && data) {
-        const filtered = data.filter((r) => matchesStatus(r.status, ["pending", "submitted", "pending_approval"]))
-        counts.storeRequisitions = filterByLocation(filtered, location, canSeeAll, "location_id").length
+        // Count requisitions pending approval (status = "pending" and requires_approval = true)
+        const filtered = data.filter(
+          (r) => matchesStatus(r.status, ["pending", "submitted", "pending_approval"]) && r.requires_approval === true
+        )
+        counts.storeRequisitions = filterByLocation(filtered, location, canSeeAll).length
       }
     } catch (e) {
-      console.error("[v0] Error fetching requisitions:", e)
+      console.error("[v0] Error fetching store requisitions:", e)
     }
 
     // 5. Stock Allocations (allocated/in_transit)

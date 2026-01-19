@@ -71,7 +71,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
   const [isProfileExpanded, setIsProfileExpanded] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
-  const [expandedGroups, setExpandedGroups] = useState<string[]>(["IT Operations", "Service & Repairs", "Device Management", "Store Management", "User Management"])
+  const [expandedGroups, setExpandedGroups] = useState<string[]>([])
 
   useEffect(() => {
     setIsMounted(true)
@@ -711,7 +711,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           )}
 
           {/* Navigation */}
-          <ScrollArea className="flex-1 px-3 py-4">
+          <ScrollArea className="flex-1 px-3 py-4 scrollbar-thin scrollbar-thumb-orange-500 scrollbar-track-gray-100 dark:scrollbar-track-gray-800 hover:scrollbar-thumb-orange-600">
             <nav className="space-y-1">
               {/* Regular navigation items */}
               {navigation.items.map((item) => (

@@ -16,13 +16,22 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, FileText, Search, CheckCircle, Clock, XCircle, Download, Edit } from "lucide-react"
+import { Plus, FileText, Search, CheckCircle, Clock, XCircle, Download, Edit, Trash2 } from "lucide-react"
 import { NewRequisitionForm } from "./new-requisition-form"
 import { IssueItemsForm } from "./issue-items-form"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations } from "@/lib/location-filter"
 import { getLocationOptions } from "@/lib/locations"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface Requisition {
   id: string
@@ -73,6 +82,9 @@ export function RequisitionManagement() {
   const [approvedQuantity, setApprovedQuantity] = useState("")
   const [approvalNotes, setApprovalNotes] = useState("")
   const [isApproving, setIsApproving] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [deletingReq, setDeletingReq] = useState<Requisition | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const { user } = useAuth()
   const supabase = createClient()
 
@@ -212,7 +224,7 @@ export function RequisitionManagement() {
     setEditingReq(req)
     setEditFormData({
       beneficiary: req.beneficiary || "",
-      location: req.location,
+      location: req.location || "",
       notes: req.notes || "",
     })
     setEditReqOpen(true)
@@ -304,6 +316,39 @@ export function RequisitionManagement() {
       alert("An error occurred while processing the requisition")
     } finally {
       setIsApproving(false)
+    }
+  }
+
+  const handleDeleteRequisition = async () => {
+    if (!deletingReq) return
+
+    setIsDeleting(true)
+    try {
+      const response = await fetch("/api/store/delete-requisition", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requisitionId: deletingReq.id,
+          updatedBy: user?.id,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        alert(`Error deleting requisition: ${result.error}`)
+        return
+      }
+
+      alert("Requisition deleted successfully")
+      setDeleteConfirmOpen(false)
+      setDeletingReq(null)
+      await loadRequisitions()
+    } catch (error) {
+      console.error("[v0] Error deleting requisition:", error)
+      alert("Failed to delete requisition")
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -458,10 +503,28 @@ export function RequisitionManagement() {
                     )}
 
                     {(req.status === "pending" || req.status === "approved") && (
-                      <Button variant="outline" size="sm" onClick={() => handleEditRequisition(req)} className="w-full">
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit Requisition Details
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleEditRequisition(req)}
+                          className="flex-1"
+                        >
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit
+                        </Button>
+                        <Button 
+                          variant="destructive" 
+                          size="sm" 
+                          onClick={() => {
+                            setDeletingReq(req)
+                            setDeleteConfirmOpen(true)
+                          }}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </Button>
+                      </div>
                     )}
 
                     {req.status === "pending" && (
@@ -699,6 +762,28 @@ export function RequisitionManagement() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Requisition</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete requisition {deletingReq?.requisition_number}? This action cannot be undone.
+              Only pending or rejected requisitions can be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex justify-end gap-2">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteRequisition}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

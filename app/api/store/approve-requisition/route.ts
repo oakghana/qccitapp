@@ -36,7 +36,28 @@ export async function POST(request: NextRequest) {
       id: requisition.id,
       itemsArray: requisition.items,
       itemId: requisition.item_id,
+      requestedBy: requisition.requested_by,
+      location: requisition.location,
     })
+
+    // ROLE-BASED WORKFLOW LOGIC
+    // Head office requests auto-approve without workflow
+    // Regional IT requests require approval
+    const isHeadOfficeRequest = requisition.requested_by_role === "it_head" && 
+                                 requisition.location === "Central Stores"
+    
+    if (isHeadOfficeRequest && approvalAction === "auto_approve") {
+      console.log("[v0] Auto-approving head office requisition:", requisitionId)
+      // Skip approval workflow for head office - auto process
+    } else if (!isHeadOfficeRequest && requisition.location !== "Central Stores") {
+      // Regional IT request requires explicit approval
+      if (!approvalAction || (approvalAction !== "approve" && approvalAction !== "reject")) {
+        return NextResponse.json(
+          { error: "Regional IT requisitions require explicit approval or rejection" },
+          { status: 400 },
+        )
+      }
+    }
 
     // Get item_id from requisition - could be in items array or item_id field
     let itemId = requisition.item_id
