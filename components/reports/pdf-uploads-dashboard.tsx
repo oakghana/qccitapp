@@ -135,14 +135,13 @@ export function PDFUploadsDashboard() {
       // Add type filter if selected
       if (selectedType !== "all") params.append("type", selectedType)
       
-      // Add location filter - regional staff always filter by their location
-      if (user?.role === "regional_it_head" && user?.location) {
-        params.append("location", user.location)
-      } else if (selectedLocation !== "all") {
+      // Add location filter only for admin users without explicit location selection
+      // IT staff, IT head, and regional IT head should see all documents
+      if (["admin"].includes(user?.role || "") && selectedLocation !== "all") {
         params.append("location", selectedLocation)
       }
 
-      console.log("[v0] Fetching documents with params:", params.toString())
+      console.log("[v0] Fetching documents with params:", params.toString(), "user role:", user?.role)
       const response = await fetch(`/api/pdf-uploads?${params.toString()}`)
       const data = await response.json()
 
@@ -275,24 +274,30 @@ export function PDFUploadsDashboard() {
   }
 
   const filteredUploads = uploads.filter((upload) => {
-    // Filter by location
-    if (upload.target_location && upload.target_location !== user?.location) {
-      // Unless user is admin or it_head who can see all
-      if (!["admin", "it_head"].includes(user?.role || "")) {
+    // IT staff, IT head, and regional IT head can see all documents regardless of location
+    const canSeeAllDocuments = ["admin", "it_head", "it_staff", "regional_it_head"].includes(user?.role || "")
+    
+    // If user can see all documents, only apply type filter
+    if (canSeeAllDocuments) {
+      if (selectedType !== "all" && upload.document_type !== selectedType) {
         return false
       }
+      // For admin/it_head with location dropdown, also filter by selected location
+      if (["admin", "it_head"].includes(user?.role || "") && selectedLocation !== "all") {
+        if (!upload.target_location || upload.target_location !== selectedLocation) {
+          return false
+        }
+      }
+      return true
     }
     
-    // Filter by document type
-    if (selectedType !== "all" && upload.document_type !== selectedType) {
+    // For other users, restrict to their location and apply type filter
+    if (upload.target_location && upload.target_location !== user?.location) {
       return false
     }
     
-    // Filter by location dropdown (for admins/it_head only)
-    if (["admin", "it_head"].includes(user?.role || "") && selectedLocation !== "all") {
-      if (!upload.target_location || upload.target_location !== selectedLocation) {
-        return false
-      }
+    if (selectedType !== "all" && upload.document_type !== selectedType) {
+      return false
     }
     
     return true
@@ -315,8 +320,8 @@ export function PDFUploadsDashboard() {
             IT Documents & Reports
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            {user?.role === "regional_it_head" && user?.location
-              ? `Documents for ${LOCATIONS[user.location as keyof typeof LOCATIONS] || user.location}`
+            {["admin", "it_head", "it_staff", "regional_it_head"].includes(user?.role || "")
+              ? "View all uploaded IT documents and reports across all locations"
               : "View and confirm official IT documents and reports"}
           </p>
         </div>
@@ -542,9 +547,9 @@ export function PDFUploadsDashboard() {
                 </SelectContent>
               </Select>
             )}
-            {user?.role === "regional_it_head" && (
+            {["it_staff", "regional_it_head"].includes(user?.role || "") && (
               <div className="px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 rounded border border-blue-200 dark:border-blue-800">
-                📍 Viewing documents for: <span className="font-semibold">{LOCATIONS[user?.location as keyof typeof LOCATIONS] || user?.location}</span>
+                👁️ You can view all IT documents uploaded across all locations
               </div>
             )}
           </div>
