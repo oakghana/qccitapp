@@ -200,7 +200,7 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
           serial_number: formData.serialNumber,
           location: formData.location,
           region_id: formData.region || null,
-          district_id: formData.district || null,
+          district_id: null, // District is managed separately and not required for device creation
           assigned_to: formData.assignedTo || null,
           status: formData.status,
           purchase_date: formData.purchaseDate || null,
@@ -387,16 +387,6 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">Auto-populated from location, or select manually</p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="district">District</Label>
-            <Input
-              id="district"
-              value={formData.district}
-              onChange={(e) => handleInputChange("district", e.target.value)}
-              placeholder="Enter district if applicable"
-            />
           </div>
 
           <div className="space-y-2">
