@@ -13,7 +13,7 @@ import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations } from "@/lib/location-filter"
 
 interface Device {
-  type: "laptop" | "desktop" | "printer" | "ups" | "stabiliser" | "mobile" | "server" | "other"
+  type: "laptop" | "desktop" | "printer" | "photocopier" | "handset" | "ups" | "stabiliser" | "mobile" | "server" | "other"
   serialNumber: string
   model: string
   brand: string
@@ -177,10 +177,10 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
       return
     }
 
-    // Validate printer-specific fields
-    if (formData.type === "printer" && !formData.tonerType) {
-      setError("Toner type is required for printers.")
-      toast.error("Toner type is required for printers.")
+    // Validate printer/photocopier-specific fields
+    if ((formData.type === "printer" || formData.type === "photocopier") && !formData.tonerType) {
+      setError(`Toner type is required for ${formData.type}s.`)
+      toast.error(`Toner type is required for ${formData.type}s.`)
       return
     }
 
@@ -275,14 +275,16 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
                   ))
                 ) : (
                   <>
-                    <SelectItem value="laptop">Laptop</SelectItem>
-                    <SelectItem value="desktop">Desktop</SelectItem>
-                    <SelectItem value="printer">Printer</SelectItem>
-                    <SelectItem value="ups">UPS</SelectItem>
-                    <SelectItem value="stabiliser">Stabiliser</SelectItem>
-                    <SelectItem value="mobile">Mobile Device</SelectItem>
-                    <SelectItem value="server">Server</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="laptop">Laptop</SelectItem>
+                  <SelectItem value="desktop">Desktop</SelectItem>
+                  <SelectItem value="printer">Printer</SelectItem>
+                  <SelectItem value="photocopier">Photocopier</SelectItem>
+                  <SelectItem value="handset">Handset</SelectItem>
+                  <SelectItem value="ups">UPS</SelectItem>
+                  <SelectItem value="stabiliser">Stabiliser</SelectItem>
+                  <SelectItem value="mobile">Mobile Device</SelectItem>
+                  <SelectItem value="server">Server</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
                   </>
                 )}
               </SelectContent>
@@ -458,10 +460,12 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
           </div>
         </div>
 
-        {/* Printer-Specific Fields */}
-        {formData.type === "printer" && (
+        {/* Printer/Photocopier-Specific Fields */}
+        {(formData.type === "printer" || formData.type === "photocopier") && (
           <div className="border-t pt-4 mt-4">
-            <h3 className="text-lg font-semibold mb-4">Printer Specifications</h3>
+            <h3 className="text-lg font-semibold mb-4">
+              {formData.type === "printer" ? "Printer" : "Photocopier"} Specifications
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="tonerType">Toner Type *</Label>
@@ -470,9 +474,9 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
                   value={formData.tonerType}
                   onChange={(e) => handleInputChange("tonerType", e.target.value)}
                   placeholder="e.g., CF217A, 85A, TN-2420"
-                  required={formData.type === "printer"}
+                  required={formData.type === "printer" || formData.type === "photocopier"}
                 />
-                <p className="text-xs text-muted-foreground">Enter the toner cartridge model/type</p>
+                <p className="text-xs text-muted-foreground">Enter the toner/cartridge model/type</p>
               </div>
 
               <div className="space-y-2">
