@@ -152,6 +152,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
               },
               { name: "IT Reports", href: "/dashboard/it-reports", icon: BarChart3 },
               { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
+              { name: "Regional IT Needs", href: "/dashboard/regional-needs-analysis", icon: ClipboardList },
             ],
           },
           {
@@ -357,6 +358,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
               },
               { name: "IT Reports", href: "/dashboard/it-reports", icon: BarChart3 },
               { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
+              { name: "Regional IT Needs", href: "/dashboard/regional-needs-analysis", icon: ClipboardList },
             ],
           },
           {
@@ -457,6 +459,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
               },
               { name: "IT Reports", href: "/dashboard/it-reports", icon: BarChart3 },
               { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
+              { name: "Regional IT Needs", href: "/dashboard/regional-needs-analysis", icon: ClipboardList },
             ],
           },
           {
