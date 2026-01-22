@@ -71,6 +71,14 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
     monthlyPrintVolume: "",
   })
 
+  // Ensure user's location is always set if they have one
+  useEffect(() => {
+    if (user?.location && !formData.location) {
+      setFormData((prev) => ({ ...prev, location: user.location }))
+      console.log("[v0] Initializing form with user location:", user.location)
+    }
+  }, [user?.location])
+
   useEffect(() => {
     const fetchLookupData = async () => {
       try {
@@ -97,6 +105,12 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
             region_id: l.region_id || null
           }))
           setLocations(activeLocs)
+          
+          // Ensure user's location is pre-selected if available
+          if (user?.location && !formData.location) {
+            setFormData((prev) => ({ ...prev, location: user.location }))
+            console.log("[v0] Auto-selected user location:", user.location)
+          }
           
           // If user has a location and can't see all locations, use their location
           // Otherwise, default to first location in list

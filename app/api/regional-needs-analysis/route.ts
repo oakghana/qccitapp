@@ -33,9 +33,9 @@ export async function GET(request: NextRequest) {
     }
 
     if (analysisType === "replacement") {
-      // Get devices needing replacement
+      // Get devices needing replacement using correct view name
       let query = supabase
-        .from("device_replacement_recommendations")
+        .from("v_devices_replacement_needed")
         .select("*")
         .order("device_age_years", { ascending: false })
 
@@ -54,11 +54,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (analysisType === "toner") {
-      // Get monthly toner needs
+      // Get toner needs using correct view name
       let query = supabase
-        .from("monthly_toner_needs")
+        .from("v_printer_toner_needs")
         .select("*")
-        .order("estimated_toners_needed_monthly", { ascending: false })
+        .order("monthly_toner_units_needed", { ascending: false })
 
       if (effectiveLocation && effectiveLocation !== "all") {
         query = query.eq("location", effectiveLocation)

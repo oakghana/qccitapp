@@ -292,16 +292,16 @@ export default function RegionalNeedsAnalysisPage() {
                           )}
                         </TableCell>
                         <TableCell>{toner.printer_count}</TableCell>
-                        <TableCell>{toner.total_monthly_volume?.toLocaleString()}</TableCell>
+                        <TableCell>{toner.total_monthly_pages?.toLocaleString()}</TableCell>
                         <TableCell>{toner.avg_toner_yield?.toLocaleString()}</TableCell>
                         <TableCell>
                           <Badge className="bg-blue-500">
-                            {Math.ceil(toner.estimated_toners_needed_monthly)} toners
+                            {Math.ceil(toner.monthly_toner_units_needed || 0)} toners
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <Badge className="bg-green-500">
-                            {Math.ceil(toner.estimated_toners_needed_monthly * 3)} toners
+                            {Math.ceil(toner.quarterly_toner_units_needed || 0)} toners
                           </Badge>
                         </TableCell>
                       </TableRow>

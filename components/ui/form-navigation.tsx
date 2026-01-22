@@ -103,32 +103,13 @@ export function FormNavigation({ currentPage, className = "" }: FormNavigationPr
   }
 
   return (
-    <Card className={`mb-6 ${className}`}>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Quick Navigation</h3>
-          <span className="text-xs text-gray-600 dark:text-gray-400 capitalize">
+    <Card className={`mb-4 ${className}`}>
+      <CardContent className="p-2 py-2.5">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-medium text-gray-600 dark:text-gray-400">Quick Navigation</h3>
+          <span className="text-xs text-gray-500 dark:text-gray-500 capitalize">
             {user.role.replace("_", " ")} • {user.location.replace("_", " ")}
           </span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {allowedItems.map((item) => {
-            const IconComponent = item.icon
-            const isActive = currentPage === item.href
-
-            return (
-              <Button
-                key={item.name}
-                variant={isActive ? "default" : "outline"}
-                size="sm"
-                onClick={() => handleNavigation(item.href)}
-                className="flex items-center space-x-2"
-              >
-                <IconComponent className="h-4 w-4" />
-                <span>{item.name}</span>
-              </Button>
-            )
-          })}
         </div>
       </CardContent>
     </Card>
