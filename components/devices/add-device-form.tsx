@@ -155,8 +155,23 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    setLoading(true)
 
+    // Validate location is selected
+    if (!formData.location || formData.location.trim() === "") {
+      setError("Location is required. Please select a valid location.")
+      toast.error("Location is required. Please select a valid location.")
+      return
+    }
+
+    // Validate printer-specific fields
+    if (formData.type === "printer" && !formData.tonerType) {
+      setError("Toner type is required for printers.")
+      toast.error("Toner type is required for printers.")
+      return
+    }
+
+    setLoading(true)
+    
     try {
       console.log("[v0] Saving device via API:", formData)
 

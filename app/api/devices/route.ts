@@ -47,6 +47,21 @@ export async function POST(request: NextRequest) {
     
     console.log("[v0] Creating device:", body)
 
+    // Validate required fields
+    if (!body.location || body.location.trim() === "") {
+      console.error("[v0] Location is required but not provided")
+      return NextResponse.json({ 
+        error: "Location is required. Please select a valid location before adding a device." 
+      }, { status: 400 })
+    }
+
+    if (!body.device_type || !body.brand || !body.model || !body.serial_number) {
+      console.error("[v0] Missing required fields")
+      return NextResponse.json({ 
+        error: "All required fields (device type, brand, model, serial number, and location) must be provided." 
+      }, { status: 400 })
+    }
+
     const { data, error } = await supabase
       .from("devices")
       .insert([{
@@ -61,6 +76,13 @@ export async function POST(request: NextRequest) {
         status: body.status || "active",
         purchase_date: body.purchase_date || null,
         warranty_expiry: body.warranty_expiry || null,
+        room_number: body.room_number || null,
+        building: body.building || null,
+        floor: body.floor || null,
+        toner_type: body.toner_type || null,
+        toner_model: body.toner_model || null,
+        toner_yield: body.toner_yield || null,
+        monthly_print_volume: body.monthly_print_volume || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }])
