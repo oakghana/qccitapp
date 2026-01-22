@@ -71,11 +71,11 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
     monthlyPrintVolume: "",
   })
 
-  // Ensure user's location is always set if they have one
+  // Ensure user's location is always set - this happens automatically now
   useEffect(() => {
-    if (user?.location && !formData.location) {
+    if (user?.location) {
       setFormData((prev) => ({ ...prev, location: user.location }))
-      console.log("[v0] Initializing form with user location:", user.location)
+      console.log("[v0] Device will be added to user location:", user.location)
     }
   }, [user?.location])
 
@@ -170,10 +170,11 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
     e.preventDefault()
     setError("")
 
-    // Validate location is selected
-    if (!formData.location || formData.location.trim() === "") {
-      setError("Location is required. Please select a valid location.")
-      toast.error("Location is required. Please select a valid location.")
+    // Location is automatically set to user's location - no validation needed
+    // Ensure user has a location
+    if (!user?.location || user.location.trim() === "") {
+      setError("Your user account does not have a location assigned. Please contact the administrator.")
+      toast.error("Your user account does not have a location assigned. Please contact the administrator.")
       return
     }
 
@@ -198,8 +199,8 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
           brand: formData.brand,
           model: formData.model,
           serial_number: formData.serialNumber,
-          location: formData.location,
-          region_id: formData.region || null,
+          location: user?.location, // Always use the logged-in user's location
+          region_id: null, // Region not used - devices inherit user's location only
           district_id: null, // District is managed separately and not required for device creation
           assigned_to: formData.assignedTo || null,
           status: formData.status,
@@ -339,54 +340,17 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="location">Location *{!canSelectAllLocations && user?.location && <span className="text-muted-foreground text-sm ml-2">(Your location)</span>}</Label>
-            <Select 
-              value={formData.location} 
-              onValueChange={handleLocationChange}
-              disabled={!canSelectAllLocations && !!user?.location}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select location" />
-              </SelectTrigger>
-              <SelectContent>
-                {!canSelectAllLocations && user?.location ? (
-                  // Show only user's location for non-admin users
-                  <SelectItem value={formData.location || user.location}>
-                    {locations.find(l => l.code === formData.location || l.code === user.location)?.name || user.location}
-                  </SelectItem>
-                ) : locations.length > 0 ? (
-                  locations.map((loc) => (
-                    <SelectItem key={loc.code} value={loc.code}>
-                      {loc.name}
-                    </SelectItem>
-                  ))
-                ) : (
-                  <SelectItem value="head_office">Head Office</SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="region">Region</Label>
-            <Select 
-              value={formData.region} 
-              onValueChange={(value) => handleInputChange("region", value === "none" ? "" : value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select region" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">-- No Region --</SelectItem>
-                {regions.map((region) => (
-                  <SelectItem key={region.id} value={region.id}>
-                    {region.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">Auto-populated from location, or select manually</p>
+          {/* Location is automatically set to user's location - hidden from UI */}
+          <div className="space-y-2 bg-muted/50 p-3 rounded-md border">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm font-medium">Device Location:</Label>
+              <span className="text-sm font-semibold text-primary">
+                {locations.find(l => l.code === user?.location)?.name || user?.location || "Not set"}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Devices are automatically added to your assigned location
+            </p>
           </div>
 
           <div className="space-y-2">
