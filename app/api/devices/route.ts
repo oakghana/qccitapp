@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
         warranty_expiry: body.warranty_expiry || null,
         room_number: body.room_number || null,
         building: body.building || null,
-        floor: body.floor || null,
+        floor_level: body.floor || null,
         toner_type: body.toner_type || null,
         toner_model: body.toner_model || null,
         toner_yield: body.toner_yield || null,
