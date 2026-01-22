@@ -24,6 +24,14 @@ interface Device {
   assignedTo: string
   purchaseDate: string
   warrantyExpiry: string
+  roomNumber: string
+  building: string
+  floor: string
+  // Printer-specific fields
+  tonerType: string
+  tonerModel: string
+  tonerYield: string
+  monthlyPrintVolume: string
 }
 
 interface AddDeviceFormProps {
@@ -54,6 +62,13 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
     assignedTo: "",
     purchaseDate: new Date().toISOString().split("T")[0],
     warrantyExpiry: "",
+    roomNumber: "",
+    building: "",
+    floor: "",
+    tonerType: "",
+    tonerModel: "",
+    tonerYield: "",
+    monthlyPrintVolume: "",
   })
 
   useEffect(() => {
@@ -161,6 +176,13 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
           status: formData.status,
           purchase_date: formData.purchaseDate || null,
           warranty_expiry: formData.warrantyExpiry || null,
+          room_number: formData.roomNumber || null,
+          building: formData.building || null,
+          floor: formData.floor || null,
+          toner_type: formData.tonerType || null,
+          toner_model: formData.tonerModel || null,
+          toner_yield: formData.tonerYield ? parseInt(formData.tonerYield) : null,
+          monthly_print_volume: formData.monthlyPrintVolume ? parseInt(formData.monthlyPrintVolume) : null,
         }),
       })
 
@@ -375,7 +397,91 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
               onChange={(e) => handleInputChange("warrantyExpiry", e.target.value)}
             />
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="roomNumber">Room Number</Label>
+            <Input
+              id="roomNumber"
+              value={formData.roomNumber}
+              onChange={(e) => handleInputChange("roomNumber", e.target.value)}
+              placeholder="e.g., Room 204"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="building">Building</Label>
+            <Input
+              id="building"
+              value={formData.building}
+              onChange={(e) => handleInputChange("building", e.target.value)}
+              placeholder="e.g., Main Block, Admin Building"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="floor">Floor</Label>
+            <Input
+              id="floor"
+              value={formData.floor}
+              onChange={(e) => handleInputChange("floor", e.target.value)}
+              placeholder="e.g., 1st Floor, Ground Floor"
+            />
+          </div>
         </div>
+
+        {/* Printer-Specific Fields */}
+        {formData.type === "printer" && (
+          <div className="border-t pt-4 mt-4">
+            <h3 className="text-lg font-semibold mb-4">Printer Specifications</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="tonerType">Toner Type *</Label>
+                <Input
+                  id="tonerType"
+                  value={formData.tonerType}
+                  onChange={(e) => handleInputChange("tonerType", e.target.value)}
+                  placeholder="e.g., CF217A, 85A, TN-2420"
+                  required={formData.type === "printer"}
+                />
+                <p className="text-xs text-muted-foreground">Enter the toner cartridge model/type</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tonerModel">Toner Model/Brand</Label>
+                <Input
+                  id="tonerModel"
+                  value={formData.tonerModel}
+                  onChange={(e) => handleInputChange("tonerModel", e.target.value)}
+                  placeholder="e.g., HP LaserJet, Brother TN"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tonerYield">Toner Yield (pages)</Label>
+                <Input
+                  id="tonerYield"
+                  type="number"
+                  value={formData.tonerYield}
+                  onChange={(e) => handleInputChange("tonerYield", e.target.value)}
+                  placeholder="e.g., 1600, 3000"
+                />
+                <p className="text-xs text-muted-foreground">Approximate pages per toner cartridge</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="monthlyPrintVolume">Monthly Print Volume</Label>
+                <Input
+                  id="monthlyPrintVolume"
+                  type="number"
+                  value={formData.monthlyPrintVolume}
+                  onChange={(e) => handleInputChange("monthlyPrintVolume", e.target.value)}
+                  placeholder="e.g., 500, 1000"
+                />
+                <p className="text-xs text-muted-foreground">Average pages printed per month</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex justify-end space-x-2 pt-4">
           <Button type="submit" disabled={loading}>

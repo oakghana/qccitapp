@@ -247,10 +247,17 @@ export function DeviceInventory() {
       device.assignedTo.toLowerCase().includes(searchQuery.toLowerCase())
 
     const matchesStatus = statusFilter === "all" || device.status === statusFilter
-    const matchesLocation = locationFilter === "all" || device.location === locationFilter
+    
+    // Normalize location comparison - handle case-insensitive and underscore/space variations
+    const normalizeLocation = (loc: string) => loc.toLowerCase().replace(/[\s-]+/g, "_").trim()
+    const matchesLocation = 
+      locationFilter === "all" || 
+      normalizeLocation(device.location || "") === normalizeLocation(locationFilter)
 
     return matchesSearch && matchesStatus && matchesLocation
   })
+  
+  console.log("[v0] Device filter - locationFilter:", locationFilter, "total devices:", devices.length, "filtered:", filteredDevices.length)
 
   const handleAddDevice = () => {
     setAddDeviceOpen(true)
