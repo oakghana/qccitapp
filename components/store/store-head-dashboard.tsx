@@ -113,12 +113,26 @@ export default function StoreHeadDashboard() {
     const uniqueLocationsInData = [...new Set(stockItems.map(item => item.location).filter(Boolean))]
     console.log("[v0] Unique locations in store_items data:", uniqueLocationsInData)
     
-    // Normalize "Head Office" and "head_office" to a single location
+    // Normalize location names to handle case variations
     const normalizeLocation = (loc: string) => {
-      if (loc.toLowerCase() === "head office" || loc.toLowerCase() === "head_office") {
+      const lower = loc.toLowerCase()
+      if (lower === "head office" || lower === "head_office") {
         return "Head Office"
       }
-      return loc
+      if (lower === "kumasi") {
+        return "Kumasi"
+      }
+      if (lower === "kaase") {
+        return "Kaase"
+      }
+      if (lower === "tema port" || lower === "tema_port") {
+        return "Tema Port"
+      }
+      if (lower === "central stores" || lower === "central_stores") {
+        return "Central Stores"
+      }
+      // Return with proper casing (capitalize first letter)
+      return loc.charAt(0).toUpperCase() + loc.slice(1).toLowerCase()
     }
     
     // Get normalized unique locations

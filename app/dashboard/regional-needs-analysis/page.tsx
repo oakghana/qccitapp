@@ -12,6 +12,40 @@ import { LOCATIONS } from "@/lib/locations"
 import { useAuth } from "@/lib/auth-context"
 import { toast } from "sonner"
 
+const exportToExcel = (data: any[], filename: string) => {
+  if (!data || data.length === 0) {
+    toast.error("No data to export")
+    return
+  }
+
+  // Create Excel-compatible CSV with proper formatting
+  const headers = Object.keys(data[0]).map(key => {
+    // Format headers nicely
+    return key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')
+  }).join(",")
+  
+  const rows = data.map((row) => 
+    Object.values(row).map(val => {
+      // Handle values with commas, quotes, or newlines
+      const strVal = String(val || '')
+      if (strVal.includes(',') || strVal.includes('"') || strVal.includes('\n')) {
+        return `"${strVal.replace(/"/g, '""')}"`
+      }
+      return strVal
+    }).join(",")
+  )
+  
+  const csv = [headers, ...rows].join("\n")
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename.replace('.csv', '.xlsx.csv') // Excel-compatible extension
+  a.click()
+  window.URL.revokeObjectURL(url)
+  toast.success("Report exported successfully")
+}
+
 export default function RegionalNeedsAnalysisPage() {
   const { user } = useAuth()
   const [selectedLocation, setSelectedLocation] = useState<string>("all")
@@ -126,24 +160,6 @@ export default function RegionalNeedsAnalysisPage() {
     fetchStockNeeds()
     fetchSummary()
   }, [selectedLocation])
-
-  const exportToCSV = (data: any[], filename: string) => {
-    if (!data || data.length === 0) {
-      toast.error("No data to export")
-      return
-    }
-
-    const headers = Object.keys(data[0]).join(",")
-    const rows = data.map((row) => Object.values(row).join(","))
-    const csv = [headers, ...rows].join("\n")
-    const blob = new Blob([csv], { type: "text/csv" })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = filename
-    a.click()
-    window.URL.revokeObjectURL(url)
-  }
 
   const getUrgencyBadge = (ageYears: number, repairCount: number) => {
     if (ageYears >= 5 || repairCount >= 3) {
@@ -366,9 +382,9 @@ export default function RegionalNeedsAnalysisPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() =>
-                    exportToCSV(replacementNeeds, `replacement-needs-${selectedLocation}-${new Date().toISOString().split("T")[0]}.csv`)
-                  }
+                onClick={() =>
+                  exportToExcel(replacementNeeds, `replacement-needs-${selectedLocation}-${new Date().toISOString().split("T")[0]}.csv`)
+                }
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Export
@@ -436,9 +452,9 @@ export default function RegionalNeedsAnalysisPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() =>
-                    exportToCSV(tonerNeeds, `toner-needs-${selectedLocation}-${new Date().toISOString().split("T")[0]}.csv`)
-                  }
+                onClick={() =>
+                  exportToExcel(tonerNeeds, `toner-needs-${selectedLocation}-${new Date().toISOString().split("T")[0]}.csv`)
+                }
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Export
@@ -539,7 +555,7 @@ export default function RegionalNeedsAnalysisPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => exportToCSV(stockNeeds, `stock-replenishment-${selectedLocation}-${new Date().toISOString().split('T')[0]}.csv`)}
+                  onClick={() => exportToExcel(stockNeeds, `stock-replenishment-${selectedLocation}-${new Date().toISOString().split('T')[0]}.csv`)}
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Export

@@ -27,6 +27,7 @@ import {
 } from "lucide-react"
 import { AddStoreItemForm } from "./add-store-item-form"
 import { StoreReceiptForm } from "./store-receipt-form"
+import { RegionalTonerUpdateForm } from "./regional-toner-update-form"
 import { StockCardDetailModal } from "./stock-card-detail-modal"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations } from "@/lib/location-filter"
@@ -58,9 +59,12 @@ export function StoreInventory() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [addItemOpen, setAddItemOpen] = useState(false)
   const [receiptOpen, setReceiptOpen] = useState(false)
+  const [updateTonerOpen, setUpdateTonerOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<StoreItem | null>(null)
   const { user } = useAuth()
   const router = useRouter()
+  
+  const isRegionalITHead = user?.role === "regional_it_head"
 
   useEffect(() => {
     loadInventory()
@@ -165,8 +169,8 @@ export function StoreInventory() {
           </Dialog>
           <Dialog open={addItemOpen} onOpenChange={setAddItemOpen}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
                 Add New Item
               </Button>
             </DialogTrigger>
@@ -183,6 +187,31 @@ export function StoreInventory() {
               />
             </DialogContent>
           </Dialog>
+
+          {isRegionalITHead && (
+            <Dialog open={updateTonerOpen} onOpenChange={setUpdateTonerOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="gap-2 bg-transparent">
+                  <TrendingUp className="h-4 w-4" />
+                  Update Toner Stock
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Update Toner/Consumable Stock</DialogTitle>
+                  <DialogDescription>
+                    Add quantities to existing toner and consumable items at your location
+                  </DialogDescription>
+                </DialogHeader>
+                <RegionalTonerUpdateForm
+                  onSuccess={() => {
+                    setUpdateTonerOpen(false)
+                    loadInventory()
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </div>
 
