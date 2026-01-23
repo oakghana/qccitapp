@@ -265,19 +265,23 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: "Failed to update destination stock" }, { status: 500 })
       }
     } else {
-      // Create new item at destination
-      const newSku = `${transferRequest.requesting_location.substring(0, 3).toUpperCase()}-${centralItem.sku || Date.now()}`
+      // Create new item at destination with all required fields
+      const locationPrefix = transferRequest.requesting_location.substring(0, 3).toUpperCase()
+      const newSku = `${locationPrefix}-${centralItem.sku || Date.now()}`
+      const newSivNumber = `${locationPrefix}-SIV-${Date.now()}`
+      
       const { error: createError } = await supabaseAdmin
         .from("store_items")
         .insert({
           name: centralItem.name,
           category: centralItem.category,
           sku: newSku,
+          siv_number: newSivNumber, // Required field
           quantity: qtyToTransfer,
           reorder_level: centralItem.reorder_level || 5,
           unit: centralItem.unit || "pcs",
           location: transferRequest.requesting_location,
-          supplier: centralItem.supplier,
+          supplier: centralItem.supplier || "Central Stores",
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -289,7 +293,7 @@ export async function PATCH(request: NextRequest) {
           .update({ quantity: centralItem.quantity })
           .eq("id", transferRequest.item_id)
         console.error("[v0] Error creating destination item:", createError)
-        return NextResponse.json({ error: "Failed to create destination stock item" }, { status: 500 })
+        return NextResponse.json({ error: `Failed to create destination stock item: ${createError.message}` }, { status: 500 })
       }
     }
 
@@ -309,16 +313,34 @@ export async function PATCH(request: NextRequest) {
       console.error("[v0] Error updating request status:", updateRequestError)
     }
 
-    // 4. Log the transaction
+    // 4. Log the transactions (both transfer_out and transfer_in)
+    const txnNumber = `TXN-${transferRequest.request_number}-${Date.now()}`
+    
+    // Transfer out from Central Stores
     await supabaseAdmin.from("stock_transactions").insert({
       item_id: transferRequest.item_id,
       item_name: centralItem.name,
-      transaction_type: "transfer",
+      transaction_number: `${txnNumber}-OUT`,
+      transaction_type: "transfer_out",
       quantity: qtyToTransfer,
-      from_location: "Central Stores",
-      to_location: transferRequest.requesting_location,
-      performed_by: approvedBy,
-      notes: `Stock transfer request ${transferRequest.request_number} approved`,
+      location_name: "Central Stores",
+      reference_number: transferRequest.request_number,
+      performed_by_name: approvedBy || "Store Manager",
+      notes: `Stock transferred to ${transferRequest.requesting_location}`,
+      created_at: new Date().toISOString(),
+    })
+    
+    // Transfer in to requesting location
+    await supabaseAdmin.from("stock_transactions").insert({
+      item_id: transferRequest.item_id,
+      item_name: centralItem.name,
+      transaction_number: `${txnNumber}-IN`,
+      transaction_type: "transfer_in",
+      quantity: qtyToTransfer,
+      location_name: transferRequest.requesting_location,
+      reference_number: transferRequest.request_number,
+      performed_by_name: transferRequest.requested_by || "Regional IT Head",
+      notes: `Stock received from Central Stores`,
       created_at: new Date().toISOString(),
     })
 

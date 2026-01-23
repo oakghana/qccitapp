@@ -113,25 +113,37 @@ export default function StoreHeadDashboard() {
     const uniqueLocationsInData = [...new Set(stockItems.map(item => item.location).filter(Boolean))]
     console.log("[v0] Unique locations in store_items data:", uniqueLocationsInData)
     
+    // Normalize "Head Office" and "head_office" to a single location
+    const normalizeLocation = (loc: string) => {
+      if (loc.toLowerCase() === "head office" || loc.toLowerCase() === "head_office") {
+        return "Head Office"
+      }
+      return loc
+    }
+    
+    // Get normalized unique locations
+    const normalizedLocations = [...new Set(uniqueLocationsInData.map(normalizeLocation))]
+    
     // Use locations from data if user can see all, otherwise filter by user's location
     let locationsToShow: string[] = []
     
     if (user && !canSeeAllLocations(user) && user.location) {
       // For restricted users, show only their location and Central Stores
-      locationsToShow = uniqueLocationsInData.filter(loc => 
+      locationsToShow = normalizedLocations.filter(loc => 
         loc.toLowerCase() === user.location?.toLowerCase() ||
+        normalizeLocation(user.location).toLowerCase() === loc.toLowerCase() ||
         loc.toLowerCase() === "central stores" ||
         loc.toLowerCase().includes("central")
       )
     } else {
       // For admins/IT heads, show all unique locations from the data
-      locationsToShow = uniqueLocationsInData.length > 0 ? uniqueLocationsInData : locationValues
+      locationsToShow = normalizedLocations.length > 0 ? normalizedLocations : locationValues
     }
 
     const summaries = locationsToShow.map((location) => {
-      // Case-insensitive location matching
+      // Case-insensitive location matching with Head Office normalization
       const locationItems = stockItems.filter((item) => 
-        item.location?.toLowerCase() === location?.toLowerCase()
+        normalizeLocation(item.location)?.toLowerCase() === location?.toLowerCase()
       )
 
       const totalItems = locationItems.reduce((sum, item) => sum + (item.quantity || 0), 0)
