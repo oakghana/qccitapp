@@ -17,6 +17,7 @@ export default function RegionalNeedsAnalysisPage() {
   const [selectedLocation, setSelectedLocation] = useState<string>("all")
   const [replacementNeeds, setReplacementNeeds] = useState<any[]>([])
   const [tonerNeeds, setTonerNeeds] = useState<any[]>([])
+  const [stockNeeds, setStockNeeds] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
   // Check authorization - only admin, it_head, and regional_it_head can access
@@ -74,9 +75,32 @@ export default function RegionalNeedsAnalysisPage() {
     }
   }
 
+  const fetchStockNeeds = async () => {
+    if (!canAccessPage) return
+    
+    setLoading(true)
+    try {
+      const response = await fetch(
+        `/api/regional-needs-analysis?type=stock&location=${selectedLocation}&user_role=${user?.role}&user_location=${user?.location || ""}`
+      )
+      const data = await response.json()
+      if (data.error) {
+        toast.error(data.error)
+      } else {
+        setStockNeeds(data.stockNeeds || [])
+      }
+    } catch (error) {
+      console.error("[v0] Error fetching stock replenishment needs:", error)
+      toast.error("Failed to load stock replenishment requirements")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
     fetchReplacementNeeds()
     fetchTonerNeeds()
+    fetchStockNeeds()
   }, [selectedLocation])
 
   const exportToCSV = (data: any[], filename: string) => {
@@ -156,7 +180,7 @@ export default function RegionalNeedsAnalysisPage() {
       </div>
 
       <Tabs defaultValue="replacement" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+        <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
           <TabsTrigger value="replacement">
             <AlertTriangle className="h-4 w-4 mr-2" />
             Device Replacement
@@ -164,6 +188,10 @@ export default function RegionalNeedsAnalysisPage() {
           <TabsTrigger value="toner">
             <Printer className="h-4 w-4 mr-2" />
             Toner Requirements
+          </TabsTrigger>
+          <TabsTrigger value="stock">
+            <Package className="h-4 w-4 mr-2" />
+            Stock Replenishment
           </TabsTrigger>
         </TabsList>
 
@@ -335,6 +363,116 @@ export default function RegionalNeedsAnalysisPage() {
                   <div className="text-sm text-muted-foreground">Quarterly Toner Need</div>
                   <div className="text-2xl font-bold text-green-600">
                     {Math.ceil(tonerNeeds.reduce((sum, t) => sum + (t.estimated_toners_needed_monthly || 0), 0) * 3)}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="stock" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Store Stock Replenishment Needs</CardTitle>
+                  <CardDescription>Items below reorder level requiring procurement</CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => exportToCSV(stockNeeds, `stock-replenishment-${selectedLocation}-${new Date().toISOString().split('T')[0]}.csv`)}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading stock data...</div>
+              ) : stockNeeds.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No stock items need replenishment at this location
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Item Name</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Current Stock</TableHead>
+                      <TableHead>Reorder Level</TableHead>
+                      <TableHead>Shortage</TableHead>
+                      <TableHead>Recommended Order</TableHead>
+                      <TableHead>Urgency</TableHead>
+                      <TableHead>Location</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stockNeeds.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{item.category || 'Uncategorized'}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className={item.quantity === 0 ? 'text-red-600 font-bold' : ''}>
+                            {item.quantity || 0} {item.unit}
+                          </span>
+                        </TableCell>
+                        <TableCell>{item.reorder_level || 0} {item.unit}</TableCell>
+                        <TableCell>
+                          <Badge variant="destructive">{item.shortage} {item.unit}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className="bg-blue-600">{item.recommendedOrder} {item.unit}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            className={
+                              item.urgency === 'critical' ? 'bg-red-600' :
+                              item.urgency === 'high' ? 'bg-orange-500' :
+                              'bg-yellow-500'
+                            }
+                          >
+                            {item.urgency.toUpperCase()}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {LOCATIONS[item.location as keyof typeof LOCATIONS] || item.location}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Monthly Procurement Summary</CardTitle>
+              <CardDescription>Total items and quantities needed for replenishment</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="border rounded-lg p-4">
+                  <div className="text-sm text-muted-foreground">Items Needing Reorder</div>
+                  <div className="text-2xl font-bold text-red-600">
+                    {stockNeeds.length}
+                  </div>
+                </div>
+                <div className="border rounded-lg p-4">
+                  <div className="text-sm text-muted-foreground">Critical Items (Out of Stock)</div>
+                  <div className="text-2xl font-bold text-red-600">
+                    {stockNeeds.filter(item => item.urgency === 'critical').length}
+                  </div>
+                </div>
+                <div className="border rounded-lg p-4">
+                  <div className="text-sm text-muted-foreground">Total Units to Order</div>
+                  <div className="text-2xl font-bold text-blue-600">
+                    {stockNeeds.reduce((sum, item) => sum + (item.recommendedOrder || 0), 0)}
                   </div>
                 </div>
               </div>

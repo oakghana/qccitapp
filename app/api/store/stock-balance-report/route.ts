@@ -63,28 +63,40 @@ export async function GET(request: Request) {
       return NextResponse.json({ report: [] })
     }
 
-    const { data: requisitions } = await supabase
-      .from("store_requisitions")
+    // Get transactions within date range for accurate receipts and issues
+    let transactionsQuery = supabase
+      .from("stock_transactions")
       .select("*")
-      .gte("updated_at", startDate)
-      .lte("updated_at", endDate)
-      .in("status", ["approved", "issued"])
+      .gte("created_at", startDate)
+      .lte("created_at", endDate)
+
+    if (location !== "all") {
+      transactionsQuery = transactionsQuery.eq("location_name", location)
+    } else if (profile.role === "regional_it_head") {
+      transactionsQuery = transactionsQuery.eq("location_name", profile.location)
+    }
+
+    const { data: transactions } = await transactionsQuery
+
+    console.log("[v0] Transactions found:", transactions?.length || 0)
 
     const itemMovements: Record<string, { receipts: number; issues: number; requisitionCount: number }> = {}
 
-    requisitions?.forEach((req) => {
-      if (req.items && Array.isArray(req.items)) {
-        req.items.forEach((item: any) => {
-          const itemId = item.itemId || item.item_id
-          if (!itemMovements[itemId]) {
-            itemMovements[itemId] = { receipts: 0, issues: 0, requisitionCount: 0 }
-          }
+    transactions?.forEach((txn) => {
+      const itemId = txn.item_id
+      if (!itemMovements[itemId]) {
+        itemMovements[itemId] = { receipts: 0, issues: 0, requisitionCount: 0 }
+      }
 
-          if (req.status === "issued") {
-            itemMovements[itemId].issues += item.quantity || 0
-            itemMovements[itemId].requisitionCount++
-          }
-        })
+      // transfer_in = receipts (stock coming in)
+      if (txn.transaction_type === "transfer_in" || txn.transaction_type === "receipt") {
+        itemMovements[itemId].receipts += txn.quantity || 0
+        itemMovements[itemId].requisitionCount++
+      }
+      
+      // transfer_out = issues (stock going out)
+      if (txn.transaction_type === "transfer_out" || txn.transaction_type === "issue") {
+        itemMovements[itemId].issues += txn.quantity || 0
       }
     })
 

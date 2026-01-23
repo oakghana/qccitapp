@@ -74,6 +74,43 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ tonerNeeds: data || [] })
     }
 
+    if (analysisType === "stock") {
+      // Get store items below reorder level for replenishment
+      let query = supabase
+        .from("store_items")
+        .select("*")
+        .or("quantity.lte.reorder_level,quantity.is.null")
+        .order("quantity", { ascending: true })
+
+      if (effectiveLocation && effectiveLocation !== "all") {
+        query = query.eq("location", effectiveLocation)
+      }
+
+      const { data, error} = await query
+
+      if (error) {
+        console.error("[v0] Error fetching stock replenishment needs:", error)
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      // Calculate monthly procurement needs based on usage patterns
+      const stockNeeds = (data || []).map((item) => {
+        const currentQty = item.quantity || 0
+        const reorderLevel = item.reorder_level || 0
+        const shortage = Math.max(0, reorderLevel - currentQty)
+        const recommendedOrder = shortage + Math.ceil(reorderLevel * 0.5) // Order 50% above reorder level as buffer
+        
+        return {
+          ...item,
+          shortage,
+          recommendedOrder,
+          urgency: currentQty === 0 ? "critical" : currentQty < reorderLevel * 0.5 ? "high" : "medium",
+        }
+      })
+
+      return NextResponse.json({ stockNeeds: stockNeeds || [] })
+    }
+
     if (analysisType === "summary") {
       // Get location summary
       const { data, error } = await supabase
