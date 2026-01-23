@@ -75,11 +75,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (analysisType === "stock") {
-      // Get store items below reorder level for replenishment
+      // Get all store items and filter in application code
+      // (PostgREST doesn't support comparing two columns directly)
       let query = supabase
         .from("store_items")
         .select("*")
-        .or("quantity.lte.reorder_level,quantity.is.null")
         .order("quantity", { ascending: true })
 
       if (effectiveLocation && effectiveLocation !== "all") {
@@ -93,8 +93,15 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: 500 })
       }
 
+      // Filter items below reorder level or null quantity
+      const itemsBelowReorderLevel = (data || []).filter(item => {
+        const currentQty = item.quantity || 0
+        const reorderLevel = item.reorder_level || 0
+        return currentQty <= reorderLevel || item.quantity === null
+      })
+
       // Calculate monthly procurement needs based on usage patterns
-      const stockNeeds = (data || []).map((item) => {
+      const stockNeeds = itemsBelowReorderLevel.map((item) => {
         const currentQty = item.quantity || 0
         const reorderLevel = item.reorder_level || 0
         const shortage = Math.max(0, reorderLevel - currentQty)
