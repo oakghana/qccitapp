@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AlertTriangle, Package, Printer, Download } from "lucide-react"
+import { AlertTriangle, Package, Printer, Download, TrendingUp, CheckCircle2, AlertCircle, XCircle } from "lucide-react"
 import { LOCATIONS } from "@/lib/locations"
 import { useAuth } from "@/lib/auth-context"
 import { toast } from "sonner"
@@ -18,6 +18,7 @@ export default function RegionalNeedsAnalysisPage() {
   const [replacementNeeds, setReplacementNeeds] = useState<any[]>([])
   const [tonerNeeds, setTonerNeeds] = useState<any[]>([])
   const [stockNeeds, setStockNeeds] = useState<any[]>([])
+  const [summary, setSummary] = useState<any>(null)
   const [loading, setLoading] = useState(false)
 
   // Check authorization - only admin, it_head, and regional_it_head can access
@@ -97,10 +98,33 @@ export default function RegionalNeedsAnalysisPage() {
     }
   }
 
+  const fetchSummary = async () => {
+    if (!canAccessPage) return
+    
+    setLoading(true)
+    try {
+      const response = await fetch(
+        `/api/regional-needs-analysis?type=summary&location=${selectedLocation}&user_role=${user?.role}&user_location=${user?.location || ""}`
+      )
+      const data = await response.json()
+      if (data.error) {
+        toast.error(data.error)
+      } else {
+        setSummary(data.summary || null)
+      }
+    } catch (error) {
+      console.error("[v0] Error fetching regional summary:", error)
+      toast.error("Failed to load regional summary")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
     fetchReplacementNeeds()
     fetchTonerNeeds()
     fetchStockNeeds()
+    fetchSummary()
   }, [selectedLocation])
 
   const exportToCSV = (data: any[], filename: string) => {
@@ -179,21 +203,155 @@ export default function RegionalNeedsAnalysisPage() {
         </Select>
       </div>
 
-      <Tabs defaultValue="replacement" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
+      <Tabs defaultValue="summary" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4 lg:w-[800px]">
+          <TabsTrigger value="summary">
+            <TrendingUp className="h-4 w-4 mr-2" />
+            Summary
+          </TabsTrigger>
           <TabsTrigger value="replacement">
             <AlertTriangle className="h-4 w-4 mr-2" />
-            Device Replacement
+            Replacement
           </TabsTrigger>
           <TabsTrigger value="toner">
             <Printer className="h-4 w-4 mr-2" />
-            Toner Requirements
+            Toner
           </TabsTrigger>
           <TabsTrigger value="stock">
             <Package className="h-4 w-4 mr-2" />
-            Stock Replenishment
+            Stock
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="summary" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Regional IT Summary Report</CardTitle>
+              <CardDescription>
+                Comprehensive overview of devices, stock levels, and recommendations for {LOCATIONS[selectedLocation as keyof typeof LOCATIONS] || selectedLocation}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading summary...</div>
+              ) : !summary ? (
+                <div className="text-center py-8 text-muted-foreground">No data available</div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Device Summary */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">Device Inventory</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      <div className="border rounded-lg p-4">
+                        <div className="text-sm text-muted-foreground">Total Devices</div>
+                        <div className="text-2xl font-bold">{summary.devices?.total || 0}</div>
+                      </div>
+                      <div className="border rounded-lg p-4">
+                        <div className="text-sm text-muted-foreground flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3 text-green-600" />
+                          Active
+                        </div>
+                        <div className="text-2xl font-bold text-green-600">{summary.devices?.active || 0}</div>
+                      </div>
+                      <div className="border rounded-lg p-4">
+                        <div className="text-sm text-muted-foreground">Assigned</div>
+                        <div className="text-2xl font-bold text-blue-600">{summary.devices?.assigned || 0}</div>
+                      </div>
+                      <div className="border rounded-lg p-4">
+                        <div className="text-sm text-muted-foreground">Unassigned</div>
+                        <div className="text-2xl font-bold text-orange-600">{summary.devices?.unassigned || 0}</div>
+                      </div>
+                      <div className="border rounded-lg p-4">
+                        <div className="text-sm text-muted-foreground flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3 text-red-600" />
+                          Need Replacement
+                        </div>
+                        <div className="text-2xl font-bold text-red-600">{summary.devices?.needingReplacement || 0}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Stock Summary */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">Stock Inventory</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="border rounded-lg p-4">
+                        <div className="text-sm text-muted-foreground">Total Items</div>
+                        <div className="text-2xl font-bold">{summary.stock?.totalItems || 0}</div>
+                      </div>
+                      <div className="border rounded-lg p-4">
+                        <div className="text-sm text-muted-foreground">Total Quantity</div>
+                        <div className="text-2xl font-bold text-blue-600">{summary.stock?.totalQuantity || 0}</div>
+                      </div>
+                      <div className="border rounded-lg p-4">
+                        <div className="text-sm text-muted-foreground flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3 text-orange-600" />
+                          Low Stock
+                        </div>
+                        <div className="text-2xl font-bold text-orange-600">{summary.stock?.lowStock || 0}</div>
+                      </div>
+                      <div className="border rounded-lg p-4">
+                        <div className="text-sm text-muted-foreground flex items-center gap-1">
+                          <XCircle className="h-3 w-3 text-red-600" />
+                          Out of Stock
+                        </div>
+                        <div className="text-2xl font-bold text-red-600">{summary.stock?.outOfStock || 0}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Items Needing Reorder */}
+                  {summary.stock?.needsReorder && summary.stock.needsReorder.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-3">Items Needing Reorder</h3>
+                      <div className="border rounded-lg p-4 space-y-2">
+                        {summary.stock.needsReorder.slice(0, 10).map((item: any, idx: number) => (
+                          <div key={idx} className="flex justify-between items-center">
+                            <span className="font-medium">{item.name}</span>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline">{item.category}</Badge>
+                              <span className="text-sm text-muted-foreground">
+                                Current: {item.quantity} / Reorder: {item.reorder_level}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                        {summary.stock.needsReorder.length > 10 && (
+                          <p className="text-sm text-muted-foreground text-center pt-2">
+                            ...and {summary.stock.needsReorder.length - 10} more items
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recommendations */}
+                  {summary.recommendations && summary.recommendations.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-3">Recommendations</h3>
+                      <div className="space-y-2">
+                        {summary.recommendations.map((rec: string, idx: number) => (
+                          <div key={idx} className="flex items-start gap-2 border rounded-lg p-3">
+                            <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                            <p className="text-sm">{rec}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {summary.recommendations && summary.recommendations.length === 0 && (
+                    <div className="text-center py-6 text-green-600">
+                      <CheckCircle2 className="h-12 w-12 mx-auto mb-2" />
+                      <p className="font-semibold">All systems operating normally</p>
+                      <p className="text-sm text-muted-foreground">No immediate action required</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="replacement" className="space-y-4">
           <Card>
