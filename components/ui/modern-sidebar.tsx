@@ -1,7 +1,10 @@
 "use client"
 
-import type React from "react"
-import { useState, useEffect } from "react"
+import { cn } from "@/lib/utils"
+import { useAuth } from "@/hooks/useAuth"
+import { useBadgeCounts } from "@/hooks/useBadgeCounts"
+import { offlineCacheManager } from "@/lib/cacheManager"
+import { getRoleColorScheme } from "@/lib/roleColors"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -37,12 +40,9 @@ import {
   UserCheck,
   Send,
   Store,
+  Edit2,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { useAuth } from "@/lib/auth-context"
-import { getRoleColorScheme } from "@/lib/role-colors"
-import { useBadgeCounts } from "@/hooks/use-badge-counts"
-import { offlineCacheManager } from "@/lib/offline-cache"
+import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
 
 interface NavigationItem {
   name: string
@@ -72,6 +72,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
   const [expandedGroups, setExpandedGroups] = useState<string[]>([])
+  const [editProfileOpen, setEditProfileOpen] = useState(false)
 
   useEffect(() => {
     setIsMounted(true)
@@ -853,7 +854,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full justify-start text-xs bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700 dark:bg-blue-950 dark:hover:bg-blue-900 dark:border-blue-800 dark:text-blue-300"
+                    className="w-full justify-start text-xs bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700 dark:bg-blue-950 dark:hover:bg-blue-900/20 text-blue-700 dark:text-blue-300"
                     onClick={() => {
                       if (user?.role === "staff") {
                         window.location.href = "/dashboard/complaints"
@@ -874,6 +875,16 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           <div className="border-t border-gray-100 dark:border-gray-800 p-3 space-y-1">
             {!isCollapsed ? (
               <>
+                {(user?.role === "regional_it_head" || user?.role === "it_staff") && (
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-sm h-10 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+                    onClick={() => setEditProfileOpen(true)}
+                  >
+                    <Edit2 className="mr-3 h-4 w-4" />
+                    Edit Profile
+                  </Button>
+                )}
                 {(user?.role === "admin" || user?.role === "it_head") && (
                   <Button
                     variant="ghost"
@@ -895,6 +906,17 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
               </>
             ) : (
               <div className="space-y-2">
+                {(user?.role === "regional_it_head" || user?.role === "it_staff") && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-full h-10 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+                    onClick={() => setEditProfileOpen(true)}
+                    title="Edit Profile"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                )}
                 {(user?.role === "admin" || user?.role === "it_head") && (
                   <Button
                     variant="ghost"
@@ -918,6 +940,11 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           </div>
         </div>
       </aside>
+      {/* Edit Profile Dialog */}
+      <EditProfileDialog
+        isOpen={editProfileOpen}
+        onClose={() => setEditProfileOpen(false)}
+      />
     </>
   )
 }
