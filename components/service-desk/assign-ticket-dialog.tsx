@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { User, Send, MapPin, Mail, AlertTriangle, Users, Loader2 } from "lucide-react"
+import { User, Send, MapPin, Mail, AlertTriangle, Users, Loader2, Edit } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { getRoleColorScheme } from "@/lib/role-colors"
 import { cn } from "@/lib/utils"
@@ -121,98 +121,62 @@ export function AssignTicketDialog({
   const loadItStaff = async () => {
     try {
       setLoadingStaff(true)
-      const response = await fetch("/api/users")
+      const roleParam = user?.role === 'service_desk_head' ? 'staff_roles' : 'all'
+      const locationParam = ticketLocation ? encodeURIComponent(ticketLocation) : 'all'
+      
+      const response = await fetch(`/api/staff/list?role=${roleParam}&location=${locationParam}`)
       if (!response.ok) {
-        console.error("Failed to load IT staff")
+        console.error('[v0] Failed to load IT staff')
         setLoadingStaff(false)
         return
       }
       const data = await response.json()
-      const users = data.users || data || []
+      const staffList = data.staff || []
 
-      console.log("[v0] Loaded users for assignment:", users.length)
+      console.log('[v0] Loaded IT staff for assignment:', staffList.length)
 
-      const itRoles = [
-        "it_staff",
-        "it_head",
-        "regional_it_head",
-        "service_desk_head",
-        "service_desk_agent",
-        "service_desk_accra",
-        "service_desk_kumasi",
-        "service_desk_takoradi",
-        "service_desk_tema",
-        "service_desk_sunyani",
-        "service_desk_cape_coast",
-        "admin",
-      ]
-
-      let filteredStaff = users.filter((u: any) => {
-        const role = (u.role || "").toLowerCase()
-        return (
-          itRoles.includes(role) ||
-          role.includes("it") ||
-          role.includes("service") ||
-          role.includes("admin") ||
-          role.includes("staff")
-        )
-      })
-
-      if (filteredStaff.length === 0 && (user?.role === "admin" || user?.role === "it_head")) {
-        filteredStaff = users
-      }
-
-      const mappedStaff: StaffMember[] = filteredStaff.map((s: any) => ({
-        id: s.id || s.user_id,
-        name: s.full_name || s.name || s.username || s.email || "Unknown",
-        email: s.email || "",
-        phone: s.phone || "",
-        role: s.role || "Staff",
-        location: s.location || "Unknown",
-        department: s.department || "IT",
-        isOnline: s.status === "online" || s.is_online || true,
-        currentTickets: s.current_tickets || 0,
+      const mappedStaff: StaffMember[] = staffList.map((s: any) => ({
+        id: s.id,
+        name: s.name || 'Unknown',
+        email: s.email || '',
+        phone: s.phone || '',
+        role: s.role || 'Staff',
+        location: s.location || 'Unknown',
+        department: s.department || 'IT',
+        isOnline: s.isOnline || true,
+        currentTickets: 0,
       }))
 
       setAllStaff(mappedStaff)
 
-      if (user?.role === "admin" || user?.role === "it_head") {
+      if (user?.role === 'admin' || user?.role === 'it_head') {
         if (ticketLocation) {
           const ticketLoc = ticketLocation.toLowerCase().trim()
           const locationFiltered = mappedStaff.filter((s) => {
-            const staffLoc = (s.location || "").toLowerCase().trim()
+            const staffLoc = (s.location || '').toLowerCase().trim()
             return staffLoc === ticketLoc || staffLoc.includes(ticketLoc) || ticketLoc.includes(staffLoc)
           })
           setAvailableStaff(locationFiltered.length > 0 ? locationFiltered : mappedStaff)
         } else {
           setAvailableStaff(mappedStaff)
         }
-      } else if (user?.role === "regional_it_head") {
-        const userLoc = (user?.location || "").toLowerCase().trim()
+      } else if (user?.role === 'regional_it_head') {
+        const userLoc = (user?.location || '').toLowerCase().trim()
         const regionFiltered = mappedStaff.filter((s) => {
-          const staffLoc = (s.location || "").toLowerCase().trim()
+          const staffLoc = (s.location || '').toLowerCase().trim()
           return staffLoc === userLoc || staffLoc.includes(userLoc) || userLoc.includes(staffLoc)
         })
         setAllStaff(regionFiltered)
         setAvailableStaff(regionFiltered)
       } else {
-        if (ticketLocation) {
-          const ticketLoc = ticketLocation.toLowerCase().trim()
-          const locationFiltered = mappedStaff.filter((s) => {
-            const staffLoc = (s.location || "").toLowerCase().trim()
-            return staffLoc === ticketLoc || staffLoc.includes(ticketLoc) || ticketLoc.includes(staffLoc)
-          })
-          setAllStaff(locationFiltered)
-          setAvailableStaff(locationFiltered)
-        } else {
-          setAllStaff(mappedStaff)
-          setAvailableStaff(mappedStaff)
-        }
+        setAvailableStaff(mappedStaff)
       }
-    } catch (error) {
-      console.error("Error loading IT staff:", error)
-    } finally {
+
       setLoadingStaff(false)
+    } catch (error) {
+      console.error('[v0] Error loading IT staff:', error)
+      setLoadingStaff(false)
+      toast.error('Failed to load IT staff members')
     }
   }
 
