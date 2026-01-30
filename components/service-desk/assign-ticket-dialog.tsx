@@ -104,7 +104,7 @@ export function AssignTicketDialog({
   }, [isOpen, ticketLocation])
 
   useEffect(() => {
-    if (user?.role === "admin" || user?.role === "it_head") {
+    if (user?.role === "admin" || user?.role === "it_head" || user?.role === "service_desk_head") {
       if (selectedLocation === "all") {
         setAvailableStaff(allStaff)
       } else {
@@ -121,10 +121,11 @@ export function AssignTicketDialog({
   const loadItStaff = async () => {
     try {
       setLoadingStaff(true)
-      const roleParam = user?.role === 'service_desk_head' ? 'staff_roles' : 'all'
+      const roleParam = 'staff_roles'
       const locationParam = ticketLocation ? encodeURIComponent(ticketLocation) : 'all'
+      const userRoleParam = user?.role || 'staff'
       
-      const response = await fetch(`/api/staff/list?role=${roleParam}&location=${locationParam}`)
+      const response = await fetch(`/api/staff/list?role=${roleParam}&location=${locationParam}&userRole=${userRoleParam}`)
       if (!response.ok) {
         console.error('[v0] Failed to load IT staff')
         setLoadingStaff(false)
@@ -149,7 +150,7 @@ export function AssignTicketDialog({
 
       setAllStaff(mappedStaff)
 
-      if (user?.role === 'admin' || user?.role === 'it_head') {
+      if (user?.role === 'admin' || user?.role === 'it_head' || user?.role === 'service_desk_head') {
         if (ticketLocation) {
           const ticketLoc = ticketLocation.toLowerCase().trim()
           const locationFiltered = mappedStaff.filter((s) => {
@@ -285,7 +286,7 @@ export function AssignTicketDialog({
           </Card>
 
           <div className="space-y-4">
-            {(user?.role === "admin" || user?.role === "it_head") && (
+            {(user?.role === "admin" || user?.role === "it_head" || user?.role === "service_desk_head") && (
               <div>
                 <Label htmlFor="locationFilter">Filter by Location</Label>
                 <Select value={selectedLocation} onValueChange={setSelectedLocation}>
@@ -341,6 +342,7 @@ export function AssignTicketDialog({
                               className={cn("w-2 h-2 rounded-full", staff.isOnline ? "bg-green-500" : "bg-gray-400")}
                             />
                             <span>{staff.name}</span>
+                            <span className="text-xs text-muted-foreground">({staff.role})</span>
                           </div>
                           <div className="flex items-center space-x-2 ml-4">
                             <Badge variant="outline" className="text-xs">

@@ -1,5 +1,11 @@
 "use client"
 
+import { useEffect } from "react"
+
+import { useState } from "react"
+
+import React from "react"
+
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/useAuth"
 import { useBadgeCounts } from "@/hooks/useBadgeCounts"
@@ -875,7 +881,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           <div className="border-t border-gray-100 dark:border-gray-800 p-3 space-y-1">
             {!isCollapsed ? (
               <>
-                {(user?.role === "regional_it_head" || user?.role === "it_staff") && (
+                {(user?.role === "regional_it_head" || user?.role === "it_staff" || user?.role === "service_desk_head" || user?.role === "store_head") && (
                   <Button
                     variant="ghost"
                     className="w-full justify-start text-sm h-10 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-700 dark:text-blue-300"
@@ -906,7 +912,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
               </>
             ) : (
               <div className="space-y-2">
-                {(user?.role === "regional_it_head" || user?.role === "it_staff") && (
+                {(user?.role === "regional_it_head" || user?.role === "it_staff" || user?.role === "service_desk_head" || user?.role === "store_head") && (
                   <Button
                     variant="ghost"
                     size="icon"
