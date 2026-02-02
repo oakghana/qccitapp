@@ -85,7 +85,7 @@ export function AssignTicketDialog({
   const [loadingStaff, setLoadingStaff] = useState(true)
   const [availableStaff, setAvailableStaff] = useState<StaffMember[]>([])
   const [allStaff, setAllStaff] = useState<StaffMember[]>([])
-  const [selectedLocation, setSelectedLocation] = useState<string>(ticketLocation || "all")
+  const [selectedLocation, setSelectedLocation] = useState<string>("all")
   const [assignmentData, setAssignmentData] = useState<AssignTicketData>({
     ticketId,
     assignee: "",
@@ -98,10 +98,15 @@ export function AssignTicketDialog({
 
   useEffect(() => {
     if (isOpen) {
-      setSelectedLocation(ticketLocation || "all")
+      // Default to "all" for admin/service_desk_head/it_head, otherwise use ticket location
+      if (user?.role === "admin" || user?.role === "it_head" || user?.role === "service_desk_head") {
+        setSelectedLocation("all")
+      } else {
+        setSelectedLocation(ticketLocation || "all")
+      }
       loadItStaff()
     }
-  }, [isOpen, ticketLocation])
+  }, [isOpen, ticketLocation, user?.role])
 
   useEffect(() => {
     if (user?.role === "admin" || user?.role === "it_head" || user?.role === "service_desk_head") {
@@ -125,9 +130,20 @@ export function AssignTicketDialog({
       const locationParam = ticketLocation ? encodeURIComponent(ticketLocation) : 'all'
       const userRoleParam = user?.role || 'staff'
       
-      const response = await fetch(`/api/staff/list?role=${roleParam}&location=${locationParam}&userRole=${userRoleParam}`)
+      const url = `/api/staff/list?role=${roleParam}&location=${locationParam}&userRole=${userRoleParam}`
+      console.log('[v0] Fetching IT staff from:', url)
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store', // Bypass cache/service worker
+      })
+      
       if (!response.ok) {
-        console.error('[v0] Failed to load IT staff')
+        const errorText = await response.text()
+        console.error('[v0] Failed to load IT staff. Status:', response.status, 'Error:', errorText)
         setLoadingStaff(false)
         return
       }
@@ -177,7 +193,11 @@ export function AssignTicketDialog({
     } catch (error) {
       console.error('[v0] Error loading IT staff:', error)
       setLoadingStaff(false)
-      toast.error('Failed to load IT staff members')
+      toast({
+        title: "Error Loading Staff",
+        description: "Failed to load IT staff members. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -207,11 +227,15 @@ export function AssignTicketDialog({
           ticketId: ticketId,
           assigneeId: selectedStaffMember?.id || assignmentData.assignee,
           assignee: selectedStaffMember?.name || assignmentData.assignee,
+          assigneeEmail: selectedStaffMember?.email,
+          assigneePhone: selectedStaffMember?.phone,
           priority: assignmentData.priority,
           dueDate: assignmentData.dueDate,
           instructions: assignmentData.instructions,
           assignedBy: user?.full_name || user?.name || user?.email || "IT Head",
           assignedById: user?.id,
+          notifyEmail: assignmentData.notifyEmail,
+          notifySMS: assignmentData.notifySMS,
         }),
       })
 

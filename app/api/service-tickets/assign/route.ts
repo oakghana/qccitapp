@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    const { ticketId, assigneeId, assignee, priority, dueDate, instructions, assignedBy, assignedById } = body
+    const { ticketId, assigneeId, assignee, assigneeEmail, assigneePhone, priority, dueDate, instructions, assignedBy, assignedById, notifyEmail, notifySMS } = body
 
     console.log("[v0] Assigning ticket:", ticketId, "to:", assignee, "(ID:", assigneeId, ")")
 
@@ -115,6 +115,92 @@ export async function POST(request: NextRequest) {
     } catch (updateError) {
       // History update may fail, but don't block the assignment
       console.warn("[v0] Could not record ticket update:", updateError)
+    }
+
+    // Create notification for assigned user
+    if (assigneeId) {
+      try {
+        const ticketNumber = ticketData[0]?.ticket_number || ticketId
+        const notificationTitle = `New Ticket Assigned: ${ticketNumber}`
+        const notificationMessage = `You have been assigned ticket ${ticketNumber} by ${assignedBy}.${instructions ? ` Instructions: ${instructions}` : ''}`
+        
+        const { error: notifError } = await supabaseAdmin
+          .from("notifications")
+          .insert({
+            user_id: assigneeId,
+            title: notificationTitle,
+            message: notificationMessage,
+            type: "action_required",
+            category: "ticket",
+            reference_type: "service_ticket",
+            reference_id: dbTicketId,
+            reference_url: `/dashboard/assigned-tasks`,
+            is_read: false,
+            is_email_sent: notifyEmail || false,
+            is_sms_sent: notifySMS || false,
+          })
+        
+        if (notifError) {
+          console.error("[v0] Error creating notification:", notifError)
+        } else {
+          console.log("[v0] Notification created for user:", assigneeId)
+        }
+
+        // Send email notification if requested
+        if (notifyEmail && assigneeEmail) {
+          console.log("[v0] Sending email notification to:", assigneeEmail)
+          try {
+            const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/send-email`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                type: "ticket_assignment",
+                to: assigneeEmail,
+                subject: `New Ticket Assigned: ${ticketNumber}`,
+                data: {
+                  staffName: assignee,
+                  ticketNumber: ticketNumber,
+                  ticketTitle: ticketData[0]?.title || ticketData[0]?.subject || "Service Request",
+                  priority: priority || "medium",
+                  dueDate: dueDate,
+                  instructions: instructions,
+                  assignedBy: assignedBy,
+                  dashboardUrl: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/dashboard/assigned-tasks`,
+                },
+              }),
+            })
+            
+            const emailResult = await emailResponse.json()
+            if (emailResult.success) {
+              console.log("[v0] Email sent successfully to:", assigneeEmail)
+              // Update notification to mark email as sent
+              await supabaseAdmin
+                .from("notifications")
+                .update({ 
+                  is_email_sent: true,
+                  email_sent_at: new Date().toISOString()
+                })
+                .eq("user_id", assigneeId)
+                .eq("reference_id", dbTicketId)
+                .order("created_at", { ascending: false })
+                .limit(1)
+            } else {
+              console.error("[v0] Failed to send email:", emailResult.error)
+            }
+          } catch (emailError) {
+            console.error("[v0] Error sending email:", emailError)
+          }
+        }
+
+        // TODO: Send SMS notification if notifySMS is true
+        if (notifySMS && assigneePhone) {
+          console.log("[v0] SMS notification requested for:", assigneePhone)
+          // SMS sending logic would go here
+        }
+      } catch (notificationError) {
+        console.error("[v0] Error handling notifications:", notificationError)
+        // Don't fail the assignment if notification fails
+      }
     }
 
     return NextResponse.json({ 

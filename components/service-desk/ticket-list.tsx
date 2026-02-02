@@ -328,35 +328,16 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
   }
 
   const handleAssignTicket = async (assignment: any) => {
-    if (selectedTicket) {
-      try {
-        // Call API to assign ticket
-        const response = await fetch(`/api/service-tickets/assign`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ticketId: selectedTicket.id,
-            assignee: assignment.assignee,
-            priority: assignment.priority,
-            dueDate: assignment.dueDate,
-            instructions: assignment.instructions,
-            assignedBy: user?.full_name || user?.name || user?.username,
-          }),
-        })
+    try {
+      console.log("[v0] Assignment completed, refreshing tickets")
 
-        if (!response.ok) {
-          const error = await response.json()
-          console.error("[v0] Error assigning ticket:", error)
-          return
-        }
-
-        console.log(`[v0] Ticket ${selectedTicket.id} assigned to ${assignment.assignee}`)
-        
-        setAssignDialogOpen(false)
-        await loadTickets()
-      } catch (error) {
-        console.error("[v0] Error assigning ticket:", error)
-      }
+      // Just reload tickets - the dialog already made the API call
+      await loadTickets()
+    } catch (error) {
+      console.error("[v0] Error refreshing tickets:", error)
+    } finally {
+      setAssignDialogOpen(false)
+      setSelectedTicket(null)
     }
   }
 

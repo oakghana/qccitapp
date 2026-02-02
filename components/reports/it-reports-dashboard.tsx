@@ -406,7 +406,6 @@ export function ITReportsDashboard() {
               <Select
                 value={selectedLocation}
                 onValueChange={setSelectedLocation}
-                disabled={user?.role === "regional_it_head"}
               >
                 <SelectTrigger>
                   <SelectValue />

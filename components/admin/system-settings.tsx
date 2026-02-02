@@ -30,6 +30,8 @@ export function SystemSettings() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("")
   const [restoreFile, setRestoreFile] = useState<File | null>(null)
   const [backupData, setBackupData] = useState<any>(null)
+  const [testEmailAddress, setTestEmailAddress] = useState("")
+  const [sendingTestEmail, setSendingTestEmail] = useState(false)
 
   // General Settings
   const [companyName, setCompanyName] = useState("Quality Control Company Limited")
@@ -188,6 +190,51 @@ export function SystemSettings() {
       setMessage({ type: "error", text: error.message || "Failed to save settings" })
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleTestEmail = async () => {
+    if (!testEmailAddress) {
+      setMessage({ type: "error", text: "Please enter an email address to send test email" })
+      return
+    }
+
+    setSendingTestEmail(true)
+    setMessage(null)
+
+    try {
+      const response = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "test",
+          to: testEmailAddress,
+          subject: "Test Email from QCC IT System",
+          message: `This is a test email to verify SMTP configuration. If you receive this, your email settings are working correctly!`,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        setMessage({
+          type: "success",
+          text: `Test email sent successfully to ${testEmailAddress}! Check your inbox.`,
+        })
+      } else {
+        setMessage({
+          type: "error",
+          text: result.error || "Failed to send test email. Please check your SMTP settings.",
+        })
+      }
+    } catch (error: any) {
+      console.error("[v0] Error sending test email:", error)
+      setMessage({
+        type: "error",
+        text: error.message || "Failed to send test email. Please check your SMTP configuration.",
+      })
+    } finally {
+      setSendingTestEmail(false)
     }
   }
 
@@ -551,20 +598,94 @@ export function SystemSettings() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="smtpServer">SMTP Server</Label>
-                <Input id="smtpServer" value={smtpServer} onChange={(e) => setSmtpServer(e.target.value)} />
+                <Input 
+                  id="smtpServer" 
+                  value={smtpServer} 
+                  onChange={(e) => setSmtpServer(e.target.value)}
+                  placeholder="smtp.gmail.com" 
+                />
+                <p className="text-xs text-muted-foreground">For Gmail: smtp.gmail.com</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="smtpPort">SMTP Port</Label>
-                <Input id="smtpPort" type="number" value={smtpPort} onChange={(e) => setSmtpPort(e.target.value)} />
+                <Input 
+                  id="smtpPort" 
+                  type="number" 
+                  value={smtpPort} 
+                  onChange={(e) => setSmtpPort(e.target.value)}
+                  placeholder="587" 
+                />
+                <p className="text-xs text-muted-foreground">Common ports: 587 (TLS) or 465 (SSL)</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="smtpUsername">SMTP Username</Label>
-                <Input id="smtpUsername" value={smtpUsername} onChange={(e) => setSmtpUsername(e.target.value)} />
+                <Label htmlFor="smtpUsername">SMTP Username (Email)</Label>
+                <Input 
+                  id="smtpUsername" 
+                  type="email"
+                  value={smtpUsername} 
+                  onChange={(e) => setSmtpUsername(e.target.value)}
+                  placeholder="your-email@gmail.com" 
+                />
+                <p className="text-xs text-muted-foreground">Your full Gmail address</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="smtpPassword">SMTP Password</Label>
-                <Input id="smtpPassword" type="password" value={smtpPassword} onChange={(e) => setSmtpPassword(e.target.value)} />
+                <Label htmlFor="smtpPassword">SMTP Password / App Password</Label>
+                <Input 
+                  id="smtpPassword" 
+                  type="password" 
+                  value={smtpPassword} 
+                  onChange={(e) => setSmtpPassword(e.target.value)}
+                  placeholder="Enter password or app password" 
+                />
+                <p className="text-xs text-muted-foreground">
+                  For Gmail: Use an App Password (not your regular password).
+                  <a 
+                    href="https://support.google.com/accounts/answer/185833" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline ml-1"
+                  >
+                    Learn how
+                  </a>
+                </p>
               </div>
+            </div>
+            
+            {/* Test Email Section */}
+            <Separator />
+            <div className="space-y-3">
+              <Label htmlFor="testEmail">Test Email Configuration</Label>
+              <div className="flex gap-2">
+                <Input 
+                  id="testEmail"
+                  type="email"
+                  placeholder="Enter email address to test" 
+                  value={testEmailAddress}
+                  onChange={(e) => setTestEmailAddress(e.target.value)}
+                  className="flex-1"
+                />
+                <Button 
+                  type="button"
+                  onClick={handleTestEmail}
+                  disabled={sendingTestEmail || !testEmailAddress}
+                  variant="outline"
+                >
+                  {sendingTestEmail ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="mr-2 h-4 w-4" />
+                      Send Test Email
+                    </>
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Send a test email to verify your SMTP configuration is working correctly
+              </p>
             </div>
             <Separator />
             <div className="space-y-4">

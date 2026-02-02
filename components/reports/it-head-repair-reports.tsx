@@ -200,7 +200,12 @@ export function ITHeadRepairReports() {
         topIssues: [],
       })
 
-      const { data: providers, error: providerError } = await supabase.from("service_providers").select("*")
+      // Fetch service providers from profiles table (users with service_provider role)
+      const { data: providers, error: providerError } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, phone, location")
+        .eq("role", "service_provider")
+        .eq("status", "approved")
 
       if (!providerError && providers) {
         setProviderStats(

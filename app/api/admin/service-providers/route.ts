@@ -12,15 +12,17 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const activeOnly = searchParams.get("activeOnly") !== "false"
 
-    console.log("[v0] Fetching service providers, activeOnly:", activeOnly)
+    console.log("[v0] Fetching service providers from profiles table, activeOnly:", activeOnly)
 
+    // Fetch users with service_provider role from profiles table
     let query = supabaseAdmin
-      .from("service_providers")
-      .select("*")
-      .order("name", { ascending: true })
+      .from("profiles")
+      .select("id, full_name, email, phone, location, department, status, role")
+      .eq("role", "service_provider")
+      .order("full_name", { ascending: true })
 
     if (activeOnly) {
-      query = query.eq("is_active", true)
+      query = query.eq("status", "approved") // Valid values: pending, approved, rejected
     }
 
     const { data, error } = await query
@@ -30,11 +32,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    console.log("[v0] Loaded service providers:", data?.length || 0)
+    console.log("[v0] Loaded service providers from profiles:", data?.length || 0)
+
+    // Transform to match expected format
+    const providers = (data || []).map((provider: any) => ({
+      id: provider.id,
+      name: provider.full_name || provider.email,
+      email: provider.email,
+      phone: provider.phone,
+      location: provider.location,
+      department: provider.department,
+      specialization: [], // Can be enhanced later
+      is_active: provider.status === "approved",
+    }))
 
     return NextResponse.json({ 
-      providers: data || [],
-      count: data?.length || 0 
+      providers: providers,
+      count: providers.length 
     })
   } catch (error) {
     console.error("[v0] API Service Providers error:", error)

@@ -72,6 +72,8 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="QCC IT Tracker" />
         <link rel="apple-touch-icon" href="/images/qcc-logo.png" />
+        {/* Unregister service worker to prevent fetch issues */}
+        <script src="/unregister-sw.js" />
       </head>
       <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>

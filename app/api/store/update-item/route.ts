@@ -10,18 +10,26 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const canManage =
-      userRole === "admin" || userRole === "it_store_head" || (userRole === "it_head" && userLocation === "Head Office")
-
-    if (!canManage) {
-      console.error("[v0] Unauthorized stock update attempt by:", updatedBy, userRole)
-      return NextResponse.json({ error: "Unauthorized: You don't have permission to edit stock" }, { status: 403 })
-    }
-
     const supabase = await createServerClient()
 
-    // Get current item state for audit trail
+    // Get current item state for authorization and audit trail
     const { data: currentItem } = await supabase.from("store_items").select("*").eq("id", itemId).single()
+
+    if (!currentItem) {
+      return NextResponse.json({ error: "Item not found" }, { status: 404 })
+    }
+
+    // Check if user can manage stock for this item's location
+    const canManage =
+      userRole === "admin" ||
+      userRole === "it_store_head" ||
+      (userRole === "it_head" && userLocation === "Head Office") ||
+      (userRole === "regional_it_head" && userLocation === currentItem.location)
+
+    if (!canManage) {
+      console.error("[v0] Unauthorized stock update attempt by:", updatedBy, userRole, userLocation, "for item at:", currentItem.location)
+      return NextResponse.json({ error: "Unauthorized: You don't have permission to edit stock at this location" }, { status: 403 })
+    }
 
     const auditEntry = {
       item_id: itemId,

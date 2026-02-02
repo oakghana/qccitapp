@@ -188,6 +188,16 @@ async function handleStaticAsset(request) {
 
 // Handle dynamic requests (API, etc.)
 async function handleDynamicRequest(request) {
+  // Critical APIs that should always try network first (bypass offline for essential operations)
+  const criticalAPIs = [
+    '/api/staff/list',
+    '/api/auth/',
+    '/api/service-tickets/assign',
+    '/api/admin/service-providers'
+  ]
+  
+  const isCriticalAPI = criticalAPIs.some(api => request.url.includes(api))
+  
   try {
     const networkResponse = await fetch(request)
     if (networkResponse && networkResponse.status === 200) {
@@ -199,6 +209,12 @@ async function handleDynamicRequest(request) {
     
     throw new Error('Network response not ok')
   } catch (error) {
+    // For critical APIs, don't return cached data - let the error propagate
+    if (isCriticalAPI) {
+      console.log('Service Worker: Critical API failed, bypassing cache:', request.url)
+      throw error
+    }
+    
     // Try to serve from cache
     const cachedResponse = await caches.match(request)
     if (cachedResponse) {

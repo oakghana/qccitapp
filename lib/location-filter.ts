@@ -93,11 +93,14 @@ export function canViewLocation(user: User | null, location: string): boolean {
 /**
  * Checks if a user can edit data for a specific location
  * Admin and Head Office IT staff can edit all locations
- * Regional IT heads and other users can only edit their own location's data
+ * Regional IT heads can edit their own location's data
+ * Other users can only edit their own location's data
  */
 export function canEditLocation(user: User | null, location: string): boolean {
   if (!user) return false
   if (canSeeAllLocations(user)) return true
+  // Regional IT heads can edit their location's data
+  if (user.role === "regional_it_head" && user.location === location) return true
   return user.location === location
 }
 
@@ -119,12 +122,14 @@ export function canCreateRepairs(user: User | null): boolean {
  * Checks if a user can edit/delete stock items
  * Admin and IT Store Head can edit/delete all stock
  * IT Head at Head Office can also manage stock
+ * Regional IT Heads can manage stock in their location
  */
 export function canManageStock(user: User | null): boolean {
   if (!user) return false
   if (user.role === "admin") return true
   if (user.role === "it_store_head") return true
   if (user.role === "it_head" && user.location === "Head Office") return true
+  if (user.role === "regional_it_head") return true
   return false
 }
 

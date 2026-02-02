@@ -10,22 +10,28 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Item ID, deleted by, reason, and user role are required" }, { status: 400 })
     }
 
-    // Only admin and it_head can delete stock items
-    const canDelete = userRole === "admin" || userRole === "it_head"
-
-    if (!canDelete) {
-      console.error("[v0] Unauthorized stock deletion attempt by:", deletedBy, userRole)
-      return NextResponse.json({ error: "Unauthorized: Only Admin and IT Head can delete stock items" }, { status: 403 })
-    }
-
     const supabase = await createServerClient()
 
-    // Get item details before deletion
+    // Get item details before deletion for authorization check
     const { data: item, error: fetchError } = await supabase.from("store_items").select("*").eq("id", itemId).single()
 
     if (fetchError || !item) {
       console.error("[v0] Item not found:", fetchError)
       return NextResponse.json({ error: "Item not found" }, { status: 404 })
+    }
+
+    // Admin and IT Head can delete all items, Regional IT Head can delete items in their location
+    const canDelete =
+      userRole === "admin" ||
+      userRole === "it_head" ||
+      (userRole === "regional_it_head" && userLocation === item.location)
+
+    if (!canDelete) {
+      console.error("[v0] Unauthorized stock deletion attempt by:", deletedBy, userRole, userLocation, "for item at:", item.location)
+      return NextResponse.json(
+        { error: "Unauthorized: You don't have permission to delete stock items at this location" },
+        { status: 403 },
+      )
     }
 
     // Check for related stock transfer requests

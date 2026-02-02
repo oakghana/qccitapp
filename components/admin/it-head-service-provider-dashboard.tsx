@@ -101,13 +101,14 @@ export function ITHeadServiceProviderDashboard() {
 
   const loadServiceProviders = async () => {
     try {
-      console.log("[v0] Loading service providers")
+      console.log("[v0] Loading service providers from profiles")
 
       const { data, error } = await supabase
-        .from("service_providers")
-        .select("*")
-        .eq("is_active", true)
-        .order("name")
+        .from("profiles")
+        .select("id, full_name, email, phone, location, department")
+        .eq("role", "service_provider")
+        .eq("status", "approved")
+        .order("full_name")
 
       if (error) {
         console.error("[v0] Error loading service providers:", error)
@@ -115,7 +116,19 @@ export function ITHeadServiceProviderDashboard() {
       }
 
       console.log("[v0] Loaded service providers:", data?.length || 0)
-      setServiceProviders(data || [])
+      
+      // Transform to expected format
+      const providers = (data || []).map((p: any) => ({
+        id: p.id,
+        name: p.full_name || p.email,
+        email: p.email,
+        phone: p.phone,
+        location: p.location,
+        department: p.department,
+        is_active: true,
+      }))
+      
+      setServiceProviders(providers)
     } catch (error) {
       console.error("[v0] Error loading service providers:", error)
     }

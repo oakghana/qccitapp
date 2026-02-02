@@ -32,6 +32,14 @@ export function LoginForm() {
         body: JSON.stringify({ username, password }),
       })
 
+      // Check if response is JSON
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        setError("Server error. Please check your environment configuration.")
+        setIsPending(false)
+        return
+      }
+
       const data = await response.json()
 
       if (!response.ok || !data.success) {
@@ -144,18 +152,16 @@ export function LoginForm() {
               )}
             </Button>
 
-            <div className="text-center pt-4 border-t">
+            <div className="text-center pt-4 border-t space-y-2">
               <p className="text-sm text-muted-foreground">
                 Need an account?{" "}
                 <a href="/create-account" className="font-semibold text-primary hover:underline">
                   Request Access
                 </a>
-                  <p className="text-sm text-muted-foreground">
-                 <a href="/create-account" className="font-semibold text-primary hover:underline">
-                  |Powered By the ITD |V1.01.19-26
-                </a>
               </p>
-               </p>
+              <p className="text-xs text-muted-foreground">
+                Powered By the ITD | V1.01.19-26
+              </p>
             </div>
           </form>
         </CardContent>
