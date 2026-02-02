@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       // Search by id (UUID)
       ({ data: ticketData, error: findError } = await supabaseAdmin
         .from("service_tickets")
-        .select("id, ticket_number")
+        .select("id, ticket_number, title, description, location")
         .eq("id", ticketId)
         .limit(1)
       )
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       // Search by ticket_number (string)
       ({ data: ticketData, error: findError } = await supabaseAdmin
         .from("service_tickets")
-        .select("id, ticket_number")
+        .select("id, ticket_number, title, description, location")
         .eq("ticket_number", ticketId)
         .limit(1)
       )
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
                 data: {
                   staffName: assignee,
                   ticketNumber: ticketNumber,
-                  ticketTitle: ticketData[0]?.title || ticketData[0]?.subject || "Service Request",
+                  ticketTitle: ticketData[0]?.title || ticketData[0]?.description || "Service Request",
                   priority: priority || "medium",
                   dueDate: dueDate,
                   instructions: instructions,

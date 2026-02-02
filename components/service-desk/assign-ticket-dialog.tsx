@@ -127,7 +127,10 @@ export function AssignTicketDialog({
     try {
       setLoadingStaff(true)
       const roleParam = 'staff_roles'
-      const locationParam = ticketLocation ? encodeURIComponent(ticketLocation) : 'all'
+      // Admin/IT Head/Service Desk Head should get all staff, then filter by location in UI
+      const locationParam = (user?.role === 'admin' || user?.role === 'it_head' || user?.role === 'service_desk_head') 
+        ? 'all' 
+        : (ticketLocation ? encodeURIComponent(ticketLocation) : 'all')
       const userRoleParam = user?.role || 'staff'
       
       const url = `/api/staff/list?role=${roleParam}&location=${locationParam}&userRole=${userRoleParam}`
