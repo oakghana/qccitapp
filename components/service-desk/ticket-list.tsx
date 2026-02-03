@@ -628,7 +628,9 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
                           Resolve
                         </Button>
                       )}
-                      {ticket.assignee === "Unassigned" && (user?.full_name === ticket.requester || user?.name === ticket.requester || user?.role === "admin" || user?.role === "it_head") && (
+                      {/* Admin and IT Head can delete ANY ticket, others can only delete their own unassigned tickets */}
+                      {((user?.role === "admin" || user?.role === "it_head") || 
+                        (ticket.assignee === "Unassigned" && (user?.full_name === ticket.requester || user?.name === ticket.requester))) && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -1008,10 +1010,12 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
               Are you sure you want to delete this ticket? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30">
-            <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
-            <AlertDescription className="text-red-800 dark:text-red-200">
-              Only unassigned tickets can be deleted by their creators. Contact your IT Head or Admin for help.
+          <Alert className={user?.role === "admin" || user?.role === "it_head" ? "border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/30" : "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30"}>
+            <AlertTriangle className={user?.role === "admin" || user?.role === "it_head" ? "h-4 w-4 text-orange-600 dark:text-orange-400" : "h-4 w-4 text-red-600 dark:text-red-400"} />
+            <AlertDescription className={user?.role === "admin" || user?.role === "it_head" ? "text-orange-800 dark:text-orange-200" : "text-red-800 dark:text-red-200"}>
+              {user?.role === "admin" || user?.role === "it_head" 
+                ? "Admin/IT Head: You can delete any ticket regardless of status."
+                : "Only unassigned tickets can be deleted by their creators. Contact your IT Head or Admin for help."}
             </AlertDescription>
           </Alert>
           <div className="flex justify-end space-x-2 pt-4">

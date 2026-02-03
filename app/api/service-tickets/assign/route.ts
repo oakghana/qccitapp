@@ -16,8 +16,9 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Assigning ticket:", ticketId, "to:", assignee, "(ID:", assigneeId, ")")
 
     if (!ticketId || (!assignee && !assigneeId)) {
+      console.error("[v0] Missing required fields - ticketId:", ticketId, "assignee:", assignee, "assigneeId:", assigneeId)
       return NextResponse.json(
-        { error: "Ticket ID and assignee are required" },
+        { success: false, error: "Ticket ID and assignee are required" },
         { status: 400 }
       )
     }
@@ -73,11 +74,18 @@ export async function POST(request: NextRequest) {
 
     if (findError) {
       console.error("[v0] Error finding ticket:", findError)
-      return NextResponse.json({ error: findError.message }, { status: 500 })
+      return NextResponse.json({ 
+        success: false, 
+        error: `Failed to find ticket: ${findError.message}` 
+      }, { status: 500 })
     }
 
     if (!ticketData || ticketData.length === 0) {
-      return NextResponse.json({ error: "Ticket not found" }, { status: 404 })
+      console.error("[v0] Ticket not found with ID:", ticketId)
+      return NextResponse.json({ 
+        success: false, 
+        error: "Ticket not found. Please refresh and try again." 
+      }, { status: 404 })
     }
 
     dbTicketId = ticketData[0].id
@@ -92,7 +100,18 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error("[v0] Error assigning ticket:", error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ 
+        success: false, 
+        error: `Failed to assign ticket: ${error.message}` 
+      }, { status: 500 })
+    }
+
+    if (!data) {
+      console.error("[v0] No data returned after assignment")
+      return NextResponse.json({ 
+        success: false, 
+        error: "Assignment update failed - no data returned" 
+      }, { status: 500 })
     }
 
     console.log("[v0] Ticket assigned successfully:", data)
@@ -206,10 +225,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       ticket: data,
-      message: `Ticket assigned to ${assignee}` 
+      message: `Ticket successfully assigned to ${assignee}`,
+      assigned_to: assignee,
+      assigned_at: data.assigned_at
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error("[v0] API Service Tickets Assign error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json({ 
+      success: false, 
+      error: error?.message || "Internal server error" 
+    }, { status: 500 })
   }
 }

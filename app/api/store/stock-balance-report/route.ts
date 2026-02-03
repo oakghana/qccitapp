@@ -80,12 +80,17 @@ export async function GET(request: Request) {
 
     console.log("[v0] Transactions found:", transactions?.length || 0)
 
-    const itemMovements: Record<string, { receipts: number; issues: number; requisitionCount: number }> = {}
+    const itemMovements: Record<string, { 
+      receipts: number; 
+      issues: number; 
+      requisitionCount: number;
+      issuanceDetails: Array<{ recipient: string; location: string; qty: number }>;
+    }> = {}
 
     transactions?.forEach((txn) => {
       const itemId = txn.item_id
       if (!itemMovements[itemId]) {
-        itemMovements[itemId] = { receipts: 0, issues: 0, requisitionCount: 0 }
+        itemMovements[itemId] = { receipts: 0, issues: 0, requisitionCount: 0, issuanceDetails: [] }
       }
 
       // transfer_in = receipts (stock coming in)
@@ -97,16 +102,35 @@ export async function GET(request: Request) {
       // transfer_out = issues (stock going out)
       if (txn.transaction_type === "transfer_out" || txn.transaction_type === "issue") {
         itemMovements[itemId].issues += txn.quantity || 0
+        
+        // Capture issuance details for remarks
+        if (txn.recipient || txn.office_location) {
+          itemMovements[itemId].issuanceDetails.push({
+            recipient: txn.recipient || "N/A",
+            location: txn.office_location || txn.location_name || "N/A",
+            qty: txn.quantity || 0
+          })
+        }
       }
     })
 
     const stockBalanceData = items.map((item) => {
-      const movements = itemMovements[item.id] || { receipts: 0, issues: 0, requisitionCount: 0 }
+      const movements = itemMovements[item.id] || { receipts: 0, issues: 0, requisitionCount: 0, issuanceDetails: [] }
       const currentStock = item.quantity || 0
       const issues = movements.issues
       const receipts = movements.receipts
 
       const openingBalance = currentStock + issues - receipts
+
+      // Build detailed remarks with recipient and location info
+      let remarks = ""
+      if (movements.issuanceDetails.length > 0) {
+        remarks = movements.issuanceDetails
+          .map((detail) => `${detail.qty} to ${detail.recipient} (${detail.location})`)
+          .join("; ")
+      } else if (movements.requisitionCount > 0) {
+        remarks = `${movements.requisitionCount} requisition(s)`
+      }
 
       return {
         id: item.id, // Include item ID for stock transfer requests
@@ -119,7 +143,7 @@ export async function GET(request: Request) {
         issues,
         closingBalance: currentStock,
         location: item.location || "Unknown",
-        remarks: movements.requisitionCount > 0 ? `${movements.requisitionCount} requisition(s)` : "",
+        remarks,
       }
     })
 

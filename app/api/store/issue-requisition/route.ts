@@ -100,7 +100,7 @@ export async function POST(request: Request) {
         for (let i = 0; i < item.quantity; i++) {
           const serialNumber = `${currentItem.sku || currentItem.name.substring(0, 3).toUpperCase()}-${Date.now()}-${i + 1}`
           
-          const { error: deviceError } = await supabaseAdmin.from("devices").insert({
+          const { data: newDevice, error: deviceError } = await supabaseAdmin.from("devices").insert({
             device_type: currentItem.category || "Other",
             brand: currentItem.name.split(" ")[0] || "Generic",
             model: currentItem.name,
@@ -113,32 +113,84 @@ export async function POST(request: Request) {
             notes: `Issued via requisition ${requisition.requisition_number}. ${notes || ""}`.trim(),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-          })
+          }).select().single()
 
           if (deviceError) {
             console.error("[v0] Error creating device entry:", deviceError)
-            // Don't fail the whole operation, just log the error
           } else {
             console.log(`[v0] Created device entry for ${item.itemName} - ${serialNumber}`)
+            
+            // Create stock assignment record
+            await supabaseAdmin.from("stock_assignments").insert({
+              item_id: item.item_id,
+              device_id: newDevice?.id,
+              item_name: item.itemName,
+              quantity: 1,
+              assigned_to: recipientName,
+              office_location: officeLocation,
+              room_number: roomNumber,
+              location: location,
+              status: "assigned",
+              assigned_by: "Store Manager",
+              notes: `Issued via ${requisition.requisition_number}`,
+              created_at: new Date().toISOString(),
+            })
           }
         }
+      } else {
+        // For non-device items, just create assignment record
+        await supabaseAdmin.from("stock_assignments").insert({
+          item_id: item.item_id,
+          item_name: item.itemName,
+          quantity: item.quantity,
+          assigned_to: recipientName,
+          office_location: officeLocation,
+          room_number: roomNumber,
+          location: location,
+          status: "assigned",
+          assigned_by: "Store Manager",
+          notes: `Issued via ${requisition.requisition_number}. ${notes || ""}`.trim(),
+          created_at: new Date().toISOString(),
+        })
       }
 
-      // Record stock transaction
-      await supabaseAdmin.from("stock_transactions").insert({
-        item_id: item.item_id,
-        item_name: item.itemName,
-        transaction_type: "issue",
-        quantity: item.quantity,
-        unit: item.unit,
-        location: location,
-        recipient: recipientName,
-        office_location: officeLocation,
-        room_number: roomNumber,
-        notes: notes || `Issued via ${requisition.requisition_number}`,
-        performed_by: "Store Manager",
-        created_at: new Date().toISOString(),
+      // Record stock transaction using the database function
+      const { error: transactionError } = await supabaseAdmin.rpc('record_stock_transaction', {
+        p_item_id: item.item_id,
+        p_transaction_type: 'issue',
+        p_quantity: item.quantity,
+        p_location: location,
+        p_recipient: recipientName,
+        p_office_location: officeLocation,
+        p_room_number: roomNumber || null,
+        p_reference_type: 'requisition',
+        p_reference_id: requisitionId,
+        p_reference_number: requisition.requisition_number,
+        p_notes: notes || `Issued via ${requisition.requisition_number}`,
+        p_performed_by: "Store Manager"
       })
+
+      if (transactionError) {
+        console.warn("[v0] Could not record transaction via function, using direct insert:", transactionError)
+        // Fallback to direct insert
+        await supabaseAdmin.from("stock_transactions").insert({
+          item_id: item.item_id,
+          item_name: item.itemName,
+          transaction_type: "issue",
+          quantity: item.quantity,
+          unit: item.unit,
+          location_name: location,
+          recipient: recipientName,
+          office_location: officeLocation,
+          room_number: roomNumber,
+          reference_type: 'requisition',
+          reference_id: requisitionId,
+          reference_number: requisition.requisition_number,
+          notes: notes || `Issued via ${requisition.requisition_number}`,
+          performed_by: "Store Manager",
+          created_at: new Date().toISOString(),
+        })
+      }
     }
 
     // Update requisition status to issued

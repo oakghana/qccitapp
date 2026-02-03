@@ -242,38 +242,44 @@ export function AssignTicketDialog({
         }),
       })
 
-      const result = await response.json()
-
       if (!response.ok) {
+        const result = await response.json()
         console.error("[v0] Assignment failed:", result.error)
         toast({
-          title: "Assignment Failed",
+          title: "❌ Assignment Failed",
           description: result.error || "Failed to assign ticket. Please try again.",
           variant: "destructive",
+          duration: 5000,
         })
         setIsSubmitting(false)
         return
       }
 
+      const result = await response.json()
       console.log("[v0] Assignment successful:", result)
 
+      // Show success notification
       toast({
-        title: "Ticket Assigned",
-        description: `Ticket successfully assigned to ${selectedStaffMember?.name || assignmentData.assignee}`,
+        title: "✅ Ticket Assigned Successfully",
+        description: `Ticket has been assigned to ${selectedStaffMember?.name || assignmentData.assignee}. ${assignmentData.notifyEmail ? 'Email notification sent.' : ''}`,
+        duration: 5000,
       })
 
+      // Call the onAssign callback
       onAssign({
         ...assignmentData,
         assignee: selectedStaffMember?.name || assignmentData.assignee,
       })
 
+      // Close the dialog
       onClose()
-    } catch (error) {
+    } catch (error: any) {
       console.error("[v0] Error assigning ticket:", error)
       toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
+        title: "❌ Error Assigning Ticket",
+        description: error?.message || "An unexpected error occurred. Please check your connection and try again.",
         variant: "destructive",
+        duration: 5000,
       })
     } finally {
       setIsSubmitting(false)

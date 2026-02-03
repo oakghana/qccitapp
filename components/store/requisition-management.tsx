@@ -554,6 +554,21 @@ export function RequisitionManagement() {
                       </div>
                     )}
 
+                    {/* Admin can delete ANY requisition regardless of status */}
+                    {user?.role === "admin" && req.status !== "pending" && req.status !== "approved" && (
+                      <Button 
+                        variant="destructive" 
+                        size="sm" 
+                        onClick={() => {
+                          setDeletingReq(req)
+                          setDeleteConfirmOpen(true)
+                        }}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </Button>
+                    )}
+
                     {req.status === "pending" && (
                       <div className="flex gap-2">
                         {shouldRequireApproval(req) ? (
@@ -873,7 +888,7 @@ export function RequisitionManagement() {
             <AlertDialogTitle>Delete Requisition</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete requisition {deletingReq?.requisition_number}? This action cannot be undone.
-              Only pending or rejected requisitions can be deleted.
+              {user?.role === "admin" ? " (Admin: Can delete any requisition)" : " Only pending or rejected requisitions can be deleted."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex justify-end gap-2">
