@@ -38,11 +38,6 @@ export async function POST(request: NextRequest) {
       updateData.due_date = dueDate
     }
 
-    // Add instructions/notes if provided
-    if (instructions) {
-      updateData.notes = instructions
-    }
-
     // Add assigned by info
     if (assignedBy) {
       updateData.assigned_by = assignedBy
