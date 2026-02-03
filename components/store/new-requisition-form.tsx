@@ -41,15 +41,23 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
 
   useEffect(() => {
     loadAvailableItems()
-  }, [])
+  }, [formData.location])
 
   const loadAvailableItems = async () => {
     try {
       setLoadingItems(true)
+      
+      // If no location selected, don't load items
+      if (!formData.location) {
+        setAvailableItems([])
+        setLoadingItems(false)
+        return
+      }
+
       const { data, error } = await supabase
         .from("store_items")
         .select("*")
-        .eq("location", "Central Stores")
+        .eq("location", formData.location)
         .gt("quantity", 0)
         .order("name")
 
@@ -58,7 +66,7 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
         return
       }
 
-      console.log("[v0] Loaded available store items from Central Stores:", data)
+      console.log(`[v0] Loaded available store items from ${formData.location}:`, data)
       // Remove duplicates by keeping only the first instance of each item
       const uniqueItems = Array.from(
         new Map((data || []).map((item) => [item.name, item])).values()
@@ -213,7 +221,17 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="location">Location *</Label>
-          <Select value={formData.location} onValueChange={(value) => setFormData({ ...formData, location: value })}>
+          <Select 
+            value={formData.location} 
+            onValueChange={(value) => {
+              // Reset items when location changes
+              setFormData({ 
+                ...formData, 
+                location: value,
+                items: [{ item_id: "", itemName: "", quantity: "", unit: "pcs", availableQty: 0 }]
+              })
+            }}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Select location" />
             </SelectTrigger>
@@ -258,14 +276,18 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
           </Button>
         </div>
 
-        {loadingItems ? (
-          <p className="text-sm text-muted-foreground">Loading available items...</p>
+        {!formData.location ? (
+          <p className="text-sm text-muted-foreground">Please select a location first to see available items</p>
+        ) : loadingItems ? (
+          <p className="text-sm text-muted-foreground">Loading available items from {formData.location}...</p>
+        ) : availableItems.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No items available at {formData.location}</p>
         ) : (
           formData.items.map((item, index) => (
             <div key={index} className="space-y-2 p-4 border rounded-lg">
               <div className="grid grid-cols-12 gap-2 items-end">
                 <div className="col-span-6 space-y-2">
-                  <Label>Select Item from Stock *</Label>
+                  <Label>Select Item from Stock at {formData.location} *</Label>
                   <Select value={item.item_id} onValueChange={(value) => updateItem(index, "item_id", value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Choose an item" />
