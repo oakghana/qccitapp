@@ -148,8 +148,6 @@ export function ServiceDeskDashboard() {
 
   const filteredTickets = allTickets
 
-  const recentTickets = filteredTickets.slice(0, 3)
-
   const stats = {
     totalTickets: filteredTickets.length,
     openTickets: filteredTickets.filter((t) => t.status === "Open" || t.status === "open").length,
@@ -199,7 +197,10 @@ export function ServiceDeskDashboard() {
 
       {/* Stats Overview */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
+        <Card 
+          className="cursor-pointer hover:bg-accent/50 transition-colors"
+          onClick={() => setActiveTab("overview")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Tickets</CardTitle>
             <Ticket className="h-4 w-4 text-muted-foreground" />
@@ -216,7 +217,10 @@ export function ServiceDeskDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:bg-accent/50 transition-colors"
+          onClick={() => setActiveTab("overview")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Open Tickets</CardTitle>
             <AlertTriangle className="h-4 w-4 text-orange-500" />
@@ -227,7 +231,10 @@ export function ServiceDeskDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:bg-accent/50 transition-colors"
+          onClick={() => setActiveTab("overview")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">In Progress</CardTitle>
             <Clock className="h-4 w-4 text-amber-500" />
@@ -248,21 +255,34 @@ export function ServiceDeskDashboard() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          {/* Recent Tickets */}
+          {/* All Tickets */}
           <Card>
             <CardHeader>
-              <CardTitle>Recent Tickets</CardTitle>
-              <CardDescription>
-                {user?.role === "user" || user?.role === "staff"
-                  ? "Your latest IT support requests"
-                  : canViewAllLocations()
-                    ? "Latest IT support requests from all locations"
-                    : "Latest IT support requests from your location"}
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>All Tickets</CardTitle>
+                  <CardDescription>
+                    {user?.role === "user" || user?.role === "staff"
+                      ? "All your IT support requests"
+                      : canViewAllLocations()
+                        ? "All IT support requests from all locations"
+                        : "All IT support requests from your location"}
+                  </CardDescription>
+                </div>
+                <Badge variant="outline" className="text-sm">
+                  {filteredTickets.length} {filteredTickets.length === 1 ? 'ticket' : 'tickets'}
+                </Badge>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {recentTickets.map((ticket) => {
+                {filteredTickets.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Ticket className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p>No tickets found</p>
+                  </div>
+                ) : (
+                  filteredTickets.map((ticket) => {
                   const IconComponent = categoryIcons[ticket.category as keyof typeof categoryIcons] || Monitor
                   return (
                     <div key={ticket.id} className="flex items-center justify-between p-3 border rounded-lg">
@@ -333,8 +353,8 @@ export function ServiceDeskDashboard() {
                         )}
                       </div>
                     </div>
-                  )
-                })}
+                  })
+                )}
               </div>
             </CardContent>
           </Card>

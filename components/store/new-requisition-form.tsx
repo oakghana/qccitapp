@@ -118,10 +118,7 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
       }
 
       console.log(`[v0] Found ${data?.length || 0} items at ${formData.location}:`, data)
-        return
-      }
-
-      console.log(`[v0] Loaded available store items from ${formData.location}:`, data)
+      
       // Remove duplicates by keeping only the first instance of each item
       const uniqueItems = Array.from(
         new Map((data || []).map((item) => [item.name, item])).values()
