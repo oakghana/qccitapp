@@ -78,6 +78,22 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    // Get active ticket counts for each staff member
+    const { data: tickets } = await supabaseAdmin
+      .from('service_tickets')
+      .select('assigned_to_id, status')
+      .in('status', ['Open', 'In Progress', 'Pending'])
+
+    // Count tickets per staff member
+    const ticketCounts: Record<string, number> = {}
+    tickets?.forEach((ticket) => {
+      if (ticket.assigned_to_id) {
+        ticketCounts[ticket.assigned_to_id] = (ticketCounts[ticket.assigned_to_id] || 0) + 1
+      }
+    })
+
+    console.log('[v0] Active ticket counts by staff:', ticketCounts)
+
     // Filter by location in application code if needed
     let filtered = staff || []
     if (location && location !== 'all') {
@@ -88,19 +104,32 @@ export async function GET(request: Request) {
       )
     }
 
+    // Check if we should exclude staff with active assignments
+    const excludeAssigned = searchParams.get('excludeAssigned') === 'true'
+    if (excludeAssigned) {
+      // Filter out staff who have any active tickets
+      filtered = filtered.filter(s => !ticketCounts[s.id] || ticketCounts[s.id] === 0)
+      console.log(`[v0] After filtering assigned staff: ${filtered.length} available`)
+    }
+
     console.log(`[v0] Fetched ${filtered.length} IT staff members for role: ${userRole}, location: ${location}`)
 
     return NextResponse.json({
-      staff: filtered.map(s => ({
-        id: s.id,
-        name: s.full_name,
-        email: s.email,
-        phone: s.phone,
-        role: s.role,
-        location: s.location,
-        department: s.department,
-        isOnline: true, // All approved users are considered available
-      })),
+      staff: filtered.map(s => {
+        const activeTickets = ticketCounts[s.id] || 0
+        return {
+          id: s.id,
+          name: s.full_name,
+          email: s.email,
+          phone: s.phone,
+          role: s.role,
+          location: s.location,
+          department: s.department,
+          isOnline: true,
+          currentTickets: activeTickets,
+          isAvailable: activeTickets === 0, // Available only if no active tickets
+        }
+      }),
     })
   } catch (error: any) {
     console.error('[v0] Exception in staff list:', error)

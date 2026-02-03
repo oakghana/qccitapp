@@ -36,6 +36,7 @@ interface StaffMember {
   department: string
   isOnline: boolean
   currentTickets: number
+  isAvailable?: boolean
 }
 
 const priorityColors = {
@@ -86,6 +87,7 @@ export function AssignTicketDialog({
   const [availableStaff, setAvailableStaff] = useState<StaffMember[]>([])
   const [allStaff, setAllStaff] = useState<StaffMember[]>([])
   const [selectedLocation, setSelectedLocation] = useState<string>("all")
+  const [showOnlyAvailable, setShowOnlyAvailable] = useState(false)
   const [assignmentData, setAssignmentData] = useState<AssignTicketData>({
     ticketId,
     assignee: "",
@@ -110,18 +112,25 @@ export function AssignTicketDialog({
 
   useEffect(() => {
     if (user?.role === "admin" || user?.role === "it_head" || user?.role === "service_desk_head") {
-      if (selectedLocation === "all") {
-        setAvailableStaff(allStaff)
-      } else {
-        const filtered = allStaff.filter((s) => {
+      let filtered = allStaff
+      
+      // Filter by location
+      if (selectedLocation !== "all") {
+        filtered = filtered.filter((s) => {
           const staffLoc = (s.location || "").toLowerCase().trim()
           const filterLoc = selectedLocation.toLowerCase().trim()
           return staffLoc === filterLoc || staffLoc.includes(filterLoc) || filterLoc.includes(staffLoc)
         })
-        setAvailableStaff(filtered)
       }
+      
+      // Filter by availability
+      if (showOnlyAvailable) {
+        filtered = filtered.filter(s => s.currentTickets === 0)
+      }
+      
+      setAvailableStaff(filtered)
     }
-  }, [selectedLocation, allStaff, user?.role])
+  }, [selectedLocation, allStaff, user?.role, showOnlyAvailable])
 
   const loadItStaff = async () => {
     try {
@@ -164,7 +173,8 @@ export function AssignTicketDialog({
         location: s.location || 'Unknown',
         department: s.department || 'IT',
         isOnline: s.isOnline || true,
-        currentTickets: 0,
+        currentTickets: s.currentTickets || 0,
+        isAvailable: s.isAvailable !== false, // Default to available if not specified
       }))
 
       setAllStaff(mappedStaff)
@@ -320,21 +330,48 @@ export function AssignTicketDialog({
 
           <div className="space-y-4">
             {(user?.role === "admin" || user?.role === "it_head" || user?.role === "service_desk_head") && (
-              <div>
-                <Label htmlFor="locationFilter">Filter by Location</Label>
-                <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Locations" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Locations ({allStaff.length} staff)</SelectItem>
-                    {Array.from(new Set(allStaff.map((s) => s.location).filter(Boolean))).map((loc) => (
-                      <SelectItem key={loc} value={loc}>
-                        {loc} ({allStaff.filter((s) => s.location === loc).length} staff)
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="locationFilter">Filter by Location</Label>
+                  <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Locations" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        All Locations ({allStaff.length} total, {allStaff.filter(s => s.currentTickets === 0).length} available)
                       </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      {Array.from(new Set(allStaff.map((s) => s.location).filter(Boolean))).map((loc) => {
+                        const totalInLocation = allStaff.filter((s) => s.location === loc).length
+                        const availableInLocation = allStaff.filter((s) => s.location === loc && s.currentTickets === 0).length
+                        return (
+                          <SelectItem key={loc} value={loc}>
+                            {loc} ({availableInLocation}/{totalInLocation} available)
+                          </SelectItem>
+                        )
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="availabilityFilter">Staff Availability</Label>
+                  <Select 
+                    value={showOnlyAvailable ? "available" : "all"} 
+                    onValueChange={(value) => setShowOnlyAvailable(value === "available")}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        All Staff ({availableStaff.length})
+                      </SelectItem>
+                      <SelectItem value="available">
+                        Only Available (0 tasks) ({availableStaff.filter(s => s.currentTickets === 0).length})
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             )}
 
@@ -367,49 +404,73 @@ export function AssignTicketDialog({
                     <SelectValue placeholder="Choose staff member to assign" />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableStaff.map((staff) => (
-                      <SelectItem key={staff.id} value={staff.id}>
-                        <div className="flex items-center justify-between w-full">
-                          <div className="flex items-center space-x-2">
-                            <div
-                              className={cn("w-2 h-2 rounded-full", staff.isOnline ? "bg-green-500" : "bg-gray-400")}
-                            />
-                            <span>{staff.name}</span>
-                            <span className="text-xs text-muted-foreground">({staff.role})</span>
+                    {availableStaff.map((staff) => {
+                      const hasActiveTasks = staff.currentTickets > 0
+                      return (
+                        <SelectItem key={staff.id} value={staff.id} disabled={hasActiveTasks}>
+                          <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center space-x-2">
+                              <div
+                                className={cn(
+                                  "w-2 h-2 rounded-full", 
+                                  hasActiveTasks ? "bg-red-500" : "bg-green-500"
+                                )}
+                              />
+                              <span className={cn(hasActiveTasks && "text-muted-foreground")}>{staff.name}</span>
+                              <span className="text-xs text-muted-foreground">({staff.role})</span>
+                            </div>
+                            <div className="flex items-center space-x-2 ml-4">
+                              <Badge 
+                                variant={hasActiveTasks ? "destructive" : "outline"} 
+                                className="text-xs"
+                              >
+                                {staff.currentTickets} {staff.currentTickets === 1 ? 'task' : 'tasks'}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">{staff.location}</span>
+                            </div>
                           </div>
-                          <div className="flex items-center space-x-2 ml-4">
-                            <Badge variant="outline" className="text-xs">
-                              {staff.currentTickets} tickets
-                            </Badge>
-                            <span className="text-xs text-muted-foreground">{staff.location}</span>
-                          </div>
-                        </div>
-                      </SelectItem>
-                    ))}
+                        </SelectItem>
+                      )
+                    })}
                   </SelectContent>
                 </Select>
               )}
             </div>
 
             {selectedStaff && (
-              <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+              <Card className={cn(
+                selectedStaff.currentTickets > 0 
+                  ? "bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-800"
+                  : "bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800"
+              )}>
                 <CardContent className="p-4">
+                  {selectedStaff.currentTickets > 0 && (
+                    <div className="mb-3 p-2 bg-orange-100 dark:bg-orange-900 border border-orange-300 dark:border-orange-700 rounded flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-orange-700 dark:text-orange-300" />
+                      <span className="text-xs text-orange-700 dark:text-orange-300 font-medium">
+                        Warning: This staff member currently has {selectedStaff.currentTickets} active {selectedStaff.currentTickets === 1 ? 'task' : 'tasks'}. 
+                        Consider assigning to available staff for better workload distribution.
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-start justify-between">
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2">
-                        <User className="h-4 w-4 text-blue-600" />
-                        <span className="font-medium text-blue-900 dark:text-blue-100">{selectedStaff.name}</span>
+                        <User className={cn("h-4 w-4", selectedStaff.currentTickets > 0 ? "text-orange-600" : "text-blue-600")} />
+                        <span className={cn("font-medium", selectedStaff.currentTickets > 0 ? "text-orange-900 dark:text-orange-100" : "text-blue-900 dark:text-blue-100")}>
+                          {selectedStaff.name}
+                        </span>
                         <div
                           className={cn(
                             "w-2 h-2 rounded-full",
-                            selectedStaff.isOnline ? "bg-green-500" : "bg-gray-400",
+                            selectedStaff.currentTickets === 0 ? "bg-green-500" : "bg-red-500",
                           )}
                         />
-                        <span className="text-xs text-blue-700 dark:text-blue-300">
-                          {selectedStaff.isOnline ? "Online" : "Offline"}
+                        <span className={cn("text-xs", selectedStaff.currentTickets > 0 ? "text-orange-700 dark:text-orange-300" : "text-blue-700 dark:text-blue-300")}>
+                          {selectedStaff.currentTickets === 0 ? "Available" : "Busy"}
                         </span>
                       </div>
-                      <div className="flex items-center space-x-4 text-sm text-blue-700 dark:text-blue-300">
+                      <div className={cn("flex items-center space-x-4 text-sm", selectedStaff.currentTickets > 0 ? "text-orange-700 dark:text-orange-300" : "text-blue-700 dark:text-blue-300")}>
                         <div className="flex items-center space-x-1">
                           <Mail className="h-3 w-3" />
                           <span>{selectedStaff.email}</span>
@@ -421,12 +482,9 @@ export function AssignTicketDialog({
                       </div>
                     </div>
                     <Badge
-                      variant="secondary"
-                      className={cn(
-                        selectedStaff.currentTickets > 4 ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800",
-                      )}
+                      variant={selectedStaff.currentTickets > 0 ? "destructive" : "secondary"}
                     >
-                      {selectedStaff.currentTickets} active tickets
+                      {selectedStaff.currentTickets} active {selectedStaff.currentTickets === 1 ? 'task' : 'tasks'}
                     </Badge>
                   </div>
                 </CardContent>
