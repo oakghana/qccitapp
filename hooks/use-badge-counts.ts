@@ -68,67 +68,82 @@ export function useBadgeCounts(user: User | null) {
     if (fetchInProgress.current) return
     fetchInProgress.current = true
 
-    try {
-      const canSeeAll = canSeeAllLocations(user)
-      const location = user.location || ""
+    // Retry logic for transient failures
+    let retries = 0
+    const maxRetries = 2
+    
+    while (retries <= maxRetries) {
+      try {
+        const canSeeAll = canSeeAllLocations(user)
+        const location = user.location || ""
 
-      // Build query params
-      const params = new URLSearchParams({
-        location: location,
-        canSeeAll: String(canSeeAll),
-        userId: user.id || "",
-        userRole: user.role || "",
-        region: user.region || "",
-        district: user.district || "",
-      })
+        // Build query params
+        const params = new URLSearchParams({
+          location: location,
+          canSeeAll: String(canSeeAll),
+          userId: user.id || "",
+          userRole: user.role || "",
+          region: user.region || "",
+          district: user.district || "",
+        })
 
-      const response = await fetch(`/api/dashboard/badge-counts?${params}`)
-      
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`)
-      }
+        const response = await fetch(`/api/dashboard/badge-counts?${params}`, {
+          signal: AbortSignal.timeout(10000), // 10 second timeout
+        })
+        
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`)
+        }
 
-      const data = await response.json()
+        const data = await response.json()
 
-      // Map API response to BadgeCounts interface
-      const newCounts: BadgeCounts = {
-        assignedTasks: data.assignedTasks ?? 0,
-        serviceDeskTickets: data.serviceDeskTickets ?? 0,
-        repairs: data.repairs ?? 0,
-        storeRequisitions: data.storeRequisitions ?? 0,
-        serviceProviders: data.serviceProviders ?? 0,
-        userAccounts: data.userAccounts ?? 0,
-        itStaffStatus: data.itStaffStatus ?? 0,
-        notifications: data.notifications ?? 0,
-        updates: data.updates ?? 0,
-        devices: data.devices ?? 0,
-        stockAllocations: data.stockAllocations ?? 0,
-        lowStockItems: data.lowStockItems ?? 0,
-        pendingUserApprovals: data.pendingUserApprovals ?? 0,
-        readyForPickup: data.readyForPickup ?? 0,
-      }
+        // Map API response to BadgeCounts interface
+        const newCounts: BadgeCounts = {
+          assignedTasks: data.assignedTasks ?? 0,
+          serviceDeskTickets: data.serviceDeskTickets ?? 0,
+          repairs: data.repairs ?? 0,
+          storeRequisitions: data.storeRequisitions ?? 0,
+          serviceProviders: data.serviceProviders ?? 0,
+          userAccounts: data.userAccounts ?? 0,
+          itStaffStatus: data.itStaffStatus ?? 0,
+          notifications: data.notifications ?? 0,
+          updates: data.updates ?? 0,
+          devices: data.devices ?? 0,
+          stockAllocations: data.stockAllocations ?? 0,
+          lowStockItems: data.lowStockItems ?? 0,
+          pendingUserApprovals: data.pendingUserApprovals ?? 0,
+          readyForPickup: data.readyForPickup ?? 0,
+        }
 
-      // Handle error values (-1 means query failed)
-      for (const key of Object.keys(newCounts) as (keyof BadgeCounts)[]) {
-        if (newCounts[key] === -1) {
-          newCounts[key] = 0 // Display 0 instead of -1 on error
+        // Handle error values (-1 means query failed)
+        for (const key of Object.keys(newCounts) as (keyof BadgeCounts)[]) {
+          if (newCounts[key] === -1) {
+            newCounts[key] = 0 // Display 0 instead of -1 on error
+          }
+        }
+
+        // Update cache
+        cachedCounts = newCounts
+        cacheTimestamp = now
+
+        setCounts(newCounts)
+        setError(null)
+        break // Success, exit retry loop
+      } catch (err) {
+        retries++
+        if (retries > maxRetries) {
+          console.error("[v0] Error fetching badge counts after retries:", err)
+          setError(err instanceof Error ? err.message : "Unknown error")
+          // Keep previous counts on error
+        } else {
+          // Wait before retry (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 500 * retries))
         }
       }
-
-      // Update cache
-      cachedCounts = newCounts
-      cacheTimestamp = now
-
-      setCounts(newCounts)
-      setError(null)
-    } catch (err) {
-      console.error("[v0] Error fetching badge counts:", err)
-      setError(err instanceof Error ? err.message : "Unknown error")
-      // Keep previous counts on error
-    } finally {
-      setLoading(false)
-      fetchInProgress.current = false
     }
+    
+    setLoading(false)
+    fetchInProgress.current = false
   }, [user])
 
   // Initial fetch and interval setup
