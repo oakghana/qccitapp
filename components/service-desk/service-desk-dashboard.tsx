@@ -243,6 +243,7 @@ export function ServiceDeskDashboard() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="resolved">Resolved Tickets</TabsTrigger>
           <TabsTrigger value="knowledge">Knowledge Base</TabsTrigger>
         </TabsList>
 
@@ -335,6 +336,24 @@ export function ServiceDeskDashboard() {
                   )
                 })}
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="resolved" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Resolved Tickets</CardTitle>
+              <CardDescription>
+                All tickets that have been resolved and closed
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TicketList 
+                tickets={allTickets.filter(t => t.status === "Resolved" || t.status === "resolved" || t.status === "Closed" || t.status === "closed")}
+                onRefresh={loadTickets}
+                showFilters={true}
+              />
             </CardContent>
           </Card>
         </TabsContent>
