@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { requisitionId, itemsToDelete, updatedBy } = body
+    const { requisitionId, itemsToDelete, updatedBy, userRole } = body
 
     if (!requisitionId || !updatedBy) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
@@ -24,11 +24,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Requisition not found" }, { status: 404 })
     }
 
-    // Only allow deletion if status is pending or rejected
-    if (requisition.status !== "pending" && requisition.status !== "rejected") {
+    // Admin can delete ANY requisition
+    // Other users can only delete pending or rejected requisitions
+    const isAdmin = userRole === "admin"
+    const canDelete = isAdmin || requisition.status === "pending" || requisition.status === "rejected"
+
+    if (!canDelete) {
       return NextResponse.json(
-        { error: `Cannot delete requisition with status: ${requisition.status}` },
-        { status: 400 },
+        { error: `Cannot delete requisition with status: ${requisition.status}. Only admin can delete approved/issued requisitions.` },
+        { status: 403 },
       )
     }
 

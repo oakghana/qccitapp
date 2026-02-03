@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
@@ -33,67 +34,58 @@ export function IssueItemsForm({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [notes, setNotes] = useState("")
+  const [recipientName, setRecipientName] = useState(requisition.beneficiary || "")
+  const [officeLocation, setOfficeLocation] = useState("")
+  const [roomNumber, setRoomNumber] = useState("")
   const supabase = createClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+
+    // Validation
+    if (!recipientName.trim()) {
+      setError("Recipient name is required")
+      return
+    }
+    if (!officeLocation.trim()) {
+      setError("Office location is required")
+      return
+    }
+
     setLoading(true)
 
     try {
       console.log("[v0] Issuing items for requisition:", requisition.id)
 
-      for (const item of requisition.items) {
-        if (item.item_id) {
-          // Get current stock level
-          const { data: currentItem, error: fetchError } = await supabase
-            .from("store_items")
-            .select("quantity")
-            .eq("id", item.item_id)
-            .single()
+      // Call API to handle stock deduction and device creation
+      const response = await fetch("/api/store/issue-requisition", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requisitionId: requisition.id,
+          recipientName: recipientName.trim(),
+          officeLocation: officeLocation.trim(),
+          roomNumber: roomNumber.trim(),
+          notes: notes.trim(),
+          location: requisition.location,
+          items: requisition.items,
+        }),
+      })
 
-          if (fetchError) {
-            console.error("[v0] Error fetching item:", fetchError)
-            setError(`Failed to fetch stock level for ${item.itemName}`)
-            setLoading(false)
-            return
-          }
+      const result = await response.json()
 
-          const newQuantity = currentItem.quantity - item.quantity
-
-          if (newQuantity < 0) {
-            setError(
-              `Insufficient stock for ${item.itemName}. Available: ${currentItem.quantity}, Required: ${item.quantity}`,
-            )
-            setLoading(false)
-            return
-          }
-
-          // Update stock level
-          const { error: updateError } = await supabase
-            .from("store_items")
-            .update({
-              quantity: newQuantity,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", item.item_id)
-
-          if (updateError) {
-            console.error("[v0] Error updating stock:", updateError)
-            setError(`Failed to update stock for ${item.itemName}`)
-            setLoading(false)
-            return
-          }
-
-          console.log(`[v0] Reduced stock for ${item.itemName}: ${currentItem.quantity} -> ${newQuantity}`)
-        }
+      if (!response.ok) {
+        setError(result.error || "Failed to issue items")
+        setLoading(false)
+        return
       }
 
-      console.log("[v0] All items issued successfully, stock levels updated")
+      console.log("[v0] Items issued successfully:", result)
       onSubmit()
     } catch (err) {
       console.error("[v0] Error issuing items:", err)
-      setError("Failed to issue items")
+      setError("Failed to issue items. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -115,14 +107,9 @@ export function IssueItemsForm({
             <p className="font-medium">{requisition.requested_by}</p>
           </div>
           <div>
-            <Label className="text-muted-foreground">Beneficiary</Label>
-            <p className="font-medium">{requisition.beneficiary || "N/A"}</p>
+            <Label className="text-muted-foreground">Requisition Location</Label>
+            <p className="font-medium">{requisition.location}</p>
           </div>
-        </div>
-
-        <div>
-          <Label className="text-muted-foreground">Location</Label>
-          <p className="font-medium">{requisition.location}</p>
         </div>
 
         <div>
@@ -136,6 +123,44 @@ export function IssueItemsForm({
                 </Badge>
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4 p-4 border rounded-lg">
+        <h4 className="font-semibold text-sm">Recipient Details *</h4>
+        
+        <div className="space-y-2">
+          <Label htmlFor="recipientName">Recipient Name *</Label>
+          <Input
+            id="recipientName"
+            placeholder="Full name of person receiving items"
+            value={recipientName}
+            onChange={(e) => setRecipientName(e.target.value)}
+            required
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="officeLocation">Office Location *</Label>
+            <Input
+              id="officeLocation"
+              placeholder="e.g., Building A, Floor 2"
+              value={officeLocation}
+              onChange={(e) => setOfficeLocation(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="roomNumber">Room Number</Label>
+            <Input
+              id="roomNumber"
+              placeholder="e.g., Room 205"
+              value={roomNumber}
+              onChange={(e) => setRoomNumber(e.target.value)}
+            />
           </div>
         </div>
       </div>

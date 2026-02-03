@@ -356,6 +356,7 @@ export function RequisitionManagement() {
         body: JSON.stringify({
           requisitionId: deletingReq.id,
           updatedBy: user?.id,
+          userRole: user?.role,
         }),
       })
 
