@@ -34,6 +34,7 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
     requestedBy: user?.full_name || "",
     beneficiary: "",
     location: user?.location || "",
+    itReqNumber: "", // IT Requisition Number field
     notes: "",
     items: [{ item_id: "", itemName: "", quantity: "", unit: "pcs", availableQty: 0 }],
   })
@@ -145,6 +146,7 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
             requested_by_role: user.role,
             beneficiary: formData.beneficiary,
             location: formData.location,
+            it_req_number: formData.itReqNumber, // Add IT Req Number to database
             items: formData.items.map((item) => ({
               item_id: item.item_id,
               itemName: item.itemName,
@@ -223,6 +225,16 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="itReqNumber">IT Req. No.</Label>
+          <Input
+            id="itReqNumber"
+            value={formData.itReqNumber}
+            onChange={(e) => setFormData({ ...formData, itReqNumber: e.target.value })}
+            placeholder="e.g., IT-2026-001 (optional)"
+          />
         </div>
       </div>
 
