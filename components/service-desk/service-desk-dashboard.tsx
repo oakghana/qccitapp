@@ -71,6 +71,7 @@ export function ServiceDeskDashboard() {
 
       const mappedTickets = (result.tickets || []).map((ticket: any) => ({
         id: ticket.ticket_number || ticket.id,
+        uuid: ticket.id, // Store actual UUID for API operations (delete, etc.)
         dbId: ticket.id, // Keep database ID for updates
         title: ticket.title,
         category: ticket.category || "Other",
@@ -373,7 +374,6 @@ export function ServiceDeskDashboard() {
               <TicketList 
                 tickets={allTickets.filter(t => t.status === "Resolved" || t.status === "resolved" || t.status === "Closed" || t.status === "closed")}
                 onRefresh={loadTickets}
-                showFilters={true}
               />
             </CardContent>
           </Card>

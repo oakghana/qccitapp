@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -36,9 +36,11 @@ import { AssignTicketDialog } from "./assign-ticket-dialog"
 import { useAuth } from "@/lib/auth-context"
 import { createClient } from "@/lib/supabase/client"
 import { canSeeAllLocations } from "@/lib/location-filter"
+import { useToast } from "@/hooks/use-toast"
 
 interface Ticket {
   id: string
+  uuid: string  // Store actual UUID for API operations
   title: string
   category: string
   priority: string
@@ -57,8 +59,9 @@ interface Ticket {
   }>
 }
 
-export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
+export function TicketList({ tickets: propTickets, onRefresh }: { tickets?: Ticket[], onRefresh?: () => void }) {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
@@ -77,13 +80,26 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
   const [loading, setLoading] = useState(true)
   const [dbLocations, setDbLocations] = useState<{ code: string; name: string }[]>([])
   const [deleteTicketId, setDeleteTicketId] = useState<string | null>(null)
+  const deleteTicketIdRef = useRef<string | null>(null) // Use ref to prevent state reset issues
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false) // Prevent double-click
+  const isDeletingRef = useRef(false) // Use ref for immediate check
   const [itRequestFormFile, setItRequestFormFile] = useState<File | null>(null)
   const [isEscalating, setIsEscalating] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 50
   const supabase = createClient()
 
   useEffect(() => {
-    if (!propTickets) {
+    if (propTickets) {
+      // Map propTickets to ensure they have the uuid property
+      const mappedPropTickets = propTickets.map((ticket: any) => ({
+        ...ticket,
+        uuid: ticket.uuid || ticket.id, // Ensure uuid is set
+      }))
+      setTickets(mappedPropTickets)
+      setLoading(false)
+    } else {
       loadTickets()
     }
     loadLocations()
@@ -135,6 +151,7 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
 
       const mappedTickets: Ticket[] = (result.tickets || []).map((ticket: any) => ({
         id: ticket.ticket_number || ticket.id,
+        uuid: ticket.id,  // Store actual UUID for API operations
         title: ticket.title,
         category: ticket.category || "Other",
         priority: ticket.priority || "Medium",
@@ -172,7 +189,12 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
         return false
       }
 
-      await loadTickets()
+      // Call onRefresh if provided, otherwise call local loadTickets
+      if (onRefresh) {
+        onRefresh()
+      } else {
+        await loadTickets()
+      }
       return true
     } catch (error) {
       console.error("[v0] Error updating ticket:", error)
@@ -332,7 +354,12 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
       console.log("[v0] Assignment completed, refreshing tickets")
 
       // Just reload tickets - the dialog already made the API call
-      await loadTickets()
+      // Call onRefresh if provided, otherwise call local loadTickets
+      if (onRefresh) {
+        onRefresh()
+      } else {
+        await loadTickets()
+      }
     } catch (error) {
       console.error("[v0] Error refreshing tickets:", error)
     } finally {
@@ -342,6 +369,14 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
   }
 
   const handleDeleteTicket = async (ticketId: string) => {
+    // Prevent double-click using ref for immediate check
+    if (isDeletingRef.current) {
+      console.log("[v0] Delete already in progress (ref check), ignoring duplicate call")
+      return
+    }
+    
+    isDeletingRef.current = true
+    setIsDeleting(true)
     try {
       console.log("[v0] Deleting ticket:", ticketId)
 
@@ -359,26 +394,51 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
 
       if (!response.ok) {
         console.error("[v0] Error deleting ticket:", result.error)
-        alert(result.error || "Failed to delete ticket")
+        toast({
+          title: "❌ Failed to Delete Ticket",
+          description: result.error || "Failed to delete ticket",
+          variant: "destructive",
+        })
         return
       }
 
       console.log("[v0] Ticket deleted successfully:", result.message)
-      alert(result.message || "Ticket deleted successfully")
+      toast({
+        title: "🗑️ Ticket Deleted Successfully",
+        description: result.message || "Ticket has been deleted",
+      })
       
       setDeleteConfirmOpen(false)
       setDeleteTicketId(null)
+      deleteTicketIdRef.current = null
       setViewDetailsOpen(false)
-      await loadTickets()
+      
+      // Call onRefresh if provided, otherwise call local loadTickets
+      if (onRefresh) {
+        onRefresh()
+      } else {
+        await loadTickets()
+      }
     } catch (error) {
       console.error("[v0] Error deleting ticket:", error)
-      alert("An error occurred while deleting the ticket")
+      toast({
+        title: "❌ Error",
+        description: "An error occurred while deleting the ticket",
+        variant: "destructive",
+      })
+    } finally {
+      isDeletingRef.current = false
+      setIsDeleting(false)
     }
   }
 
   const handleEscalateTicket = async () => {
     if (!selectedTicket || !escalationReason) {
-      alert("Please provide an escalation reason")
+      toast({
+        title: "⚠️ Missing Information",
+        description: "Please provide an escalation reason",
+        variant: "destructive",
+      })
       return
     }
 
@@ -412,17 +472,30 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
 
       if (!response.ok) {
         console.error("[v0] Error escalating ticket:", result.error)
-        alert(result.error || "Failed to escalate ticket")
+        toast({
+          title: "❌ Escalation Failed",
+          description: result.error || "Failed to escalate ticket",
+          variant: "destructive",
+        })
         return
       }
 
       console.log("[v0] Ticket escalated successfully")
-      alert("Ticket escalated successfully")
+      toast({
+        title: "⬆️ Ticket Escalated Successfully",
+        description: "Ticket has been escalated to the appropriate team",
+      })
       
       setEscalationDialogOpen(false)
       setEscalationReason("")
       setViewDetailsOpen(false)
-      await loadTickets()
+      
+      // Call onRefresh if provided, otherwise call local loadTickets
+      if (onRefresh) {
+        onRefresh()
+      } else {
+        await loadTickets()
+      }
     } catch (error) {
       console.error("[v0] Error escalating ticket:", error)
       alert("An error occurred while escalating the ticket")
@@ -442,17 +515,40 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
 
   const displayTickets = propTickets || tickets
 
-  const filteredTickets = displayTickets.filter((ticket) => {
+  // Filter out any invalid/empty ticket objects and ensure uuid is set
+  const validTickets = displayTickets.filter((ticket) => {
+    if (!ticket || !ticket.id || typeof ticket !== 'object' || Object.keys(ticket).length === 0) {
+      console.warn("[v0] Invalid ticket found:", ticket)
+      return false
+    }
+    return true
+  }).map((ticket) => ({
+    ...ticket,
+    uuid: ticket.uuid || ticket.dbId || ticket.id, // Ensure uuid is always set
+  }))
+
+  const filteredTickets = validTickets.filter((ticket) => {
     const matchesSearch =
-      ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ticket.requester.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ticket.id.toLowerCase().includes(searchTerm.toLowerCase())
+      ticket.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      ticket.requester?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      ticket.id?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || ticket.status === statusFilter
     const matchesPriority = priorityFilter === "all" || ticket.priority === priorityFilter
     const matchesLocation = locationFilter === "all" || ticket.location === locationFilter
 
     return matchesSearch && matchesStatus && matchesPriority && matchesLocation
   })
+
+  // Pagination
+  const totalPages = Math.ceil(filteredTickets.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedTickets = filteredTickets.slice(startIndex, endIndex)
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, statusFilter, priorityFilter, locationFilter])
 
   if (loading) {
     return (
@@ -538,8 +634,18 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
         </CardContent>
       </Card>
 
+      {/* Results summary and pagination info */}
+      <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <p>
+          Showing {startIndex + 1} to {Math.min(endIndex, filteredTickets.length)} of {filteredTickets.length} tickets
+        </p>
+        {totalPages > 1 && (
+          <p>Page {currentPage} of {totalPages}</p>
+        )}
+      </div>
+
       <div className="space-y-4">
-        {filteredTickets.map((ticket) => {
+        {paginatedTickets.map((ticket) => {
           const IconComponent = categoryIcons[ticket.category as keyof typeof categoryIcons] || HelpCircle
           return (
             <Card key={ticket.id} className="hover:shadow-md transition-shadow">
@@ -628,14 +734,20 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
                           Resolve
                         </Button>
                       )}
-                      {/* Admin and IT Head can delete ANY ticket, others can only delete their own unassigned tickets */}
-                      {((user?.role === "admin" || user?.role === "it_head") || 
-                        (ticket.assignee === "Unassigned" && (user?.full_name === ticket.requester || user?.name === ticket.requester))) && (
+                      {/* Only Admin can delete ANY ticket, regardless of assignment status */}
+                      {user?.role === "admin" && (
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            setDeleteTicketId(ticket.id)
+                            console.log("[v0] Setting delete ticket - id:", ticket.id, "uuid:", ticket.uuid)
+                            if (!ticket.uuid) {
+                              console.error("[v0] Ticket has no uuid property!", ticket)
+                              alert("Error: Ticket has no UUID. Cannot delete.")
+                              return
+                            }
+                            deleteTicketIdRef.current = ticket.uuid // Set ref
+                            setDeleteTicketId(ticket.uuid)
                             setDeleteConfirmOpen(true)
                           }}
                           className="text-red-600 hover:text-red-800 hover:bg-red-50"
@@ -667,6 +779,29 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
           )
         })}
       </div>
+
+      {/* Pagination controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 pt-4">
+          <Button
+            variant="outline"
+            onClick={() => setCurrentPage(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground px-4">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            onClick={() => setCurrentPage(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </Button>
+        </div>
+      )}
 
       {filteredTickets.length === 0 && (
         <Card>
@@ -1019,16 +1154,39 @@ export function TicketList({ tickets: propTickets }: { tickets?: Ticket[] }) {
             </AlertDescription>
           </Alert>
           <div className="flex justify-end space-x-2 pt-4">
-            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setDeleteConfirmOpen(false)
+              deleteTicketIdRef.current = null
+            }} disabled={isDeleting}>
               Cancel
             </Button>
             <Button
               variant="destructive"
-              onClick={() => deleteTicketId && handleDeleteTicket(deleteTicketId)}
+              disabled={isDeleting}
+              onClick={async (e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                
+                // Immediately close dialog and disable to prevent duplicate clicks
+                const ticketIdToDelete = deleteTicketId || deleteTicketIdRef.current
+                if (!ticketIdToDelete) {
+                  console.error("[v0] No deleteTicketId set - state:", deleteTicketId, "ref:", deleteTicketIdRef.current)
+                  alert("Error: No ticket selected for deletion")
+                  return
+                }
+                
+                // Clear refs immediately to prevent duplicate calls
+                const idToDelete = ticketIdToDelete
+                deleteTicketIdRef.current = null
+                setDeleteTicketId(null)
+                
+                console.log("[v0] Delete button clicked, ticketId:", idToDelete)
+                await handleDeleteTicket(idToDelete)
+              }}
               className="bg-red-600 hover:bg-red-700"
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Delete Ticket
+              {isDeleting ? "Deleting..." : "Delete Ticket"}
             </Button>
           </div>
         </DialogContent>

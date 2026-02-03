@@ -31,6 +31,7 @@ import { getRoleColorScheme } from "@/lib/role-colors"
 import { cn } from "@/lib/utils"
 import type { PendingUser } from "../auth/create-user-form"
 import { createClient } from "@/lib/supabase/client"
+import { useToast } from "@/hooks/use-toast"
 
 interface SystemUser {
   id: string
@@ -300,6 +301,7 @@ function ApprovalDialog({ user, isOpen, onClose, onApprove, onReject }: Approval
 
 export function PendingUserApprovals() {
   const { user } = useAuth()
+  const { toast } = useToast()
   const roleColors = user?.role ? getRoleColorScheme(user.role) : null
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([])
   const [loading, setLoading] = useState(true)
@@ -367,10 +369,20 @@ export function PendingUserApprovals() {
 
       if (error) throw error
 
+      toast({
+        title: "✅ User Approved Successfully",
+        description: "The user account has been activated",
+      })
+
       // Reload the list
       loadPendingUsers()
     } catch (error) {
       console.error("[v0] Error approving user:", error)
+      toast({
+        title: "❌ Failed to Approve User",
+        description: "An error occurred while approving the user",
+        variant: "destructive",
+      })
     }
   }
 
@@ -388,10 +400,20 @@ export function PendingUserApprovals() {
 
       if (error) throw error
 
+      toast({
+        title: "❌ User Request Rejected",
+        description: "The user request has been rejected",
+      })
+
       // Reload the list
       loadPendingUsers()
     } catch (error) {
       console.error("[v0] Error rejecting user:", error)
+      toast({
+        title: "❌ Failed to Reject User",
+        description: "An error occurred while rejecting the user",
+        variant: "destructive",
+      })
     }
   }
 

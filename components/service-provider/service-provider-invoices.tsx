@@ -32,6 +32,7 @@ import {
   Loader2,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { useToast } from "@/hooks/use-toast"
 
 interface RepairTask {
   id: string
@@ -72,6 +73,7 @@ interface Invoice {
 
 export function ServiceProviderInvoices() {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [repairs, setRepairs] = useState<RepairTask[]>([])
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [loading, setLoading] = useState(true)
@@ -133,12 +135,20 @@ export function ServiceProviderInvoices() {
       // Validate file type
       const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "image/jpg"]
       if (!allowedTypes.includes(file.type)) {
-        alert("Please select a PDF or image file (JPG, PNG)")
+        toast({
+          title: "⚠️ Invalid File Type",
+          description: "Please select a PDF or image file (JPG, PNG)",
+          variant: "destructive",
+        })
         return
       }
       // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
-        alert("File size must be less than 10MB")
+        toast({
+          title: "⚠️ File Too Large",
+          description: "File size must be less than 10MB",
+          variant: "destructive",
+        })
         return
       }
       setSelectedFile(file)
@@ -154,13 +164,21 @@ export function ServiceProviderInvoices() {
 
   const handleUploadInvoice = async () => {
     if (!selectedRepair || !invoiceNumber) {
-      alert("Please fill in required fields")
+      toast({
+        title: "⚠️ Missing Information",
+        description: "Please fill in required fields",
+        variant: "destructive",
+      })
       return
     }
 
     const total = parseFloat(calculateTotal())
     if (total <= 0) {
-      alert("Total amount must be greater than 0")
+      toast({
+        title: "⚠️ Invalid Amount",
+        description: "Total amount must be greater than 0",
+        variant: "destructive",
+      })
       return
     }
 
@@ -201,10 +219,17 @@ export function ServiceProviderInvoices() {
       resetForm()
       setShowUploadDialog(false)
       await loadRepairsAndInvoices()
-      alert("Invoice uploaded successfully!")
+      toast({
+        title: "📄 Invoice Uploaded Successfully",
+        description: "Invoice is pending approval",
+      })
     } catch (error) {
       console.error("[v0] Error uploading invoice:", error)
-      alert("Error uploading invoice: " + (error as Error).message)
+      toast({
+        title: "❌ Failed to Upload Invoice",
+        description: (error as Error).message || "An error occurred",
+        variant: "destructive",
+      })
     } finally {
       setUploading(false)
     }

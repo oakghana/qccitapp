@@ -15,6 +15,7 @@ import { useAuth } from "@/lib/auth-context"
 import { getRoleColorScheme } from "@/lib/role-colors"
 import { cn } from "@/lib/utils"
 import { LOCATIONS, type LocationKey } from "@/lib/locations"
+import { useToast } from "@/hooks/use-toast"
 
 export interface PendingUser {
   id: string
@@ -40,6 +41,7 @@ interface CreateUserFormProps {
 
 export function CreateUserForm({ onUserCreated, onClose }: CreateUserFormProps) {
   const { user } = useAuth()
+  const { toast } = useToast()
   const roleColors = user?.role ? getRoleColorScheme(user.role) : null
   const isPublicAccess = !user
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -105,7 +107,11 @@ export function CreateUserForm({ onUserCreated, onClose }: CreateUserFormProps) 
       }, 3000)
     } catch (error) {
       console.error("[v0] Registration error:", error)
-      alert(`Registration failed: ${error instanceof Error ? error.message : "Unknown error"}`)
+      toast({
+        title: "❌ Registration Failed",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+        variant: "destructive",
+      })
       setIsSubmitting(false)
     }
   }

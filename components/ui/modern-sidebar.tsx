@@ -213,6 +213,11 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
               { name: "Store Overview", href: "/dashboard/store-overview", icon: Package },
               { name: "Store Inventory", href: "/dashboard/store-inventory", icon: Database },
               {
+                name: "Assign Stock to Staff",
+                href: "/dashboard/assign-stock",
+                icon: UserPlus,
+              },
+              {
                 name: "Store Requisitions",
                 href: "/dashboard/store-requisitions",
                 icon: ClipboardList,
@@ -312,6 +317,11 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
             items: [
               { name: "Store Overview", href: "/dashboard/store-overview", icon: Package },
               { name: "Store Inventory", href: "/dashboard/store-inventory", icon: Database },
+              {
+                name: "Assign Stock to Staff",
+                href: "/dashboard/assign-stock",
+                icon: UserPlus,
+              },
               {
                 name: "Store Requisitions",
                 href: "/dashboard/store-requisitions",
@@ -496,6 +506,11 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
             items: [
               { name: "Store Overview", href: "/dashboard/store-overview", icon: Package },
               { name: "Store Stock Levels", href: "/dashboard/store-snapshot", icon: Database },
+              {
+                name: "Assign Stock to Staff",
+                href: "/dashboard/assign-stock",
+                icon: UserPlus,
+              },
               {
                 name: "Store Requisitions",
                 href: "/dashboard/regional-store-requisitions",

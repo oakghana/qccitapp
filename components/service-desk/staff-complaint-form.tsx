@@ -15,6 +15,7 @@ import { CheckCircle, Clock, AlertTriangle, Paperclip, Send, Trash2, Edit } from
 import { useAuth } from "@/lib/auth-context"
 import { FormNavigation } from "@/components/ui/form-navigation"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useToast } from "@/hooks/use-toast"
 
 interface Complaint {
   id: string
@@ -37,6 +38,7 @@ const complaints: Complaint[] = []
 
 export function StaffComplaintForm() {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [userComplaintsList, setUserComplaintsList] = useState<Complaint[]>([])
@@ -151,10 +153,19 @@ export function StaffComplaintForm() {
 
       if (!response.ok) {
         console.error("[v0] Error creating ticket:", result.error)
+        toast({
+          title: "❌ Failed to Submit Complaint",
+          description: result.error || "Failed to submit your complaint",
+          variant: "destructive",
+        })
         return
       }
 
       console.log("[v0] Ticket created successfully:", result.ticket)
+      toast({
+        title: "🎫 Complaint Submitted Successfully",
+        description: "Your IT support request has been submitted",
+      })
 
       setFormData({
         title: "",
@@ -172,6 +183,11 @@ export function StaffComplaintForm() {
       await loadUserComplaints()
     } catch (error) {
       console.error("Error submitting complaint:", error)
+      toast({
+        title: "❌ Error",
+        description: "An error occurred while submitting your complaint",
+        variant: "destructive",
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -195,19 +211,30 @@ export function StaffComplaintForm() {
 
       if (!response.ok) {
         console.error("[v0] Error deleting complaint:", result.error)
-        alert(result.error || "Failed to delete complaint")
+        toast({
+          title: "❌ Failed to Delete Complaint",
+          description: result.error || "Failed to delete complaint",
+          variant: "destructive",
+        })
         return
       }
 
       console.log("[v0] Complaint deleted successfully")
-      alert(result.message || "Complaint deleted successfully")
+      toast({
+        title: "🗑️ Complaint Deleted Successfully",
+        description: result.message || "Your complaint has been deleted",
+      })
       
       setShowDeleteConfirm(false)
       setDeleteConfirmId(null)
       await loadUserComplaints()
     } catch (error) {
       console.error("[v0] Error deleting complaint:", error)
-      alert("An error occurred while deleting the complaint")
+      toast({
+        title: "❌ Error",
+        description: "An error occurred while deleting the complaint",
+        variant: "destructive",
+      })
     }
   }
 

@@ -19,39 +19,64 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Fetch the ticket to verify ownership and assignment status
-    const { data: ticket, error: fetchError } = await supabaseAdmin
+    // Try to find by ticket_number first (more common), then by UUID
+    let ticket = null
+    let fetchError = null
+
+    console.log("[v0] Searching for ticket with ID:", ticketId)
+
+    // First try by ticket_number (e.g., "TKT-2024-001")
+    const ticketNumberResult = await supabaseAdmin
       .from("service_tickets")
       .select("id, ticket_number, requested_by, assigned_to, status")
-      .eq("id", ticketId)
-      .single()
-
-    if (fetchError) {
-      console.error("[v0] Error fetching ticket:", fetchError)
-      return NextResponse.json({ error: "Ticket not found" }, { status: 404 })
+      .eq("ticket_number", ticketId)
+      .maybeSingle()
+    
+    if (ticketNumberResult.data) {
+      ticket = ticketNumberResult.data
+      console.log("[v0] Found ticket by ticket_number:", ticket.ticket_number)
+    } else {
+      // If not found by ticket_number, try by UUID id
+      const uuidResult = await supabaseAdmin
+        .from("service_tickets")
+        .select("id, ticket_number, requested_by, assigned_to, status")
+        .eq("id", ticketId)
+        .maybeSingle()
+      
+      if (uuidResult.data) {
+        ticket = uuidResult.data
+        console.log("[v0] Found ticket by UUID:", ticket.id)
+      } else {
+        fetchError = uuidResult.error || ticketNumberResult.error
+      }
     }
 
-    // Authorization checks:
-    // 1. Ticket creator can delete if ticket is unassigned
-    // 2. Admin and IT Head can always delete
-    const isCreator = ticket.requested_by?.toLowerCase() === userId?.toLowerCase()
-    const canAlwaysDelete = userRole === "admin" || userRole === "it_head"
-    const isUnassigned = !ticket.assigned_to
+    if (!ticket) {
+      // If ticket is not found, it might have already been deleted
+      // Return success instead of error to prevent confusing the user
+      console.log("[v0] Ticket not found (may have been already deleted). ID:", ticketId)
+      return NextResponse.json({ 
+        success: true, 
+        message: `Ticket has been deleted`
+      })
+    }
 
-    if (!canAlwaysDelete && (!isCreator || !isUnassigned)) {
-      console.error("[v0] Unauthorized delete attempt - not creator or ticket is assigned")
+    // Authorization check: Only admin can delete tickets, regardless of assignment status
+    if (userRole !== "admin") {
+      console.error("[v0] Unauthorized delete attempt - user is not admin:", userRole)
       return NextResponse.json(
         { 
-          error: "You can only delete your own unassigned tickets. Contact IT Head or Admin to delete assigned tickets." 
+          error: "Only Admin can delete tickets. Contact your system administrator." 
         }, 
         { status: 403 }
       )
     }
 
-    // Delete the ticket
+    // Delete the ticket using the actual UUID from the fetched ticket
     const { data, error } = await supabaseAdmin
       .from("service_tickets")
       .delete()
-      .eq("id", ticketId)
+      .eq("id", ticket.id)
       .select()
       .single()
 

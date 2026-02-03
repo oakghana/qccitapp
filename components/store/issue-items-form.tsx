@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { createClient } from "@/lib/supabase/client"
 import { AlertCircle } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 interface Requisition {
   id: string
@@ -38,6 +39,7 @@ export function IssueItemsForm({
   const [officeLocation, setOfficeLocation] = useState("")
   const [roomNumber, setRoomNumber] = useState("")
   const supabase = createClient()
+  const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -77,15 +79,29 @@ export function IssueItemsForm({
 
       if (!response.ok) {
         setError(result.error || "Failed to issue items")
+        toast({
+          title: "❌ Failed to Issue Items",
+          description: result.error || "Failed to issue items from the requisition",
+          variant: "destructive",
+        })
         setLoading(false)
         return
       }
 
       console.log("[v0] Items issued successfully:", result)
+      toast({
+        title: "✅ Items Issued Successfully",
+        description: `Items have been issued to ${recipientName}`,
+      })
       onSubmit()
     } catch (err) {
       console.error("[v0] Error issuing items:", err)
       setError("Failed to issue items. Please try again.")
+      toast({
+        title: "❌ Error",
+        description: "Failed to issue items. Please try again.",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }

@@ -29,6 +29,7 @@ import {
   AlertCircle,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { useToast } from "@/hooks/use-toast"
 
 interface ServiceProviderRepairTask {
   id: string
@@ -98,6 +99,7 @@ const supabase = createClient(supabaseUrl, supabaseKey)
 
 export function ServiceProviderTasks() {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [tasks, setTasks] = useState<ServiceProviderRepairTask[]>([])
   const [selectedTask, setSelectedTask] = useState<ServiceProviderRepairTask | null>(null)
   const [filter, setFilter] = useState<string>("all")
@@ -289,10 +291,17 @@ export function ServiceProviderTasks() {
         setScheduledTime("")
         setPickupNotes("")
         
-        alert("Pickup scheduled successfully")
+        toast({
+          title: "📅 Pickup Scheduled Successfully",
+          description: `Pickup scheduled for ${scheduledDate} at ${scheduledTime}`,
+        })
       } catch (error: any) {
         console.error("[v0] Error scheduling pickup:", error)
-        alert(`Error scheduling pickup: ${error.message}`)
+        toast({
+          title: "❌ Failed to Schedule Pickup",
+          description: error.message || "An error occurred",
+          variant: "destructive",
+        })
       }
     }
   }
@@ -340,17 +349,28 @@ export function ServiceProviderTasks() {
         setLaborHours("")
         setRepairCost("")
         
-        alert("Repair marked as completed successfully")
+        toast({
+          title: "✅ Repair Completed Successfully",
+          description: "The repair task has been marked as completed",
+        })
       } catch (error: any) {
         console.error("[v0] Error completing repair:", error)
-        alert(`Error completing repair: ${error.message}`)
+        toast({
+          title: "❌ Failed to Complete Repair",
+          description: error.message || "An error occurred",
+          variant: "destructive",
+        })
       }
     }
   }
 
   const handleUploadInvoice = async () => {
     if (!selectedTask || !invoiceFile || !invoiceNumber) {
-      alert("Please fill in required fields and select a file")
+      toast({
+        title: "⚠️ Missing Information",
+        description: "Please fill in required fields and select a file",
+        variant: "destructive",
+      })
       return
     }
 
@@ -423,10 +443,17 @@ export function ServiceProviderTasks() {
       setInvoiceOtherCharges("")
       setInvoiceDescription("")
 
-      alert("Invoice uploaded successfully and is pending approval")
+      toast({
+        title: "📄 Invoice Uploaded Successfully",
+        description: "Invoice is pending approval",
+      })
     } catch (err: any) {
       console.error("[v0] Error uploading invoice:", err)
-      alert(err.message || "Failed to upload invoice")
+      toast({
+        title: "❌ Failed to Upload Invoice",
+        description: err.message || "An error occurred",
+        variant: "destructive",
+      })
     } finally {
       setIsUploadingInvoice(false)
     }

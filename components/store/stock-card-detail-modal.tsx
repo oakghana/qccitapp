@@ -26,6 +26,7 @@ import { downloadCSV, printToPDF } from "@/lib/export-utils"
 import { useAuth } from "@/lib/auth-context"
 import { canManageStock, canAssignItems } from "@/lib/location-filter"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useToast } from "@/hooks/use-toast"
 
 interface StockTransfer {
   id: string
@@ -56,7 +57,10 @@ interface StockCardDetailModalProps {
 
 export function StockCardDetailModal({ open, onClose, item }: StockCardDetailModalProps) {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [transfers, setTransfers] = useState<StockTransfer[]>([])
+  const [assignments, setAssignments] = useState<any[]>([])
+  const [transactions, setTransactions] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editData, setEditData] = useState({
@@ -93,8 +97,10 @@ export function StockCardDetailModal({ open, onClose, item }: StockCardDetailMod
       const response = await fetch(`/api/store/item-history?itemName=${encodeURIComponent(item.item_name)}`)
       const data = await response.json()
       setTransfers(data.transfers || [])
+      setAssignments(data.assignments || [])
+      setTransactions(data.transactions || [])
     } catch (error) {
-      console.error("Failed to fetch transfer history:", error)
+      console.error("Failed to fetch item history:", error)
     } finally {
       setLoading(false)
     }
@@ -144,9 +150,18 @@ export function StockCardDetailModal({ open, onClose, item }: StockCardDetailMod
       }
 
       setIsEditing(false)
+      toast({
+        title: "✏️ Item Updated Successfully",
+        description: "Stock levels have been adjusted",
+      })
       window.location.reload() // Refresh to show updated data
     } catch (error: any) {
       setActionError(error.message || "Failed to update item")
+      toast({
+        title: "❌ Update Failed",
+        description: error.message || "Failed to update item",
+        variant: "destructive",
+      })
     } finally {
       setActionLoading(false)
     }
@@ -197,15 +212,26 @@ export function StockCardDetailModal({ open, onClose, item }: StockCardDetailMod
       // Show success message with summary if force delete
       if (forceDeleteMode && data.deletionSummary) {
         const summary = data.deletionSummary
-        alert(
-          `Item deleted successfully!\n\nDeleted:\n• 1 Stock Item\n• ${summary.transferRequests} Transfer Request(s)\n• ${summary.transactions} Transaction(s)\n• ${summary.assignments} Assignment(s)`
-        )
+        toast({
+          title: "🗑️ Item Deleted Successfully",
+          description: `Deleted: 1 Stock Item, ${summary.transferRequests} Transfer Request(s), ${summary.transactions} Transaction(s), ${summary.assignments} Assignment(s)`,
+        })
+      } else {
+        toast({
+          title: "🗑️ Item Deleted Successfully",
+          description: `"${item.item_name}" has been removed from inventory`,
+        })
       }
 
       onClose()
       window.location.reload()
     } catch (error: any) {
       setActionError(error.message || "Failed to delete item")
+      toast({
+        title: "❌ Delete Failed",
+        description: error.message || "Failed to delete item",
+        variant: "destructive",
+      })
     } finally {
       setActionLoading(false)
     }
@@ -247,9 +273,18 @@ export function StockCardDetailModal({ open, onClose, item }: StockCardDetailMod
 
       setShowAssignForm(false)
       setAssignData({ assignedTo: "", quantity: 1, notes: "" })
+      toast({
+        title: "👤 Item Assigned Successfully",
+        description: `${assignData.quantity} unit(s) of "${item.item_name}" assigned to ${assignData.assignedTo}`,
+      })
       window.location.reload() // Refresh to show updated data
     } catch (error: any) {
       setActionError(error.message || "Failed to assign item")
+      toast({
+        title: "❌ Assignment Failed",
+        description: error.message || "Failed to assign item",
+        variant: "destructive",
+      })
     } finally {
       setActionLoading(false)
     }
@@ -285,12 +320,21 @@ export function StockCardDetailModal({ open, onClose, item }: StockCardDetailMod
 
       setIsEditing(false)
       setActionError("")
+      toast({
+        title: "✏️ Stock Updated Successfully",
+        description: "Stock details have been updated",
+      })
       // Refresh the parent component data
       onClose()
       window.location.reload()
     } catch (error: any) {
       console.error("[v0] Error updating stock:", error)
       setActionError(error.message || "Failed to update stock")
+      toast({
+        title: "❌ Update Failed",
+        description: error.message || "Failed to update stock",
+        variant: "destructive",
+      })
     } finally {
       setActionLoading(false)
     }
@@ -331,9 +375,18 @@ export function StockCardDetailModal({ open, onClose, item }: StockCardDetailMod
 
       setShowCentralTransfer(false)
       setCentralTransferData({ quantity: 1, notes: "" })
+      toast({
+        title: "↔️ Transfer Successful",
+        description: `${centralTransferData.quantity} unit(s) transferred from Central Stores`,
+      })
       window.location.reload()
     } catch (error: any) {
       setActionError(error.message || "Failed to transfer from Central Stores")
+      toast({
+        title: "❌ Transfer Failed",
+        description: error.message || "Failed to transfer from Central Stores",
+        variant: "destructive",
+      })
     } finally {
       setActionLoading(false)
     }
@@ -708,6 +761,138 @@ export function StockCardDetailModal({ open, onClose, item }: StockCardDetailMod
                               <div className="col-span-2">
                                 <p className="text-muted-foreground">Notes</p>
                                 <p className="text-sm">{transfer.notes}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Assignment History Section */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Assignment History
+            </h3>
+
+            {loading ? (
+              <p className="text-center py-8 text-muted-foreground">Loading assignments...</p>
+            ) : assignments.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground">No assignment history available</p>
+            ) : (
+              <div className="space-y-3">
+                {assignments.map((assignment) => (
+                  <Card key={assignment.id}>
+                    <CardContent className="pt-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <UserPlus className="h-4 w-4 text-blue-500" />
+                            <span className="font-medium">
+                              Assigned to {assignment.assigned_to}
+                            </span>
+                            <Badge variant={assignment.status === "assigned" ? "default" : "secondary"}>
+                              {assignment.status}
+                            </Badge>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <p className="text-muted-foreground">Quantity</p>
+                              <p className="font-semibold">{assignment.quantity} units</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Date</p>
+                              <p>{assignment.formatted_date}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Location</p>
+                              <p>{assignment.office_location}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Room</p>
+                              <p>{assignment.room_number || "N/A"}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Assigned By</p>
+                              <p>{assignment.assigned_by || "System"}</p>
+                            </div>
+                            {assignment.notes && (
+                              <div className="col-span-2">
+                                <p className="text-muted-foreground">Notes/Remarks</p>
+                                <p className="text-sm">{assignment.notes}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Transaction History Section */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Transaction History
+            </h3>
+
+            {loading ? (
+              <p className="text-center py-8 text-muted-foreground">Loading transactions...</p>
+            ) : transactions.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground">No transaction history available</p>
+            ) : (
+              <div className="space-y-3">
+                {transactions.map((transaction) => (
+                  <Card key={transaction.id}>
+                    <CardContent className="pt-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <FileText className="h-4 w-4 text-green-500" />
+                            <span className="font-medium">
+                              {transaction.transaction_type.toUpperCase()} - {transaction.quantity} units
+                            </span>
+                            <Badge variant="outline">
+                              {transaction.reference_type}
+                            </Badge>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <p className="text-muted-foreground">Location</p>
+                              <p>{transaction.location_name}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Date</p>
+                              <p>{transaction.formatted_date}</p>
+                            </div>
+                            {transaction.recipient && (
+                              <div>
+                                <p className="text-muted-foreground">Recipient</p>
+                                <p>{transaction.recipient}</p>
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-muted-foreground">Performed By</p>
+                              <p>{transaction.performed_by || "System"}</p>
+                            </div>
+                            {transaction.reference_number && (
+                              <div>
+                                <p className="text-muted-foreground">Reference</p>
+                                <p className="font-mono text-xs">{transaction.reference_number}</p>
+                              </div>
+                            )}
+                            {transaction.notes && (
+                              <div className="col-span-2">
+                                <p className="text-muted-foreground">Notes</p>
+                                <p className="text-sm">{transaction.notes}</p>
                               </div>
                             )}
                           </div>

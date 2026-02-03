@@ -18,13 +18,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, FileText, Search, CheckCircle, Clock, XCircle, Download, Edit, Trash2 } from "lucide-react"
+import { Plus, FileText, Search, CheckCircle, Clock, XCircle, Download, Edit, Trash2, Package } from "lucide-react"
 import { NewRequisitionForm } from "./new-requisition-form"
 import { IssueItemsForm } from "./issue-items-form"
+import { AddStockToCentralStore } from "./add-stock-to-central-store"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations } from "@/lib/location-filter"
 import { getLocationOptions } from "@/lib/locations"
+import { useToast } from "@/hooks/use-toast"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -89,6 +91,7 @@ export function RequisitionManagement() {
   const [deletingReq, setDeletingReq] = useState<Requisition | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const { user } = useAuth()
+  const { toast } = useToast()
   const supabase = createClient()
 
   const [filteredRequisitions, setFilteredRequisitions] = useState<Requisition[]>([])
@@ -165,12 +168,26 @@ export function RequisitionManagement() {
 
       if (error) {
         console.error("[v0] Error updating requisition:", error)
+        toast({
+          title: "Error",
+          description: "Failed to update requisition status",
+          variant: "destructive",
+        })
         return
       }
 
+      toast({
+        title: newStatus === "approved" ? "✅ Approved" : "❌ Rejected",
+        description: `Requisition has been ${newStatus} successfully`,
+      })
       await loadRequisitions()
     } catch (error) {
       console.error("[v0] Error updating requisition:", error)
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      })
     }
   }
 
@@ -187,12 +204,26 @@ export function RequisitionManagement() {
 
       if (error) {
         console.error("[v0] Error issuing requisition:", error)
+        toast({
+          title: "Error",
+          description: "Failed to issue requisition",
+          variant: "destructive",
+        })
         return
       }
 
+      toast({
+        title: "📦 Items Issued",
+        description: "Requisition items have been issued successfully",
+      })
       await loadRequisitions()
     } catch (error) {
       console.error("[v0] Error issuing requisition:", error)
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      })
     }
   }
 
@@ -212,15 +243,29 @@ export function RequisitionManagement() {
 
       if (!response.ok) {
         console.error("[v0] Error allocating requisition")
+        toast({
+          title: "Error",
+          description: "Failed to allocate requisition",
+          variant: "destructive",
+        })
         return
       }
 
+      toast({
+        title: "🏢 Allocated",
+        description: `Requisition allocated to ${allocateLocation} successfully`,
+      })
       setAllocateOpen(false)
       setAllocatingReq(null)
       setAllocateLocation("")
       await loadRequisitions()
     } catch (error) {
       console.error("[v0] Error allocating requisition:", error)
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      })
     }
   }
 
@@ -268,16 +313,30 @@ export function RequisitionManagement() {
 
       if (!response.ok) {
         setEditError(result.error || "Failed to update requisition")
+        toast({
+          title: "Error",
+          description: result.error || "Failed to update requisition",
+          variant: "destructive",
+        })
         return
       }
 
       console.log("[v0] Requisition updated successfully")
+      toast({
+        title: "✏️ Updated",
+        description: "Requisition has been updated successfully",
+      })
       setEditReqOpen(false)
       setEditingReq(null)
       await loadRequisitions()
     } catch (error) {
       console.error("[v0] Error updating requisition:", error)
       setEditError("Failed to update requisition")
+      toast({
+        title: "Error",
+        description: "Failed to update requisition",
+        variant: "destructive",
+      })
     } finally {
       setEditLoading(false)
     }
@@ -320,12 +379,19 @@ export function RequisitionManagement() {
 
       if (!response.ok) {
         console.error("[v0] API error response:", result)
-        alert(result.error || `Failed to ${action} requisition`)
+        toast({
+          title: "Error",
+          description: result.error || `Failed to ${action} requisition`,
+          variant: "destructive",
+        })
         return
       }
 
       console.log("[v0] Requisition", action, "successfully")
-      alert(`Requisition ${action}ed successfully${action === "approve" ? " and stock has been transferred" : ""}`)
+      toast({
+        title: action === "approve" ? "✅ Approved" : "❌ Rejected",
+        description: `Requisition ${action}ed successfully${action === "approve" ? " and stock has been transferred" : ""}`,
+      })
       
       // Dispatch event to refresh inventory in all dashboards
       if (action === "approve") {
@@ -339,7 +405,11 @@ export function RequisitionManagement() {
       await loadRequisitions()
     } catch (error) {
       console.error("[v0] Error processing requisition:", error)
-      alert("An error occurred while processing the requisition")
+      toast({
+        title: "Error",
+        description: "An error occurred while processing the requisition",
+        variant: "destructive",
+      })
     } finally {
       setIsApproving(false)
     }
@@ -363,11 +433,18 @@ export function RequisitionManagement() {
       const result = await response.json()
 
       if (!response.ok) {
-        alert(`Error deleting requisition: ${result.error}`)
+        toast({
+          title: "Error",
+          description: `Error deleting requisition: ${result.error}`,
+          variant: "destructive",
+        })
         return
       }
 
-      alert("Requisition deleted successfully")
+      toast({
+        title: "🗑️ Deleted",
+        description: "Requisition deleted successfully",
+      })
       setDeleteConfirmOpen(false)
       setDeletingReq(null)
       await loadRequisitions()
@@ -377,6 +454,13 @@ export function RequisitionManagement() {
     } finally {
       setIsDeleting(false)
     }
+  }
+
+  // Check if user can create requisitions (only admin and it_store_head)
+  const canCreateRequisition = () => {
+    if (!user?.role) return false
+    const allowedRoles = ["admin", "it_store_head"]
+    return allowedRoles.includes(user.role)
   }
 
   const getFilteredByStatus = (status: string) => {
@@ -399,21 +483,35 @@ export function RequisitionManagement() {
           <h1 className="text-3xl font-bold text-foreground">Store Requisitions</h1>
           <p className="text-muted-foreground">Manage IT item requisitions and issuances (SIV)</p>
         </div>
-        <Dialog open={newReqOpen} onOpenChange={setNewReqOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              New Requisition
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>New Store Requisition</DialogTitle>
-              <DialogDescription>Request IT items from the store inventory</DialogDescription>
-            </DialogHeader>
-            <NewRequisitionForm onSubmit={() => setNewReqOpen(false)} />
-          </DialogContent>
-        </Dialog>
+        <div className="flex gap-2 flex-wrap">
+          {/* Add Stock to Central Store - Only Admin or IT Store Head */}
+          {(user?.role === "admin" || user?.role === "it_store_head") && (
+            <AddStockToCentralStore onStockAdded={loadRequisitions} />
+          )}
+          
+          {canCreateRequisition() ? (
+            <Dialog open={newReqOpen} onOpenChange={setNewReqOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Requisition
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>New Store Requisition</DialogTitle>
+                  <DialogDescription>Request IT items from the store inventory</DialogDescription>
+                </DialogHeader>
+                <NewRequisitionForm onSubmit={() => setNewReqOpen(false)} />
+              </DialogContent>
+            </Dialog>
+          ) : (
+            <div className="p-3 border border-amber-300 bg-amber-50 rounded-md text-amber-800">
+              <p className="text-sm font-medium">Restricted Access</p>
+              <p className="text-xs">Only <strong>Admin</strong> or <strong>IT Store Head</strong> can create requisitions from Central Stores.</p>
+            </div>
+          )}
+        </div>
       </div>
 
       <Card>

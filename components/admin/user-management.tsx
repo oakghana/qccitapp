@@ -36,6 +36,7 @@ import { getRoleColorScheme } from "@/lib/role-colors"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/supabase/supabase-client"
 import { getLocationOptions, LOCATIONS } from "@/lib/locations"
+import { useToast } from "@/hooks/use-toast"
 
 interface SystemUser {
   id: string
@@ -91,6 +92,7 @@ const canSeeAllLocations = (user: any) => {
 
 export function UserManagement() {
   const { user: currentUser } = useAuth()
+  const { toast } = useToast()
   const { isInstalled, isInstallable } = usePWAInstall()
   const [users, setUsers] = useState<SystemUser[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -209,12 +211,20 @@ export function UserManagement() {
 
         if (error) {
           console.error("[v0] Error deleting user:", error)
-          alert("Failed to delete user. Please try again.")
+          toast({
+            title: "❌ Failed to Delete User",
+            description: "Failed to delete user. Please try again.",
+            variant: "destructive",
+          })
           return
         }
 
         // Remove from UI
         setUsers(users.filter((user) => user.id !== userId))
+        toast({
+          title: "🗑️ User Deleted Successfully",
+          description: "The user account has been removed",
+        })
       } else {
         // Update user status
         const newStatus = action === "activate" ? "approved" : action === "deactivate" ? "pending" : "suspended"
@@ -231,7 +241,11 @@ export function UserManagement() {
 
         if (error) {
           console.error("[v0] Error updating user status:", error)
-          alert("Failed to update user status. Please try again.")
+          toast({
+            title: "❌ Failed to Update User Status",
+            description: "Failed to update user status. Please try again.",
+            variant: "destructive",
+          })
           return
         }
 
@@ -253,10 +267,24 @@ export function UserManagement() {
             return user
           }),
         )
+        
+        const actionNames = {
+          activate: "activated",
+          deactivate: "deactivated",
+          suspend: "suspended",
+        }
+        toast({
+          title: `✅ User ${actionNames[action]}`,
+          description: `User account has been ${actionNames[action]} successfully`,
+        })
       }
     } catch (error) {
       console.error("[v0] Error in handleUserAction:", error)
-      alert("An error occurred. Please try again.")
+      toast({
+        title: "❌ Error",
+        description: "An error occurred. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 

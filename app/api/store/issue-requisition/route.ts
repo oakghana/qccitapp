@@ -33,6 +33,10 @@ export async function POST(request: Request) {
     }
 
     const requisitionItems = items || requisition.items || []
+    const sourceLocation = location || requisition.location
+    const destinationLocation = requisition.destination_location
+
+    console.log("[v0] Processing requisition - Source:", sourceLocation, "Destination:", destinationLocation)
 
     // Process each item
     for (const item of requisitionItems) {
@@ -68,25 +72,115 @@ export async function POST(request: Request) {
         )
       }
 
-      // Update stock level
-      const { error: updateError } = await supabaseAdmin
-        .from("store_items")
-        .update({
-          quantity: newQuantity,
-          quantity_in_stock: newQuantity,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.item_id)
+      // Handle stock transfer between locations
+      if (destinationLocation && destinationLocation !== sourceLocation) {
+        console.log(`[v0] Processing stock transfer from ${sourceLocation} to ${destinationLocation}`)
+        
+        // Update source location (deduct stock)
+        const { error: sourceUpdateError } = await supabaseAdmin
+          .from("store_items")
+          .update({
+            quantity: newQuantity,
+            quantity_in_stock: newQuantity,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", item.item_id)
 
-      if (updateError) {
-        console.error("[v0] Error updating stock:", updateError)
-        return NextResponse.json(
-          { error: `Failed to update stock for ${item.itemName}` },
-          { status: 500 }
-        )
+        if (sourceUpdateError) {
+          console.error("[v0] Error updating source stock:", sourceUpdateError)
+          return NextResponse.json(
+            { error: `Failed to update stock at source location for ${item.itemName}` },
+            { status: 500 }
+          )
+        }
+
+        // Check if item exists at destination location
+        const { data: destinationItem, error: destFetchError } = await supabaseAdmin
+          .from("store_items")
+          .select("*")
+          .eq("name", currentItem.name)
+          .eq("location", destinationLocation)
+          .single()
+
+        if (destFetchError && destFetchError.code !== 'PGRST116') {
+          console.error("[v0] Error checking destination item:", destFetchError)
+          return NextResponse.json(
+            { error: `Failed to check destination stock for ${item.itemName}` },
+            { status: 500 }
+          )
+        }
+
+        if (destinationItem) {
+          // Update existing item at destination
+          const { error: destUpdateError } = await supabaseAdmin
+            .from("store_items")
+            .update({
+              quantity: destinationItem.quantity + item.quantity,
+              quantity_in_stock: destinationItem.quantity_in_stock + item.quantity,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", destinationItem.id)
+
+          if (destUpdateError) {
+            console.error("[v0] Error updating destination stock:", destUpdateError)
+            return NextResponse.json(
+              { error: `Failed to update destination stock for ${item.itemName}` },
+              { status: 500 }
+            )
+          }
+          
+          console.log(`[v0] Updated destination stock for ${item.itemName}: ${destinationItem.quantity} -> ${destinationItem.quantity + item.quantity}`)
+        } else {
+          // Create new item at destination location
+          const { error: destCreateError } = await supabaseAdmin
+            .from("store_items")
+            .insert({
+              name: currentItem.name,
+              description: currentItem.description,
+              category: currentItem.category,
+              sku: currentItem.sku,
+              quantity: item.quantity,
+              quantity_in_stock: item.quantity,
+              unit_price: currentItem.unit_price,
+              location: destinationLocation,
+              supplier: currentItem.supplier,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+
+          if (destCreateError) {
+            console.error("[v0] Error creating destination item:", destCreateError)
+            return NextResponse.json(
+              { error: `Failed to create item at destination for ${item.itemName}` },
+              { status: 500 }
+            )
+          }
+          
+          console.log(`[v0] Created new item at destination for ${item.itemName}: quantity ${item.quantity}`)
+        }
+
+        console.log(`[v0] Stock transfer completed for ${item.itemName}: ${sourceLocation} (-${item.quantity}) -> ${destinationLocation} (+${item.quantity})`)
+      } else {
+        // Standard stock reduction for same location
+        const { error: updateError } = await supabaseAdmin
+          .from("store_items")
+          .update({
+            quantity: newQuantity,
+            quantity_in_stock: newQuantity,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", item.item_id)
+
+        if (updateError) {
+          console.error("[v0] Error updating stock:", updateError)
+          return NextResponse.json(
+            { error: `Failed to update stock for ${item.itemName}` },
+            { status: 500 }
+          )
+        }
+
+        console.log(`[v0] Stock reduced for ${item.itemName}: ${currentItem.quantity} -> ${newQuantity}`)
       }
-
-      console.log(`[v0] Stock reduced for ${item.itemName}: ${currentItem.quantity} -> ${newQuantity}`)
 
       // Create device entries for issued items
       // Only create device entries for actual hardware/equipment categories
@@ -94,6 +188,9 @@ export async function POST(request: Request) {
       const shouldCreateDevice = deviceCategories.some(cat => 
         currentItem.category?.toLowerCase().includes(cat.toLowerCase())
       )
+
+      // Use destination location if transfer, otherwise use source location
+      const effectiveLocation = destinationLocation || sourceLocation
 
       if (shouldCreateDevice) {
         // Create device entries for each quantity
@@ -106,11 +203,11 @@ export async function POST(request: Request) {
             model: currentItem.name,
             serial_number: serialNumber,
             status: "in_use",
-            location: location,
+            location: effectiveLocation,
             assigned_to: recipientName,
             office_location: officeLocation,
             room_number: roomNumber,
-            notes: `Issued via requisition ${requisition.requisition_number}. ${notes || ""}`.trim(),
+            notes: `Issued via requisition ${requisition.requisition_number}${destinationLocation ? ` (transferred from ${sourceLocation} to ${destinationLocation})` : ''}. ${notes || ""}`.trim(),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           }).select().single()
@@ -129,10 +226,10 @@ export async function POST(request: Request) {
               assigned_to: recipientName,
               office_location: officeLocation,
               room_number: roomNumber,
-              location: location,
+              location: effectiveLocation,
               status: "assigned",
               assigned_by: "Store Manager",
-              notes: `Issued via ${requisition.requisition_number}`,
+              notes: `Issued via ${requisition.requisition_number}${destinationLocation ? ` (transferred from ${sourceLocation})` : ''}`,
               created_at: new Date().toISOString(),
             })
           }
@@ -146,10 +243,10 @@ export async function POST(request: Request) {
           assigned_to: recipientName,
           office_location: officeLocation,
           room_number: roomNumber,
-          location: location,
+          location: effectiveLocation,
           status: "assigned",
           assigned_by: "Store Manager",
-          notes: `Issued via ${requisition.requisition_number}. ${notes || ""}`.trim(),
+          notes: `Issued via ${requisition.requisition_number}${destinationLocation ? ` (transferred from ${sourceLocation})` : ''}`,
           created_at: new Date().toISOString(),
         })
       }
@@ -159,14 +256,14 @@ export async function POST(request: Request) {
         p_item_id: item.item_id,
         p_transaction_type: 'issue',
         p_quantity: item.quantity,
-        p_location: location,
+        p_location: effectiveLocation,
         p_recipient: recipientName,
         p_office_location: officeLocation,
         p_room_number: roomNumber || null,
         p_reference_type: 'requisition',
         p_reference_id: requisitionId,
         p_reference_number: requisition.requisition_number,
-        p_notes: notes || `Issued via ${requisition.requisition_number}`,
+        p_notes: notes || `Issued via ${requisition.requisition_number}${destinationLocation ? ` (transferred from ${sourceLocation})` : ''}`,
         p_performed_by: "Store Manager"
       })
 
@@ -179,14 +276,14 @@ export async function POST(request: Request) {
           transaction_type: "issue",
           quantity: item.quantity,
           unit: item.unit,
-          location_name: location,
+          location_name: effectiveLocation,
           recipient: recipientName,
           office_location: officeLocation,
           room_number: roomNumber,
           reference_type: 'requisition',
           reference_id: requisitionId,
           reference_number: requisition.requisition_number,
-          notes: notes || `Issued via ${requisition.requisition_number}`,
+          notes: notes || `Issued via ${requisition.requisition_number}${destinationLocation ? ` (transferred from ${sourceLocation})` : ''}`,
           performed_by: "Store Manager",
           created_at: new Date().toISOString(),
         })

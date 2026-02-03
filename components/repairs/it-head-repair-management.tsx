@@ -27,6 +27,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations, canCreateRepairs } from "@/lib/location-filter"
+import { useToast } from "@/hooks/use-toast"
 
 interface Device {
   id: string
@@ -72,6 +73,7 @@ interface RepairTask {
 
 export function ITHeadRepairManagement() {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [tasks, setTasks] = useState<RepairTask[]>([])
   const [devices, setDevices] = useState<Device[]>([])
   const [serviceProviders, setServiceProviders] = useState<ServiceProvider[]>([])
@@ -352,10 +354,19 @@ export function ITHeadRepairManagement() {
 
       if (!response.ok) {
         console.error("[v0] Error saving repair task:", result.error)
+        toast({
+          title: "❌ Failed to Create Repair Task",
+          description: result.error || "Failed to create repair task",
+          variant: "destructive",
+        })
         return
       }
 
       console.log("[v0] Repair task saved successfully:", result)
+      toast({
+        title: "🔧 Repair Task Created Successfully",
+        description: "The repair request has been submitted",
+      })
 
       // Reload tasks
       await loadRepairTasks()
@@ -370,6 +381,11 @@ export function ITHeadRepairManagement() {
       setShowCreateDialog(false)
     } catch (error) {
       console.error("[v0] Error saving repair task:", error)
+      toast({
+        title: "❌ Error",
+        description: "An unexpected error occurred while creating repair task",
+        variant: "destructive",
+      })
     }
   }
 
@@ -414,10 +430,19 @@ export function ITHeadRepairManagement() {
 
       if (!response.ok) {
         console.error("[v0] Error updating repair task:", result.error)
+        toast({
+          title: "❌ Failed to Update Repair Task",
+          description: result.error || "Failed to update repair task",
+          variant: "destructive",
+        })
         return
       }
 
       console.log("[v0] Repair task updated successfully:", result)
+      toast({
+        title: "✏️ Repair Task Updated Successfully",
+        description: "The repair request has been updated",
+      })
 
       // Reload tasks
       await loadRepairTasks()
@@ -432,6 +457,11 @@ export function ITHeadRepairManagement() {
       setShowEditDialog(false)
     } catch (error) {
       console.error("[v0] Error updating repair task:", error)
+      toast({
+        title: "❌ Error",
+        description: "An unexpected error occurred while updating repair task",
+        variant: "destructive",
+      })
     }
   }
 
@@ -453,15 +483,29 @@ export function ITHeadRepairManagement() {
 
       if (!response.ok) {
         console.error("[v0] Error deleting repair task:", result.error)
+        toast({
+          title: "❌ Failed to Delete Repair Task",
+          description: result.error || "Failed to delete repair task",
+          variant: "destructive",
+        })
         return
       }
 
       console.log("[v0] Repair task deleted successfully")
+      toast({
+        title: "🗑️ Repair Task Deleted Successfully",
+        description: "The repair request has been removed",
+      })
 
       // Reload tasks
       await loadRepairTasks()
     } catch (error) {
       console.error("[v0] Error deleting repair task:", error)
+      toast({
+        title: "❌ Error",
+        description: "An unexpected error occurred while deleting repair task",
+        variant: "destructive",
+      })
     }
   }
 

@@ -12,6 +12,7 @@ import { Plus, Trash2, AlertCircle } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
 import { getLocationOptions } from "@/lib/locations"
+import { useToast } from "@/hooks/use-toast"
 
 interface StoreItem {
   id: string
@@ -65,6 +66,7 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const { user } = useAuth()
+  const { toast } = useToast()
   const supabase = createClient()
   const [availableItems, setAvailableItems] = useState<StoreItem[]>([])
   const [loadingItems, setLoadingItems] = useState(true)
@@ -72,7 +74,8 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
   const [formData, setFormData] = useState({
     requestedBy: user?.full_name || "",
     beneficiary: "",
-    location: user?.location || "",
+    location: "central_stores", // Source is always Central Stores
+    destinationLocation: "", // Destination location for transfers
     itReqNumber: "", // IT Requisition Number field
     notes: "",
     items: [{ item_id: "", itemName: "", quantity: "", unit: "pcs", availableQty: 0 }],
@@ -167,9 +170,23 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
     setFormData({ ...formData, items: updatedItems })
   }
 
+  // Check if sourcing from Central Stores
+  const isFromCentralStores = () => {
+    const locationVariations = getLocationVariations(formData.location)
+    return locationVariations.some(loc => 
+      loc.toLowerCase().includes("central") && loc.toLowerCase().includes("store")
+    )
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+
+    // Validate destination location is required
+    if (!formData.destinationLocation) {
+      setError("Please select a destination location for the requisition")
+      return
+    }
 
     for (const item of formData.items) {
       if (!item.item_id) {
@@ -188,50 +205,55 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
     setLoading(true)
 
     try {
-      const date = new Date()
-      const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "")
-      const randomNum = Math.floor(Math.random() * 1000)
-        .toString()
-        .padStart(3, "0")
-      const requisitionNumber = `REQ-${dateStr}-${randomNum}`
+      console.log("[v0] Submitting requisition via API:", formData)
 
-      console.log("[v0] Saving requisition to Supabase:", formData)
+      const response = await fetch("/api/store/requisitions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requestedBy: formData.requestedBy,
+          requestedByRole: user?.role || 'unknown',
+          beneficiary: formData.beneficiary,
+          location: "central_stores", // Always source from Central Stores
+          destinationLocation: formData.destinationLocation,
+          itReqNumber: formData.itReqNumber,
+          items: formData.items.map((item) => ({
+            item_id: item.item_id,
+            itemName: item.itemName,
+            quantity: Number.parseInt(item.quantity),
+            unit: item.unit,
+          })),
+          notes: formData.notes,
+        }),
+      })
 
-      const { data, error: insertError } = await supabase
-        .from("store_requisitions")
-        .insert([
-          {
-            requisition_number: requisitionNumber,
-            requested_by: formData.requestedBy,
-            requested_by_role: user.role,
-            beneficiary: formData.beneficiary,
-            location: formData.location,
-            it_req_number: formData.itReqNumber, // Add IT Req Number to database
-            items: formData.items.map((item) => ({
-              item_id: item.item_id,
-              itemName: item.itemName,
-              quantity: Number.parseInt(item.quantity),
-              unit: item.unit,
-            })),
-            status: "pending",
-            notes: formData.notes,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-        ])
-        .select()
+      const result = await response.json()
 
-      if (insertError) {
-        console.error("[v0] Error saving requisition:", insertError)
-        setError(insertError.message)
+      if (!response.ok) {
+        console.error("[v0] Error saving requisition:", result.error)
+        setError(result.error || "Failed to save requisition")
+        toast({
+          title: "Error",
+          description: result.error || "Failed to save requisition",
+          variant: "destructive",
+        })
         return
       }
 
-      console.log("[v0] Requisition saved successfully:", data)
+      console.log("[v0] Requisition saved successfully:", result)
+      toast({
+        title: "📋 Requisition Created",
+        description: "Your requisition has been submitted successfully",
+      })
       onSubmit()
     } catch (err) {
       console.error("[v0] Error:", err)
       setError("Failed to save requisition")
+      toast({
+        title: "Error",
+        description: "Failed to save requisition",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -272,29 +294,35 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="location">Location *</Label>
+          <Label htmlFor="location">To Location *</Label>
           <Select 
-            value={formData.location} 
+            value={formData.destinationLocation} 
             onValueChange={(value) => {
-              // Reset items when location changes
               setFormData({ 
                 ...formData, 
-                location: value,
-                items: [{ item_id: "", itemName: "", quantity: "", unit: "pcs", availableQty: 0 }]
+                destinationLocation: value
               })
             }}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Select location" />
+              <SelectValue placeholder="Select destination location" />
             </SelectTrigger>
             <SelectContent>
-              {getLocationOptions().map((location) => (
-                <SelectItem key={location.value} value={location.value}>
-                  {location.label}
-                </SelectItem>
-              ))}
+              {getLocationOptions()
+                .filter(location => 
+                  // Exclude Central Stores since that's the source
+                  location.value !== "central_stores"
+                )
+                .map((location) => (
+                  <SelectItem key={location.value} value={location.value}>
+                    {location.label}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
+          <p className="text-xs text-muted-foreground">
+            Items will be requisitioned from Central Stores to this location.
+          </p>
         </div>
 
         <div className="space-y-2">
@@ -307,6 +335,8 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
           />
         </div>
       </div>
+
+
 
       <div className="space-y-2">
         <Label htmlFor="notes">Notes / Purpose</Label>
@@ -328,18 +358,16 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
           </Button>
         </div>
 
-        {!formData.location ? (
-          <p className="text-sm text-muted-foreground">Please select a location first to see available items</p>
-        ) : loadingItems ? (
-          <p className="text-sm text-muted-foreground">Loading available items from {formData.location}...</p>
+        {loadingItems ? (
+          <p className="text-sm text-muted-foreground">Loading available items from Central Stores...</p>
         ) : availableItems.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No items available at {formData.location}</p>
+          <p className="text-sm text-muted-foreground">No items available at Central Stores</p>
         ) : (
           formData.items.map((item, index) => (
             <div key={index} className="space-y-2 p-4 border rounded-lg">
               <div className="grid grid-cols-12 gap-2 items-end">
                 <div className="col-span-6 space-y-2">
-                  <Label>Select Item from Stock at {formData.location} *</Label>
+                  <Label>Select Item from Stock at Head Office *</Label>
                   <Select value={item.item_id} onValueChange={(value) => updateItem(index, "item_id", value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Choose an item" />
