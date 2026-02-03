@@ -22,6 +22,45 @@ interface StoreItem {
   location: string
 }
 
+// Helper function to generate location name variations for database queries
+function getLocationVariations(location: string): string[] {
+  const variations = [location]
+  
+  // Map display names to database variations
+  const locationMap: Record<string, string[]> = {
+    "head_office": ["head_office", "Head Office"],
+    "Head Office": ["head_office", "Head Office"],
+    "central_stores": ["central_stores", "Central Stores"],
+    "Central Stores": ["central_stores", "Central Stores"],
+    "cr": ["cr", "CR", "Central Region"],
+    "Central Region": ["cr", "CR", "Central Region"],
+    "eastern": ["eastern", "Eastern", "Eastern Region", "er", "ER"],
+    "Eastern Region": ["eastern", "Eastern", "Eastern Region", "er", "ER"],
+    "kaase": ["kaase", "Kaase"],
+    "Kaase": ["kaase", "Kaase"],
+    "kumasi": ["kumasi", "Kumasi"],
+    "Kumasi": ["kumasi", "Kumasi"],
+    "takoradi_port": ["takoradi_port", "Takoradi Port"],
+    "Takoradi Port": ["takoradi_port", "Takoradi Port"],
+    "tema_port": ["tema_port", "Tema Port"],
+    "Tema Port": ["tema_port", "Tema Port"],
+    "tema_research": ["tema_research", "Tema Research"],
+    "Tema Research": ["tema_research", "Tema Research"],
+    "tema_training_school": ["tema_training_school", "Tema Training School"],
+    "Tema Training School": ["tema_training_school", "Tema Training School"],
+    "vr": ["vr", "VR", "Volta Region"],
+    "Volta Region": ["vr", "VR", "Volta Region"],
+    "wn": ["wn", "WN", "Western North"],
+    "Western North": ["wn", "WN", "Western North"],
+    "ws": ["ws", "WS", "Western South"],
+    "Western South": ["ws", "WS", "Western South"],
+    "bar": ["bar", "BAR"],
+    "BAR": ["bar", "BAR"],
+  }
+  
+  return locationMap[location] || [location]
+}
+
 export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -41,6 +80,11 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
 
   useEffect(() => {
     loadAvailableItems()
+    // Debug: Check what locations exist in the database
+    supabase.from("store_items").select("location").then(({ data }) => {
+      const uniqueLocations = [...new Set(data?.map(item => item.location) || [])]
+      console.log("[v0] All locations in store_items:", uniqueLocations)
+    })
   }, [formData.location])
 
   const loadAvailableItems = async () => {
@@ -54,15 +98,26 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
         return
       }
 
+      console.log("[v0] Loading items for location:", formData.location)
+
+      // Create location name variations to handle database inconsistencies
+      const locationVariations = getLocationVariations(formData.location)
+      console.log("[v0] Checking location variations:", locationVariations)
+
       const { data, error } = await supabase
         .from("store_items")
         .select("*")
-        .eq("location", formData.location)
+        .in("location", locationVariations)
         .gt("quantity", 0)
         .order("name")
 
       if (error) {
         console.error("[v0] Error loading store items:", error)
+        setLoadingItems(false)
+        return
+      }
+
+      console.log(`[v0] Found ${data?.length || 0} items at ${formData.location}:`, data)
         return
       }
 
