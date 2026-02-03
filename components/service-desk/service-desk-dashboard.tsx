@@ -283,16 +283,16 @@ export function ServiceDeskDashboard() {
                   </div>
                 ) : (
                   filteredTickets.map((ticket) => {
-                  const IconComponent = categoryIcons[ticket.category as keyof typeof categoryIcons] || Monitor
-                  return (
-                    <div key={ticket.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-green-100 dark:bg-green-950/30 rounded-lg">
-                          <IconComponent className="h-4 w-4 text-green-600 dark:text-green-400" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-sm">{ticket.title}</h4>
-                          <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                    const IconComponent = categoryIcons[ticket.category as keyof typeof categoryIcons] || Monitor
+                    return (
+                      <div key={ticket.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <div className="p-2 bg-green-100 dark:bg-green-950/30 rounded-lg">
+                            <IconComponent className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-sm">{ticket.title}</h4>
+                            <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                             <MapPin className="h-3 w-3" />
                             <span>{ticket.locationName}</span>
                             <span>•</span>
@@ -353,6 +353,7 @@ export function ServiceDeskDashboard() {
                         )}
                       </div>
                     </div>
+                    )
                   })
                 )}
               </div>
