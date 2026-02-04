@@ -40,13 +40,13 @@ export async function GET(request: Request) {
 
     // Apply location-based access control
     if (userRole === "it_staff" && userLocation) {
-      // IT Staff can only see documents for their location that are confirmed (have confirmations)
+      // IT Staff can only see documents for their location or documents for all locations (null)
       console.log("[v0] IT Staff filter - location:", userLocation)
-      query = query.eq("target_location", userLocation)
+      query = query.or(`target_location.eq.${userLocation},target_location.is.null`)
     } else if (userRole === "regional_it_head" && userLocation) {
-      // Regional IT Heads see ALL documents for THEIR LOCATION (no approval needed, no filters)
+      // Regional IT Heads see ALL documents for THEIR LOCATION OR documents for all locations
       console.log("[v0] Regional IT Head - showing all documents for location:", userLocation)
-      query = query.eq("target_location", userLocation)
+      query = query.or(`target_location.eq.${userLocation},target_location.is.null`)
     } else if (userRole === "it_head") {
       // IT Heads see all active documents (no location restriction)
       console.log("[v0] IT Head - showing all active documents")
@@ -54,7 +54,7 @@ export async function GET(request: Request) {
     } else if (location && location !== "all") {
       // Fallback for other roles with explicit location filter
       console.log("[v0] Filtering by location:", location)
-      query = query.eq("target_location", location)
+      query = query.or(`target_location.eq.${location},target_location.is.null`)
     }
 
     const { data, error } = await query
