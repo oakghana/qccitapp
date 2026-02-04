@@ -59,9 +59,10 @@ export async function POST(request: NextRequest) {
     })
 
     // If requester is IT Head, IT Store Head, or Admin - auto-approve without waiting
-    if (isAutoApprovalRole && approvalAction !== "approve") {
+    if (isAutoApprovalRole) {
       console.log("[v0] Auto-approving requisition from privileged role:", requestedByRole)
-      // Continue to automatic approval below
+      // Auto-approve for these roles - no approval dialog needed
+      approvalAction = "approve"
     } else if (requiresApproval && (!approvalAction || approvalAction === "reject")) {
       // Regional IT or IT Staff can be rejected without explicit approval check
       if (approvalAction !== "reject") {
