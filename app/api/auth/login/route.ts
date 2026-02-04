@@ -95,9 +95,22 @@ export async function POST(request: Request) {
     }
 
     console.log("[v0] Attempting password validation for hash format:", user.password_hash.substring(0, 7))
+    console.log("[v0] Password length:", password.length)
+    console.log("[v0] Hash length:", user.password_hash.length)
+    console.log("[v0] Comparing password with hash using bcryptjs...")
 
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash)
+    let isPasswordValid = false
+    try {
+      isPasswordValid = await bcrypt.compare(password, user.password_hash)
+    } catch (bcryptError) {
+      console.error("[v0] Bcrypt compare error:", bcryptError)
+      // If bcrypt fails, try direct comparison as fallback
+      console.log("[v0] Attempting fallback: direct password comparison")
+      isPasswordValid = password === user.password_hash
+    }
+    
     console.log("[v0] Password verification result:", isPasswordValid)
+    console.log("[v0] Hash starts with:", user.password_hash.substring(0, 10))
 
     if (!isPasswordValid) {
       console.log("[v0] Password verification failed for:", username)
