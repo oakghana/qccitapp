@@ -11,7 +11,7 @@ import { NewTicketForm } from "./new-ticket-form"
 import { KnowledgeBase } from "./knowledge-base"
 import { AssignTicketDialog } from "./assign-ticket-dialog"
 import { useAuth } from "@/lib/auth-context"
-import { createClient } from "@/lib/supabase/client"
+import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 import { Separator } from "@/components/ui/separator"
 import { TicketList } from "./ticket-list" // Import TicketList component
@@ -27,7 +27,6 @@ export function ServiceDeskDashboard() {
   const { toast } = useToast()
   const [allTickets, setAllTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   // Check if user can assign tickets (IT Head, Regional IT Head, Admin)
   const canAssignTickets = () => {
