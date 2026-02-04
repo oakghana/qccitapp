@@ -350,12 +350,8 @@ export function PDFUploadsDashboard() {
       return true
     }
 
-    // Regional IT Heads see ALL documents for THEIR LOCATION ONLY (no approval needed - like admin)
+    // Regional IT Heads see ALL documents for their location (no approval needed, no filters)
     if (user?.role === "regional_it_head") {
-      // Must be for their location
-      if (upload.target_location && upload.target_location !== user.location) {
-        return false
-      }
       if (selectedType !== "all" && upload.document_type !== selectedType) {
         return false
       }

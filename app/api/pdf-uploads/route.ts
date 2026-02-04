@@ -44,8 +44,8 @@ export async function GET(request: Request) {
       console.log("[v0] IT Staff filter - location:", userLocation)
       query = query.eq("target_location", userLocation)
     } else if (userRole === "regional_it_head" && userLocation) {
-      // Regional IT Heads see ALL documents for THEIR LOCATION ONLY (no approval needed)
-      console.log("[v0] Regional IT Head filter - location:", userLocation)
+      // Regional IT Heads see ALL documents for THEIR LOCATION (no approval needed, no filters)
+      console.log("[v0] Regional IT Head - showing all documents for location:", userLocation)
       query = query.eq("target_location", userLocation)
     } else if (userRole === "it_head") {
       // IT Heads see all active documents (no location restriction)
