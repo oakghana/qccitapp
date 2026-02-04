@@ -350,15 +350,10 @@ export function PDFUploadsDashboard() {
       return true
     }
 
-    // Regional IT Heads see confirmed documents + their own uploads for THEIR LOCATION ONLY
+    // Regional IT Heads see ALL documents for THEIR LOCATION ONLY (no approval needed - like admin)
     if (user?.role === "regional_it_head") {
       // Must be for their location
       if (upload.target_location && upload.target_location !== user.location) {
-        return false
-      }
-      // Can see confirmed documents (have confirmations) or their own uploads
-      const isConfirmed = upload.confirmations && upload.confirmations.length > 0
-      if (!isConfirmed && upload.uploaded_by !== user.id) {
         return false
       }
       if (selectedType !== "all" && upload.document_type !== selectedType) {
