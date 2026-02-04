@@ -13,7 +13,7 @@ import { Upload, X, FileText } from "lucide-react"
 import { FormNavigation } from "@/components/ui/form-navigation"
 import { useAuth } from "@/lib/auth-context"
 import { createClient } from "@/lib/supabase/client"
-import { canSeeAllLocations, canCreateRepairs } from "@/lib/location-filter"
+import { canSeeAllLocations, canCreateRepairs, applyLocationFilter } from "@/lib/location-filter"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ShieldAlert } from "lucide-react"
 
@@ -66,10 +66,13 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
 
     setLoading(true)
     try {
-      let query = supabase.from("devices").select("*")
+      let query: any = supabase.from("devices").select("*")
 
       if (!canSeeAllLocations(user) && user.location) {
-        query = query.ilike("location", user.location)
+        // Use centralized helper so filtering matches other parts of the app
+        // This applies the user's location and also includes Central Stores
+        // @ts-ignore - Supabase query typing is dynamic here
+        query = applyLocationFilter(query, user, "location")
       }
 
       const { data, error } = await query
@@ -79,6 +82,7 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
         return
       }
 
+      console.log("[v0] Loaded devices for repair request:", (data || []).length)
       setDevices(data || [])
     } catch (error) {
       console.error("[v0] Error loading devices:", error)
