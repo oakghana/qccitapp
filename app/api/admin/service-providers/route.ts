@@ -15,10 +15,17 @@ export async function GET(request: NextRequest) {
     console.log("[v0] Fetching service providers from service_providers table, activeOnly:", activeOnly)
 
     // Prefer canonical `service_providers` table (this contains provider IDs referenced by repair_requests)
-    let { data: spData, error: spError } = await supabaseAdmin
+    let query = supabaseAdmin
       .from("service_providers")
       .select("id, name, email, phone, specialization, location, is_active")
       .order("name", { ascending: true })
+
+    // Apply active filter if requested
+    if (activeOnly) {
+      query = query.eq("is_active", true)
+    }
+
+    let { data: spData, error: spError } = await query
 
     if (spError) {
       console.error("[v0] Error fetching canonical service_providers:", spError)
@@ -38,7 +45,7 @@ export async function GET(request: NextRequest) {
         is_active: !!p.is_active,
       }))
 
-      console.log("[v0] Loaded service providers from service_providers:", providers.length)
+      console.log("[v0] Loaded service providers from service_providers:", providers.length, "activeOnly:", activeOnly)
       return NextResponse.json({ providers, count: providers.length })
     }
 

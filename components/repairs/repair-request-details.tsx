@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { User, MapPin, FileText, Clock, CheckCircle } from "lucide-react"
+import { REQUEST_PRIORITY_COLORS, REQUEST_STATUS_COLORS, type RequestStatus } from "@/lib/repair-constants"
 
 interface RepairRequest {
   id: string
@@ -11,7 +12,7 @@ interface RepairRequest {
   requestedDate: string
   description: string
   priority: "low" | "medium" | "high" | "urgent"
-  status: "pending" | "approved" | "in_transit" | "with_provider" | "completed" | "rejected"
+  status: RequestStatus
   approvedBy?: string
   approvedDate?: string
   estimatedCompletion?: string
@@ -24,22 +25,6 @@ interface RepairRequest {
 interface RepairRequestDetailsProps {
   request: RepairRequest
 }
-
-const priorityColors = {
-  low: "outline",
-  medium: "secondary",
-  high: "secondary",
-  urgent: "destructive",
-} as const
-
-const statusColors = {
-  pending: "secondary",
-  approved: "default",
-  in_transit: "secondary",
-  with_provider: "secondary",
-  completed: "default",
-  rejected: "destructive",
-} as const
 
 export function RepairRequestDetails({ request }: RepairRequestDetailsProps) {
   const getStatusTimeline = () => {
@@ -107,10 +92,10 @@ export function RepairRequestDetails({ request }: RepairRequestDetailsProps) {
         <div className="flex items-center justify-between">
           <h3 className="text-xl font-semibold">{request.deviceName}</h3>
           <div className="flex items-center space-x-2">
-            <Badge variant={priorityColors[request.priority]}>
+            <Badge variant={REQUEST_PRIORITY_COLORS[request.priority]}>
               {request.priority.charAt(0).toUpperCase() + request.priority.slice(1)} Priority
             </Badge>
-            <Badge variant={statusColors[request.status]}>
+            <Badge variant={REQUEST_STATUS_COLORS[request.status]}>
               {request.status.replace("_", " ").charAt(0).toUpperCase() + request.status.replace("_", " ").slice(1)}
             </Badge>
           </div>
