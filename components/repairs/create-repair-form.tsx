@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 
 interface Device {
   id: string
@@ -26,6 +28,8 @@ export function CreateRepairForm({ onSubmit, onCancel }: CreateRepairFormProps) 
   const [serviceProviders, setServiceProviders] = useState<{ id: string; name: string }[]>([])
   const [devices, setDevices] = useState<Device[]>([])
   const [formData, setFormData] = useState({ serviceProvider: "" })
+  const [searchField, setSearchField] = useState<"location" | "type" | "name">("location")
+  const [searchQuery, setSearchQuery] = useState("")
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prevData) => ({
@@ -54,10 +58,19 @@ export function CreateRepairForm({ onSubmit, onCancel }: CreateRepairFormProps) 
       }
     }
 
-    const fetchDevices = async () => {
+    const fetchDevices = async (field?: string, q?: string) => {
       try {
-        console.log("[v0] Fetching devices for repair form via API...")
-        const response = await fetch("/api/devices?canSeeAll=true")
+        console.log("[v0] Fetching devices for repair form via API...", { field, q })
+        const params = new URLSearchParams()
+        params.set("canSeeAll", "true")
+        if (field && q) {
+          if (field === "location") params.set("location", q)
+          else {
+            params.set("field", field)
+            params.set("q", q)
+          }
+        }
+        const response = await fetch(`/api/devices?${params.toString()}`)
         
         if (!response.ok) {
           const errorData = await response.json()
@@ -75,10 +88,46 @@ export function CreateRepairForm({ onSubmit, onCancel }: CreateRepairFormProps) 
 
     fetchServiceProviders()
     fetchDevices()
+    
+    const handleSearch = async (field?: string, q?: string) => {
+      const query = (q || searchQuery || "").trim()
+      if (!query) {
+        await fetchDevices()
+        return
+      }
+      await fetchDevices(field || searchField, query)
+    }
   }, [])
+
+  const onSearchClick = async (e?: React.MouseEvent) => {
+    if (e) e.preventDefault()
+    const q = (searchQuery || "").trim()
+    if (!q) {
+      await fetchDevices()
+      return
+    }
+    await fetchDevices(searchField, q)
+  }
 
   return (
     <div className="space-y-2">
+      <div className="flex items-end space-x-2 mb-2">
+        <Label className="mr-2">Search Devices</Label>
+        <Select value={searchField} onValueChange={(v) => setSearchField(v as any)}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="location">Location</SelectItem>
+            <SelectItem value="type">Type</SelectItem>
+            <SelectItem value="name">Name</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input placeholder="Search query" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+        <Button onClick={(e) => onSearchClick(e)}>Search</Button>
+        <Button variant="ghost" onClick={() => { setSearchQuery(""); fetchDevices(); }}>Clear</Button>
+      </div>
+
       <Label htmlFor="serviceProvider">Service Provider</Label>
       <Select value={formData.serviceProvider} onValueChange={(value) => handleInputChange("serviceProvider", value)}>
         <SelectTrigger>

@@ -12,18 +12,37 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const location = searchParams.get("location")
     const canSeeAll = searchParams.get("canSeeAll") === "true"
+    const q = searchParams.get("q")
+    const field = searchParams.get("field")
 
-    console.log("[v0] API Devices - location:", location, "canSeeAll:", canSeeAll)
+    console.log("[v0] API Devices - location:", location, "canSeeAll:", canSeeAll, "field:", field, "q:", q)
 
     let query = supabase
       .from("devices")
       .select("*")
       .order("created_at", { ascending: false })
 
-    // Apply location filter if user can't see all locations
-    if (!canSeeAll && location) {
+    // If a free-text search is provided, apply it according to `field`
+    if (q) {
+      const likeQ = `%${q}%`
+      if (field === "type") {
+        // match device_type
+        // @ts-ignore
+        query = query.ilike("device_type", likeQ)
+      } else if (field === "name") {
+        // search brand or model
+        // @ts-ignore
+        query = query.or(`brand.ilike.%${q}%,model.ilike.%${q}%`)
+      } else {
+        // default to location search
+        // @ts-ignore
+        query = query.ilike("location", likeQ)
+      }
+    } else if (!canSeeAll && location) {
+      // Apply location filter if user can't see all locations
       // Use case-insensitive matching with ilike
-      query = query.or(`location.ilike.${location},location.ilike.%${location}%`)
+      // @ts-ignore
+      query = query.ilike("location", `%${location}%`)
     }
 
     const { data, error } = await query
