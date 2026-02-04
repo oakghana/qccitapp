@@ -11,13 +11,15 @@ export async function POST(request: NextRequest) {
   try {
     const {
       requisitionId,
-      approvalAction, // "approve" or "reject"
+      approvalAction: initialApprovalAction, // "approve" or "reject"
       approvedQuantities, // Now a map of item_id -> quantity
       approvalNotes,
       approvedBy, // User ID (UUID)
       approvedByName, // Display name
       approvedByRole,
     } = await request.json()
+
+    let approvalAction = initialApprovalAction
 
     console.log("[v0] Processing stock requisition:", requisitionId, "Action:", approvalAction)
 
