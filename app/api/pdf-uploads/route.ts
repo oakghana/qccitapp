@@ -44,14 +44,9 @@ export async function GET(request: Request) {
       console.log("[v0] IT Staff filter - location:", userLocation)
       query = query.eq("target_location", userLocation)
     } else if (userRole === "regional_it_head" && userLocation) {
-      // Regional IT Heads see documents for THEIR LOCATION ONLY
-      // They can see confirmed documents OR their own uploads
-      console.log("[v0] Regional IT Head filter - location:", userLocation, "userId:", userId)
+      // Regional IT Heads see ALL documents for THEIR LOCATION ONLY (no approval needed)
+      console.log("[v0] Regional IT Head filter - location:", userLocation)
       query = query.eq("target_location", userLocation)
-      if (userId) {
-        // They'll filter on client side based on confirmations or if they uploaded it
-        console.log("[v0] Regional IT Head will see confirmed docs and own uploads")
-      }
     } else if (userRole === "it_head") {
       // IT Heads see all active documents (no location restriction)
       console.log("[v0] IT Head - showing all active documents")
