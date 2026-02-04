@@ -356,8 +356,9 @@ export function PDFUploadsDashboard() {
       if (upload.target_location && upload.target_location !== user.location) {
         return false
       }
-      // Can see confirmed documents or their own uploads (confirmed or unconfirmed)
-      if (!upload.is_confirmed && upload.uploaded_by !== user.id) {
+      // Can see confirmed documents (have confirmations) or their own uploads
+      const isConfirmed = upload.confirmations && upload.confirmations.length > 0
+      if (!isConfirmed && upload.uploaded_by !== user.id) {
         return false
       }
       if (selectedType !== "all" && upload.document_type !== selectedType) {
@@ -366,10 +367,11 @@ export function PDFUploadsDashboard() {
       return true
     }
 
-    // IT Heads see confirmed documents + their own uploads
+    // IT Heads see confirmed documents + their own uploads (all locations)
     if (user?.role === "it_head") {
-      // Can see confirmed documents or their own uploads (confirmed or unconfirmed)
-      if (!upload.is_confirmed && upload.uploaded_by !== user.id) {
+      // Can see confirmed documents or their own uploads
+      const isConfirmed = upload.confirmations && upload.confirmations.length > 0
+      if (!isConfirmed && upload.uploaded_by !== user.id) {
         return false
       }
       if (selectedType !== "all" && upload.document_type !== selectedType) {
@@ -378,8 +380,9 @@ export function PDFUploadsDashboard() {
       return true
     }
 
-    // IT Staff and others can only see confirmed documents
-    if (!upload.is_confirmed) {
+    // IT Staff and others can only see confirmed documents (have confirmations)
+    const isConfirmed = upload.confirmations && upload.confirmations.length > 0
+    if (!isConfirmed) {
       return false
     }
 

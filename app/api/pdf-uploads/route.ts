@@ -40,30 +40,26 @@ export async function GET(request: Request) {
 
     // Apply location-based access control
     if (userRole === "it_staff" && userLocation) {
-      // IT Staff can only see documents for their location
+      // IT Staff can only see documents for their location that are confirmed (have confirmations)
       console.log("[v0] IT Staff filter - location:", userLocation)
-      query = query.or(`target_location.eq.${userLocation},target_location.is.null`)
+      query = query.eq("target_location", userLocation)
     } else if (userRole === "regional_it_head" && userLocation) {
       // Regional IT Heads see documents for THEIR LOCATION ONLY
-      // Both confirmed and their own unconfirmed uploads
+      // They can see confirmed documents OR their own uploads
       console.log("[v0] Regional IT Head filter - location:", userLocation, "userId:", userId)
+      query = query.eq("target_location", userLocation)
       if (userId) {
-        // Show (confirmed AND their location) OR (their own uploads AND their location)
-        query = query.eq("target_location", userLocation).or(`is_confirmed.eq.true,uploaded_by.eq.${userId}`)
-      } else {
-        // Fallback if no userId provided
-        query = query.eq("target_location", userLocation)
+        // They'll filter on client side based on confirmations or if they uploaded it
+        console.log("[v0] Regional IT Head will see confirmed docs and own uploads")
       }
     } else if (userRole === "it_head") {
-      // IT Heads see all confirmed documents AND their own uploads (no location restriction)
-      console.log("[v0] IT Head - showing confirmed documents and own uploads")
-      if (userId) {
-        query = query.or(`is_confirmed.eq.true,uploaded_by.eq.${userId}`)
-      }
+      // IT Heads see all active documents (no location restriction)
+      console.log("[v0] IT Head - showing all active documents")
+      // No additional filters
     } else if (location && location !== "all") {
       // Fallback for other roles with explicit location filter
       console.log("[v0] Filtering by location:", location)
-      query = query.or(`target_location.eq.${location},target_location.is.null`)
+      query = query.eq("target_location", location)
     }
 
     const { data, error } = await query
@@ -111,7 +107,7 @@ export async function POST(request: Request) {
 
     console.log("[v0] File uploaded to Vercel Blob successfully:", url)
 
-    // Create database record - new uploads are not confirmed until admin approves
+    // Create database record
     const { data, error } = await supabase
       .from("pdf_uploads")
       .insert({
@@ -124,7 +120,6 @@ export async function POST(request: Request) {
         uploaded_by: uploadedBy,
         uploaded_by_name: uploadedByName,
         target_location: targetLocation === "all" ? null : targetLocation,
-        is_confirmed: false,
       })
       .select()
       .single()
