@@ -16,13 +16,31 @@ export async function POST(request: Request) {
     console.log("[v0] Login attempt for:", username)
 
     // Search by username OR email to be flexible
-    const { data: user, error: queryError } = await supabase
+    // First try exact username match, then try email match
+    let { data: user, error: queryError } = await supabase
       .from("profiles")
       .select("*")
-      .or(`username.eq.${username},email.eq.${username}`)
+      .eq("username", username)
       .eq("status", "approved")
       .eq("is_active", true)
       .maybeSingle()
+
+    // If not found by username, try searching by email
+    if (!user && !queryError) {
+      console.log("[v0] User not found by username, searching by email:", username)
+      const { data: emailUser, error: emailError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("email", username)
+        .eq("status", "approved")
+        .eq("is_active", true)
+        .maybeSingle()
+      
+      if (emailError) {
+        queryError = emailError
+      }
+      user = emailUser
+    }
 
     if (queryError) {
       console.error("[v0] Database query error:", queryError)
