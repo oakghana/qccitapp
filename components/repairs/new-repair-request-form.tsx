@@ -54,6 +54,8 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
   })
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [searchField, setSearchField] = useState<"location" | "type" | "name">("location")
+  const [searchQuery, setSearchQuery] = useState("")
 
   const canCreate = user && canCreateRepairs(user)
 
@@ -61,12 +63,18 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
     loadDevices()
   }, [user])
 
-  const loadDevices = async () => {
+  const loadDevices = async (queryField?: string, queryValue?: string) => {
     if (!user) return
 
     setLoading(true)
     try {
       let query: any = supabase.from("devices").select("*")
+
+      // Apply search filter if provided
+      if (queryField && queryValue) {
+        // @ts-ignore - dynamic query building for Supabase
+        query = query.ilike(queryField, `%${queryValue}%`)
+      }
 
       if (!canSeeAllLocations(user) && user.location) {
         // Use centralized helper so filtering matches other parts of the app
@@ -115,6 +123,17 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
     }
   }
 
+  const handleSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    // Trim query
+    const q = (searchQuery || "").trim()
+    if (!q) {
+      loadDevices()
+      return
+    }
+    await loadDevices(searchField, q)
+  }
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     setSelectedFiles((prev) => [...prev, ...files])
@@ -140,6 +159,35 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Search Devices</Label>
+            <div className="flex space-x-2">
+              <Select value={searchField} onValueChange={(v) => setSearchField(v as any)}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="location">Location</SelectItem>
+                  <SelectItem value="type">Type</SelectItem>
+                  <SelectItem value="name">Name</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                placeholder="Search query"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSearch()
+                }}
+              />
+              <Button type="button" onClick={() => handleSearch()}>
+                Search
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => { setSearchQuery(""); loadDevices(); }}>
+                Clear
+              </Button>
+            </div>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="device">Select Device</Label>
             <Select value={formData.deviceId} onValueChange={handleDeviceSelect} disabled={loading}>
