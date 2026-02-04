@@ -11,13 +11,15 @@ export async function POST(request: NextRequest) {
   try {
     const {
       requisitionId,
-      approvalAction, // "approve" or "reject"
+      approvalAction: initialApprovalAction, // "approve" or "reject"
       approvedQuantities, // Now a map of item_id -> quantity
       approvalNotes,
       approvedBy, // User ID (UUID)
       approvedByName, // Display name
       approvedByRole,
     } = await request.json()
+
+    let approvalAction = initialApprovalAction
 
     console.log("[v0] Processing stock requisition:", requisitionId, "Action:", approvalAction)
 
@@ -59,9 +61,10 @@ export async function POST(request: NextRequest) {
     })
 
     // If requester is IT Head, IT Store Head, or Admin - auto-approve without waiting
-    if (isAutoApprovalRole && approvalAction !== "approve") {
+    if (isAutoApprovalRole) {
       console.log("[v0] Auto-approving requisition from privileged role:", requestedByRole)
-      // Continue to automatic approval below
+      // Auto-approve for these roles - no approval dialog needed
+      approvalAction = "approve"
     } else if (requiresApproval && (!approvalAction || approvalAction === "reject")) {
       // Regional IT or IT Staff can be rejected without explicit approval check
       if (approvalAction !== "reject") {

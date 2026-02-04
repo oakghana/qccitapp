@@ -343,7 +343,71 @@ export function RequisitionManagement() {
   }
 
   const handleApproveRequisition = async (requisition: Requisition, action: "approve" | "reject") => {
+    // IT Store Head requisitions auto-approve without dialog
     if (action === "approve" && !approvingReq) {
+      // Check if this is an IT Store Head requisition
+      const isItStoreHeadRequisition = requisition.requested_by_role === "it_store_head"
+      
+      if (isItStoreHeadRequisition) {
+        // Auto-approve IT Store Head requisitions directly
+        console.log("[v0] Auto-approving IT Store Head requisition:", requisition.id)
+        setIsApproving(true)
+        try {
+          const response = await fetch("/api/store/approve-requisition", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              requisitionId: requisition.id,
+              approvalAction: "approve",
+              approvedQuantities: requisition.items?.reduce((acc: Record<string, number>, item: any) => {
+                acc[item.item_id] = item.quantity
+                return acc
+              }, {}),
+              approvalNotes: "Auto-approved - IT Store Head",
+              approvedBy: user?.id,
+              approvedByName: user?.full_name || user?.email,
+              approvedByRole: user?.role,
+            }),
+          })
+
+          const result = await response.json()
+
+          if (!response.ok) {
+            console.error("[v0] API error response:", result)
+            toast({
+              title: "Error",
+              description: result.error || "Failed to approve requisition",
+              variant: "destructive",
+            })
+            return
+          }
+
+          console.log("[v0] Requisition approved successfully")
+          toast({
+            title: "✅ Approved",
+            description: "IT Store Head requisition approved and stock transferred successfully",
+          })
+          
+          // Dispatch event to refresh inventory in all dashboards
+          window.dispatchEvent(new CustomEvent("inventory-updated", { detail: { requisitionId: requisition.id } }))
+          
+          setApprovalDialogOpen(false)
+          setApprovingReq(null)
+          await loadRequisitions()
+        } catch (error) {
+          console.error("[v0] Error processing requisition:", error)
+          toast({
+            title: "Error",
+            description: "An error occurred while processing the requisition",
+            variant: "destructive",
+          })
+        } finally {
+          setIsApproving(false)
+        }
+        return
+      }
+
+      // For non-IT Store Head requisitions, show approval dialog
       setApprovingReq(requisition)
       setApprovalDialogOpen(true)
       // Initialize approved quantities with requested quantities
