@@ -52,6 +52,7 @@ BEGIN
     EXECUTE $exec$
       INSERT INTO merge_backup_devices
       SELECT * FROM devices WHERE lower(coalesce(location, '')) LIKE '%head%office%'
+      ON CONFLICT DO NOTHING
     $exec$;
     EXECUTE $exec$
       UPDATE devices
@@ -68,6 +69,7 @@ BEGIN
     EXECUTE $exec$
       INSERT INTO merge_backup_profiles
       SELECT * FROM profiles WHERE lower(coalesce(location, '')) LIKE '%head%office%'
+      ON CONFLICT DO NOTHING
     $exec$;
     EXECUTE $exec$
       UPDATE profiles
@@ -84,6 +86,7 @@ BEGIN
     EXECUTE $exec$
       INSERT INTO merge_backup_store_items
       SELECT * FROM store_items WHERE lower(coalesce(location, '')) LIKE '%head%office%'
+      ON CONFLICT DO NOTHING
     $exec$;
     EXECUTE $exec$
       UPDATE store_items
@@ -100,6 +103,7 @@ BEGIN
     EXECUTE $exec$
       INSERT INTO merge_backup_store_requisitions
       SELECT * FROM store_requisitions WHERE lower(coalesce(location, '')) LIKE '%head%office%'
+      ON CONFLICT DO NOTHING
     $exec$;
     EXECUTE $exec$
       UPDATE store_requisitions
@@ -111,6 +115,7 @@ BEGIN
     EXECUTE $exec$
       INSERT INTO merge_backup_store_requisitions
       SELECT * FROM store_requisitions WHERE lower(coalesce(destination_location, '')) LIKE '%head%office%'
+      ON CONFLICT DO NOTHING
     $exec$;
     EXECUTE $exec$
       UPDATE store_requisitions
@@ -127,6 +132,7 @@ BEGIN
     EXECUTE $exec$
       INSERT INTO merge_backup_repair_requests
       SELECT * FROM repair_requests WHERE lower(coalesce(location, '')) LIKE '%head%office%'
+      ON CONFLICT DO NOTHING
     $exec$;
     EXECUTE $exec$
       UPDATE repair_requests
@@ -140,6 +146,7 @@ BEGIN
     EXECUTE $exec$
       INSERT INTO merge_backup_store_items
       SELECT * FROM store_items WHERE lower(coalesce(location,'')) IN ('tema_research','tema research')
+      ON CONFLICT DO NOTHING
     $exec$;
     EXECUTE $exec$
       UPDATE store_items SET location = 'Tema Research' WHERE lower(coalesce(location,'')) IN ('tema_research','tema research')
@@ -152,6 +159,7 @@ BEGIN
     EXECUTE $exec$
       INSERT INTO merge_backup_devices
       SELECT * FROM devices WHERE coalesce(location,'') = '' OR location IS NULL
+      ON CONFLICT DO NOTHING
     $exec$;
     -- Set a safe placeholder instead of NULL. Adjust placeholder if you prefer another value.
     EXECUTE $exec$
