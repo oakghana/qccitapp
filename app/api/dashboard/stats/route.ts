@@ -17,10 +17,18 @@ export async function GET(request: NextRequest) {
 
     console.log("[v0] Dashboard stats API - location:", location, "canSeeAll:", canSeeAll, "role:", userRole)
 
-    // Helper function to build location filter
-    const applyLocationFilter = (query: any) => {
+    // Helper function to filter repairs by location
+    const applyRepairLocationFilter = (query: any) => {
       if (!canSeeAll && location) {
-        // Use ilike for case-insensitive filtering
+        // Repairs use requester_location field
+        return query.ilike("requester_location", `%${location}%`)
+      }
+      return query
+    }
+
+    // Helper function to filter devices by location
+    const applyDeviceLocationFilter = (query: any) => {
+      if (!canSeeAll && location) {
         return query.ilike("location", `%${location}%`)
       }
       return query
@@ -31,7 +39,7 @@ export async function GET(request: NextRequest) {
       .from("devices")
       .select("*", { count: "exact", head: true })
     
-    devicesQuery = applyLocationFilter(devicesQuery)
+    devicesQuery = applyDeviceLocationFilter(devicesQuery)
     
     const { count: devicesCount, error: devicesError } = await devicesQuery
     if (devicesError) console.error("[v0] Error fetching devices:", devicesError)
@@ -42,10 +50,10 @@ export async function GET(request: NextRequest) {
       .select("*", { count: "exact", head: true })
       .eq("status", "in_progress")
     
-    repairsQuery = applyLocationFilter(repairsQuery)
+    repairsQuery = applyRepairLocationFilter(repairsQuery)
     
     const { count: activeRepairsCount, error: repairsError } = await repairsQuery
-    if (repairsError) console.error("[v0] Error fetching repairs:", repairsError)
+    if (repairsError) console.error("[v0] Error fetching repairs:", repairsError.message || repairsError)
 
     // Fetch completed repairs this month
     const startOfMonth = new Date()
@@ -58,17 +66,17 @@ export async function GET(request: NextRequest) {
       .eq("status", "completed")
       .gte("updated_at", startOfMonth.toISOString())
     
-    completedQuery = applyLocationFilter(completedQuery)
+    completedQuery = applyRepairLocationFilter(completedQuery)
     
     const { count: completedRepairsCount, error: completedError } = await completedQuery
-    if (completedError) console.error("[v0] Error fetching completed repairs:", completedError)
+    if (completedError) console.error("[v0] Error fetching completed repairs:", completedError.message || completedError)
 
     // Fetch pending approvals (users with pending status)
     const { count: pendingApprovalsCount, error: pendingError } = await supabase
       .from("profiles")
       .select("*", { count: "exact", head: true })
       .eq("status", "pending")
-    if (pendingError) console.error("[v0] Error fetching pending approvals:", pendingError)
+    if (pendingError) console.error("[v0] Error fetching pending approvals:", pendingError.message || pendingError)
 
     // For IT staff - fetch assigned tasks
     let assignedTasksCount = 0
@@ -122,6 +130,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(stats)
   } catch (error: any) {
     console.error("[v0] Error in dashboard stats API:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 })
   }
 }
