@@ -350,24 +350,22 @@ export function PDFUploadsDashboard() {
       return true
     }
 
-    // Regional IT Heads see ALL documents for their location (no approval needed, no filters)
+    // Regional IT Heads see ALL documents - no approval needed, no filtering
+    // This allows them to see all documents and reports for their region
     if (user?.role === "regional_it_head") {
       if (selectedType !== "all" && upload.document_type !== selectedType) {
         return false
       }
+      // Regional IT Heads can see all documents (confirmed or not)
       return true
     }
 
-    // IT Heads see confirmed documents + their own uploads (all locations)
+    // IT Heads see all documents (confirmed and unconfirmed) + their own uploads (all locations)
     if (user?.role === "it_head") {
-      // Can see confirmed documents or their own uploads
-      const isConfirmed = upload.confirmations && upload.confirmations.length > 0
-      if (!isConfirmed && upload.uploaded_by !== user.id) {
-        return false
-      }
       if (selectedType !== "all" && upload.document_type !== selectedType) {
         return false
       }
+      // IT Heads can see all documents for all locations
       return true
     }
 
