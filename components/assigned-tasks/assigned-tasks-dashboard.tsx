@@ -28,6 +28,14 @@ import { useAuth } from "@/lib/auth-context"
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 
+interface RequesterInfo {
+  email?: string
+  phone?: string
+  roomNumber?: string
+  department?: string
+  location?: string
+}
+
 interface AssignedTask {
   id: string
   type: "repair" | "service_desk"
@@ -41,6 +49,7 @@ interface AssignedTask {
   dueDate: string
   location: string
   requestedBy: string
+  requesterInfo?: RequesterInfo
   deviceInfo?: {
     type: string
     model: string
