@@ -46,7 +46,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { LOCATIONS } from "@/lib/locations"
-import { format } from "date-fns"
+import { format, subDays, subMonths, subYears } from "date-fns"
 import { toast } from "sonner"
 
 interface PDFUpload {
@@ -99,6 +99,9 @@ export function PDFUploadsDashboard() {
   const [uploading, setUploading] = useState(false)
   const [selectedType, setSelectedType] = useState("all")
   const [selectedLocation, setSelectedLocation] = useState("all")
+  const [selectedPeriod, setSelectedPeriod] = useState<"week" | "month" | "quarter" | "year">("month")
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 5
   const [showUploadDialog, setShowUploadDialog] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [showConfirmationsDialog, setShowConfirmationsDialog] = useState(false)
@@ -302,6 +305,34 @@ export function PDFUploadsDashboard() {
     
     return true
   })
+
+  // Apply period filter (week, month, quarter, year)
+  const periodFilteredUploads = filteredUploads.filter((upload) => {
+    if (!upload.created_at) return false
+    const created = new Date(upload.created_at)
+    const now = new Date()
+    if (selectedPeriod === "week") {
+      return created >= subDays(now, 7)
+    }
+    if (selectedPeriod === "month") {
+      return created >= subMonths(now, 1)
+    }
+    if (selectedPeriod === "quarter") {
+      return created >= subMonths(now, 3)
+    }
+    if (selectedPeriod === "year") {
+      return created >= subYears(now, 1)
+    }
+    return true
+  })
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [selectedType, selectedLocation, selectedPeriod])
+
+  const totalPages = Math.max(1, Math.ceil(periodFilteredUploads.length / itemsPerPage))
+  const paginatedUploads = periodFilteredUploads.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
   const stats = {
     total: filteredUploads.length,
@@ -565,6 +596,17 @@ export function PDFUploadsDashboard() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <Tabs value={selectedPeriod} onValueChange={(v: any) => setSelectedPeriod(v)}>
+              <TabsList>
+                <TabsTrigger value="week">Week</TabsTrigger>
+                <TabsTrigger value="month">Month</TabsTrigger>
+                <TabsTrigger value="quarter">Quarter</TabsTrigger>
+                <TabsTrigger value="year">Year</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <div className="text-sm text-gray-600">Showing <span className="font-medium">{periodFilteredUploads.length}</span> items • Page <span className="font-medium">{currentPage}</span> of {totalPages}</div>
+          </div>
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
@@ -590,7 +632,7 @@ export function PDFUploadsDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUploads.map((upload) => {
+                  {paginatedUploads.map((upload) => {
                     const Icon = documentTypeIcons[upload.document_type]
                     const confirmed = hasUserConfirmed(upload)
                     return (
@@ -716,6 +758,27 @@ export function PDFUploadsDashboard() {
                   })}
                 </TableBody>
               </Table>
+            </div>
+          )}
+          {/* Pagination controls */}
+          {periodFilteredUploads.length > itemsPerPage && (
+            <div className="mt-4 flex items-center justify-between">
+              <div className="text-sm text-gray-600">{(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, periodFilteredUploads.length)} of {periodFilteredUploads.length}</div>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                  Prev
+                </Button>
+                <div className="hidden sm:flex items-center gap-1">
+                  {Array.from({ length: totalPages }).map((_, i) => (
+                    <Button key={i} variant={currentPage === i + 1 ? undefined : "ghost"} size="sm" onClick={() => setCurrentPage(i + 1)}>
+                      {i + 1}
+                    </Button>
+                  ))}
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                  Next
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
