@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Plus, Clock, AlertTriangle, Ticket, MapPin, Monitor, Wifi, Smartphone, Printer, UserPlus, Eye, CheckCircle, User, Calendar, FileText } from "lucide-react"
+import { Plus, Clock, AlertTriangle, Ticket, MapPin, Monitor, Wifi, Smartphone, Printer, UserPlus, Eye, CheckCircle, User, Calendar, FileText, Trash2 } from "lucide-react"
 import { NewTicketForm } from "./new-ticket-form"
 import { KnowledgeBase } from "./knowledge-base"
 import { AssignTicketDialog } from "./assign-ticket-dialog"
@@ -23,6 +23,9 @@ export function ServiceDeskDashboard() {
   const [selectedTicketForDetails, setSelectedTicketForDetails] = useState<any>(null)
   const [ticketDetails, setTicketDetails] = useState<any>(null)
   const [loadingDetails, setLoadingDetails] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [ticketToDelete, setTicketToDelete] = useState<any>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const { canViewAllLocations, getUserLocation, user } = useAuth()
   const { toast } = useToast()
   const [allTickets, setAllTickets] = useState<any[]>([])
@@ -143,6 +146,48 @@ export function ServiceDeskDashboard() {
       console.error("[v0] Error loading ticket details:", error)
     } finally {
       setLoadingDetails(false)
+    }
+  }
+
+  // Delete ticket handler
+  const handleDeleteTicket = async () => {
+    if (!ticketToDelete || isDeleting) return
+
+    setIsDeleting(true)
+    try {
+      const response = await fetch(
+        `/api/service-tickets?id=${ticketToDelete.uuid}&userRole=${user?.role}`,
+        { method: "DELETE" }
+      )
+
+      if (!response.ok) {
+        const error = await response.json()
+        toast({
+          title: "Error",
+          description: error.error || "Failed to delete ticket",
+          variant: "destructive",
+        })
+        return
+      }
+
+      toast({
+        title: "Success",
+        description: "Ticket deleted successfully",
+      })
+
+      // Refresh tickets
+      await loadTickets()
+      setDeleteConfirmOpen(false)
+      setTicketToDelete(null)
+    } catch (error) {
+      console.error("[v0] Error deleting ticket:", error)
+      toast({
+        title: "Error",
+        description: "Failed to delete ticket",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -375,6 +420,21 @@ export function ServiceDeskDashboard() {
                             Assign
                           </Button>
                         )}
+                        {/* Delete button for Admins */}
+                        {user?.role === "admin" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950 bg-transparent"
+                            onClick={() => {
+                              setTicketToDelete(ticket)
+                              setDeleteConfirmOpen(true)
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Delete
+                          </Button>
+                        )}
                       </div>
                     </div>
                     )
@@ -470,6 +530,21 @@ export function ServiceDeskDashboard() {
                               <Eye className="h-3 w-3 mr-1" />
                               View Details
                             </Button>
+                            {/* Delete button for Admins */}
+                            {user?.role === "admin" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-xs border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950 bg-transparent"
+                                onClick={() => {
+                                  setTicketToDelete(ticket)
+                                  setDeleteConfirmOpen(true)
+                                }}
+                              >
+                                <Trash2 className="h-3 w-3 mr-1" />
+                                Delete
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -652,6 +727,55 @@ export function ServiceDeskDashboard() {
               <p className="text-muted-foreground">No ticket selected</p>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Ticket</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this ticket? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {ticketToDelete && (
+            <div className="space-y-3 py-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Ticket ID</p>
+                <p className="font-mono text-sm">{ticketToDelete.id}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Title</p>
+                <p>{ticketToDelete.title}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Status</p>
+                <Badge>{ticketToDelete.status}</Badge>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setDeleteConfirmOpen(false)
+                setTicketToDelete(null)
+              }}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleDeleteTicket}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete Ticket"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

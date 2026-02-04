@@ -145,3 +145,46 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const ticketId = searchParams.get("id")
+    const userRole = searchParams.get("userRole")
+
+    // Only admins can delete tickets
+    if (userRole !== "admin") {
+      return NextResponse.json(
+        { error: "Only admins can delete tickets" },
+        { status: 403 }
+      )
+    }
+
+    if (!ticketId) {
+      return NextResponse.json(
+        { error: "Ticket ID is required" },
+        { status: 400 }
+      )
+    }
+
+    console.log("[v0] Deleting service ticket:", ticketId)
+
+    // Delete the ticket
+    const { error } = await supabaseAdmin
+      .from("service_tickets")
+      .delete()
+      .eq("id", ticketId)
+
+    if (error) {
+      console.error("[v0] Error deleting service ticket:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    console.log("[v0] Successfully deleted service ticket:", ticketId)
+
+    return NextResponse.json({ success: true, message: "Ticket deleted successfully" })
+  } catch (error) {
+    console.error("[v0] API Service Tickets DELETE error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
