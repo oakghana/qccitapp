@@ -25,10 +25,6 @@ DELETE FROM public.repair_requests
 WHERE service_provider_id = 'dd7c27a4-6687-43ae-9981-9e1f3d48eee5'
    OR service_provider_name = 'sp';
 
--- Delete service provider user assignments if any
-DELETE FROM public.service_provider_users
-WHERE service_provider_id = 'dd7c27a4-6687-43ae-9981-9e1f3d48eee5';
-
 -- Finally, delete the invalid service provider
 DELETE FROM public.service_providers 
 WHERE id = 'dd7c27a4-6687-43ae-9981-9e1f3d48eee5'
