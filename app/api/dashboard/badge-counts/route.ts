@@ -78,13 +78,17 @@ export async function GET(request: NextRequest) {
 
     // 3. Devices (count all or active)
     try {
-      const { data, error } = await supabaseAdmin.from("devices").select("id, status, location")
+      const { count, error } = await supabaseAdmin
+        .from("devices")
+        .select("id", { count: "exact", head: true })
 
       if (error) {
         console.error("[v0] Error fetching devices:", error.message || error)
-      } else if (data) {
-        // Count all devices (not just active) for a more useful count
-        counts.devices = filterByLocation(data, location, canSeeAll).length
+      } else {
+        // Count all devices from database directly (matches system-overview)
+        // This provides the most accurate count
+        counts.devices = count || 0
+        console.log("[v0] Total devices count:", counts.devices)
       }
     } catch (e: any) {
       console.error("[v0] Exception fetching devices:", e?.message || e)
