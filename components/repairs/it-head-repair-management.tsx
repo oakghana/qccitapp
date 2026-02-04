@@ -133,10 +133,6 @@ export function ITHeadRepairManagement() {
           .filter((loc: any) => loc.is_active)
           .map((loc: any) => ({ code: loc.code, name: loc.name }))
       }
-      // Always include Takoradi Port if not present
-      if (!activeLocations.some(loc => loc.code === "takoradi_port")) {
-        activeLocations.push({ code: "takoradi_port", name: "Takoradi Port" })
-      }
       setLocations(activeLocations)
       // Auto-select user's location for ALL users (not just IT staff)
       if (user?.location) {

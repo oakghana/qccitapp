@@ -126,14 +126,19 @@ export function PDFUploadsDashboard() {
   const canConfirmUploads = user && user.role === "admin"
 
   useEffect(() => {
-    // Auto-set location filter for regional IT staff to only see their location
-    if (user && user.role === "regional_it_head" && user.location) {
+    // Auto-set location filter based on user role
+    if (user && user.role === "it_staff" && user.location) {
+      // IT Staff can only see their location
       setSelectedLocation(user.location)
-    } else if (user && user.role !== "admin" && user.role !== "it_head") {
-      // Other roles also auto-set to their location if available
-      if (user.location) {
-        setSelectedLocation(user.location)
-      }
+    } else if (user && user.role === "regional_it_head") {
+      // Regional IT Heads see all locations
+      setSelectedLocation("all")
+    } else if (user && user.role === "it_head") {
+      // IT Heads see all locations
+      setSelectedLocation("all")
+    } else if (user && user.role === "admin") {
+      // Admins can filter but default to all
+      setSelectedLocation("all")
     }
     fetchUploads()
   }, [selectedType, selectedLocation, user])
@@ -146,13 +151,16 @@ export function PDFUploadsDashboard() {
       // Add type filter if selected
       if (selectedType !== "all") params.append("type", selectedType)
       
-      // Add location filter only for admin users without explicit location selection
-      // IT staff, IT head, and regional IT head should see all documents
-      if (["admin"].includes(user?.role || "") && selectedLocation !== "all") {
+      // Add location filter based on user role
+      if (user?.role === "it_staff" && user?.location) {
+        // IT Staff can only see their location
+        params.append("location", user.location)
+      } else if (selectedLocation !== "all") {
+        // Admin and IT Heads can filter by location if selected
         params.append("location", selectedLocation)
       }
 
-      console.log("[v0] Fetching documents with params:", params.toString(), "user role:", user?.role)
+      console.log("[v0] Fetching documents with params:", params.toString(), "user role:", user?.role, "location:", user?.location)
       const response = await fetch(`/api/pdf-uploads?${params.toString()}`)
       const data = await response.json()
 

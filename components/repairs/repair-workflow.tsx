@@ -19,6 +19,7 @@ import { Plus, Clock, CheckCircle, AlertTriangle, FileText, Calendar } from "luc
 import { useAuth } from "@/lib/auth-context"
 import { createClient } from "@/lib/supabase/client"
 import { canSeeAllLocations } from "@/lib/location-filter"
+import { REQUEST_STATUS_COLORS, REQUEST_PRIORITY_COLORS, type RequestStatus } from "@/lib/repair-constants"
 
 interface RepairRequest {
   id: string
@@ -28,7 +29,7 @@ interface RepairRequest {
   requestedDate: string
   description: string
   priority: "low" | "medium" | "high" | "urgent"
-  status: "pending" | "approved" | "in_transit" | "with_provider" | "completed" | "rejected"
+  status: RequestStatus
   approvedBy?: string
   approvedDate?: string
   estimatedCompletion?: string
@@ -38,22 +39,6 @@ interface RepairRequest {
   serviceProvider?: string
   notes?: string
 }
-
-const statusColors = {
-  pending: "secondary",
-  approved: "default",
-  in_transit: "secondary",
-  with_provider: "secondary",
-  completed: "default",
-  rejected: "destructive",
-} as const
-
-const priorityColors = {
-  low: "outline",
-  medium: "secondary",
-  high: "secondary",
-  urgent: "destructive",
-} as const
 
 const statusIcons = {
   pending: Clock,
@@ -445,10 +430,10 @@ function RepairRequestCard({ request, onViewDetails, onApprove, onReject, showAc
             </CardDescription>
           </div>
           <div className="flex items-center space-x-2">
-            <Badge variant={priorityColors[request.priority]}>
+            <Badge variant={REQUEST_PRIORITY_COLORS[request.priority]}>
               {request.priority.charAt(0).toUpperCase() + request.priority.slice(1)}
             </Badge>
-            <Badge variant={statusColors[request.status]} className="flex items-center gap-1">
+            <Badge variant={REQUEST_STATUS_COLORS[request.status]} className="flex items-center gap-1">
               <StatusIcon className="h-3 w-3" />
               {request.status.replace("_", " ").charAt(0).toUpperCase() + request.status.replace("_", " ").slice(1)}
             </Badge>
