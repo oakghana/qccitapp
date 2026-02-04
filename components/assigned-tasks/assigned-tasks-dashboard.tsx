@@ -28,14 +28,6 @@ import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 
-interface RequesterInfo {
-  email?: string
-  phone?: string
-  roomNumber?: string
-  department?: string
-  location?: string
-}
-
 interface AssignedTask {
   id: string
   type: "repair" | "service_desk"
@@ -49,7 +41,6 @@ interface AssignedTask {
   dueDate: string
   location: string
   requestedBy: string
-  requesterInfo?: RequesterInfo
   deviceInfo?: {
     type: string
     model: string
@@ -113,36 +104,30 @@ export function AssignedTasksDashboard() {
       if (ticketError) {
         console.error("[v0] Error loading service tickets:", ticketError)
       } else if (serviceTickets) {
-        const mappedTickets: AssignedTask[] = await Promise.all(
-          serviceTickets.map(async (ticket: any) => {
-            const requesterInfo = await fetchRequesterInfo(ticket.requester_name || ticket.submitted_by)
-            return {
-              id: ticket.id,
-              type: "service_desk" as const,
-              title: ticket.title || ticket.subject || "Service Desk Request",
-              description: ticket.description || ticket.notes || "",
-              priority: (ticket.priority || "medium") as AssignedTask["priority"],
-              status: mapTicketStatus(ticket.status),
-              assignedBy: ticket.assigned_by || "IT Head",
-              assignedByRole: "it_head",
-              assignedDate: ticket.assigned_at || ticket.created_at,
-              dueDate: ticket.due_date || "",
-              location: ticket.location || ticket.requester_location || "",
-              requestedBy: ticket.requester_name || ticket.submitted_by || "Unknown",
-              requesterInfo,
-              ticketInfo: {
-                category: ticket.category || "General",
-                subcategory: ticket.subcategory || "",
-                ticketNumber: ticket.ticket_number || ticket.id,
-              },
-              attachments: [],
-              workNotes: ticket.work_notes ? [ticket.work_notes] : [],
-              completionDate: ticket.resolved_at,
-              estimatedHours: ticket.estimated_hours,
-              actualHours: ticket.actual_hours,
-            }
-          }),
-        )
+        const mappedTickets: AssignedTask[] = serviceTickets.map((ticket: any) => ({
+          id: ticket.id,
+          type: "service_desk" as const,
+          title: ticket.title || ticket.subject || "Service Desk Request",
+          description: ticket.description || ticket.notes || "",
+          priority: (ticket.priority || "medium") as AssignedTask["priority"],
+          status: mapTicketStatus(ticket.status),
+          assignedBy: ticket.assigned_by || "IT Head",
+          assignedByRole: "it_head",
+          assignedDate: ticket.assigned_at || ticket.created_at,
+          dueDate: ticket.due_date || "",
+          location: ticket.location || ticket.requester_location || "",
+          requestedBy: ticket.requester_name || ticket.submitted_by || "Unknown",
+          ticketInfo: {
+            category: ticket.category || "General",
+            subcategory: ticket.subcategory || "",
+            ticketNumber: ticket.ticket_number || ticket.id,
+          },
+          attachments: [],
+          workNotes: ticket.work_notes ? [ticket.work_notes] : [],
+          completionDate: ticket.resolved_at,
+          estimatedHours: ticket.estimated_hours,
+          actualHours: ticket.actual_hours,
+        }))
         allTasks.push(...mappedTickets)
       }
 
@@ -155,38 +140,32 @@ export function AssignedTasksDashboard() {
       if (repairError) {
         console.error("[v0] Error loading repair requests:", repairError)
       } else if (repairs) {
-        const mappedRepairs: AssignedTask[] = await Promise.all(
-          repairs.map(async (repair: any) => {
-            const requesterInfo = await fetchRequesterInfo(repair.requested_by)
-            return {
-              id: repair.id,
-              type: "repair" as const,
-              title: repair.issue_description || repair.description || "Repair Task",
-              description: repair.description || repair.issue_description || "",
-              priority: (repair.priority || "medium") as AssignedTask["priority"],
-              status: mapRepairStatus(repair.status),
-              assignedBy: repair.assigned_by || "IT Head",
-              assignedByRole: "it_head",
-              assignedDate: repair.assigned_at || repair.created_at,
-              dueDate: repair.due_date || "",
-              location: repair.location || repair.devices?.location || "",
-              requestedBy: repair.requested_by || "IT Department",
-              requesterInfo,
-              deviceInfo: repair.devices
-                ? {
-                    type: repair.devices.device_type || "Unknown",
-                    model: repair.devices.brand_model || repair.devices.model || "Unknown",
-                    serialNumber: repair.devices.serial_number || "",
-                  }
-                : undefined,
-              attachments: [],
-              workNotes: repair.work_notes ? [repair.work_notes] : [],
-              completionDate: repair.completed_at,
-              estimatedHours: repair.estimated_hours,
-              actualHours: repair.actual_hours,
-            }
-          }),
-        )
+        const mappedRepairs: AssignedTask[] = repairs.map((repair: any) => ({
+          id: repair.id,
+          type: "repair" as const,
+          title: repair.issue_description || repair.description || "Repair Task",
+          description: repair.description || repair.issue_description || "",
+          priority: (repair.priority || "medium") as AssignedTask["priority"],
+          status: mapRepairStatus(repair.status),
+          assignedBy: repair.assigned_by || "IT Head",
+          assignedByRole: "it_head",
+          assignedDate: repair.assigned_at || repair.created_at,
+          dueDate: repair.due_date || "",
+          location: repair.location || repair.devices?.location || "",
+          requestedBy: repair.requested_by || "IT Department",
+          deviceInfo: repair.devices
+            ? {
+                type: repair.devices.device_type || "Unknown",
+                model: repair.devices.brand_model || repair.devices.model || "Unknown",
+                serialNumber: repair.devices.serial_number || "",
+              }
+            : undefined,
+          attachments: [],
+          workNotes: repair.work_notes ? [repair.work_notes] : [],
+          completionDate: repair.completed_at,
+          estimatedHours: repair.estimated_hours,
+          actualHours: repair.actual_hours,
+        }))
         allTasks.push(...mappedRepairs)
       }
 
@@ -200,33 +179,7 @@ export function AssignedTasksDashboard() {
     }
   }
 
-  const fetchRequesterInfo = async (requestedByName: string): Promise<RequesterInfo | undefined> => {
-    if (!requestedByName || requestedByName === "Unknown" || requestedByName === "IT Department") {
-      return undefined
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("email, phone, location, department")
-        .or(`full_name.ilike.%${requestedByName}%,email.ilike.%${requestedByName}%`)
-        .limit(1)
-        .single()
-
-      if (!error && data) {
-        return {
-          email: data.email,
-          phone: data.phone,
-          location: data.location,
-          department: data.department,
-        }
-      }
-    } catch (err) {
-      console.log("[v0] Could not fetch requester info:", err)
-    }
-
-    return undefined
-  }
+  const mapTicketStatus = (status: string): AssignedTask["status"] => {
     switch (status?.toLowerCase()) {
       case "open":
       case "new":
@@ -747,38 +700,6 @@ export function AssignedTasksDashboard() {
                                 <div>
                                   <Label className="font-semibold">Requested By</Label>
                                   <p className="text-sm">{task.requestedBy}</p>
-                                  {task.requesterInfo && (
-                                    <div className="mt-2 text-xs bg-blue-50 dark:bg-blue-950 p-3 rounded border border-blue-200 dark:border-blue-800">
-                                      {task.requesterInfo.email && (
-                                        <p className="flex items-center gap-2 mb-1">
-                                          <span className="font-medium">Email:</span>
-                                          <a href={`mailto:${task.requesterInfo.email}`} className="text-blue-600 dark:text-blue-400 hover:underline">
-                                            {task.requesterInfo.email}
-                                          </a>
-                                        </p>
-                                      )}
-                                      {task.requesterInfo.phone && (
-                                        <p className="flex items-center gap-2 mb-1">
-                                          <span className="font-medium">Phone:</span>
-                                          <a href={`tel:${task.requesterInfo.phone}`} className="text-blue-600 dark:text-blue-400 hover:underline">
-                                            {task.requesterInfo.phone}
-                                          </a>
-                                        </p>
-                                      )}
-                                      {task.requesterInfo.location && (
-                                        <p className="flex items-center gap-2 mb-1">
-                                          <span className="font-medium">Location:</span>
-                                          {task.requesterInfo.location}
-                                        </p>
-                                      )}
-                                      {task.requesterInfo.department && (
-                                        <p className="flex items-center gap-2">
-                                          <span className="font-medium">Department:</span>
-                                          {task.requesterInfo.department}
-                                        </p>
-                                      )}
-                                    </div>
-                                  )}
                                 </div>
                                 <div>
                                   <Label className="font-semibold">Location</Label>

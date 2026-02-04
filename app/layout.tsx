@@ -7,7 +7,6 @@ import { AuthProvider } from "@/lib/auth-context"
 import { NotificationProvider } from "@/lib/notification-context"
 import { Toaster as SonnerToaster } from "sonner"
 import { Toaster } from "@/components/ui/toaster"
-import { NotificationContainer } from "@/components/notifications/notification-container"
 import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
@@ -81,7 +80,6 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <AuthProvider>
             <NotificationProvider>
-              <NotificationContainer />
               <Suspense fallback={null}>{children}</Suspense>
               <Toaster />
               <SonnerToaster
