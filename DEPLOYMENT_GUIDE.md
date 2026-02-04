@@ -154,6 +154,25 @@ pnpm run build --no-cache
 3. **Add environment variables** in Vercel project settings
 4. **Deploy**
 
+Note: you may see a Vercel build warning like "Ignored build scripts: ... Run \"pnpm approve-builds\" to pick which dependencies should be allowed". This happens when dependencies include native build steps (for example `sharp`, `esbuild`) that pnpm treats as restricted on CI.
+
+Quick fixes:
+
+- Run the interactive approval locally (or on the build machine) before deploying:
+
+```bash
+pnpm install
+pnpm approve-builds
+```
+
+- For non-interactive CI (Vercel prebuild), add an approval step before the build. Example Build Command in Vercel:
+
+```bash
+pnpm install && pnpm approve-builds --yes && pnpm build
+```
+
+Adding the `pnpm approve-builds --yes` step will auto-approve the known build scripts so the CI build won't ignore them. Alternatively, pin or remove packages that require native build tooling if you prefer not to approve them.
+
 ### Option 2: Self-hosted
 
 ```bash

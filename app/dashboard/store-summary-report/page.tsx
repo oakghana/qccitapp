@@ -308,7 +308,7 @@ export default function StoreSummaryReportPage() {
 
   const [pdfLoading, setPdfLoading] = useState(false)
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     if (report.length === 0) {
       alert("No data to export")
       return
@@ -332,14 +332,34 @@ export default function StoreSummaryReportPage() {
         year: "numeric",
       })
 
-      // Add header
+      // Add header (logo + company name)
+      try {
+        // attempt to load logo from public folder
+        const fetchRes = await fetch("/images/qcc-logo.png")
+        if (fetchRes.ok) {
+          const blob = await fetchRes.blob()
+          const reader = new FileReader()
+          const imgData: Promise<string> = new Promise((resolve, reject) => {
+            reader.onloadend = () => resolve(reader.result as string)
+            reader.onerror = reject
+            reader.readAsDataURL(blob)
+          })
+          const dataUrl = await imgData
+          // place logo at top-left of header
+          doc.addImage(dataUrl, "PNG", 10, 6, 24, 24)
+        }
+      } catch (err) {
+        // continue without logo if loading fails
+        console.warn("Could not load logo for PDF header:", err)
+      }
+
       doc.setFontSize(16)
       doc.setFont("helvetica", "bold")
-      doc.text("QUALITY CERAMICS COMPANY LIMITED", 148.5, 15, { align: "center" })
-      
+      doc.text("QUALITY CONTROL COMPANY LIMITED", 148.5, 15, { align: "center" })
+
       doc.setFontSize(12)
       doc.text(locationName, 148.5, 23, { align: "center" })
-      
+
       doc.setFontSize(11)
       doc.setFont("helvetica", "normal")
       doc.text(`STOCK BALANCE AS AT ${periodEnd.toUpperCase()}`, 148.5, 30, { align: "center" })
@@ -392,7 +412,7 @@ export default function StoreSummaryReportPage() {
         startY: 38,
         theme: "grid",
         headStyles: {
-          fillColor: [41, 128, 185],
+          fillColor: [0, 0, 0],
           textColor: 255,
           fontStyle: "bold",
           fontSize: 8,
