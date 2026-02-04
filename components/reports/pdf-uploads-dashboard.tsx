@@ -61,6 +61,7 @@ interface PDFUpload {
   uploaded_by_name: string
   target_location: string | null
   is_active: boolean
+  is_confirmed: boolean
   created_at: string
   confirmations: PDFConfirmation[]
 }
@@ -108,6 +109,7 @@ export function PDFUploadsDashboard() {
   const [selectedUpload, setSelectedUpload] = useState<PDFUpload | null>(null)
   const [confirmComment, setConfirmComment] = useState("")
   const [confirming, setConfirming] = useState(false)
+  const [showAdminConfirmDialog, setShowAdminConfirmDialog] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Upload form state
@@ -119,13 +121,19 @@ export function PDFUploadsDashboard() {
     file: null as File | null,
   })
 
-  const canUpload = user && ["admin", "it_head", "regional_it_head", "service_desk_head"].includes(user.role)
+  const canUpload = user && ["admin", "it_head", "regional_it_head"].includes(user.role)
   const canDelete = user && ["admin", "it_head"].includes(user.role)
+  const canConfirmUploads = user && user.role === "admin"
 
   useEffect(() => {
-    // Auto-set location filter for regional IT staff
+    // Auto-set location filter for regional IT staff to only see their location
     if (user && user.role === "regional_it_head" && user.location) {
       setSelectedLocation(user.location)
+    } else if (user && user.role !== "admin" && user.role !== "it_head") {
+      // Other roles also auto-set to their location if available
+      if (user.location) {
+        setSelectedLocation(user.location)
+      }
     }
     fetchUploads()
   }, [selectedType, selectedLocation, user])
@@ -244,6 +252,39 @@ export function PDFUploadsDashboard() {
     }
   }
 
+  const handleAdminConfirmUpload = async () => {
+    if (!selectedUpload || !user || user.role !== "admin") return
+
+    setConfirming(true)
+    try {
+      const response = await fetch("/api/pdf-uploads/admin-confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pdfId: selectedUpload.id,
+          adminId: user.id,
+          adminName: user.full_name || user.name || user.username,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success("Upload confirmed and is now visible to all users")
+        setShowAdminConfirmDialog(false)
+        setSelectedUpload(null)
+        fetchUploads()
+      } else {
+        toast.error(data.error || "Failed to confirm upload")
+      }
+    } catch (error) {
+      console.error("Error confirming upload:", error)
+      toast.error("Failed to confirm upload")
+    } finally {
+      setConfirming(false)
+    }
+  }
+
   const handleDelete = async (uploadId: string) => {
     if (!confirm("Are you sure you want to delete this document?")) return
 
@@ -277,32 +318,50 @@ export function PDFUploadsDashboard() {
   }
 
   const filteredUploads = uploads.filter((upload) => {
-    // IT staff, IT head, and regional IT head can see all documents regardless of location
-    const canSeeAllDocuments = ["admin", "it_head", "it_staff", "regional_it_head"].includes(user?.role || "")
-    
-    // If user can see all documents, only apply type filter
-    if (canSeeAllDocuments) {
+    // Admin can see all uploads (confirmed and unconfirmed)
+    if (user?.role === "admin") {
       if (selectedType !== "all" && upload.document_type !== selectedType) {
         return false
       }
-      // For admin/it_head with location dropdown, also filter by selected location
-      if (["admin", "it_head"].includes(user?.role || "") && selectedLocation !== "all") {
-        if (!upload.target_location || upload.target_location !== selectedLocation) {
+      if (selectedLocation !== "all") {
+        if (upload.target_location && upload.target_location !== selectedLocation) {
           return false
         }
       }
       return true
     }
-    
-    // For other users, restrict to their location and apply type filter
-    if (upload.target_location && upload.target_location !== user?.location) {
+
+    // Regional IT Heads only see their location documents that are confirmed
+    if (user?.role === "regional_it_head") {
+      // Must be confirmed
+      if (!upload.is_confirmed) {
+        return false
+      }
+      // Only their location
+      if (upload.target_location && upload.target_location !== user.location) {
+        return false
+      }
+      if (selectedType !== "all" && upload.document_type !== selectedType) {
+        return false
+      }
+      return true
+    }
+
+    // IT Staff and others can only see confirmed documents
+    if (!upload.is_confirmed) {
       return false
     }
-    
+
+    // Apply type filter
     if (selectedType !== "all" && upload.document_type !== selectedType) {
       return false
     }
-    
+
+    // Apply location filter if applicable
+    if (upload.target_location && selectedLocation !== "all" && upload.target_location !== selectedLocation) {
+      return false
+    }
+
     return true
   })
 
@@ -580,7 +639,9 @@ export function PDFUploadsDashboard() {
             )}
             {["it_staff", "regional_it_head"].includes(user?.role || "") && (
               <div className="px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 rounded border border-blue-200 dark:border-blue-800">
-                👁️ You can view all IT documents uploaded across all locations
+                {user?.role === "regional_it_head"
+                  ? "🔍 You can only view documents for your location that have been approved by admin"
+                  : "👁️ You can view all approved IT documents across all locations"}
               </div>
             )}
           </div>
@@ -691,15 +752,15 @@ export function PDFUploadsDashboard() {
                           </Button>
                         </TableCell>
                         <TableCell>
-                          {confirmed ? (
+                          {upload.is_confirmed ? (
                             <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                               <CheckCircle className="h-3 w-3 mr-1" />
-                              Confirmed
+                              Published
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="text-orange-600 border-orange-300">
+                            <Badge variant="outline" className="text-yellow-600 border-yellow-300">
                               <Clock className="h-3 w-3 mr-1" />
-                              Pending
+                              Pending Admin Approval
                             </Badge>
                           )}
                         </TableCell>
@@ -738,6 +799,21 @@ export function PDFUploadsDashboard() {
                               >
                                 <FileCheck className="h-4 w-4" />
                                 Confirm
+                              </Button>
+                            )}
+                            {canConfirmUploads && !upload.is_confirmed && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1 bg-green-50 text-green-700 border-green-300 hover:bg-green-100 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
+                                onClick={() => {
+                                  setSelectedUpload(upload)
+                                  setShowAdminConfirmDialog(true)
+                                }}
+                                title="Approve this upload to make it visible to all users"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                                Approve
                               </Button>
                             )}
                             {canDelete && (
@@ -881,6 +957,69 @@ export function PDFUploadsDashboard() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowConfirmationsDialog(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin Upload Approval Dialog */}
+      <Dialog open={showAdminConfirmDialog} onOpenChange={setShowAdminConfirmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve Upload</DialogTitle>
+            <DialogDescription>
+              Confirm this upload and make it visible to all users across the organization.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedUpload && (
+            <div className="space-y-4 py-4">
+              <div className="p-4 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                <p className="text-sm">
+                  <strong>Note:</strong> Once approved, this document will be visible to all users (IT Staff, Regional IT Heads, etc.). Make sure the content is appropriate before approving.
+                </p>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Title</p>
+                  <p className="font-medium">{selectedUpload.title}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Document Type</p>
+                  <Badge className={documentTypeColors[selectedUpload.document_type]}>
+                    {documentTypeLabels[selectedUpload.document_type]}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Uploaded By</p>
+                  <p>{selectedUpload.uploaded_by_name}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Target Location</p>
+                  <p>
+                    {selectedUpload.target_location
+                      ? LOCATIONS[selectedUpload.target_location as keyof typeof LOCATIONS] || selectedUpload.target_location
+                      : "All Locations"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAdminConfirmDialog(false)} disabled={confirming}>
+              Cancel
+            </Button>
+            <Button onClick={handleAdminConfirmUpload} disabled={confirming} className="bg-green-600 hover:bg-green-700">
+              {confirming ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Approving...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Approve Upload
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

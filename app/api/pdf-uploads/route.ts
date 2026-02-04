@@ -85,7 +85,7 @@ export async function POST(request: Request) {
 
     console.log("[v0] File uploaded to Vercel Blob successfully:", url)
 
-    // Create database record
+    // Create database record - new uploads are not confirmed until admin approves
     const { data, error } = await supabase
       .from("pdf_uploads")
       .insert({
@@ -98,6 +98,7 @@ export async function POST(request: Request) {
         uploaded_by: uploadedBy,
         uploaded_by_name: uploadedByName,
         target_location: targetLocation === "all" ? null : targetLocation,
+        is_confirmed: false,
       })
       .select()
       .single()
