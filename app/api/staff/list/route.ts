@@ -44,6 +44,10 @@ export async function GET(request: Request) {
 
     // Filter by role if specified
     if (role && role !== 'all') {
+      // Special-case: return all approved users except admin when `all_users` requested
+      if (role === 'all_users') {
+        query = query.neq('role', 'admin')
+      } else {
       const staffRoles = [
         'it_staff',
         'it_head',

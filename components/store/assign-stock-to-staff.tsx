@@ -214,7 +214,7 @@ export function AssignStockToStaff() {
   const loadStaffList = async () => {
     try {
       const params = new URLSearchParams({
-        role: "all",
+        role: "all_users",
         location: user?.location || "all",
         userRole: user?.role || "",
       })
