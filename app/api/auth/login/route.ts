@@ -15,10 +15,11 @@ export async function POST(request: Request) {
 
     console.log("[v0] Login attempt for:", username)
 
+    // Search by username OR email to be flexible
     const { data: user, error: queryError } = await supabase
       .from("profiles")
       .select("*")
-      .eq("username", username)
+      .or(`username.eq.${username},email.eq.${username}`)
       .eq("status", "approved")
       .eq("is_active", true)
       .maybeSingle()
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
     }
 
     if (!user) {
-      console.log("[v0] No user found for username:", username)
+      console.log("[v0] No user found for username/email:", username)
       await supabase.from("audit_logs").insert({
         username: username,
         action: "LOGIN_FAILED",
