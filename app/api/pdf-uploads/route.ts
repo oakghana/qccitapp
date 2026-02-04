@@ -45,21 +45,25 @@ export async function GET(request: Request) {
       query = query.or(`target_location.eq.${userLocation},target_location.is.null`)
     } else if (userRole === "regional_it_head" && userLocation) {
       // Regional IT Heads see ALL documents for THEIR LOCATION OR documents for all locations
-      console.log("[v0] Regional IT Head - showing all documents for location:", userLocation)
+      console.log("[v0] Regional IT Head - userLocation:", userLocation, "building query for target_location.eq." + userLocation + " OR target_location.is.null")
       query = query.or(`target_location.eq.${userLocation},target_location.is.null`)
     } else if (userRole === "it_head") {
       // IT Heads see all active documents (no location restriction)
       console.log("[v0] IT Head - showing all active documents")
-      // No additional filters
+      // No additional filters - show all
     } else if (location && location !== "all") {
       // Fallback for other roles with explicit location filter
       console.log("[v0] Filtering by location:", location)
       query = query.or(`target_location.eq.${location},target_location.is.null`)
+    } else {
+      // Default: show only documents for all locations if no role-based filter applies
+      console.log("[v0] Default filter - showing only documents for all locations")
+      query = query.is("target_location", null)
     }
 
     const { data, error } = await query
 
-    console.log("[v0] PDF Uploads query result - count:", data?.length, "error:", error)
+    console.log("[v0] PDF Uploads query result - count:", data?.length, "error:", error?.message)
     
     if (error) {
       console.error("[v0] Error fetching PDF uploads:", error)

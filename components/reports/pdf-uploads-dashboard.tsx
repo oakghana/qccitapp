@@ -166,8 +166,8 @@ export function PDFUploadsDashboard() {
       if (user?.role === "it_staff" && user?.location) {
         // IT Staff can only see their location
         params.append("location", user.location)
-      } else if (user?.role !== "regional_it_head" && user?.role !== "it_head" && selectedLocation !== "all") {
-        // Other roles can filter by location if selected
+      } else if (selectedLocation !== "all" && !["regional_it_head", "it_head", "admin"].includes(user?.role || "")) {
+        // Other roles can filter by location if selected (but not regional_it_head, it_head, admin)
         params.append("location", selectedLocation)
       }
 
