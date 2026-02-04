@@ -151,9 +151,12 @@ export function PDFUploadsDashboard() {
       // Add type filter if selected
       if (selectedType !== "all") params.append("type", selectedType)
       
-      // Always send user role and location for server-side access control
+      // Always send user role, ID, and location for server-side access control
       if (user?.role) {
         params.append("userRole", user.role)
+      }
+      if (user?.id) {
+        params.append("userId", user.id)
       }
       if (user?.location) {
         params.append("userLocation", user.location)
@@ -347,14 +350,26 @@ export function PDFUploadsDashboard() {
       return true
     }
 
-    // Regional IT Heads only see their location documents that are confirmed
+    // Regional IT Heads see confirmed documents + their own uploads
     if (user?.role === "regional_it_head") {
-      // Must be confirmed
-      if (!upload.is_confirmed) {
+      // Can see confirmed documents or their own uploads (confirmed or unconfirmed)
+      if (!upload.is_confirmed && upload.uploaded_by !== user.id) {
         return false
       }
       // Only their location
       if (upload.target_location && upload.target_location !== user.location) {
+        return false
+      }
+      if (selectedType !== "all" && upload.document_type !== selectedType) {
+        return false
+      }
+      return true
+    }
+
+    // IT Heads see confirmed documents + their own uploads
+    if (user?.role === "it_head") {
+      // Can see confirmed documents or their own uploads (confirmed or unconfirmed)
+      if (!upload.is_confirmed && upload.uploaded_by !== user.id) {
         return false
       }
       if (selectedType !== "all" && upload.document_type !== selectedType) {

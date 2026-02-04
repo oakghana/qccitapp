@@ -14,8 +14,9 @@ export async function GET(request: Request) {
     const location = searchParams.get("location")
     const userRole = searchParams.get("userRole")
     const userLocation = searchParams.get("userLocation")
+    const userId = searchParams.get("userId")
 
-    console.log("[v0] PDF Uploads GET - type:", documentType, "location:", location, "userRole:", userRole, "userLocation:", userLocation)
+    console.log("[v0] PDF Uploads GET - type:", documentType, "location:", location, "userRole:", userRole, "userLocation:", userLocation, "userId:", userId)
 
     let query = supabase
       .from("pdf_uploads")
@@ -44,8 +45,18 @@ export async function GET(request: Request) {
       query = query.or(`target_location.eq.${userLocation},target_location.is.null`)
     } else if (userRole === "regional_it_head") {
       // Regional IT Heads see ALL active documents regardless of location
-      console.log("[v0] Regional IT Head - showing all documents")
-      // No location filter applied - show all
+      // PLUS they can see their own unconfirmed uploads
+      console.log("[v0] Regional IT Head - showing all documents and own uploads")
+      if (userId) {
+        // Show confirmed documents OR documents they uploaded themselves
+        query = query.or(`is_confirmed.eq.true,uploaded_by.eq.${userId}`)
+      }
+    } else if (userRole === "it_head") {
+      // IT Heads see all confirmed documents AND their own uploads
+      console.log("[v0] IT Head - showing confirmed documents and own uploads")
+      if (userId) {
+        query = query.or(`is_confirmed.eq.true,uploaded_by.eq.${userId}`)
+      }
     } else if (location && location !== "all") {
       // Fallback for other roles with explicit location filter
       console.log("[v0] Filtering by location:", location)
