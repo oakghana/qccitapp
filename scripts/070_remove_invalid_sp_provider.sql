@@ -1,32 +1,51 @@
 -- Remove invalid "sp" service provider with name "sp"
 -- This service provider was created with an incomplete name and has no proper role assigned
+-- Service Provider ID: dd7c27a4-6687-43ae-9981-9e1f3d48eee5
+-- Email: spohemengappiah@gmail.com
+
+BEGIN;
 
 -- First, check what we're about to delete
+SELECT 'BEFORE CLEANUP: Service Providers to be deleted' as status;
 SELECT id, name, email, is_active, user_id, created_at 
 FROM public.service_providers 
-WHERE LOWER(name) = LOWER('sp') 
-   OR (name = 'sp' AND email = 'spohemengappiah@gmail.com');
+WHERE id = 'dd7c27a4-6687-43ae-9981-9e1f3d48eee5'
+   OR LOWER(name) = LOWER('sp') 
+   OR email = 'spohemengappiah@gmail.com';
 
--- Delete repair requests associated with this invalid provider (if any)
+-- Check for any repair requests linked to this provider
+SELECT 'BEFORE CLEANUP: Repair requests linked to SP provider' as status;
+SELECT id, service_provider_id, service_provider_name, status, created_at
+FROM public.repair_requests 
+WHERE service_provider_id = 'dd7c27a4-6687-43ae-9981-9e1f3d48eee5'
+   OR service_provider_name = 'sp';
+
+-- Delete repair requests associated with this invalid provider
 DELETE FROM public.repair_requests 
-WHERE service_provider_id IN (
-  SELECT id FROM public.service_providers 
-  WHERE LOWER(name) = LOWER('sp') 
-     OR (name = 'sp' AND email = 'spohemengappiah@gmail.com')
-);
+WHERE service_provider_id = 'dd7c27a4-6687-43ae-9981-9e1f3d48eee5'
+   OR service_provider_name = 'sp';
+
+-- Delete service provider user assignments if any
+DELETE FROM public.service_provider_users
+WHERE service_provider_id = 'dd7c27a4-6687-43ae-9981-9e1f3d48eee5';
 
 -- Finally, delete the invalid service provider
 DELETE FROM public.service_providers 
-WHERE LOWER(name) = LOWER('sp') 
-   OR (name = 'sp' AND email = 'spohemengappiah@gmail.com');
+WHERE id = 'dd7c27a4-6687-43ae-9981-9e1f3d48eee5'
+   OR LOWER(name) = LOWER('sp') 
+   OR email = 'spohemengappiah@gmail.com';
 
 -- Verify deletion
-SELECT COUNT(*) as remaining_sp_providers
+SELECT 'AFTER CLEANUP: Verification' as status;
+SELECT COUNT(*) as remaining_sp_count
 FROM public.service_providers 
-WHERE LOWER(name) LIKE '%sp%';
+WHERE LOWER(name) = LOWER('sp') OR email = 'spohemengappiah@gmail.com';
 
 -- Show remaining active service providers
-SELECT id, name, email, location, is_active 
+SELECT 'ACTIVE SERVICE PROVIDERS:' as status;
+SELECT id, name, email, location, phone, is_active 
 FROM public.service_providers 
 WHERE is_active = true
 ORDER BY name;
+
+COMMIT;
