@@ -151,12 +151,20 @@ export function PDFUploadsDashboard() {
       // Add type filter if selected
       if (selectedType !== "all") params.append("type", selectedType)
       
+      // Always send user role and location for server-side access control
+      if (user?.role) {
+        params.append("userRole", user.role)
+      }
+      if (user?.location) {
+        params.append("userLocation", user.location)
+      }
+      
       // Add location filter based on user role
       if (user?.role === "it_staff" && user?.location) {
         // IT Staff can only see their location
         params.append("location", user.location)
-      } else if (selectedLocation !== "all") {
-        // Admin and IT Heads can filter by location if selected
+      } else if (user?.role !== "regional_it_head" && user?.role !== "it_head" && selectedLocation !== "all") {
+        // Other roles can filter by location if selected
         params.append("location", selectedLocation)
       }
 
