@@ -669,7 +669,7 @@ export function PDFUploadsDashboard() {
             {["it_staff", "regional_it_head"].includes(user?.role || "") && (
               <div className="px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 rounded border border-blue-200 dark:border-blue-800">
                 {user?.role === "regional_it_head"
-                  ? "🔍 You can only view documents for your location that have been approved by admin"
+                  ? "🔍 You can view all documents for your location"
                   : "👁️ You can view all approved IT documents across all locations"}
               </div>
             )}
