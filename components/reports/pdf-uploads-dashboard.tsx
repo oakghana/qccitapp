@@ -337,7 +337,7 @@ export function PDFUploadsDashboard() {
   }
 
   const filteredUploads = uploads.filter((upload) => {
-    // Admin can see all uploads (confirmed and unconfirmed)
+    // Admin can see all uploads
     if (user?.role === "admin") {
       if (selectedType !== "all" && upload.document_type !== selectedType) {
         return false
@@ -350,26 +350,16 @@ export function PDFUploadsDashboard() {
       return true
     }
 
-    // Regional IT Heads see ALL documents - no approval needed, no filtering
-    // This allows them to see all documents and reports for their region
-    if (user?.role === "regional_it_head") {
+    // Regional IT Head, IT Head, and IT Staff see ALL documents - NO RESTRICTIONS
+    if (["regional_it_head", "it_head", "it_staff"].includes(user?.role || "")) {
       if (selectedType !== "all" && upload.document_type !== selectedType) {
         return false
       }
-      // Regional IT Heads can see all documents (confirmed or not)
+      // No other restrictions - show all documents
       return true
     }
 
-    // IT Heads see all documents (confirmed and unconfirmed) + their own uploads (all locations)
-    if (user?.role === "it_head") {
-      if (selectedType !== "all" && upload.document_type !== selectedType) {
-        return false
-      }
-      // IT Heads can see all documents for all locations
-      return true
-    }
-
-    // IT Staff and others can only see confirmed documents (have confirmations)
+    // Other roles can only see confirmed documents
     const isConfirmed = upload.confirmations && upload.confirmations.length > 0
     if (!isConfirmed) {
       return false
