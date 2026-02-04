@@ -48,28 +48,29 @@ export async function GET(request: Request) {
       if (role === 'all_users') {
         query = query.neq('role', 'admin')
       } else {
-      const staffRoles = [
-        'it_staff',
-        'it_head',
-        'regional_it_head',
-        'service_desk_head',
-        'service_desk_staff',
-      ]
-      
-      if (role === 'staff_roles') {
-        // For ticket assignment, admins and heads can assign to all IT staff
-        if (userRole === 'service_desk_head' || userRole === 'admin' || userRole === 'it_head') {
-          query = query.in('role', [
-            'it_staff',
-            'it_head',
-            'regional_it_head',
-            'service_desk_staff',
-          ])
-        } else {
-          query = query.in('role', ['it_staff', 'service_desk_staff', 'regional_it_head'])
+        const staffRoles = [
+          'it_staff',
+          'it_head',
+          'regional_it_head',
+          'service_desk_head',
+          'service_desk_staff',
+        ]
+        
+        if (role === 'staff_roles') {
+          // For ticket assignment, admins and heads can assign to all IT staff
+          if (userRole === 'service_desk_head' || userRole === 'admin' || userRole === 'it_head') {
+            query = query.in('role', [
+              'it_staff',
+              'it_head',
+              'regional_it_head',
+              'service_desk_staff',
+            ])
+          } else {
+            query = query.in('role', ['it_staff', 'service_desk_staff', 'regional_it_head'])
+          }
+        } else if (staffRoles.includes(role)) {
+          query = query.eq('role', role)
         }
-      } else if (staffRoles.includes(role)) {
-        query = query.eq('role', role)
       }
     } else {
       query = query.in('role', rolesToFetch)
