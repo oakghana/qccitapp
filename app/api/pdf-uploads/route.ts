@@ -12,8 +12,10 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const documentType = searchParams.get("type")
     const location = searchParams.get("location")
+    const userRole = searchParams.get("userRole")
+    const userLocation = searchParams.get("userLocation")
 
-    console.log("[v0] PDF Uploads GET - type:", documentType, "location:", location)
+    console.log("[v0] PDF Uploads GET - type:", documentType, "location:", location, "userRole:", userRole, "userLocation:", userLocation)
 
     let query = supabase
       .from("pdf_uploads")
@@ -35,7 +37,17 @@ export async function GET(request: Request) {
       query = query.eq("document_type", documentType)
     }
 
-    if (location && location !== "all") {
+    // Apply location-based access control
+    if (userRole === "it_staff" && userLocation) {
+      // IT Staff can only see documents for their location
+      console.log("[v0] IT Staff filter - location:", userLocation)
+      query = query.or(`target_location.eq.${userLocation},target_location.is.null`)
+    } else if (userRole === "regional_it_head") {
+      // Regional IT Heads see ALL active documents regardless of location
+      console.log("[v0] Regional IT Head - showing all documents")
+      // No location filter applied - show all
+    } else if (location && location !== "all") {
+      // Fallback for other roles with explicit location filter
       console.log("[v0] Filtering by location:", location)
       query = query.or(`target_location.eq.${location},target_location.is.null`)
     }
