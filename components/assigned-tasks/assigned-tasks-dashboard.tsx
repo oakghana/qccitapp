@@ -697,11 +697,7 @@ export function AssignedTasksDashboard() {
                                 />
                               </div>
 
-                              <Button
-                                onClick={handleUpdateStatus}
-                                className="w-full"
-                                disabled={isUpdating || !newStatus}
-                              >
+                              <Button onClick={handleUpdateStatus} className="w-full" disabled={isUpdating || !newStatus}>
                                 {isUpdating ? (
                                   <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
