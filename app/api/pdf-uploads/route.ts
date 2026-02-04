@@ -49,7 +49,7 @@ export async function GET(request: Request) {
       console.log("[v0] Regional IT Head filter - location:", userLocation, "userId:", userId)
       if (userId) {
         // Show (confirmed AND their location) OR (their own uploads AND their location)
-        query = query.and(`target_location.eq.${userLocation}`).or(`is_confirmed.eq.true,uploaded_by.eq.${userId}`)
+        query = query.eq("target_location", userLocation).or(`is_confirmed.eq.true,uploaded_by.eq.${userId}`)
       } else {
         // Fallback if no userId provided
         query = query.eq("target_location", userLocation)
