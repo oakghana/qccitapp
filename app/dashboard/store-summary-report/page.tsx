@@ -66,10 +66,12 @@ export default function StoreSummaryReportPage() {
   // User's local stock cache
   const [localStockMap, setLocalStockMap] = useState<Record<string, number>>({})
 
-  // Check if user is regional_it_head viewing Central Stores
+  // Check if user is regional_it_head or it_store_head viewing Central Stores
   const isRegionalHead = user?.role === "regional_it_head"
+  const isITStoreHead = user?.role === "it_store_head"
   const viewingCentralStores = selectedLocation === "Central Stores"
-  const canRequestStock = isRegionalHead && viewingCentralStores
+  // ONLY IT Store Head can request stock transfers from Central Stores to Head Office
+  const canRequestStock = isITStoreHead && viewingCentralStores
 
   // Load user's local stock when viewing Central Stores as regional_it_head
   useEffect(() => {
@@ -137,6 +139,9 @@ export default function StoreSummaryReportPage() {
     setRequestError("")
 
     try {
+      // IT Store Head requests go to Head Office, Regional IT Head requests go to their location
+      const targetLocation = isITStoreHead ? "Head Office" : user?.location
+      
       const response = await fetch("/api/store/stock-transfer-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -146,7 +151,7 @@ export default function StoreSummaryReportPage() {
           itemCode: selectedItem.code,
           requestedQuantity: qty,
           requestedBy: user?.full_name || user?.name || "Unknown",
-          requestingLocation: user?.location,
+          requestingLocation: targetLocation,
           userRole: user?.role,
           notes: requestNotes,
         }),
@@ -159,7 +164,7 @@ export default function StoreSummaryReportPage() {
         return
       }
 
-      setRequestSuccess(`Request ${result.request?.request_number} submitted successfully! Awaiting approval from Admin/Store Head.`)
+      setRequestSuccess(`Request ${result.request?.request_number} submitted successfully! Awaiting approval from Admin.`)
       setTimeout(() => {
         setRequestDialogOpen(false)
         setRequestSuccess("")
@@ -647,7 +652,22 @@ export default function StoreSummaryReportPage() {
                           <td className="border border-gray-300 p-2 text-right">{item.receipts}</td>
                           <td className="border border-gray-300 p-2 text-right">{item.issues}</td>
                           <td className="border border-gray-300 p-2 text-right font-semibold">{item.closingBalance}</td>
-                          <td className="border border-gray-300 p-2 text-sm print:hidden">{item.remarks}</td>
+                          <td className="border border-gray-300 p-2 text-sm print:hidden max-w-[200px]">
+                            {item.issues > 0 ? (
+                              <span className="text-red-600 text-xs">
+                                -{item.issues} issued
+                                {item.remarks && ` (${item.remarks})`}
+                              </span>
+                            ) : item.receipts > 0 ? (
+                              <span className="text-green-600 text-xs">
+                                +{item.receipts} received
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">
+                                {item.remarks || "No changes"}
+                              </span>
+                            )}
+                          </td>
                           {canRequestStock && (
                             <td className="border border-gray-300 p-2 text-center print:hidden">
                               {canRequest ? (
@@ -704,17 +724,19 @@ export default function StoreSummaryReportPage() {
         </Card>
       )}
 
-      {/* Info box for Regional IT Heads */}
-      {isRegionalHead && (
+      {/* Info box for Regional IT Heads and IT Store Heads */}
+      {(isRegionalHead || isITStoreHead) && (
         <Card className="border-blue-200 bg-blue-50">
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
               <Package className="h-5 w-5 text-blue-600 mt-0.5" />
               <div>
-                <p className="font-medium text-blue-900">Stock Refill Request</p>
+                <p className="font-medium text-blue-900">Stock Transfer Request</p>
                 <p className="text-sm text-blue-700">
-                  To request items from Central Stores, select &quot;Central Stores&quot; in the Location filter above.
-                  You can only request items when your local stock ({user?.location}) is zero.
+                  {isITStoreHead 
+                    ? "To request items from Central Stores to Head Office, select \"Central Stores\" in the Location filter above. You can only request items when Head Office stock is zero. Only Admin can approve these requests."
+                    : `To request items from Central Stores, select "Central Stores" in the Location filter above. You can only request items when your local stock (${user?.location}) is zero.`
+                  }
                 </p>
               </div>
             </div>
@@ -731,7 +753,8 @@ export default function StoreSummaryReportPage() {
               Request Stock from Central Stores
             </DialogTitle>
             <DialogDescription>
-              Request items to be transferred to your location ({user?.location})
+              Request items to be transferred to {isITStoreHead ? "Head Office" : `your location (${user?.location})`}.
+              {isITStoreHead && " Only Admin can approve this request."}
             </DialogDescription>
           </DialogHeader>
 

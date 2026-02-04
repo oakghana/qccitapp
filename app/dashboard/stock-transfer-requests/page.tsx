@@ -70,8 +70,10 @@ export default function StockTransferRequestsPage() {
   const [actionError, setActionError] = useState("")
   const [actionSuccess, setActionSuccess] = useState("")
 
-  // Check if user can approve requests
-  const canApprove = user?.role === "admin" || user?.role === "it_store_head" || user?.role === "it_head"
+  // Check if user can approve requests (Admin only)
+  const canApprove = user?.role === "admin"
+  // Check if user can create requests (IT Store Head only)
+  const canCreateRequest = user?.role === "it_store_head"
   const isRegionalHead = user?.role === "regional_it_head"
 
   useEffect(() => {
@@ -211,9 +213,16 @@ export default function StockTransferRequestsPage() {
           </h2>
           <p className="text-muted-foreground">
             {canApprove 
-              ? "Review and approve stock transfer requests from regional offices" 
-              : "View your stock transfer requests to Central Stores"}
+              ? "Review and approve stock transfer requests (Central Stores → Head Office)" 
+              : canCreateRequest
+                ? "Request stock transfers from Central Stores to Head Office"
+                : "View stock transfer requests"}
           </p>
+          {!canApprove && !canCreateRequest && (
+            <p className="text-xs text-amber-600 mt-1">
+              Note: Only IT Store Head can request transfers, and only Admin can approve them.
+            </p>
+          )}
         </div>
         <Button variant="outline" onClick={loadRequests}>
           <RefreshCcw className="h-4 w-4 mr-2" />

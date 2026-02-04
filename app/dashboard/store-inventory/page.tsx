@@ -21,8 +21,16 @@ import {
   Package,
   AlertTriangle,
   TrendingUp,
+  TrendingDown,
   BarChart3,
   Plus,
+  MapPin,
+  Building,
+  Users,
+  ArrowUpRight,
+  ArrowDownRight,
+  Calendar,
+  Loader2,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations } from "@/lib/location-filter"
@@ -41,10 +49,33 @@ interface StoreItem {
   supplier?: string
 }
 
+interface Analytics {
+  summary: {
+    totalItems: number
+    totalQuantity: number
+    lowStockCount: number
+    outOfStockCount: number
+    totalIssues: number
+    totalReceipts: number
+    totalAssignments: number
+    pendingRequisitions: number
+  }
+  stockByLocation: Record<string, { items: number; quantity: number; value: number }>
+  stockByCategory: Record<string, number>
+  issuesByDepartment: Record<string, number>
+  movementTrends: Array<{ date: string; issues: number; receipts: number }>
+  topIssuedItems: Array<{ name: string; count: number }>
+  lowStockItems: Array<{ id: string; name: string; quantity: number; reorderLevel: number; location: string; category: string }>
+  recentTransactionsSummary: Record<string, Array<{ location: string; summary: string }>>
+}
+
 export default function StoreInventoryPage() {
   const [inventory, setInventory] = useState<StoreItem[]>([])
+  const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [loading, setLoading] = useState(true)
+  const [analyticsLoading, setAnalyticsLoading] = useState(true)
   const [selectedLocation, setSelectedLocation] = useState<string>("all")
+  const [selectedPeriod, setSelectedPeriod] = useState<string>("month")
   const { user } = useAuth()
 
   const canSeeAll = user ? canSeeAllLocations(user) : false
@@ -59,7 +90,8 @@ export default function StoreInventoryPage() {
 
   useEffect(() => {
     loadInventory()
-  }, [selectedLocation])
+    loadAnalytics()
+  }, [selectedLocation, selectedPeriod])
 
   const loadInventory = async () => {
     setLoading(true)
@@ -83,6 +115,25 @@ export default function StoreInventoryPage() {
       toast.error("Failed to load inventory")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadAnalytics = async () => {
+    setAnalyticsLoading(true)
+    try {
+      const params = new URLSearchParams({
+        period: selectedPeriod,
+        location: selectedLocation === "all" ? "" : selectedLocation,
+      })
+      const response = await fetch(`/api/store/analytics?${params}`)
+      const result = await response.json()
+      if (!result.error) {
+        setAnalytics(result)
+      }
+    } catch (error) {
+      console.error("[v0] Error loading analytics:", error)
+    } finally {
+      setAnalyticsLoading(false)
     }
   }
 
@@ -187,33 +238,49 @@ export default function StoreInventoryPage() {
           </p>
         </div>
         
-        {canSeeAll && (
-          <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-            <SelectTrigger className="w-[240px]">
-              <SelectValue placeholder="Select location" />
+        <div className="flex gap-2">
+          {/* Period Filter */}
+          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+            <SelectTrigger className="w-[140px]">
+              <Calendar className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Period" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Locations</SelectItem>
-              {Object.entries(LOCATIONS).map(([key, label]) => (
-                <SelectItem key={key} value={key}>
-                  {label}
-                </SelectItem>
-              ))}
+              <SelectItem value="week">This Week</SelectItem>
+              <SelectItem value="month">This Month</SelectItem>
+              <SelectItem value="quarter">This Quarter</SelectItem>
+              <SelectItem value="year">This Year</SelectItem>
             </SelectContent>
           </Select>
-        )}
+          
+          {canSeeAll && (
+            <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Select location" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Locations</SelectItem>
+                {Object.entries(LOCATIONS).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Summary Cards - Enhanced */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Items</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{stats.totalItems}</div>
-            <p className="text-xs text-muted-foreground mt-1">Unique items</p>
+            <div className="text-3xl font-bold">{analytics?.summary?.totalItems || stats.totalItems}</div>
+            <p className="text-xs text-muted-foreground mt-1">Unique items in inventory</p>
           </CardContent>
         </Card>
 
@@ -223,7 +290,7 @@ export default function StoreInventoryPage() {
             <TrendingUp className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-blue-600">{stats.totalQuantity}</div>
+            <div className="text-3xl font-bold text-blue-600">{analytics?.summary?.totalQuantity || stats.totalQuantity}</div>
             <p className="text-xs text-muted-foreground mt-1">Units in stock</p>
           </CardContent>
         </Card>
@@ -234,7 +301,7 @@ export default function StoreInventoryPage() {
             <AlertTriangle className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-orange-600">{stats.lowStock}</div>
+            <div className="text-3xl font-bold text-orange-600">{analytics?.summary?.lowStockCount || stats.lowStock}</div>
             <p className="text-xs text-muted-foreground mt-1">Below reorder level</p>
           </CardContent>
         </Card>
@@ -245,18 +312,77 @@ export default function StoreInventoryPage() {
             <AlertTriangle className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-red-600">{stats.outOfStock}</div>
+            <div className="text-3xl font-bold text-red-600">{analytics?.summary?.outOfStockCount || stats.outOfStock}</div>
             <p className="text-xs text-muted-foreground mt-1">Requires immediate action</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Movement Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="bg-green-50 dark:bg-green-950/20 border-green-200">
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-green-700 dark:text-green-400">Stock Received</p>
+                <p className="text-2xl font-bold text-green-700 dark:text-green-400">{analytics?.summary?.totalReceipts || 0}</p>
+              </div>
+              <ArrowDownRight className="h-8 w-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-red-50 dark:bg-red-950/20 border-red-200">
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-red-700 dark:text-red-400">Stock Issued</p>
+                <p className="text-2xl font-bold text-red-700 dark:text-red-400">{analytics?.summary?.totalIssues || 0}</p>
+              </div>
+              <ArrowUpRight className="h-8 w-8 text-red-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200">
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-blue-700 dark:text-blue-400">Assignments</p>
+                <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">{analytics?.summary?.totalAssignments || 0}</p>
+              </div>
+              <Users className="h-8 w-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200">
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-amber-700 dark:text-amber-400">Pending Requests</p>
+                <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">{analytics?.summary?.pendingRequisitions || 0}</p>
+              </div>
+              <Package className="h-8 w-8 text-amber-500" />
+            </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Tabbed Content */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
+        <TabsList className="grid w-full grid-cols-5 lg:w-[800px]">
           <TabsTrigger value="overview" className="gap-2">
             <BarChart3 className="h-4 w-4" />
             Overview
+          </TabsTrigger>
+          <TabsTrigger value="locations" className="gap-2">
+            <MapPin className="h-4 w-4" />
+            By Location
+          </TabsTrigger>
+          <TabsTrigger value="departments" className="gap-2">
+            <Building className="h-4 w-4" />
+            By Department
           </TabsTrigger>
           <TabsTrigger value="reorder" className="gap-2">
             <AlertTriangle className="h-4 w-4" />
@@ -268,103 +394,217 @@ export default function StoreInventoryPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Overview Tab */}
+        {/* Overview Tab - Enhanced */}
         <TabsContent value="overview" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Stock by Category */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Stock by Category</CardTitle>
+                <CardDescription>Distribution of inventory items by category</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {analyticsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {Object.entries(analytics?.stockByCategory || {}).map(([category, quantity]) => (
+                      <div key={category} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-green-500" />
+                          <span className="text-sm capitalize">{category}</span>
+                        </div>
+                        <Badge variant="outline">{quantity} units</Badge>
+                      </div>
+                    ))}
+                    {Object.keys(analytics?.stockByCategory || {}).length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-4">No category data available</p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Top Issued Items */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Issued Items</CardTitle>
+                <CardDescription>Most frequently issued items this {selectedPeriod}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {analyticsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {(analytics?.topIssuedItems || []).slice(0, 5).map((item, index) => (
+                      <div key={item.name} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-muted-foreground">{index + 1}.</span>
+                          <span className="text-sm">{item.name}</span>
+                        </div>
+                        <Badge>{item.count} issued</Badge>
+                      </div>
+                    ))}
+                    {(analytics?.topIssuedItems || []).length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-4">No issues recorded this {selectedPeriod}</p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Movement Trends Chart Placeholder */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Inventory Overview</CardTitle>
-                <CardDescription>
-                  Stock distribution and status for {selectedLocation === "all" ? "all locations" : LOCATIONS[selectedLocation as keyof typeof LOCATIONS]}
-                </CardDescription>
+                <CardTitle>Stock Movement Trends</CardTitle>
+                <CardDescription>Issues vs Receipts over time</CardDescription>
               </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => exportToExcel(getLocationInventory(selectedLocation), `inventory-overview-${selectedLocation}-${new Date().toISOString().split("T")[0]}.csv`)}
-                >
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  Excel
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => exportToPDF(getLocationInventory(selectedLocation), `inventory-overview-${selectedLocation}-${new Date().toISOString().split("T")[0]}.pdf`)}
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  PDF
-                </Button>
+              <div className="flex gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-red-500" />
+                  <span>Issues</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-green-500" />
+                  <span>Receipts</span>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
-              {loading ? (
-                <div className="text-center py-12 text-muted-foreground">Loading inventory...</div>
-              ) : getLocationInventory(selectedLocation).length === 0 ? (
-                <div className="text-center py-12">
-                  <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-lg font-semibold">No items in inventory</p>
-                  <p className="text-sm text-muted-foreground">Add items to get started</p>
+              {analyticsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin" />
                 </div>
               ) : (
-                <div className="space-y-6">
-                  {/* Category Breakdown */}
-                  <div>
-                    <h3 className="text-sm font-semibold mb-3">By Category</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {Object.entries(
-                        getLocationInventory(selectedLocation).reduce((acc, item) => {
-                          acc[item.category] = (acc[item.category] || 0) + 1
-                          return acc
-                        }, {} as Record<string, number>)
-                      ).map(([category, count]) => (
-                        <div key={category} className="border rounded-lg p-3">
-                          <div className="text-xs text-muted-foreground capitalize">{category}</div>
-                          <div className="text-2xl font-bold">{count}</div>
-                        </div>
-                      ))}
+                <div className="h-[200px] flex items-end gap-1">
+                  {(analytics?.movementTrends || []).slice(-14).map((day, index) => (
+                    <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
+                      <div className="w-full flex gap-0.5">
+                        <div 
+                          className="flex-1 bg-red-500 rounded-t" 
+                          style={{ height: `${Math.min((day.issues / 10) * 100, 150)}px` }}
+                        />
+                        <div 
+                          className="flex-1 bg-green-500 rounded-t" 
+                          style={{ height: `${Math.min((day.receipts / 10) * 100, 150)}px` }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-muted-foreground rotate-45">
+                        {new Date(day.date).toLocaleDateString('en', { month: 'short', day: 'numeric' })}
+                      </span>
                     </div>
-                  </div>
+                  ))}
+                  {(analytics?.movementTrends || []).length === 0 && (
+                    <div className="w-full flex items-center justify-center">
+                      <p className="text-sm text-muted-foreground">No movement data for this period</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-                  {/* Recent Items */}
-                  <div>
-                    <h3 className="text-sm font-semibold mb-3">Recent Items</h3>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Item</TableHead>
-                          <TableHead>Category</TableHead>
-                          <TableHead>Location</TableHead>
-                          <TableHead className="text-right">Quantity</TableHead>
-                          <TableHead>Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {getLocationInventory(selectedLocation).slice(0, 10).map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell className="font-medium">{item.name}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{item.category}</Badge>
+        {/* By Location Tab */}
+        <TabsContent value="locations" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Stock Distribution by Location</CardTitle>
+              <CardDescription>Inventory levels across all regional locations</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {analyticsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {Object.entries(analytics?.stockByLocation || {}).map(([location, data]) => (
+                    <Card key={location} className="border-2">
+                      <CardContent className="pt-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <MapPin className="h-4 w-4 text-green-600" />
+                          <span className="font-medium">{location}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <p className="text-muted-foreground">Items</p>
+                            <p className="font-bold text-lg">{data.items}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Quantity</p>
+                            <p className="font-bold text-lg text-blue-600">{data.quantity}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {Object.keys(analytics?.stockByLocation || {}).length === 0 && (
+                    <p className="text-sm text-muted-foreground col-span-3 text-center py-8">No location data available</p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* By Department Tab */}
+        <TabsContent value="departments" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Stock Issues by Department</CardTitle>
+              <CardDescription>Which departments are receiving the most stock items this {selectedPeriod}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {analyticsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Department</TableHead>
+                      <TableHead className="text-right">Items Issued</TableHead>
+                      <TableHead className="text-right">% of Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Object.entries(analytics?.issuesByDepartment || {})
+                      .sort(([,a], [,b]) => b - a)
+                      .map(([dept, count]) => {
+                        const totalIssues = Object.values(analytics?.issuesByDepartment || {}).reduce((a, b) => a + b, 0)
+                        const percentage = totalIssues > 0 ? ((count / totalIssues) * 100).toFixed(1) : 0
+                        return (
+                          <TableRow key={dept}>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                <Building className="h-4 w-4 text-muted-foreground" />
+                                {dept}
+                              </div>
                             </TableCell>
-                            <TableCell>{item.location}</TableCell>
+                            <TableCell className="text-right">{count}</TableCell>
                             <TableCell className="text-right">
-                              {item.quantity} {item.unit}
-                            </TableCell>
-                            <TableCell>
-                              {item.quantity === 0 ? (
-                                <Badge variant="destructive">Out of Stock</Badge>
-                              ) : item.quantity <= item.reorder_level ? (
-                                <Badge className="bg-orange-600">Low Stock</Badge>
-                              ) : (
-                                <Badge className="bg-green-600">In Stock</Badge>
-                              )}
+                              <Badge variant="outline">{percentage}%</Badge>
                             </TableCell>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
+                        )
+                      })}
+                    {Object.keys(analytics?.issuesByDepartment || {}).length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                          No department data available for this period
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
               )}
             </CardContent>
           </Card>

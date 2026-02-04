@@ -43,6 +43,7 @@ import {
   Keyboard,
   Mouse,
   HardDrive,
+  Edit,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { LOCATIONS } from "@/lib/locations"
@@ -114,6 +115,19 @@ export function AssignStockToStaff() {
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [assignDialogOpen, setAssignDialogOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null)
+
+  // Edit assignment state
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingAssignment, setEditingAssignment] = useState<StockAssignment | null>(null)
+  const [editForm, setEditForm] = useState({
+    assigned_to: "",
+    assigned_to_email: "",
+    department: "",
+    office_location: "",
+    room_number: "",
+    notes: "",
+  })
+  const [editLoading, setEditLoading] = useState(false)
 
   // Assignment form state
   const [assignmentForm, setAssignmentForm] = useState({
@@ -371,6 +385,82 @@ export function AssignStockToStaff() {
   })
 
   const uniqueCategories = [...new Set(stockItems.map(item => item.category).filter(Boolean))]
+
+  // Handle opening edit dialog
+  const handleEditAssignment = (assignment: StockAssignment) => {
+    setEditingAssignment(assignment)
+    setEditForm({
+      assigned_to: assignment.assigned_to,
+      assigned_to_email: assignment.assigned_to_email || "",
+      department: assignment.department || "",
+      office_location: assignment.office_location || "",
+      room_number: assignment.room_number || "",
+      notes: assignment.notes || "",
+    })
+    setEditDialogOpen(true)
+  }
+
+  // Handle saving edit
+  const handleSaveEdit = async () => {
+    if (!editingAssignment) return
+
+    if (!editForm.assigned_to.trim()) {
+      toast({
+        title: "❌ Validation Error",
+        description: "Recipient name is required",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setEditLoading(true)
+    try {
+      const response = await fetch("/api/store/update-assignment", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assignmentId: editingAssignment.id,
+          assigned_to: editForm.assigned_to,
+          assigned_to_email: editForm.assigned_to_email,
+          department: editForm.department,
+          office_location: editForm.office_location,
+          room_number: editForm.room_number,
+          notes: editForm.notes,
+          updatedBy: user?.full_name || user?.username || user?.email,
+          userRole: user?.role,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        toast({
+          title: "❌ Update Failed",
+          description: result.error || "Failed to update assignment",
+          variant: "destructive",
+        })
+        return
+      }
+
+      toast({
+        title: "✅ Assignment Updated",
+        description: result.message || "Assignment has been updated successfully",
+      })
+
+      setEditDialogOpen(false)
+      setEditingAssignment(null)
+      loadAssignments() // Refresh the list
+    } catch (error) {
+      console.error("[v0] Error updating assignment:", error)
+      toast({
+        title: "❌ Error",
+        description: "An error occurred while updating the assignment",
+        variant: "destructive",
+      })
+    } finally {
+      setEditLoading(false)
+    }
+  }
 
   const handleExportAssignments = () => {
     const headers = [
@@ -649,6 +739,7 @@ export function AssignStockToStaff() {
                         <TableHead>Req. #</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -699,6 +790,16 @@ export function AssignStockToStaff() {
                             >
                               {assignment.status}
                             </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEditAssignment(assignment)}
+                            >
+                              <Edit className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -909,6 +1010,126 @@ export function AssignStockToStaff() {
               disabled={assignmentLoading}
             >
               {assignmentLoading ? "Assigning..." : "Assign Item"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Assignment Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Assignment</DialogTitle>
+            <DialogDescription>
+              Update the assignment details. {editingAssignment?.is_hardware && "Device records will also be updated."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {editingAssignment && (
+            <div className="space-y-4 py-4">
+              {/* Item Info (read-only) */}
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">Item</p>
+                <p className="font-medium">{editingAssignment.item_name}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Quantity: {editingAssignment.quantity} • Location: {editingAssignment.location}
+                </p>
+                {editingAssignment.is_hardware && (
+                  <Badge variant="secondary" className="mt-2">
+                    Hardware - {editingAssignment.devices_created} device(s)
+                  </Badge>
+                )}
+              </div>
+
+              {/* Editable Fields */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit_assigned_to">Recipient Name *</Label>
+                    <Input
+                      id="edit_assigned_to"
+                      value={editForm.assigned_to}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, assigned_to: e.target.value }))}
+                      placeholder="Full name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit_email">Email</Label>
+                    <Input
+                      id="edit_email"
+                      type="email"
+                      value={editForm.assigned_to_email}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, assigned_to_email: e.target.value }))}
+                      placeholder="Email address"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit_department">Department</Label>
+                    <Input
+                      id="edit_department"
+                      value={editForm.department}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, department: e.target.value }))}
+                      placeholder="Department"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit_room">Room Number</Label>
+                    <Input
+                      id="edit_room"
+                      value={editForm.room_number}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, room_number: e.target.value }))}
+                      placeholder="Room number"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit_office_location">Office Location</Label>
+                  <Input
+                    id="edit_office_location"
+                    value={editForm.office_location}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, office_location: e.target.value }))}
+                    placeholder="Office location"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit_notes">Notes</Label>
+                  <Textarea
+                    id="edit_notes"
+                    value={editForm.notes}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
+                    placeholder="Additional notes..."
+                    rows={2}
+                  />
+                </div>
+              </div>
+
+              {editingAssignment.is_hardware && (
+                <div className="p-3 bg-amber-50 text-amber-800 rounded-lg text-sm dark:bg-amber-900/20 dark:text-amber-400">
+                  <p className="font-medium">Hardware Assignment</p>
+                  <p>Updating this assignment will also update the associated device records in the device inventory.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditDialogOpen(false)
+                setEditingAssignment(null)
+              }}
+              disabled={editLoading}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={editLoading}>
+              {editLoading ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>

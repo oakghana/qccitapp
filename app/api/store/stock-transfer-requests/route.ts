@@ -62,10 +62,19 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Creating stock transfer request:", body)
 
-    // Only regional_it_head can create requests
-    if (userRole !== "regional_it_head") {
+    // Only IT Store Head can request transfers from Central Stores to Head Office
+    // Regional IT Heads cannot request transfers (they use requisitions instead)
+    if (userRole !== "it_store_head") {
       return NextResponse.json(
-        { error: "Only Regional IT Heads can request stock transfers" },
+        { error: "Only IT Store Head can request stock transfers from Central Stores to Head Office" },
+        { status: 403 }
+      )
+    }
+
+    // IT Store Head can only request to Head Office
+    if (requestingLocation !== "Head Office" && requestingLocation !== "head_office") {
+      return NextResponse.json(
+        { error: "Stock transfers can only be requested for Head Office" },
         { status: 403 }
       )
     }
@@ -156,10 +165,10 @@ export async function PATCH(request: NextRequest) {
 
     console.log("[v0] Processing stock transfer request:", body)
 
-    // Only admin and it_store_head can approve/reject
-    if (userRole !== "admin" && userRole !== "it_store_head" && userRole !== "it_head") {
+    // Only admin can approve/reject stock transfer requests
+    if (userRole !== "admin") {
       return NextResponse.json(
-        { error: "Only Admin, IT Head, or IT Store Head can approve/reject requests" },
+        { error: "Only Admin can approve or reject stock transfer requests" },
         { status: 403 }
       )
     }

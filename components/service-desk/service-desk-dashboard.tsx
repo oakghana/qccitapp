@@ -153,10 +153,16 @@ export function ServiceDeskDashboard() {
     totalTickets: filteredTickets.length,
     openTickets: filteredTickets.filter((t) => t.status === "Open" || t.status === "open").length,
     inProgress: filteredTickets.filter((t) => t.status === "In Progress" || t.status === "in_progress").length,
-    resolved: filteredTickets.filter((t) => t.status === "Resolved" || t.status === "resolved").length,
+    resolved: filteredTickets.filter((t) => t.status === "Resolved" || t.status === "resolved" || t.status === "Closed" || t.status === "closed").length,
     avgResolutionTime: "2.3 hours",
     satisfaction: "94%",
   }
+
+  // Get closed/resolved tickets
+  const closedTickets = filteredTickets.filter(t => 
+    t.status === "Resolved" || t.status === "resolved" || 
+    t.status === "Closed" || t.status === "closed"
+  )
 
   const categoryIcons = {
     Hardware: Monitor,
@@ -245,13 +251,31 @@ export function ServiceDeskDashboard() {
             <p className="text-xs text-muted-foreground">Being worked on</p>
           </CardContent>
         </Card>
+
+        {/* Closed Tickets Card - Clickable */}
+        <Card 
+          className="cursor-pointer hover:bg-accent/50 transition-colors border-green-200 dark:border-green-800"
+          onClick={() => setActiveTab("closed")}
+        >
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Closed Tickets</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{stats.resolved}</div>
+            <p className="text-xs text-muted-foreground">Click to view details</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="resolved">Resolved Tickets</TabsTrigger>
+          <TabsTrigger value="closed">
+            <CheckCircle className="h-4 w-4 mr-1" />
+            Closed ({stats.resolved})
+          </TabsTrigger>
           <TabsTrigger value="knowledge">Knowledge Base</TabsTrigger>
         </TabsList>
 
@@ -362,19 +386,98 @@ export function ServiceDeskDashboard() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="resolved" className="space-y-4">
+        {/* Closed Tickets Tab - Detailed View */}
+        <TabsContent value="closed" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Resolved Tickets</CardTitle>
-              <CardDescription>
-                All tickets that have been resolved and closed
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    Closed & Resolved Tickets
+                  </CardTitle>
+                  <CardDescription>
+                    Complete list of all resolved and closed tickets with full details
+                  </CardDescription>
+                </div>
+                <Badge variant="outline" className="text-green-600 border-green-600">
+                  {closedTickets.length} tickets
+                </Badge>
+              </div>
             </CardHeader>
             <CardContent>
-              <TicketList 
-                tickets={allTickets.filter(t => t.status === "Resolved" || t.status === "resolved" || t.status === "Closed" || t.status === "closed")}
-                onRefresh={loadTickets}
-              />
+              {closedTickets.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium">No closed tickets yet</p>
+                  <p className="text-sm">Resolved tickets will appear here</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {closedTickets.map((ticket) => {
+                    const IconComponent = categoryIcons[ticket.category as keyof typeof categoryIcons] || Monitor
+                    return (
+                      <div key={ticket.id} className="border rounded-lg p-4 bg-green-50/50 dark:bg-green-950/20">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-3">
+                            <div className="p-2 bg-green-100 dark:bg-green-950 rounded-lg mt-1">
+                              <IconComponent className="h-4 w-4 text-green-600" />
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-medium">{ticket.title}</h4>
+                                <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                                  {ticket.status}
+                                </Badge>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                <span className="font-mono bg-muted px-1.5 py-0.5 rounded">{ticket.id}</span>
+                                <span>•</span>
+                                <span>{ticket.category}</span>
+                                <span>•</span>
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" />
+                                  {ticket.locationName}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-4 text-sm mt-2">
+                                <div>
+                                  <span className="text-muted-foreground">Requested by: </span>
+                                  <span className="font-medium">{ticket.requester}</span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Created: </span>
+                                  <span>{ticket.created}</span>
+                                </div>
+                                {ticket.assignedTo && (
+                                  <div>
+                                    <span className="text-muted-foreground">Resolved by: </span>
+                                    <span className="font-medium text-green-600">{ticket.assignedTo}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={ticket.priority === "High" || ticket.priority === "high" ? "destructive" : "outline"}>
+                              {ticket.priority}
+                            </Badge>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => loadTicketDetails(ticket)}
+                            >
+                              <Eye className="h-3 w-3 mr-1" />
+                              View Details
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

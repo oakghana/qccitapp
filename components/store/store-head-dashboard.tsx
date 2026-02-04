@@ -4,13 +4,19 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Package, AlertTriangle, Download, MapPin } from "lucide-react"
+import { Package, AlertTriangle, Download, MapPin, Info } from "lucide-react"
 import { LOCATIONS } from "@/lib/locations"
 import { downloadCSV } from "@/lib/export-utils"
 import StockCardDetailModal from "./stock-card-detail-modal"
 import { createBrowserClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations } from "@/lib/location-filter"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface StockItem {
   id: string
@@ -23,6 +29,13 @@ interface StockItem {
   sku: string
   siv_number: string
   supplier: string
+  lastTransaction?: {
+    type: string
+    quantity: number
+    recipient?: string
+    date: string
+    notes?: string
+  }
 }
 
 interface LocationSummary {
@@ -90,6 +103,64 @@ export default function StoreHeadDashboard() {
             item.location?.toLowerCase() === user.location?.toLowerCase() ||
             item.location?.toLowerCase() === "central stores"
           )
+        }
+        
+        // Fetch last transactions for items with 0 or low stock
+        const itemsWithLowStock = filteredData.filter((item: any) => item.quantity <= (item.reorder_level || 5))
+        if (itemsWithLowStock.length > 0) {
+          const itemNames = itemsWithLowStock.map((item: any) => item.name)
+          
+          // Fetch recent transactions for these items
+          const { data: transactions } = await supabase
+            .from("stock_transactions")
+            .select("*")
+            .in("item_name", itemNames)
+            .order("created_at", { ascending: false })
+          
+          // Fetch recent assignments for these items  
+          const { data: assignments } = await supabase
+            .from("stock_assignments")
+            .select("*")
+            .in("item_name", itemNames)
+            .order("created_at", { ascending: false })
+          
+          // Combine and sort by date
+          const allActivities = [
+            ...(transactions || []).map(t => ({
+              item_name: t.item_name,
+              type: t.transaction_type,
+              quantity: t.quantity,
+              recipient: t.recipient,
+              date: t.created_at,
+              notes: t.notes,
+            })),
+            ...(assignments || []).map(a => ({
+              item_name: a.item_name,
+              type: 'assignment',
+              quantity: a.quantity,
+              recipient: a.assigned_to,
+              date: a.created_at,
+              notes: a.notes,
+            })),
+          ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          
+          // Map last activity to each item
+          filteredData = filteredData.map((item: any) => {
+            const lastActivity = allActivities.find(a => a.item_name === item.name)
+            if (lastActivity) {
+              return {
+                ...item,
+                lastTransaction: {
+                  type: lastActivity.type,
+                  quantity: lastActivity.quantity,
+                  recipient: lastActivity.recipient,
+                  date: lastActivity.date,
+                  notes: lastActivity.notes,
+                }
+              }
+            }
+            return item
+          })
         }
         
         setItems(filteredData as StockItem[])
@@ -278,27 +349,75 @@ export default function StoreHeadDashboard() {
             <div key={location}>
               <h3 className="text-lg font-semibold mb-3">{location}</h3>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {locationItems.map((item) => (
+                <TooltipProvider>
+                {locationItems.map((item) => {
+                  // Build remark for items with 0 or low stock
+                  const getStockRemark = () => {
+                    if (item.quantity > 0 && item.quantity > item.reorder_level) return null
+                    if (!item.lastTransaction) {
+                      if (item.quantity === 0) return "Out of stock - No recent activity recorded"
+                      return null
+                    }
+                    const { type, quantity, recipient, date, notes } = item.lastTransaction
+                    const formattedDate = new Date(date).toLocaleDateString()
+                    
+                    switch (type) {
+                      case 'assignment':
+                        return `Assigned ${quantity} to ${recipient || 'staff'} on ${formattedDate}${notes ? `. Note: ${notes}` : ''}`
+                      case 'requisition':
+                      case 'issue':
+                        return `Issued ${quantity} to ${recipient || 'location'} on ${formattedDate}${notes ? `. Note: ${notes}` : ''}`
+                      case 'transfer':
+                        return `Transferred ${quantity} on ${formattedDate}${notes ? `. Note: ${notes}` : ''}`
+                      default:
+                        return `${type}: ${quantity} on ${formattedDate}${notes ? `. Note: ${notes}` : ''}`
+                    }
+                  }
+                  
+                  const remark = getStockRemark()
+                  
+                  return (
                   <Card
                     key={item.id}
-                    className="cursor-pointer hover:shadow-lg transition-shadow"
+                    className={`cursor-pointer hover:shadow-lg transition-shadow ${item.quantity === 0 ? 'border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/20' : ''}`}
                     onClick={() => setSelectedItem(item)}
                   >
                     <CardContent className="pt-6">
                       <div className="flex items-start justify-between mb-3">
-                        <Package className="h-8 w-8 text-primary" />
-                        {item.quantity <= item.reorder_level && <AlertTriangle className="h-5 w-5 text-amber-500" />}
+                        <Package className={`h-8 w-8 ${item.quantity === 0 ? 'text-red-500' : 'text-primary'}`} />
+                        <div className="flex items-center gap-1">
+                          {item.quantity <= item.reorder_level && <AlertTriangle className="h-5 w-5 text-amber-500" />}
+                          {remark && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="h-4 w-4 text-blue-500 cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-[300px]">
+                                <p className="text-xs font-medium">Last Activity:</p>
+                                <p className="text-xs">{remark}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
                       </div>
                       <h4 className="font-semibold mb-1">{item.name}</h4>
                       <p className="text-sm text-muted-foreground mb-3">{item.category}</p>
                       <div className="flex items-center justify-between">
-                        <span className="text-2xl font-bold">{item.quantity}</span>
+                        <span className={`text-2xl font-bold ${item.quantity === 0 ? 'text-red-600' : ''}`}>{item.quantity}</span>
                         <span className="text-sm text-muted-foreground">{item.unit}</span>
                       </div>
                       <div className="text-xs text-muted-foreground mt-2">Reorder at: {item.reorder_level}</div>
+                      {remark && item.quantity === 0 && (
+                        <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-950/30 rounded border border-amber-200 dark:border-amber-800">
+                          <p className="text-xs text-amber-800 dark:text-amber-200 line-clamp-2">
+                            <span className="font-semibold">Remark:</span> {remark}
+                          </p>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
-                ))}
+                )})}
+                </TooltipProvider>
               </div>
             </div>
           )

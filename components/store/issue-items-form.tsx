@@ -45,16 +45,6 @@ export function IssueItemsForm({
     e.preventDefault()
     setError("")
 
-    // Validation
-    if (!recipientName.trim()) {
-      setError("Recipient name is required")
-      return
-    }
-    if (!officeLocation.trim()) {
-      setError("Office location is required")
-      return
-    }
-
     setLoading(true)
 
     try {
@@ -91,7 +81,7 @@ export function IssueItemsForm({
       console.log("[v0] Items issued successfully:", result)
       toast({
         title: "✅ Items Issued Successfully",
-        description: `Items have been issued to ${recipientName}`,
+        description: recipientName ? `Items have been issued to ${recipientName}` : "Items have been issued successfully",
       })
       onSubmit()
     } catch (err) {
@@ -144,28 +134,26 @@ export function IssueItemsForm({
       </div>
 
       <div className="space-y-4 p-4 border rounded-lg">
-        <h4 className="font-semibold text-sm">Recipient Details *</h4>
+        <h4 className="font-semibold text-sm">Recipient Details (Optional)</h4>
         
         <div className="space-y-2">
-          <Label htmlFor="recipientName">Recipient Name *</Label>
+          <Label htmlFor="recipientName">Recipient Name</Label>
           <Input
             id="recipientName"
             placeholder="Full name of person receiving items"
             value={recipientName}
             onChange={(e) => setRecipientName(e.target.value)}
-            required
           />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="officeLocation">Office Location *</Label>
+            <Label htmlFor="officeLocation">Office Location</Label>
             <Input
               id="officeLocation"
               placeholder="e.g., Building A, Floor 2"
               value={officeLocation}
               onChange={(e) => setOfficeLocation(e.target.value)}
-              required
             />
           </div>
 
