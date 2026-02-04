@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
+import bcrypt from "bcryptjs"
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,9 +31,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Username or email already exists" }, { status: 409 })
     }
 
-    const defaultPassword = "pa$$w0rd"
+    // Default password for self-registered users is now qcc@123
+    const defaultPassword = "qcc@123"
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10)
 
-    console.log("[v0] Creating new user profile...")
+    console.log("[v0] Creating new user profile with default password: qcc@123...")
 
     const { data: newUser, error } = await supabase
       .from("profiles")
@@ -44,7 +47,7 @@ export async function POST(request: NextRequest) {
           phone: phone || null,
           department: department || "General",
           location,
-          password_hash: defaultPassword,
+          password_hash: hashedPassword,
           role: "user",
           status: "approved",
           is_active: true,
@@ -64,9 +67,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        message: "Registration successful. Your default password is: pa$$w0rd. Please change it after first login.",
+        message: "Registration successful. Your default password is: qcc@123. Please change it after first login.",
         userId: newUser.id,
-        defaultPassword: "pa$$w0rd",
+        defaultPassword: "qcc@123",
       },
       { status: 201 },
     )
