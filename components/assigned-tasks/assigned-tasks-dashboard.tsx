@@ -25,7 +25,7 @@ import {
   Loader2,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { createClient } from "@/lib/supabase/client"
+import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 
 interface RequesterInfo {
@@ -76,7 +76,6 @@ interface WorkStatusUpdate {
 
 export function AssignedTasksDashboard() {
   const { user } = useAuth()
-  const supabase = createClient()
   const { toast } = useToast()
   const [tasks, setTasks] = useState<AssignedTask[]>([])
   const [filteredTasks, setFilteredTasks] = useState<AssignedTask[]>([])
