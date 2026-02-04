@@ -42,24 +42,99 @@ export async function GET(request: Request) {
     if (userRole === "it_staff" && userLocation) {
       // IT Staff can only see documents for their location or documents for all locations (null)
       console.log("[v0] IT Staff filter - location:", userLocation)
-      query = query.or(`target_location.eq.${userLocation},target_location.is.null`)
+      // First get all docs for their location, then union with docs for all locations
+      const [docsForLocation, docsForAll] = await Promise.all([
+        supabase
+          .from("pdf_uploads")
+          .select(`*,confirmations:pdf_confirmations(id,user_id,user_name,user_location,confirmed_at,comments)`)
+          .eq("is_active", true)
+          .eq("target_location", userLocation)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("pdf_uploads")
+          .select(`*,confirmations:pdf_confirmations(id,user_id,user_name,user_location,confirmed_at,comments)`)
+          .eq("is_active", true)
+          .is("target_location", null)
+          .order("created_at", { ascending: false })
+      ])
+      
+      const combinedData = [
+        ...(docsForLocation.data || []),
+        ...(docsForAll.data || [])
+      ]
+      // Remove duplicates and sort
+      const uniqueData = Array.from(new Map(combinedData.map(item => [item.id, item])).values())
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      
+      console.log("[v0] IT Staff combined results - count:", uniqueData.length)
+      return NextResponse.json({ success: true, uploads: uniqueData })
     } else if (userRole === "regional_it_head" && userLocation) {
       // Regional IT Heads see ALL documents for THEIR LOCATION OR documents for all locations
-      console.log("[v0] Regional IT Head - showing all documents for location:", userLocation)
-      query = query.or(`target_location.eq.${userLocation},target_location.is.null`)
+      console.log("[v0] Regional IT Head - userLocation:", userLocation, "fetching documents")
+      const [docsForLocation, docsForAll] = await Promise.all([
+        supabase
+          .from("pdf_uploads")
+          .select(`*,confirmations:pdf_confirmations(id,user_id,user_name,user_location,confirmed_at,comments)`)
+          .eq("is_active", true)
+          .eq("target_location", userLocation)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("pdf_uploads")
+          .select(`*,confirmations:pdf_confirmations(id,user_id,user_name,user_location,confirmed_at,comments)`)
+          .eq("is_active", true)
+          .is("target_location", null)
+          .order("created_at", { ascending: false })
+      ])
+      
+      const combinedData = [
+        ...(docsForLocation.data || []),
+        ...(docsForAll.data || [])
+      ]
+      // Remove duplicates and sort
+      const uniqueData = Array.from(new Map(combinedData.map(item => [item.id, item])).values())
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      
+      console.log("[v0] Regional IT Head combined results - count:", uniqueData.length)
+      return NextResponse.json({ success: true, uploads: uniqueData })
     } else if (userRole === "it_head") {
       // IT Heads see all active documents (no location restriction)
       console.log("[v0] IT Head - showing all active documents")
-      // No additional filters
+      query = query  // No additional filters - show all
     } else if (location && location !== "all") {
       // Fallback for other roles with explicit location filter
       console.log("[v0] Filtering by location:", location)
-      query = query.or(`target_location.eq.${location},target_location.is.null`)
+      const [docsForLocation, docsForAll] = await Promise.all([
+        supabase
+          .from("pdf_uploads")
+          .select(`*,confirmations:pdf_confirmations(id,user_id,user_name,user_location,confirmed_at,comments)`)
+          .eq("is_active", true)
+          .eq("target_location", location)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("pdf_uploads")
+          .select(`*,confirmations:pdf_confirmations(id,user_id,user_name,user_location,confirmed_at,comments)`)
+          .eq("is_active", true)
+          .is("target_location", null)
+          .order("created_at", { ascending: false })
+      ])
+      
+      const combinedData = [
+        ...(docsForLocation.data || []),
+        ...(docsForAll.data || [])
+      ]
+      const uniqueData = Array.from(new Map(combinedData.map(item => [item.id, item])).values())
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      
+      return NextResponse.json({ success: true, uploads: uniqueData })
+    } else {
+      // Default: show only documents for all locations if no role-based filter applies
+      console.log("[v0] Default filter - showing only documents for all locations")
+      query = query.is("target_location", null)
     }
 
     const { data, error } = await query
 
-    console.log("[v0] PDF Uploads query result - count:", data?.length, "error:", error)
+    console.log("[v0] PDF Uploads query result - count:", data?.length, "error:", error?.message)
     
     if (error) {
       console.error("[v0] Error fetching PDF uploads:", error)
