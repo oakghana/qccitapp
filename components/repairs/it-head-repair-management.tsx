@@ -26,7 +26,7 @@ import {
   Trash2,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { canSeeAllLocations, canCreateRepairs } from "@/lib/location-filter"
+import { canSeeAllLocations, canCreateRepairs, normalizeLocation } from "@/lib/location-filter"
 import { useToast } from "@/hooks/use-toast"
 
 interface Device {
@@ -186,10 +186,11 @@ export function ITHeadRepairManagement() {
       
       // Additional client-side filter for the selected location
       if (filterLocation && !isItStaff) {
-        mappedDevices = mappedDevices.filter((d: Device) => 
-          d.location.toLowerCase().includes(filterLocation.toLowerCase()) ||
-          filterLocation.toLowerCase().includes(d.location.toLowerCase())
-        )
+        const normFilter = normalizeLocation(filterLocation)
+        mappedDevices = mappedDevices.filter((d: Device) => {
+          const dLoc = normalizeLocation(d.location)
+          return dLoc === normFilter || dLoc.includes(normFilter) || normFilter.includes(dLoc)
+        })
       }
       
       console.log("[v0] Mapped devices for repair:", mappedDevices.length)
@@ -202,8 +203,8 @@ export function ITHeadRepairManagement() {
   const loadServiceProviders = async () => {
     try {
       console.log("[v0] Loading service providers from API...")
-      
-      const response = await fetch("/api/admin/service-providers")
+      // Only request active providers for dropdowns
+      const response = await fetch("/api/admin/service-providers?activeOnly=true")
       const result = await response.json()
 
       if (!response.ok) {
@@ -211,12 +212,14 @@ export function ITHeadRepairManagement() {
         return
       }
 
-      console.log("[v0] Successfully loaded service providers:", result.providers?.length || 0)
-      
-      if (result.providers && result.providers.length > 0) {
-        setServiceProviders(result.providers)
+      // Filter on client side as an extra safety net
+      const providers = (result.providers || []).filter((p: any) => p.is_active !== false)
+      console.log("[v0] Successfully loaded active service providers:", providers.length)
+
+      if (providers.length > 0) {
+        setServiceProviders(providers)
       } else {
-        console.warn("[v0] No service providers found")
+        console.warn("[v0] No active service providers found")
       }
     } catch (error) {
       console.error("[v0] Exception loading service providers:", error)

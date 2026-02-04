@@ -52,7 +52,9 @@ export function CreateRepairForm({ onSubmit, onCancel }: CreateRepairFormProps) 
 
         const data = await response.json()
         console.log("[v0] Loaded service providers for repair form:", data.providers?.length || 0)
-        setServiceProviders(data.providers || [])
+        // Ensure we only keep active providers as a safety net
+        const active = (data.providers || []).filter((p: any) => p.is_active !== false)
+        setServiceProviders(active)
       } catch (error) {
         console.error("[v0] Exception fetching service providers:", error)
       }
@@ -134,12 +136,12 @@ export function CreateRepairForm({ onSubmit, onCancel }: CreateRepairFormProps) 
           <SelectValue placeholder="Choose service provider" />
         </SelectTrigger>
         <SelectContent>
-          {serviceProviders.length > 0 ? (
-            serviceProviders.map((provider) => (
-              <SelectItem key={provider.id} value={provider.name}>
-                {provider.name}
-              </SelectItem>
-            ))
+              {serviceProviders.length > 0 ? (
+                serviceProviders.map((provider) => (
+                  <SelectItem key={provider.id} value={provider.id}>
+                    {provider.name}
+                  </SelectItem>
+                ))
           ) : (
             <SelectItem value="loading" disabled>
               Loading providers...

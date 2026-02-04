@@ -40,9 +40,11 @@ export async function GET(request: NextRequest) {
       }
     } else if (!canSeeAll && location) {
       // Apply location filter if user can't see all locations
-      // Use case-insensitive matching with ilike
+      // Normalize common separators so codes like `head_office` match labels like `Head Office`.
+      const fuzzy = location.replace(/[_-]+/g, " ").trim()
+      // Use case-insensitive partial match
       // @ts-ignore
-      query = query.ilike("location", `%${location}%`)
+      query = query.ilike("location", `%${fuzzy}%`)
     }
 
     const { data, error } = await query

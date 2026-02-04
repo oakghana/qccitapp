@@ -71,8 +71,11 @@ export function getLocationFilter(user: User | null): string | null {
 export function applyLocationFilter<T>(query: T, user: User | null, columnName = "location"): T {
   const locationFilter = getLocationFilter(user)
   if (locationFilter) {
-    // @ts-ignore - Dynamic query building
-    return query.or(`${columnName}.eq.${locationFilter},${columnName}.eq.Central Stores`)
+    // Normalize common separators so codes like `head_office` match labels like `Head Office`.
+    const fuzzy = locationFilter.replace(/[_-]+/g, " ").trim()
+    // Use case-insensitive partial match so variants and punctuation don't prevent matches.
+    // @ts-ignore - Dynamic query building for Supabase/PostgREST
+    return query.or(`${columnName}.ilike.%${fuzzy}%,${columnName}.ilike.%Central Stores%`)
   }
   return query
 }
