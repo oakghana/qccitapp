@@ -43,16 +43,19 @@ export async function GET(request: Request) {
       // IT Staff can only see documents for their location
       console.log("[v0] IT Staff filter - location:", userLocation)
       query = query.or(`target_location.eq.${userLocation},target_location.is.null`)
-    } else if (userRole === "regional_it_head") {
-      // Regional IT Heads see ALL active documents regardless of location
-      // PLUS they can see their own unconfirmed uploads
-      console.log("[v0] Regional IT Head - showing all documents and own uploads")
+    } else if (userRole === "regional_it_head" && userLocation) {
+      // Regional IT Heads see documents for THEIR LOCATION ONLY
+      // Both confirmed and their own unconfirmed uploads
+      console.log("[v0] Regional IT Head filter - location:", userLocation, "userId:", userId)
       if (userId) {
-        // Show confirmed documents OR documents they uploaded themselves
-        query = query.or(`is_confirmed.eq.true,uploaded_by.eq.${userId}`)
+        // Show (confirmed AND their location) OR (their own uploads AND their location)
+        query = query.and(`target_location.eq.${userLocation}`).or(`is_confirmed.eq.true,uploaded_by.eq.${userId}`)
+      } else {
+        // Fallback if no userId provided
+        query = query.eq("target_location", userLocation)
       }
     } else if (userRole === "it_head") {
-      // IT Heads see all confirmed documents AND their own uploads
+      // IT Heads see all confirmed documents AND their own uploads (no location restriction)
       console.log("[v0] IT Head - showing confirmed documents and own uploads")
       if (userId) {
         query = query.or(`is_confirmed.eq.true,uploaded_by.eq.${userId}`)

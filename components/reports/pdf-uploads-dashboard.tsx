@@ -350,14 +350,14 @@ export function PDFUploadsDashboard() {
       return true
     }
 
-    // Regional IT Heads see confirmed documents + their own uploads
+    // Regional IT Heads see confirmed documents + their own uploads for THEIR LOCATION ONLY
     if (user?.role === "regional_it_head") {
-      // Can see confirmed documents or their own uploads (confirmed or unconfirmed)
-      if (!upload.is_confirmed && upload.uploaded_by !== user.id) {
+      // Must be for their location
+      if (upload.target_location && upload.target_location !== user.location) {
         return false
       }
-      // Only their location
-      if (upload.target_location && upload.target_location !== user.location) {
+      // Can see confirmed documents or their own uploads (confirmed or unconfirmed)
+      if (!upload.is_confirmed && upload.uploaded_by !== user.id) {
         return false
       }
       if (selectedType !== "all" && upload.document_type !== selectedType) {
