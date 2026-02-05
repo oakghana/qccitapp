@@ -151,8 +151,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Force location to always be "Head Office" for admin/it_store_head
-    const forcedLocation = "Head Office"
+    // Force location to always be "Central Stores" for admin/it_store_head
+    const forcedLocation = "Central Stores"
 
     // Normalize category name for consistency
     const normalizedCategory = normalizeCategoryName(category)
