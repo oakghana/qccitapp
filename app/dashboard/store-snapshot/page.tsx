@@ -26,6 +26,9 @@ export default function StoreSnapshotPage() {
   const { user } = useAuth()
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(true)
+  
+  // Users with "user" role have view-only access to Central Stores stock levels
+  const isViewOnlyUser = user?.role === "user"
 
   useEffect(() => {
     async function fetchInventory() {
@@ -34,7 +37,11 @@ export default function StoreSnapshotPage() {
 
         let query = supabase.from("store_items").select("*").order("name", { ascending: true })
 
-        if (user && !canSeeAllLocations(user) && user.location) {
+        // Users with "user" role can only see Central Stores inventory
+        if (isViewOnlyUser) {
+          console.log("[v0] User role - showing Central Stores only")
+          query = query.eq("location", "Central Stores")
+        } else if (user && !canSeeAllLocations(user) && user.location) {
           console.log("[v0] Filtering store snapshot by location:", user.location, "+ Central Stores")
           query = query.or(`location.eq.${user.location},location.eq.Central Stores`)
         }
@@ -56,7 +63,7 @@ export default function StoreSnapshotPage() {
     }
 
     fetchInventory()
-  }, [user])
+  }, [user, isViewOnlyUser])
 
   const filteredInventory = inventory
 
@@ -85,9 +92,27 @@ export default function StoreSnapshotPage() {
       <div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">IT Store Stock Levels</h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1">
-          View current stock levels for IT items at {user?.location || "your location"}
+          {isViewOnlyUser 
+            ? "View-only access to Central Stores stock levels" 
+            : `View current stock levels for IT items at ${user?.location || "your location"}`}
         </p>
       </div>
+      
+      {/* View-Only Notice for User Role */}
+      {isViewOnlyUser && (
+        <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+          <CardContent className="flex items-start gap-3 pt-6">
+            <Info className="h-5 w-5 text-blue-600 mt-0.5" />
+            <div>
+              <h4 className="font-medium text-blue-900 dark:text-blue-100">View-Only Access</h4>
+              <p className="text-sm text-blue-800 dark:text-blue-200 mt-1">
+                You have read-only access to Central Stores stock levels. You cannot modify inventory or request items. 
+                To request IT equipment or supplies, please contact your IT Head or Regional IT Head.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
