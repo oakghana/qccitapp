@@ -42,21 +42,129 @@ export async function GET(request: Request) {
     let itemsQuery = supabase.from("store_items").select("*").order("sku")
 
     if (location !== "all") {
-      itemsQuery = itemsQuery.eq("location", location)
-    } else if (profile.role === "regional_it_head") {
-      // Regional IT heads can only see their location
-      itemsQuery = itemsQuery.eq("location", profile.location)
+      // Use case-insensitive filter by converting both sides to lowercase
+      const { data: allItems, error: allItemsError } = await supabase
+        .from("store_items")
+        .select("*")
+        .order("sku")
+
+      if (allItemsError) {
+        console.error("[v0] Error fetching store items:", allItemsError)
+        return NextResponse.json({ error: allItemsError.message }, { status: 500 })
+      }
+
+      // Filter in-memory for case-insensitive comparison
+      const filteredItems = (allItems || []).filter(
+        (item) => item.location?.toLowerCase() === location.toLowerCase()
+      )
+      
+      const items = filteredItems
+      const { data: transactions } = await supabase
+        .from("stock_transactions")
+        .select("*")
+        .gte("created_at", startDate)
+        .lte("created_at", endDate)
+
+      console.log(
+        "[v0] Items for location '",
+        location,
+        "':",
+        items?.length || 0,
+        "Transactions:",
+        transactions?.length || 0
+      )
+
+      const itemMovements: Record<string, { 
+        receipts: number; 
+        issues: number; 
+        requisitionCount: number;
+        issuanceDetails: Array<{ recipient: string; location: string; qty: number }>;
+      }> = {}
+
+      transactions?.forEach((txn) => {
+        const itemId = txn.item_id
+        if (!itemMovements[itemId]) {
+          itemMovements[itemId] = { receipts: 0, issues: 0, requisitionCount: 0, issuanceDetails: [] }
+        }
+
+        if (txn.transaction_type === "transfer_in" || txn.transaction_type === "receipt") {
+          itemMovements[itemId].receipts += txn.quantity || 0
+          itemMovements[itemId].requisitionCount++
+        }
+
+        if (txn.transaction_type === "transfer_out" || txn.transaction_type === "issue") {
+          itemMovements[itemId].issues += txn.quantity || 0
+
+          if (txn.recipient || txn.office_location) {
+            itemMovements[itemId].issuanceDetails.push({
+              recipient: txn.recipient || "N/A",
+              location: txn.office_location || txn.location_name || "N/A",
+              qty: txn.quantity || 0
+            })
+          }
+        }
+      })
+
+      const stockBalanceData = items.map((item) => {
+        const movements = itemMovements[item.id] || { receipts: 0, issues: 0, requisitionCount: 0, issuanceDetails: [] }
+        const currentStock = item.quantity || 0
+        const issues = movements.issues
+        const receipts = movements.receipts
+
+        const openingBalance = currentStock + issues - receipts
+
+        let remarks = ""
+        if (movements.issuanceDetails.length > 0) {
+          remarks = movements.issuanceDetails
+            .map((detail) => `${detail.qty} to ${detail.recipient} (${detail.location})`)
+            .join("; ")
+        } else if (movements.requisitionCount > 0) {
+          remarks = `${movements.requisitionCount} requisition(s)`
+        }
+
+        return {
+          id: item.id,
+          code: item.sku || item.id.substring(0, 8),
+          itemName: item.name || "Unknown",
+          category: item.category || "IT Accessories",
+          unitOfMeasure: item.unit || "Pcs",
+          openingBalance,
+          receipts,
+          issues,
+          closingBalance: currentStock,
+          location: item.location || "Unknown",
+          remarks,
+        }
+      })
+
+      return NextResponse.json({ report: stockBalanceData })
     }
 
+    // Handle "all" locations or regional_it_head
+    const { data: allItems, error: allItemsError } = await supabase
+      .from("store_items")
+      .select("*")
+      .order("sku")
+
+    if (allItemsError) {
+      console.error("[v0] Error fetching store items:", allItemsError)
+      return NextResponse.json({ error: allItemsError.message }, { status: 500 })
+    }
+
+    let items = allItems || []
+
+    // Filter by regional_it_head's location
+    if (profile.role === "regional_it_head") {
+      items = items.filter(
+        (item) => item.location?.toLowerCase() === profile.location?.toLowerCase()
+      )
+    }
+
+    // Filter by device type if specified (case-insensitive)
     if (deviceType !== "all") {
-      itemsQuery = itemsQuery.eq("category", deviceType)
-    }
-
-    const { data: items, error: itemsError } = await itemsQuery
-
-    if (itemsError) {
-      console.error("[v0] Error fetching store items:", itemsError)
-      return NextResponse.json({ error: itemsError.message }, { status: 500 })
+      items = items.filter(
+        (item) => item.category?.toLowerCase() === deviceType.toLowerCase()
+      )
     }
 
     if (!items || items.length === 0) {
@@ -64,21 +172,18 @@ export async function GET(request: Request) {
     }
 
     // Get transactions within date range for accurate receipts and issues
-    let transactionsQuery = supabase
+    const { data: transactions } = await supabase
       .from("stock_transactions")
       .select("*")
       .gte("created_at", startDate)
       .lte("created_at", endDate)
 
-    if (location !== "all") {
-      transactionsQuery = transactionsQuery.eq("location_name", location)
-    } else if (profile.role === "regional_it_head") {
-      transactionsQuery = transactionsQuery.eq("location_name", profile.location)
-    }
-
-    const { data: transactions } = await transactionsQuery
-
-    console.log("[v0] Transactions found:", transactions?.length || 0)
+    console.log(
+      "[v0] Items found:",
+      items.length,
+      "Transactions found:",
+      transactions?.length || 0
+    )
 
     const itemMovements: Record<string, { 
       receipts: number; 
@@ -93,17 +198,14 @@ export async function GET(request: Request) {
         itemMovements[itemId] = { receipts: 0, issues: 0, requisitionCount: 0, issuanceDetails: [] }
       }
 
-      // transfer_in = receipts (stock coming in)
       if (txn.transaction_type === "transfer_in" || txn.transaction_type === "receipt") {
         itemMovements[itemId].receipts += txn.quantity || 0
         itemMovements[itemId].requisitionCount++
       }
-      
-      // transfer_out = issues (stock going out)
+
       if (txn.transaction_type === "transfer_out" || txn.transaction_type === "issue") {
         itemMovements[itemId].issues += txn.quantity || 0
-        
-        // Capture issuance details for remarks
+
         if (txn.recipient || txn.office_location) {
           itemMovements[itemId].issuanceDetails.push({
             recipient: txn.recipient || "N/A",
@@ -122,7 +224,6 @@ export async function GET(request: Request) {
 
       const openingBalance = currentStock + issues - receipts
 
-      // Build detailed remarks with recipient and location info
       let remarks = ""
       if (movements.issuanceDetails.length > 0) {
         remarks = movements.issuanceDetails
@@ -133,7 +234,7 @@ export async function GET(request: Request) {
       }
 
       return {
-        id: item.id, // Include item ID for stock transfer requests
+        id: item.id,
         code: item.sku || item.id.substring(0, 8),
         itemName: item.name || "Unknown",
         category: item.category || "IT Accessories",
@@ -147,9 +248,9 @@ export async function GET(request: Request) {
       }
     })
 
-    return NextResponse.json({ report: stockBalanceData })
+    return NextResponse.json({ report: stockBalanceData });
   } catch (error: any) {
-    console.error("[v0] Error in stock-balance-report:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error("[v0] Error in stock-balance-report:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
