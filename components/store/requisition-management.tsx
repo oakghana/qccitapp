@@ -62,8 +62,11 @@ interface StockTransaction {
   transaction_type: string
   quantity: number
   location: string
+  location_name?: string
   reference_type: string
   created_at: string
+  item_id?: string
+  reference_number?: string
 }
 
 const statusConfig = {
@@ -102,6 +105,10 @@ export function RequisitionManagement() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deletingReq, setDeletingReq] = useState<Requisition | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [transactionDeleteDialog, setTransactionDeleteDialog] = useState(false)
+  const [selectedTransaction, setSelectedTransaction] = useState<StockTransaction | null>(null)
+  const [transactionDeleteReason, setTransactionDeleteReason] = useState("")
+  const [isDeletingTransaction, setIsDeletingTransaction] = useState(false)
   const { user } = useAuth()
   const { toast } = useToast()
   const supabase = createClient()
@@ -170,6 +177,51 @@ export function RequisitionManagement() {
       console.error('[v0] Error loading transactions:', error)
     } finally {
       setTransactionsLoading(false)
+    }
+  }
+
+  const handleDeleteTransaction = async () => {
+    if (!selectedTransaction || !transactionDeleteReason.trim()) {
+      alert('Please provide a reason for deleting this transaction')
+      return
+    }
+
+    try {
+      setIsDeletingTransaction(true)
+      
+      // Delete the transaction
+      const deleteResponse = await fetch('/api/store/delete-transaction', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionId: selectedTransaction.id,
+          itemId: selectedTransaction.item_id,
+          quantity: selectedTransaction.quantity,
+          location: selectedTransaction.location_name || selectedTransaction.location,
+          transactionType: selectedTransaction.transaction_type,
+          deletedBy: user?.email || 'unknown',
+          reason: transactionDeleteReason,
+          userRole: user?.role,
+        }),
+      })
+
+      const data = await deleteResponse.json()
+
+      if (!deleteResponse.ok) {
+        alert(`Error: ${data.error || 'Failed to delete transaction'}`)
+        return
+      }
+
+      alert('Transaction deleted and reversal created successfully')
+      setTransactionDeleteDialog(false)
+      setSelectedTransaction(null)
+      setTransactionDeleteReason('')
+      await loadTransactions()
+    } catch (error) {
+      console.error('[v0] Error deleting transaction:', error)
+      alert('Failed to delete transaction')
+    } finally {
+      setIsDeletingTransaction(false)
     }
   }
 
@@ -990,6 +1042,7 @@ export function RequisitionManagement() {
                         <th className="text-left py-3 px-4 font-semibold">Location</th>
                         <th className="text-left py-3 px-4 font-semibold">Reference Type</th>
                         <th className="text-left py-3 px-4 font-semibold">Date</th>
+                        {user?.role === 'admin' && <th className="text-left py-3 px-4 font-semibold">Actions</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -1009,6 +1062,21 @@ export function RequisitionManagement() {
                           <td className="py-3 px-4 text-slate-600">
                             {new Date(transaction.created_at).toLocaleDateString()}
                           </td>
+                          {user?.role === 'admin' && (
+                            <td className="py-3 px-4">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedTransaction(transaction)
+                                  setTransactionDeleteDialog(true)
+                                }}
+                                className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -1173,6 +1241,50 @@ export function RequisitionManagement() {
           </div>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Transaction Delete Dialog */}
+      <Dialog open={transactionDeleteDialog} onOpenChange={setTransactionDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-red-600">Delete Transaction & Create Reversal</DialogTitle>
+            <DialogDescription>
+              This will delete the transaction and create a reversal entry to undo the stock movement.
+              <br />
+              <span className="font-semibold">{selectedTransaction?.item_name}</span> - {selectedTransaction?.quantity} units
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div>
+              <Label className="text-sm font-medium">Reason for deletion *</Label>
+              <textarea
+                placeholder="Provide reason (e.g., duplicate entry, data correction, administrative error)"
+                value={transactionDeleteReason}
+                onChange={(e) => setTransactionDeleteReason(e.target.value)}
+                className="mt-2 w-full p-2 border rounded-md text-sm"
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setTransactionDeleteDialog(false)} 
+              disabled={isDeletingTransaction}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteTransaction}
+              disabled={isDeletingTransaction || !transactionDeleteReason.trim()}
+            >
+              {isDeletingTransaction ? 'Deleting...' : 'Delete & Reverse'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
