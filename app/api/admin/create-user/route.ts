@@ -12,7 +12,10 @@ export async function POST(request: Request) {
     console.log("[v0] Creating user:", { email, role, location, username })
 
     const passwordToHash = password || "qcc@123"
-    const hashedPassword = await bcrypt.hash(passwordToHash, 10)
+    // Use fixed hash for default password qcc@123 to ensure consistency
+    const hashedPassword = password 
+      ? await bcrypt.hash(passwordToHash, 10) 
+      : "$2b$10$y.4.eCKGm0kI0hXv1rhJtuLYpKJH3R/Pfxvn9AU6DVF5PzYHsnmqm"
 
     // Use provided username or fall back to email
     const finalUsername = username || email

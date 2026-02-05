@@ -352,6 +352,10 @@ export function ITStaffWorkStatus() {
         </div>
 
         <div className="flex items-center space-x-3">
+          <Button variant="default" size="sm" onClick={() => window.location.href = '/dashboard/staff-performance-report'}>
+            <Target className="h-4 w-4 mr-2" />
+            View Performance Metrics
+          </Button>
           <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
             Export Report

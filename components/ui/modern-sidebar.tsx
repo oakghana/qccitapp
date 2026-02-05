@@ -47,6 +47,7 @@ import {
   Send,
   Store,
   Edit2,
+  Target,
 } from "lucide-react"
 import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
 
@@ -157,6 +158,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                 icon: Users,
                 badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
               },
+              { name: "Staff Performance Report", href: "/dashboard/staff-performance-report", icon: Target },
               { name: "IT Reports", href: "/dashboard/it-reports", icon: BarChart3 },
               { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
               { name: "Regional IT Needs", href: "/dashboard/regional-needs-analysis", icon: ClipboardList },
@@ -373,6 +375,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                 icon: Users,
                 badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
               },
+              { name: "Staff Performance Report", href: "/dashboard/staff-performance-report", icon: Target },
               { name: "IT Reports", href: "/dashboard/it-reports", icon: BarChart3 },
               { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
               { name: "Regional IT Needs", href: "/dashboard/regional-needs-analysis", icon: ClipboardList },
@@ -474,6 +477,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                 icon: Users,
                 badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
               },
+              { name: "Staff Performance Report", href: "/dashboard/staff-performance-report", icon: Target },
               { name: "IT Reports", href: "/dashboard/it-reports", icon: BarChart3 },
               { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
               { name: "Regional IT Needs", href: "/dashboard/regional-needs-analysis", icon: ClipboardList },
