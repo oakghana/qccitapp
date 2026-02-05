@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { getRoleColorScheme } from "@/lib/role-colors"
 import { cn } from "@/lib/utils"
 import { canSeeAllLocations } from "@/lib/location-filter"
+import { StaffProductivityWidget } from "./staff-productivity-widget"
+import { IncompleteTasksWidget } from "./incomplete-tasks-widget"
 
 export function DashboardOverview() {
   const router = useRouter()
@@ -241,6 +243,14 @@ export function DashboardOverview() {
           </Card>
         ))}
       </div>
+
+      {/* IT Staff Productivity and Tasks Notifications */}
+      {(user?.role === "it_staff" || user?.role === "it_head" || user?.role === "regional_it_head") && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <StaffProductivityWidget />
+          <IncompleteTasksWidget />
+        </div>
+      )}
 
       {/* Recent Activity */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">

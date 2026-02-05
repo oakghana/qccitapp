@@ -40,6 +40,7 @@ export default function StaffPerformanceReport() {
   const [loading, setLoading] = useState(true)
   const [dateRange, setDateRange] = useState("year") // year, quarter, month, custom
   const [locationFilter, setLocationFilter] = useState("all")
+  const [locations, setLocations] = useState<string[]>([])
   
   // Calculate date range
   const getDateRange = () => {
@@ -62,7 +63,20 @@ export default function StaffPerformanceReport() {
 
   useEffect(() => {
     loadMetrics()
+    loadLocations()
   }, [dateRange, locationFilter])
+
+  const loadLocations = async () => {
+    try {
+      const response = await fetch('/api/locations')
+      const data = await response.json()
+      if (data.success) {
+        setLocations(data.locations)
+      }
+    } catch (error) {
+      console.error("Error loading locations:", error)
+    }
+  }
 
   const loadMetrics = async () => {
     try {
@@ -185,15 +199,16 @@ export default function StaffPerformanceReport() {
         </Select>
 
         <Select value={locationFilter} onValueChange={setLocationFilter}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="All Locations" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Locations</SelectItem>
-            <SelectItem value="Accra">Accra</SelectItem>
-            <SelectItem value="Kumasi">Kumasi</SelectItem>
-            <SelectItem value="Takoradi">Takoradi</SelectItem>
-            <SelectItem value="Tema">Tema</SelectItem>
+            {locations.map((location) => (
+              <SelectItem key={location} value={location}>
+                {location}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -242,7 +257,7 @@ export default function StaffPerformanceReport() {
         <CardHeader>
           <CardTitle>Complete Performance Rankings</CardTitle>
           <CardDescription>
-            Ranked by productivity score (completion rate × 50% + on-time rate × 30% + speed bonus × 20%)
+            Ranked by productivity score (completion rate × 40% + on-time rate × 25% + speed bonus × 15% + volume bonus up to 30 pts)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -306,28 +321,37 @@ export default function StaffPerformanceReport() {
           <div>
             <strong>Productivity Score Calculation:</strong>
             <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
-              <li>50% - Task Completion Rate (completed tasks / total tasks assigned)</li>
-              <li>30% - On-Time Completion Rate (tasks completed within expected timeframe)</li>
-              <li>20% - Speed Bonus (faster completions earn higher bonus points)</li>
+              <li>40% - Task Completion Rate (completed tasks / total tasks assigned)</li>
+              <li>25% - On-Time Completion Rate (tasks completed within expected timeframe)</li>
+              <li>15% - Speed Bonus (faster completions earn higher bonus points)</li>
+              <li>20% - Volume Bonus (up to 30 points for high task completion volume)</li>
             </ul>
           </div>
           <div>
-            <strong>Speed Bonus:</strong>
+            <strong>Speed Bonus (weighted at 0.75):</strong>
             <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
-              <li>≤3 days average completion: +20 points</li>
-              <li>3-5 days average completion: +10 points</li>
-              <li>5-7 days average completion: +5 points</li>
+              <li>≤3 days average completion: +15 points</li>
+              <li>3-5 days average completion: +7.5 points</li>
+              <li>5-7 days average completion: +3.75 points</li>
               <li>&gt;7 days average completion: +0 points</li>
+            </ul>
+          </div>
+          <div>
+            <strong>Volume Bonus:</strong>
+            <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
+              <li>Staff who complete more tasks receive higher scores</li>
+              <li>+0.5 points per completed task (up to 30 bonus points)</li>
+              <li>Rewards high-volume workers who handle more assignments</li>
             </ul>
           </div>
           <div>
             <strong>Performance Grading:</strong>
             <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
-              <li>Excellent: Score ≥85</li>
-              <li>Good: Score 70-84</li>
-              <li>Average: Score 50-69</li>
-              <li>Below Average: Score 30-49</li>
-              <li>Poor: Score &lt;30</li>
+              <li>Excellent: Score ≥90</li>
+              <li>Good: Score 75-89</li>
+              <li>Average: Score 55-74</li>
+              <li>Below Average: Score 35-54</li>
+              <li>Poor: Score &lt;35</li>
             </ul>
           </div>
         </CardContent>
