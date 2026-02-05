@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const supabaseAdmin = createAdminClient()
 
-    // Fetch all categories
+    // Fetch all categories and return normalized (title-cased)
     const { data: categories, error } = await supabaseAdmin
       .from("store_categories")
       .select("*")
@@ -16,9 +16,15 @@ export async function GET() {
       return NextResponse.json({ error: "Failed to fetch categories" }, { status: 500 })
     }
 
+    // Normalize category names to title case for consistency
+    const normalizedCategories = (categories || []).map(cat => ({
+      ...cat,
+      name: normalizeCategoryName(cat.name)
+    }))
+
     return NextResponse.json({
       success: true,
-      categories: categories || [],
+      categories: normalizedCategories,
     })
   } catch (error: any) {
     console.error("[v0] Error in get-categories route:", error)
@@ -36,23 +42,26 @@ export async function POST(request: Request) {
     }
 
     const supabaseAdmin = createAdminClient()
+    
+    // Normalize category name
+    const normalizedName = normalizeCategoryName(name)
 
-    // Check if category already exists
+    // Check if category already exists (case-insensitive)
     const { data: existing } = await supabaseAdmin
       .from("store_categories")
       .select("*")
-      .ilike("name", name)
+      .ilike("name", normalizedName)
       .maybeSingle()
 
     if (existing) {
       return NextResponse.json({ error: "Category already exists" }, { status: 409 })
     }
 
-    // Create new category
+    // Create new category with normalized name
     const { data: category, error } = await supabaseAdmin
       .from("store_categories")
       .insert({
-        name: name.trim(),
+        name: normalizedName,
         description: description || null,
         created_by: createdBy,
         created_at: new Date().toISOString(),
@@ -75,4 +84,13 @@ export async function POST(request: Request) {
     console.error("[v0] Error in create-category route:", error)
     return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 })
   }
+}
+
+// Utility function to normalize category names to title case
+function normalizeCategoryName(name: string): string {
+  return name
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
 }

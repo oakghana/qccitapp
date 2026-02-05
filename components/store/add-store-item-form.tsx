@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client"
 import { getLocationOptions } from "@/lib/locations"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
+import { normalizeCategoryName } from "@/lib/category-utils"
 
 export function AddStoreItemForm({ onSubmit }: { onSubmit: () => void }) {
   const [formData, setFormData] = useState({
@@ -60,7 +61,7 @@ export function AddStoreItemForm({ onSubmit }: { onSubmit: () => void }) {
         body: JSON.stringify({
           name: formData.itemName,
           description: formData.description,
-          category: formData.category,
+          category: normalizeCategoryName(formData.category),
           sku: formData.sku || `SKU-${Date.now()}`,
           quantity: parseInt(formData.quantity) || 0,
           unit_price: parseFloat(formData.unitPrice) || 0,

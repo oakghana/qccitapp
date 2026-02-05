@@ -48,6 +48,7 @@ import {
 import { useAuth } from "@/lib/auth-context"
 import { LOCATIONS } from "@/lib/locations"
 import { downloadCSV } from "@/lib/export-utils"
+import { filterByCategory } from "@/lib/category-utils"
 import { useToast } from "@/hooks/use-toast"
 
 interface StockItem {
@@ -376,13 +377,13 @@ export function AssignStockToStaff() {
     }
   }
 
-  const filteredStockItems = stockItems.filter((item) => {
-    const matchesSearch = 
+  const filteredStockItems = filterByCategory(
+    stockItems.filter((item) =>
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.sku?.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = categoryFilter === "all" || item.category?.toLowerCase() === categoryFilter.toLowerCase()
-    return matchesSearch && matchesCategory
-  })
+    ),
+    categoryFilter
+  )
 
   const uniqueCategories = [...new Set(stockItems.map(item => item.category).filter(Boolean))]
 
