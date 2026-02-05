@@ -240,7 +240,6 @@ export async function POST(request: NextRequest) {
         .from("store_items")
         .insert({
           name,
-          description: description || "",
           category: normalizedCategory,
           sku: sku || `SKU-${Date.now()}`,
           siv_number: sku || `SIV-${Date.now()}`,
