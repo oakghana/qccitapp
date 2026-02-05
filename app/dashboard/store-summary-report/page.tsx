@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Download, Calendar, FileText, Filter, Package, Send, CheckCircle, XCircle, AlertCircle, Loader2 } from "lucide-react"
+import { Download, Calendar, FileText, Filter, Package, Send, CheckCircle, XCircle, AlertCircle, Loader2, MoreVertical, Edit, Trash2, Merge2 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { FormNavigation } from "@/components/ui/form-navigation"
 import { Label } from "@/components/ui/label"
@@ -18,8 +18,15 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Textarea } from "@/components/ui/textarea"
 import { CentralStoresActivityLog } from "@/components/dashboard/CentralStoresActivityLog"
+import { ItemManagementModal } from "@/components/store/item-management-modal"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 
@@ -67,6 +74,17 @@ export default function StoreSummaryReportPage() {
   // User's local stock cache
   const [localStockMap, setLocalStockMap] = useState<Record<string, number>>({})
 
+  // Admin item management state
+  const [itemManagementOpen, setItemManagementOpen] = useState(false)
+  const [selectedItemForManagement, setSelectedItemForManagement] = useState<any>(null)
+  const [duplicateItems, setDuplicateItems] = useState<any[]>([])
+
+  // Check if user is admin or can manage stock
+  const isAdmin = user?.role === "admin"
+  const isITStoreHead = user?.role === "it_store_head"
+  const isITHead = user?.role === "it_head"
+  const canManageItems = isAdmin || isITStoreHead || isITHead
+
   // Check if user is regional_it_head or it_store_head viewing Central Stores
   const isRegionalHead = user?.role === "regional_it_head"
   const isITStoreHead = user?.role === "it_store_head"
@@ -104,8 +122,43 @@ export default function StoreSummaryReportPage() {
     return localStockMap[itemName?.toLowerCase() || ""] || 0
   }
 
-  // Open request dialog for an item
-  function openRequestDialog(item: StockBalanceItem) {
+  // Find duplicate items with the same name but different SKUs
+  function findDuplicateItems(itemName: string, currentId?: string): any[] {
+    return report
+      .filter((item) => 
+        item.itemName?.toLowerCase() === itemName?.toLowerCase() && 
+        (!currentId || item.id !== currentId)
+      )
+      .map((item) => ({
+        id: item.id,
+        name: item.itemName,
+        sku: item.code,
+        quantity: item.closingBalance || 0,
+        category: item.category,
+        location: item.location,
+      }))
+  }
+
+  // Open item management modal for admin actions
+  function openItemManagement(item: StockBalanceItem) {
+    const duplicates = findDuplicateItems(item.itemName, item.id)
+    setSelectedItemForManagement({
+      id: item.id,
+      name: item.itemName,
+      sku: item.code,
+      quantity: item.closingBalance || 0,
+      category: item.category,
+      location: item.location,
+    })
+    setDuplicateItems(duplicates)
+    setItemManagementOpen(true)
+  }
+
+  function handleManagementSuccess() {
+    // Reload report data
+    loadReport()
+    setItemManagementOpen(false)
+  }
     if (item.closingBalance <= 0) {
       alert(`No stock available for "${item.itemName}" at Central Stores.`)
       return
@@ -638,12 +691,15 @@ export default function StoreSummaryReportPage() {
                     {canRequestStock && (
                       <th className="border border-gray-300 p-2 text-center font-semibold print:hidden bg-blue-50">REQUEST</th>
                     )}
+                    {canManageItems && (
+                      <th className="border border-gray-300 p-2 text-center font-semibold print:hidden bg-amber-50">MANAGE</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {report.length === 0 ? (
                     <tr>
-                      <td colSpan={canRequestStock ? 11 : 10} className="border border-gray-300 p-4 text-center text-muted-foreground">
+                      <td colSpan={canRequestStock && canManageItems ? 12 : canRequestStock ? 11 : canManageItems ? 11 : 10} className="border border-gray-300 p-4 text-center text-muted-foreground">
                         No stock data available for the selected filters
                       </td>
                     </tr>
@@ -711,6 +767,36 @@ export default function StoreSummaryReportPage() {
                               )}
                             </td>
                           )}
+                          {canManageItems && (
+                            <td className="border border-gray-300 p-2 text-center print:hidden">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => openItemManagement(item)}>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit Item
+                                  </DropdownMenuItem>
+                                  {findDuplicateItems(item.itemName, item.id).length > 0 && (
+                                    <DropdownMenuItem onClick={() => openItemManagement(item)}>
+                                      <Merge2 className="h-4 w-4 mr-2" />
+                                      Merge Duplicate
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem 
+                                    onClick={() => openItemManagement(item)}
+                                    className="text-red-600"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete Item
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </td>
+                          )}
                         </tr>
                       )
                     })
@@ -736,6 +822,7 @@ export default function StoreSummaryReportPage() {
                       </td>
                       <td className="border border-gray-300 p-2 print:hidden"></td>
                       {canRequestStock && <td className="border border-gray-300 p-2 print:hidden"></td>}
+                      {canManageItems && <td className="border border-gray-300 p-2 print:hidden"></td>}
                     </tr>
                   </tfoot>
                 )}
@@ -866,6 +953,15 @@ export default function StoreSummaryReportPage() {
       {selectedLocation === "Central Stores" && (
         <CentralStoresActivityLog location={selectedLocation} limit={15} />
       )}
+
+      {/* Item Management Modal for Admin Actions */}
+      <ItemManagementModal
+        item={selectedItemForManagement}
+        duplicateItems={duplicateItems}
+        isOpen={itemManagementOpen}
+        onClose={() => setItemManagementOpen(false)}
+        onSuccess={handleManagementSuccess}
+      />
 
       <style jsx global>{`
         @media print {
