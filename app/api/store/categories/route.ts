@@ -104,12 +104,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 })
   }
 }
-
-// Utility function to normalize category names to title case
-function normalizeCategoryName(name: string): string {
-  return name
-    .toLowerCase()
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-}
