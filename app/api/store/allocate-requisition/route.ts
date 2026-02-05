@@ -84,7 +84,6 @@ export async function POST(request: Request) {
         // Create new regional stock entry
         await supabase.from("store_items").insert({
           name: headOfficeItem.name,
-          description: headOfficeItem.description,
           category: headOfficeItem.category,
           sku: `SKU-${Date.now()}-${allocateToLocation}`,
           siv_number: `SIV-${Date.now()}-${allocateToLocation}`,
@@ -92,7 +91,6 @@ export async function POST(request: Request) {
           unit: headOfficeItem.unit,
           location: allocateToLocation,
           reorder_level: headOfficeItem.reorder_level || 5,
-          unit_price: headOfficeItem.unit_price,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
