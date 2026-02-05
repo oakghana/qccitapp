@@ -274,11 +274,16 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           },
           { name: "Devices", href: "/dashboard/devices", icon: Monitor },
           { name: "Store Stock Levels", href: "/dashboard/store-snapshot", icon: Package },
-          {
-            name: "Stock Balance Report",
-            href: "/dashboard/store-summary-report",
-            icon: FileText,
-          },
+              {
+                name: "Stock Balance Report",
+                href: "/dashboard/store-summary-report",
+                icon: FileText,
+              },
+              {
+                name: "Stock Analytics",
+                href: "/dashboard/store-analytics",
+                icon: BarChart3,
+              },
           {
             name: "My Stock Requests",
             href: "/dashboard/stock-transfer-requests",
