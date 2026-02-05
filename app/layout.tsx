@@ -8,6 +8,7 @@ import { NotificationProvider } from "@/lib/notification-context"
 import { Toaster as SonnerToaster } from "sonner"
 import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from "@/components/theme-provider"
+import { RealtimeNotificationListener } from "@/components/notifications/realtime-notification-listener"
 import "./globals.css"
 
 const inter = Inter({
@@ -80,6 +81,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <AuthProvider>
             <NotificationProvider>
+              <RealtimeNotificationListener />
               <Suspense fallback={null}>{children}</Suspense>
               <Toaster />
               <SonnerToaster

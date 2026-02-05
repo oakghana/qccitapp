@@ -13,6 +13,7 @@ import { X, Upload, AlertTriangle, Clock, Zap, Loader2 } from "lucide-react"
 import { FormNavigation } from "@/components/ui/form-navigation"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
+import { notificationService } from "@/lib/notification-service"
 
 interface NewTicketFormProps {
   onClose: () => void
@@ -94,21 +95,20 @@ export function NewTicketForm({ onClose, onTicketCreated }: NewTicketFormProps) 
       if (!response.ok) {
         console.error("[v0] Error creating ticket:", result.error)
         setError(result.error || "Failed to create ticket")
-        toast({
-          title: "❌ Failed to Create Ticket",
-          description: result.error || "Failed to create support ticket",
-          variant: "destructive",
-        })
+        notificationService.error(
+          "Failed to Create Ticket",
+          result.error || "Failed to create support ticket"
+        )
         return
       }
 
       console.log("[v0] Ticket created successfully:", result.ticket)
 
       // Show success message
-      toast({
-        title: "🎫 Ticket Created Successfully",
-        description: `Ticket ${result.ticket?.ticket_number || result.ticket?.id} has been submitted`,
-      })
+      notificationService.success(
+        "Ticket Created Successfully! 🎫",
+        `Ticket ${result.ticket?.ticket_number || result.ticket?.id} has been submitted and assigned to IT support`
+      )
 
       // Reset form and close
       setFormData({
@@ -132,11 +132,10 @@ export function NewTicketForm({ onClose, onTicketCreated }: NewTicketFormProps) 
     } catch (err) {
       console.error("[v0] Exception creating ticket:", err)
       setError("An unexpected error occurred")
-      toast({
-        title: "❌ Error",
-        description: "An unexpected error occurred while creating ticket",
-        variant: "destructive",
-      })
+      notificationService.error(
+        "Error",
+        "An unexpected error occurred while creating ticket"
+      )
     } finally {
       setSubmitting(false)
     }
