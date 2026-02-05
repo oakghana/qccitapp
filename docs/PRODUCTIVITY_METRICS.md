@@ -6,18 +6,32 @@ The productivity metrics system tracks and ranks IT staff performance based on t
 ## Features
 
 ### 1. Productivity Scoring Algorithm
-The system calculates a comprehensive productivity score (0-100) for each staff member using three key metrics:
+The system calculates a comprehensive productivity score (0-120+) for each staff member using four key metrics that reward both quality and volume of work:
 
 **Score Components:**
-- **50%** - Task Completion Rate: (completed tasks / total tasks assigned) × 100
-- **30%** - On-Time Completion Rate: (tasks completed within expected timeframe / completed tasks) × 100  
-- **20%** - Speed Bonus: Bonus points for faster completion times
+- **40%** - Task Completion Rate: (completed tasks / total tasks assigned) × 100
+- **25%** - On-Time Completion Rate: (tasks completed within expected timeframe / completed tasks) × 100  
+- **15%** - Speed Bonus: Bonus points for faster completion times (weighted at 0.75)
+- **20%** - Volume Bonus: Up to 30 bonus points based on total tasks completed
 
 **Speed Bonus Tiers:**
-- ≤3 days average completion: +20 points
-- 3-5 days average completion: +10 points
-- 5-7 days average completion: +5 points
+- ≤3 days average completion: +20 points (×0.75 = +15 in score)
+- 3-5 days average completion: +10 points (×0.75 = +7.5 in score)
+- 5-7 days average completion: +5 points (×0.75 = +3.75 in score)
 - >7 days average completion: +0 points
+
+**Volume Bonus:**
+- Staff who handle and complete more tasks receive significantly higher scores
+- **+0.5 points per completed task** (up to 30 bonus points maximum)
+- This ensures high-volume workers are appropriately recognized for doing more work
+- Examples:
+  - 10 completed tasks = +5 points
+  - 20 completed tasks = +10 points
+  - 40 completed tasks = +20 points
+  - 60+ completed tasks = +30 points (capped)
+
+**Why Volume Matters:**
+Staff who are assigned and successfully complete more tickets demonstrate higher capacity, reliability, and contribution to the team. The volume bonus ensures they are ranked higher than staff who complete fewer tasks, even if both have similar completion rates.
 
 ### 2. Expected Completion Times by Priority
 Tasks have different expected completion timeframes based on priority:
@@ -29,12 +43,12 @@ Tasks have different expected completion timeframes based on priority:
 Tasks completed within these timeframes count toward the on-time completion rate.
 
 ### 3. Performance Grading
-Staff are assigned performance grades based on their productivity score:
-- **Excellent**: Score ≥85
-- **Good**: Score 70-84
-- **Average**: Score 50-69
-- **Below Average**: Score 30-49
-- **Poor**: Score <30
+Staff are assigned performance grades based on their productivity score (adjusted for volume-weighted scoring):
+- **Excellent**: Score ≥90
+- **Good**: Score 75-89
+- **Average**: Score 55-74
+- **Below Average**: Score 35-54
+- **Poor**: Score <35
 
 ### 4. Ranking System
 Staff members are ranked from 1 (highest) to N (lowest) based on their productivity score. The top 3 performers are highlighted with trophy icons.
