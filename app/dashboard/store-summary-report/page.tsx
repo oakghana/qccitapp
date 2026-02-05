@@ -91,12 +91,12 @@ export default function StoreSummaryReportPage() {
   // ONLY IT Store Head can request stock transfers from Central Stores to Head Office
   const canRequestStock = isITStoreHead && viewingCentralStores
 
-  // Load user's local stock when viewing Central Stores as regional_it_head
+  // Load user's local stock when viewing Central Stores as it_store_head
   useEffect(() => {
-    if (canRequestStock && user?.location) {
+    if (isITStoreHead && viewingCentralStores && user?.location) {
       loadLocalStock()
     }
-  }, [canRequestStock, user?.location])
+  }, [isITStoreHead, viewingCentralStores, user?.location])
 
   async function loadLocalStock() {
     if (!user?.location) return
