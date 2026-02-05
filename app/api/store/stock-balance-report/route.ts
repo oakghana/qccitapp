@@ -160,9 +160,11 @@ export async function GET(request: Request) {
       )
     }
 
-    // Filter by device type if specified
+    // Filter by device type if specified (case-insensitive)
     if (deviceType !== "all") {
-      items = items.filter((item) => item.category === deviceType)
+      items = items.filter(
+        (item) => item.category?.toLowerCase() === deviceType.toLowerCase()
+      )
     }
 
     if (!items || items.length === 0) {
@@ -246,10 +248,9 @@ export async function GET(request: Request) {
       }
     })
 
-    return NextResponse.json({ report: stockBalanceData })
-    }
+    return NextResponse.json({ report: stockBalanceData });
   } catch (error: any) {
-    console.error("[v0] Error in stock-balance-report:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error("[v0] Error in stock-balance-report:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

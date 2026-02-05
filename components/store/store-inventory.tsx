@@ -126,7 +126,7 @@ export function StoreInventory() {
 
   const filteredInventory = inventory.filter((item) => {
     const matchesSearch = item.itemName.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = categoryFilter === "all" || item.category === categoryFilter
+    const matchesCategory = categoryFilter === "all" || item.category?.toLowerCase() === categoryFilter.toLowerCase()
     return matchesSearch && matchesCategory
   })
 

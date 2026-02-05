@@ -159,6 +159,9 @@ export default function StoreSummaryReportPage() {
     loadReport()
     setItemManagementOpen(false)
   }
+
+  // Open request dialog for an item
+  function openRequestDialog(item: StockBalanceItem) {
     if (item.closingBalance <= 0) {
       alert(`No stock available for "${item.itemName}" at Central Stores.`)
       return
