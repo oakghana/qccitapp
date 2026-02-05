@@ -27,6 +27,7 @@ import {
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
+import { notificationService } from "@/lib/notification-service"
 
 interface AssignedTask {
   id: string
@@ -330,10 +331,23 @@ export function AssignedTasksDashboard() {
         hoursWorked: hoursWorked ? Number.parseFloat(hoursWorked) : undefined,
       })
 
-      toast({
-        title: "Task Updated",
-        description: `Task status has been updated to ${newStatus.replace("_", " ")}`,
-      })
+      // Use enhanced notifications based on status
+      if (newStatus === "completed") {
+        notificationService.flash(
+          "Task Completed! 🎉",
+          `"${selectedTask.title}" has been marked as complete. Great work!`
+        )
+      } else if (newStatus === "in_progress") {
+        notificationService.info(
+          "Task In Progress",
+          `You're now working on "${selectedTask.title}"`
+        )
+      } else {
+        notificationService.success(
+          "Task Updated",
+          `Task status has been updated to ${newStatus.replace("_", " ")}`
+        )
+      }
 
       setUpdateDialogOpen(false)
       setSelectedTask(null)
@@ -341,11 +355,10 @@ export function AssignedTasksDashboard() {
       setHoursWorked("")
       setNewStatus("")
     } catch (error) {
-      toast({
-        title: "Update Failed",
-        description: error instanceof Error ? error.message : "Failed to update task status",
-        variant: "destructive",
-      })
+      notificationService.error(
+        "Update Failed",
+        error instanceof Error ? error.message : "Failed to update task status"
+      )
     } finally {
       setIsUpdating(false)
     }

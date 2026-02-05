@@ -69,6 +69,29 @@ export async function PATCH(request: NextRequest) {
 
     console.log("[v0] Updated repair request:", data)
 
+    // Create notification for requester when task is completed
+    if (status === "completed" && data.requested_by) {
+      try {
+        const notificationData = {
+          user_id: data.requested_by,
+          type: "task_completed",
+          title: "Repair Task Completed",
+          message: `Your repair request "${data.issue_description || data.description || 'Repair Task'}" has been completed`,
+          related_id: data.id,
+          related_type: "repair_request",
+          priority: "high",
+          read: false,
+          created_at: new Date().toISOString(),
+        }
+
+        await supabaseAdmin.from("notifications").insert(notificationData)
+        console.log("[v0] Created completion notification for requester")
+      } catch (notifError) {
+        console.error("[v0] Error creating notification:", notifError)
+        // Don't fail the main request if notification fails
+      }
+    }
+
     return NextResponse.json({ success: true, repair: data })
   } catch (error) {
     console.error("[v0] API Repairs Update error:", error)

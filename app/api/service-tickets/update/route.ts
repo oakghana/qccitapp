@@ -57,6 +57,29 @@ export async function PATCH(request: NextRequest) {
 
     console.log("[v0] Updated service ticket:", data)
 
+    // Create notification for requester when ticket is completed
+    if (status === "completed" && data.requester_id) {
+      try {
+        const notificationData = {
+          user_id: data.requester_id,
+          type: "task_completed",
+          title: "Service Ticket Resolved",
+          message: `Your service ticket "${data.title || data.subject || 'Service Request'}" has been resolved`,
+          related_id: data.id,
+          related_type: "service_ticket",
+          priority: "high",
+          read: false,
+          created_at: new Date().toISOString(),
+        }
+
+        await supabaseAdmin.from("notifications").insert(notificationData)
+        console.log("[v0] Created completion notification for requester")
+      } catch (notifError) {
+        console.error("[v0] Error creating notification:", notifError)
+        // Don't fail the main request if notification fails
+      }
+    }
+
     return NextResponse.json({ success: true, ticket: data })
   } catch (error) {
     console.error("[v0] API Service Tickets Update error:", error)
