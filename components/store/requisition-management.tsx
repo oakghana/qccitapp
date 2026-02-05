@@ -18,7 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, FileText, Search, CheckCircle, Clock, XCircle, Download, Edit, Trash2, Package } from "lucide-react"
+import { Plus, FileText, Search, CheckCircle, Clock, XCircle, Download, Edit, Trash2, Package, Zap } from "lucide-react"
 import { NewRequisitionForm } from "./new-requisition-form"
 import { IssueItemsForm } from "./issue-items-form"
 import { AddStockToCentralStore } from "./add-stock-to-central-store"
@@ -56,6 +56,19 @@ interface Requisition {
   allocated_by?: string
 }
 
+interface StockTransaction {
+  id: string
+  item_name: string
+  transaction_type: string
+  quantity: number
+  location: string
+  location_name?: string
+  reference_type: string
+  created_at: string
+  item_id?: string
+  reference_number?: string
+}
+
 const statusConfig = {
   pending: { icon: Clock, color: "secondary", label: "Pending" },
   approved: { icon: CheckCircle, color: "default", label: "Approved" },
@@ -65,7 +78,9 @@ const statusConfig = {
 
 export function RequisitionManagement() {
   const [requisitions, setRequisitions] = useState<Requisition[]>([])
+  const [transactions, setTransactions] = useState<StockTransaction[]>([])
   const [loading, setLoading] = useState(true)
+  const [transactionsLoading, setTransactionsLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [newReqOpen, setNewReqOpen] = useState(false)
   const [issueOpen, setIssueOpen] = useState(false)
@@ -90,6 +105,10 @@ export function RequisitionManagement() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deletingReq, setDeletingReq] = useState<Requisition | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [transactionDeleteDialog, setTransactionDeleteDialog] = useState(false)
+  const [selectedTransaction, setSelectedTransaction] = useState<StockTransaction | null>(null)
+  const [transactionDeleteReason, setTransactionDeleteReason] = useState("")
+  const [isDeletingTransaction, setIsDeletingTransaction] = useState(false)
   const { user } = useAuth()
   const { toast } = useToast()
   const supabase = createClient()
@@ -143,6 +162,66 @@ export function RequisitionManagement() {
       console.error("[v0] Error loading requisitions:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadTransactions = async () => {
+    try {
+      setTransactionsLoading(true)
+      const response = await fetch('/api/store/all-transactions')
+      if (response.ok) {
+        const data = await response.json()
+        setTransactions(data.transactions || [])
+      }
+    } catch (error) {
+      console.error('[v0] Error loading transactions:', error)
+    } finally {
+      setTransactionsLoading(false)
+    }
+  }
+
+  const handleDeleteTransaction = async () => {
+    if (!selectedTransaction || !transactionDeleteReason.trim()) {
+      alert('Please provide a reason for deleting this transaction')
+      return
+    }
+
+    try {
+      setIsDeletingTransaction(true)
+      
+      // Delete the transaction
+      const deleteResponse = await fetch('/api/store/delete-transaction', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionId: selectedTransaction.id,
+          itemId: selectedTransaction.item_id,
+          quantity: selectedTransaction.quantity,
+          location: selectedTransaction.location_name || selectedTransaction.location,
+          transactionType: selectedTransaction.transaction_type,
+          deletedBy: user?.email || 'unknown',
+          reason: transactionDeleteReason,
+          userRole: user?.role,
+        }),
+      })
+
+      const data = await deleteResponse.json()
+
+      if (!deleteResponse.ok) {
+        alert(`Error: ${data.error || 'Failed to delete transaction'}`)
+        return
+      }
+
+      alert('Transaction deleted and reversal created successfully')
+      setTransactionDeleteDialog(false)
+      setSelectedTransaction(null)
+      setTransactionDeleteReason('')
+      await loadTransactions()
+    } catch (error) {
+      console.error('[v0] Error deleting transaction:', error)
+      alert('Failed to delete transaction')
+    } finally {
+      setIsDeletingTransaction(false)
     }
   }
 
@@ -527,6 +606,23 @@ export function RequisitionManagement() {
     return allowedRoles.includes(user.role)
   }
 
+  const getTransactionBadgeColor = (type: string) => {
+    switch (type.toLowerCase()) {
+      case 'addition':
+      case 'transfer_in':
+      case 'receipt':
+        return 'bg-green-100 text-green-800'
+      case 'transfer_out':
+      case 'issue':
+      case 'reduction':
+        return 'bg-red-100 text-red-800'
+      case 'assignment':
+        return 'bg-blue-100 text-blue-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+
   const getFilteredByStatus = (status: string) => {
     if (status === "all") return filteredRequisitions
     return filteredRequisitions.filter((req) => req.status === status)
@@ -593,12 +689,16 @@ export function RequisitionManagement() {
       </Card>
 
       <Tabs defaultValue="all" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="pending">Pending</TabsTrigger>
           <TabsTrigger value="approved">Approved</TabsTrigger>
           <TabsTrigger value="issued">Issued</TabsTrigger>
           <TabsTrigger value="rejected">Rejected</TabsTrigger>
+          <TabsTrigger value="transactions" onClick={loadTransactions} className="flex items-center gap-1">
+            <Zap className="h-4 w-4" />
+            Transactions
+          </TabsTrigger>
         </TabsList>
 
         {["all", "pending", "approved", "issued", "rejected"].map((status) => (
@@ -918,6 +1018,74 @@ export function RequisitionManagement() {
             )}
           </TabsContent>
         ))}
+
+        {/* Transactions Tab */}
+        <TabsContent value="transactions" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Transaction History</CardTitle>
+              <CardDescription>Complete audit trail of all requisition-related transactions</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {transactionsLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading transactions...</div>
+              ) : transactions.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">No transactions found</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-slate-50">
+                        <th className="text-left py-3 px-4 font-semibold">Item Name</th>
+                        <th className="text-left py-3 px-4 font-semibold">Type</th>
+                        <th className="text-left py-3 px-4 font-semibold">Quantity</th>
+                        <th className="text-left py-3 px-4 font-semibold">Location</th>
+                        <th className="text-left py-3 px-4 font-semibold">Reference Type</th>
+                        <th className="text-left py-3 px-4 font-semibold">Date</th>
+                        {user?.role === 'admin' && <th className="text-left py-3 px-4 font-semibold">Actions</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {transactions.map((transaction) => (
+                        <tr key={transaction.id} className="border-b hover:bg-slate-50">
+                          <td className="py-3 px-4 font-medium">{transaction.item_name}</td>
+                          <td className="py-3 px-4">
+                            <Badge className={getTransactionBadgeColor(transaction.transaction_type)}>
+                              {transaction.transaction_type}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4">{transaction.quantity}</td>
+                          <td className="py-3 px-4">
+                            <Badge variant="outline">{transaction.location}</Badge>
+                          </td>
+                          <td className="py-3 px-4 text-slate-600 text-xs">{transaction.reference_type}</td>
+                          <td className="py-3 px-4 text-slate-600">
+                            {new Date(transaction.created_at).toLocaleDateString()}
+                          </td>
+                          {user?.role === 'admin' && (
+                            <td className="py-3 px-4">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedTransaction(transaction)
+                                  setTransactionDeleteDialog(true)
+                                }}
+                                className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       <Dialog open={allocateOpen} onOpenChange={setAllocateOpen}>
@@ -1073,6 +1241,50 @@ export function RequisitionManagement() {
           </div>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Transaction Delete Dialog */}
+      <Dialog open={transactionDeleteDialog} onOpenChange={setTransactionDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-red-600">Delete Transaction & Create Reversal</DialogTitle>
+            <DialogDescription>
+              This will delete the transaction and create a reversal entry to undo the stock movement.
+              <br />
+              <span className="font-semibold">{selectedTransaction?.item_name}</span> - {selectedTransaction?.quantity} units
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div>
+              <Label className="text-sm font-medium">Reason for deletion *</Label>
+              <textarea
+                placeholder="Provide reason (e.g., duplicate entry, data correction, administrative error)"
+                value={transactionDeleteReason}
+                onChange={(e) => setTransactionDeleteReason(e.target.value)}
+                className="mt-2 w-full p-2 border rounded-md text-sm"
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setTransactionDeleteDialog(false)} 
+              disabled={isDeletingTransaction}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteTransaction}
+              disabled={isDeletingTransaction || !transactionDeleteReason.trim()}
+            >
+              {isDeletingTransaction ? 'Deleting...' : 'Delete & Reverse'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
