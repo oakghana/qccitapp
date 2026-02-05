@@ -86,6 +86,8 @@ export async function POST(request: Request) {
           name: headOfficeItem.name,
           description: headOfficeItem.description,
           category: headOfficeItem.category,
+          sku: `SKU-${Date.now()}-${allocateToLocation}`,
+          siv_number: `SIV-${Date.now()}-${allocateToLocation}`,
           quantity: item.quantity,
           unit: headOfficeItem.unit,
           location: allocateToLocation,

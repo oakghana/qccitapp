@@ -243,6 +243,7 @@ export async function POST(request: NextRequest) {
           description: description || "",
           category: normalizedCategory,
           sku: sku || `SKU-${Date.now()}`,
+          siv_number: sku || `SIV-${Date.now()}`,
           quantity: parseInt(quantity),
           quantity_in_stock: parseInt(quantity),
           unit_price: unit_price ? parseFloat(unit_price) : 0,
@@ -259,7 +260,7 @@ export async function POST(request: NextRequest) {
       if (insertError) {
         console.error("[v0] Error creating new item:", insertError)
         return NextResponse.json(
-          { error: "Failed to create new stock item" },
+          { error: insertError.message || "Failed to create new stock item" },
           { status: 500 }
         )
       }
