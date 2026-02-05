@@ -296,6 +296,7 @@ export default function StoreSummaryReportPage() {
       if (!response.ok) {
         const errorData = await response.json()
         console.error("[v0] Error loading stock balance report:", errorData)
+        setReport([])
         return
       }
 
