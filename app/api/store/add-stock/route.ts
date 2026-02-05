@@ -244,8 +244,6 @@ export async function POST(request: NextRequest) {
           sku: sku || `SKU-${Date.now()}`,
           siv_number: sku || `SIV-${Date.now()}`,
           quantity: parseInt(quantity),
-          quantity_in_stock: parseInt(quantity),
-          unit_price: unit_price ? parseFloat(unit_price) : 0,
           unit: unit || "pcs",
           reorder_level: reorder_level ? parseInt(reorder_level) : 5,
           location,
