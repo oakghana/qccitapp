@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Download, Calendar, FileText, Filter, Package, Send, CheckCircle, XCircle, AlertCircle, Loader2, MoreVertical, Edit, Trash2, Merge2 } from "lucide-react"
+import { Download, Calendar, FileText, Filter, Package, Send, CheckCircle, XCircle, AlertCircle, Loader2, MoreVertical, Edit, Trash2, Merge } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { FormNavigation } from "@/components/ui/form-navigation"
 import { Label } from "@/components/ui/label"
@@ -87,7 +87,6 @@ export default function StoreSummaryReportPage() {
 
   // Check if user is regional_it_head or it_store_head viewing Central Stores
   const isRegionalHead = user?.role === "regional_it_head"
-  const isITStoreHead = user?.role === "it_store_head"
   const viewingCentralStores = selectedLocation === "Central Stores"
   // ONLY IT Store Head can request stock transfers from Central Stores to Head Office
   const canRequestStock = isITStoreHead && viewingCentralStores
@@ -786,7 +785,7 @@ export default function StoreSummaryReportPage() {
                                   </DropdownMenuItem>
                                   {findDuplicateItems(item.itemName, item.id).length > 0 && (
                                     <DropdownMenuItem onClick={() => openItemManagement(item)}>
-                                      <Merge2 className="h-4 w-4 mr-2" />
+                                      <Merge className="h-4 w-4 mr-2" />
                                       Merge Duplicate
                                     </DropdownMenuItem>
                                   )}

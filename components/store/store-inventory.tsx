@@ -32,6 +32,7 @@ import { StockCardDetailModal } from "./stock-card-detail-modal"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations } from "@/lib/location-filter"
 import { useRouter } from "next/navigation"
+import { filterByCategory, normalizeCategoryName } from "@/lib/category-utils"
 
 interface StoreItem {
   id: string
@@ -124,11 +125,12 @@ export function StoreInventory() {
     }
   }
 
-  const filteredInventory = inventory.filter((item) => {
-    const matchesSearch = item.itemName.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = categoryFilter === "all" || item.category?.toLowerCase() === categoryFilter.toLowerCase()
-    return matchesSearch && matchesCategory
-  })
+  const filteredInventory = filterByCategory(
+    inventory.filter((item) =>
+      item.itemName.toLowerCase().includes(searchTerm.toLowerCase())
+    ),
+    categoryFilter
+  )
 
   const lowStockItems = inventory.filter((item) => item.quantity <= item.reorderLevel)
 

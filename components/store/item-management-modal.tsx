@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
-import { Trash2, Merge2, Edit, AlertTriangle, CheckCircle } from "lucide-react"
+import { Trash2, Merge, Edit, AlertTriangle, CheckCircle } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 
 interface StockItem {
@@ -231,7 +231,7 @@ export function ItemManagementModal({
               </TabsTrigger>
               {duplicateItems.length > 0 && (
                 <TabsTrigger value="merge">
-                  <Merge2 className="h-4 w-4 mr-2" />
+                  <Merge className="h-4 w-4 mr-2" />
                   Merge
                 </TabsTrigger>
               )}

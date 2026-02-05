@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { normalizeCategoryName } from "@/lib/category-utils"
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -132,6 +133,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Normalize category name for consistency
+    const normalizedCategory = normalizeCategoryName(category)
+
     // Check if item already exists at this location by name
     const { data: existingItem, error: fetchError } = await supabaseAdmin
       .from("store_items")
@@ -219,7 +223,7 @@ export async function POST(request: NextRequest) {
         .insert({
           name,
           description: description || "",
-          category,
+          category: normalizedCategory,
           sku: sku || `SKU-${Date.now()}`,
           quantity: parseInt(quantity),
           quantity_in_stock: parseInt(quantity),
