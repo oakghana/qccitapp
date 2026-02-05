@@ -12,10 +12,11 @@ export async function GET(request: NextRequest) {
     const location = searchParams.get('location') || 'Central Stores'
     const limit = parseInt(searchParams.get('limit') || '15', 10)
 
+    // Use case-insensitive filtering for location
     const { data: transactions, error } = await supabase
       .from('stock_transactions')
       .select('*')
-      .eq('location', location)
+      .ilike('location', location)
       .order('created_at', { ascending: false })
       .limit(limit)
 

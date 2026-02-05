@@ -31,7 +31,7 @@ export function CentralStoresActivityLog({ location = 'Central Stores', limit = 
 
   useEffect(() => {
     fetchTransactions()
-  }, [location])
+  }, [location, limit])
 
   async function fetchTransactions() {
     setLoading(true)
