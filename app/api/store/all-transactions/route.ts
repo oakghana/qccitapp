@@ -10,7 +10,7 @@ export async function GET() {
     // Fetch all transactions across all locations
     const { data: transactions, error } = await supabase
       .from('stock_transactions')
-      .select('id, item_name, transaction_type, quantity, location, reference_type, created_at')
+      .select('id, item_name, transaction_type, quantity, location_name, reference_type, created_at')
       .order('created_at', { ascending: false })
       .limit(200)
 
@@ -24,7 +24,7 @@ export async function GET() {
       item_name: txn.item_name,
       transaction_type: txn.transaction_type || 'Unknown',
       quantity: txn.quantity || 0,
-      location: txn.location || 'Unknown',
+      location: txn.location_name || 'Unknown',
       reference_type: txn.reference_type || 'N/A',
       created_at: txn.created_at,
     }))
