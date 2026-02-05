@@ -19,6 +19,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { CentralStoresActivityLog } from "@/components/dashboard/CentralStoresActivityLog"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 
@@ -860,6 +861,11 @@ export default function StoreSummaryReportPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Central Stores Activity Log */}
+      {selectedLocation === "Central Stores" && (
+        <CentralStoresActivityLog location={selectedLocation} limit={15} />
+      )}
 
       <style jsx global>{`
         @media print {
