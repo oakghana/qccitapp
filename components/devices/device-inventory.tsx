@@ -83,6 +83,37 @@ const statusColors = {
 } as const
 
 export function DeviceInventory() {
+    const [deletingId, setDeletingId] = useState<string | null>(null)
+
+    const handleDeleteDevice = async (deviceId: string) => {
+      if (!user) return
+      if (!window.confirm("Are you sure you want to delete this device? This action cannot be undone.")) return
+      setDeletingId(deviceId)
+      try {
+        const response = await fetch("/api/devices/delete", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deviceId,
+            userId: user.id,
+            userRole: user.role,
+            userLocation: user.location,
+            reason: "User-initiated delete from Device Inventory"
+          })
+        })
+        const result = await response.json()
+        if (!response.ok) {
+          toast({ title: "Error", description: result.error || "Failed to delete device.", variant: "destructive" })
+        } else {
+          setDevices((prev) => prev.filter((d) => d.id !== deviceId))
+          toast({ title: "Success", description: result.message || "Device deleted successfully." })
+        }
+      } catch (err) {
+        toast({ title: "Error", description: "Error deleting device.", variant: "destructive" })
+      } finally {
+        setDeletingId(null)
+      }
+    }
   const { user } = useAuth()
   const [devices, setDevices] = useState<Device[]>([])
   const [loading, setLoading] = useState(true)
@@ -493,14 +524,17 @@ export function DeviceInventory() {
 
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {filteredDevices.map((device) => {
-          const IconComponent = deviceTypeIcons[device.type] || Monitor
+          const IconComponent = deviceTypeIcons[device.type] || Monitor;
+          // Only admin or regional_it_head at the device's location can see delete
+          const canDelete =
+            user?.role === "admin" ||
+            (user?.role === "regional_it_head" && user?.location && user.location === device.location);
           return (
             <Card
               key={device.id}
               className="group hover:shadow-lg hover:border-primary/30 transition-all duration-200 cursor-pointer overflow-hidden"
-              onClick={() => handleEditDevice(device)}
             >
-              <div className="p-4">
+              <div className="p-4" onClick={() => handleEditDevice(device)}>
                 {/* Header: Icon + Name + Status */}
                 <div className="flex items-start gap-3 mb-3">
                   <div className="shrink-0 p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
@@ -533,9 +567,25 @@ export function DeviceInventory() {
                     )}
                   </div>
                 </div>
+                {/* Delete Button */}
+                {canDelete && (
+                  <div className="flex justify-end mt-3">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={deletingId === device.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteDevice(device.id);
+                      }}
+                    >
+                      {deletingId === device.id ? "Deleting..." : "Delete"}
+                    </Button>
+                  </div>
+                )}
               </div>
             </Card>
-          )
+          );
         })}
       </div>
 

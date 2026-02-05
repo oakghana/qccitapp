@@ -69,6 +69,36 @@ const statusColors: Record<string, string> = {
 
 export function MyDevicesList() {
   const { user } = useAuth()
+    const [deletingId, setDeletingId] = useState<string | null>(null)
+    const handleDeleteDevice = async (deviceId: string) => {
+      if (!user) return
+      if (!window.confirm("Are you sure you want to delete this device? This action cannot be undone.")) return
+      setDeletingId(deviceId)
+      try {
+        const response = await fetch("/api/devices/delete", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deviceId,
+            userId: user.id,
+            userRole: user.role,
+            userLocation: user.location,
+            reason: "User-initiated delete from My Devices List"
+          })
+        })
+        const result = await response.json()
+        if (!response.ok) {
+          alert(result.error || "Failed to delete device.")
+        } else {
+          setDevices((prev) => prev.filter((d) => d.id !== deviceId))
+          alert(result.message || "Device deleted successfully.")
+        }
+      } catch (err) {
+        alert("Error deleting device.")
+      } finally {
+        setDeletingId(null)
+      }
+    }
   const [devices, setDevices] = useState<Device[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
@@ -409,6 +439,16 @@ export function MyDevicesList() {
                         <span className="text-sm text-muted-foreground">
                           {formatDate(device.created_at)}
                         </span>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeleteDevice(device.id)}
+                          >
+                            Delete
+                          </Button>
+                        </TableCell>
                       </TableCell>
                     </TableRow>
                   ))}
