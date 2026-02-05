@@ -34,6 +34,7 @@ interface StockTransaction {
   location: string
   reference_type: string
   created_at: string
+  item_id?: string
 }
 
 export default function StoreAnalyticsPage() {
@@ -42,7 +43,8 @@ export default function StoreAnalyticsPage() {
   const [transactions, setTransactions] = useState<StockTransaction[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteDialog, setDeleteDialog] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<StockAddition | null>(null)
+  const [selectedItem, setSelectedItem] = useState<StockAddition | StockTransaction | null>(null)
+  const [deleteType, setDeleteType] = useState<'addition' | 'transaction'>('addition')
   const [deleteReason, setDeleteReason] = useState('')
   const [deleting, setDeleting] = useState(false)
 
@@ -76,8 +78,9 @@ export default function StoreAnalyticsPage() {
 
   const isAdmin = user?.role === 'admin' || user?.role === 'it_store_head'
 
-  const handleDeleteClick = (addition: StockAddition) => {
-    setSelectedItem(addition)
+  const handleDeleteClick = (item: StockAddition | StockTransaction, type: 'addition' | 'transaction') => {
+    setSelectedItem(item)
+    setDeleteType(type)
     setDeleteReason('')
     setDeleteDialog(true)
   }
@@ -95,10 +98,12 @@ export default function StoreAnalyticsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           itemId: selectedItem.id,
+          transactionId: deleteType === 'transaction' ? selectedItem.id : undefined,
           deletedBy: user?.email || 'unknown',
           reason: deleteReason,
           userRole: user?.role,
           userLocation: user?.location,
+          deleteType: deleteType,
         }),
       })
 
@@ -109,13 +114,13 @@ export default function StoreAnalyticsPage() {
         return
       }
 
-      alert('Item deleted successfully')
+      alert(`${deleteType === 'addition' ? 'Item' : 'Transaction'} deleted successfully`)
       setDeleteDialog(false)
       setSelectedItem(null)
       await loadData()
     } catch (error) {
-      console.error('[v0] Error deleting item:', error)
-      alert('Failed to delete item')
+      console.error('[v0] Error deleting:', error)
+      alert('Failed to delete')
     } finally {
       setDeleting(false)
     }
@@ -258,6 +263,7 @@ export default function StoreAnalyticsPage() {
                           <th className="text-left py-3 px-4 font-semibold">Location</th>
                           <th className="text-left py-3 px-4 font-semibold">Reference</th>
                           <th className="text-left py-3 px-4 font-semibold">Date</th>
+                          {isAdmin && <th className="text-left py-3 px-4 font-semibold">Actions</th>}
                         </tr>
                       </thead>
                       <tbody>
@@ -277,6 +283,20 @@ export default function StoreAnalyticsPage() {
                             <td className="py-3 px-4 text-slate-600">
                               {new Date(transaction.created_at).toLocaleDateString()}
                             </td>
+                            {isAdmin && (
+                              <td className="py-3 px-4">
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteClick(transaction, 'transaction')}
+                                    className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>
@@ -295,12 +315,15 @@ export default function StoreAnalyticsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
               <AlertCircle className="h-5 w-5" />
-              Delete Stock Item
+              Delete {deleteType === 'addition' ? 'Stock Item' : 'Transaction'}
             </DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete <span className="font-semibold">{selectedItem?.item_name}</span>?
+              Are you sure you want to delete {deleteType === 'addition' ? 'this item' : 'this transaction'}?
               <br />
-              This action will remove {selectedItem?.quantity} units from inventory.
+              {deleteType === 'addition' && 'This action will remove '}
+              <span className="font-semibold">{selectedItem?.item_name}</span>
+              {deleteType === 'addition' && ` (${selectedItem?.quantity} units) from inventory.`}
+              {deleteType === 'transaction' && ' from the transaction history.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -308,7 +331,11 @@ export default function StoreAnalyticsPage() {
             <div>
               <label className="text-sm font-medium">Reason for deletion *</label>
               <textarea
-                placeholder="Provide a reason for deletion (e.g., damaged, expired, administrative correction)"
+                placeholder={
+                  deleteType === 'addition'
+                    ? 'Provide a reason (e.g., damaged, expired, administrative correction)'
+                    : 'Provide a reason for removing this transaction (e.g., duplicate entry, data correction)'
+                }
                 value={deleteReason}
                 onChange={(e) => setDeleteReason(e.target.value)}
                 className="mt-2 w-full p-2 border rounded-md text-sm"
@@ -326,7 +353,7 @@ export default function StoreAnalyticsPage() {
               onClick={handleConfirmDelete}
               disabled={deleting || !deleteReason.trim()}
             >
-              {deleting ? 'Deleting...' : 'Delete Item'}
+              {deleting ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>
