@@ -31,9 +31,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Username or email already exists" }, { status: 409 })
     }
 
-    // Default password for self-registered users is now qcc@123
+    // Default password for self-registered users is qcc@123
+    // Using fixed hash to ensure consistency across all new users
     const defaultPassword = "qcc@123"
-    const hashedPassword = await bcrypt.hash(defaultPassword, 10)
+    const hashedPassword = "$2b$10$y.4.eCKGm0kI0hXv1rhJtuLYpKJH3R/Pfxvn9AU6DVF5PzYHsnmqm"
 
     console.log("[v0] Creating new user profile with default password: qcc@123...")
 
