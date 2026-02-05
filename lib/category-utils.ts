@@ -7,13 +7,20 @@
  * Normalize category name to title case format
  * Examples: "HARDWARE" -> "Hardware", "consumables" -> "Consumables"
  */
-export function normalizeCategoryName(name: string): string {
-  if (!name) return ""
-  return name
-    .toLowerCase()
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
+export function normalizeCategoryName(name: string | null | undefined): string {
+  if (!name || typeof name !== 'string') return ""
+  
+  try {
+    return name
+      .toLowerCase()
+      .trim()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+  } catch (error) {
+    console.warn("[v0] Error normalizing category name:", error, name)
+    return String(name)
+  }
 }
 
 /**
@@ -21,8 +28,14 @@ export function normalizeCategoryName(name: string): string {
  * Returns true if categories match regardless of case
  */
 export function categoriesMatch(cat1: string | null | undefined, cat2: string | null | undefined): boolean {
-  if (!cat1 || !cat2) return false
-  return cat1.toLowerCase().trim() === cat2.toLowerCase().trim()
+  try {
+    if (!cat1 || !cat2) return false
+    if (typeof cat1 !== 'string' || typeof cat2 !== 'string') return false
+    return cat1.toLowerCase().trim() === cat2.toLowerCase().trim()
+  } catch (error) {
+    console.warn("[v0] Error comparing categories:", error, { cat1, cat2 })
+    return false
+  }
 }
 
 /**
@@ -32,13 +45,23 @@ export function filterByCategory<T extends { category?: string | null }>(
   items: T[],
   categoryFilter: string
 ): T[] {
+  // Handle edge cases
+  if (!Array.isArray(items) || items.length === 0) {
+    return items
+  }
+  
   if (!categoryFilter || categoryFilter === "all") {
     return items
   }
   
-  return items.filter(item =>
-    categoriesMatch(item.category, categoryFilter)
-  )
+  return items.filter(item => {
+    try {
+      return categoriesMatch(item.category, categoryFilter)
+    } catch (error) {
+      console.warn("[v0] Error filtering item by category:", error, item)
+      return false
+    }
+  })
 }
 
 /**

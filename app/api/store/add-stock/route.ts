@@ -1,11 +1,29 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import { normalizeCategoryName } from "@/lib/category-utils"
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
+
+/**
+ * Normalize category name to title case format (server-side version)
+ */
+function normalizeCategoryName(name: string | null | undefined): string {
+  if (!name || typeof name !== 'string') return ""
+  
+  try {
+    return name
+      .toLowerCase()
+      .trim()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+  } catch (error) {
+    console.warn("[v0] Error normalizing category name:", error, name)
+    return String(name)
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -225,6 +243,7 @@ export async function POST(request: NextRequest) {
           description: description || "",
           category: normalizedCategory,
           sku: sku || `SKU-${Date.now()}`,
+          siv_number: sku || `SIV-${Date.now()}`,
           quantity: parseInt(quantity),
           quantity_in_stock: parseInt(quantity),
           unit_price: unit_price ? parseFloat(unit_price) : 0,
@@ -241,7 +260,7 @@ export async function POST(request: NextRequest) {
       if (insertError) {
         console.error("[v0] Error creating new item:", insertError)
         return NextResponse.json(
-          { error: "Failed to create new stock item" },
+          { error: insertError.message || "Failed to create new stock item" },
           { status: 500 }
         )
       }
