@@ -115,6 +115,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
             badge: counts.serviceDeskTickets > 0 ? counts.serviceDeskTickets : undefined,
           },
           { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
+          { name: "IT Store Stock Levels", href: "/dashboard/store-snapshot", icon: Database },
         ],
         groups: [],
       }
