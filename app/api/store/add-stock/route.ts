@@ -144,12 +144,15 @@ export async function POST(request: NextRequest) {
 
     // Creating new item or adding by name matching (original flow)
     // Validate required fields for new items
-    if (!name || !category || !quantity || !location) {
+    if (!name || !category || !quantity) {
       return NextResponse.json(
-        { error: "Missing required fields: name, category, quantity, location" },
+        { error: "Missing required fields: name, category, quantity" },
         { status: 400 }
       )
     }
+
+    // Force location to always be "Head Office" for admin/it_store_head
+    const forcedLocation = "Head Office"
 
     // Normalize category name for consistency
     const normalizedCategory = normalizeCategoryName(category)
@@ -159,7 +162,7 @@ export async function POST(request: NextRequest) {
       .from("store_items")
       .select("*")
       .eq("name", name)
-      .eq("location", location)
+      .eq("location", forcedLocation)
       .single()
 
     if (fetchError && fetchError.code !== 'PGRST116') {
@@ -231,7 +234,7 @@ export async function POST(request: NextRequest) {
           previous_quantity: existingItem.quantity,
           new_quantity: newQuantity,
           added_quantity: parseInt(quantity),
-          location
+          location: forcedLocation
         }
       })
     } else {
@@ -246,7 +249,7 @@ export async function POST(request: NextRequest) {
           quantity: parseInt(quantity),
           unit: unit || "pcs",
           reorder_level: reorder_level ? parseInt(reorder_level) : 5,
-          location,
+          location: forcedLocation,
           supplier: supplier || "",
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -270,7 +273,7 @@ export async function POST(request: NextRequest) {
           transaction_type: "addition",
           quantity: parseInt(quantity),
           unit: unit || "pcs",
-          location_name: location,
+          location_name: forcedLocation,
           reference_type: "stock_addition",
           reference_number: `ADD-${Date.now()}`,
           notes: notes || `New item added: ${quantity} items by ${effectiveUserRole}`,
@@ -296,7 +299,7 @@ export async function POST(request: NextRequest) {
           id: newItem.id,
           name,
           quantity: parseInt(quantity),
-          location,
+          location: forcedLocation,
           category
         }
       })

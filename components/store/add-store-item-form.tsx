@@ -65,7 +65,7 @@ export function AddStoreItemForm({ onSubmit }: { onSubmit: () => void }) {
           sku: formData.sku || `SKU-${Date.now()}`,
           quantity: parseInt(formData.quantity) || 0,
           unit_price: parseFloat(formData.unitPrice) || 0,
-          location: formData.location || "Central Stores",
+          location: "Head Office",
           supplier: formData.supplier,
           user_id: user?.id,
           user_role: user?.role,
