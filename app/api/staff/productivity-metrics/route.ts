@@ -134,18 +134,30 @@ export async function GET(request: NextRequest) {
       else if (averageCompletionDays <= 5) speedBonus = 10
       else if (averageCompletionDays <= 7) speedBonus = 5
 
-      // Calculate overall productivity score
-      // 50% completion rate + 30% on-time rate + 20% speed bonus
+      // Calculate volume bonus based on total tasks completed
+      // More tasks completed = higher productivity contribution
+      // Scale: Every 10 completed tasks adds a volume multiplier
+      // This ensures staff handling more work get rewarded appropriately
+      const volumeMultiplier = 1 + (completedTasks.length / 50) // +0.2 per 10 tasks, capped naturally
+      
+      // Calculate base productivity score
+      // 40% completion rate + 25% on-time rate + 15% speed bonus + 20% volume factor
+      const baseScore = completionRate * 0.4 + onTimeRate * 0.25 + speedBonus * 0.75
+      
+      // Apply volume multiplier to reward high-volume workers
+      // Staff with more completed tasks get proportionally higher scores
+      const volumeBonus = Math.min(30, completedTasks.length * 0.5) // Up to 30 points for volume
+      
       const productivityScore = Math.round(
-        completionRate * 0.5 + onTimeRate * 0.3 + speedBonus
+        baseScore + volumeBonus
       )
 
-      // Determine grading
+      // Determine grading (adjusted for volume-weighted scoring)
       let grading: "Excellent" | "Good" | "Average" | "Below Average" | "Poor"
-      if (productivityScore >= 85) grading = "Excellent"
-      else if (productivityScore >= 70) grading = "Good"
-      else if (productivityScore >= 50) grading = "Average"
-      else if (productivityScore >= 30) grading = "Below Average"
+      if (productivityScore >= 90) grading = "Excellent"
+      else if (productivityScore >= 75) grading = "Good"
+      else if (productivityScore >= 55) grading = "Average"
+      else if (productivityScore >= 35) grading = "Below Average"
       else grading = "Poor"
 
       return {
