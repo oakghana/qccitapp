@@ -12,59 +12,73 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const activeOnly = searchParams.get("activeOnly") !== "false"
 
-    console.log("[v0] Fetching service providers with service_provider role, activeOnly:", activeOnly)
+    console.log("[v0] Fetching service providers from service_providers table, activeOnly:", activeOnly)
 
-    // First, fetch ALL service providers to debug status values
-    const { data: allProviders, error: debugError } = await supabaseAdmin
-      .from("profiles")
-      .select("id, full_name, email, phone, location, department, status, role")
-      .eq("role", "service_provider")
+    // Fetch from service_providers table which has proper foreign key relationships with repair_requests
+    // Also join with profiles to get current status
+    let query = supabaseAdmin
+      .from("service_providers")
+      .select(`
+        id, 
+        name, 
+        email, 
+        phone, 
+        location, 
+        is_active,
+        specialization,
+        user_id,
+        profiles!service_providers_user_id_fkey (
+          status,
+          full_name,
+          role
+        )
+      `)
+      .order("name", { ascending: true })
 
-    console.log("[v0] ALL service providers (debugging):", allProviders?.map(p => ({ name: p.full_name, status: p.status })))
+    const { data: spData, error: spError } = await query
 
-    if (debugError) {
-      console.error("[v0] Error fetching service providers from profiles:", debugError)
-      return NextResponse.json({ error: debugError.message }, { status: 500 })
+    console.log("[v0] Fetched service providers:", spData?.length || 0)
+    console.log("[v0] Service providers data:", spData?.map(p => ({ 
+      id: p.id, 
+      name: p.name, 
+      is_active: p.is_active,
+      user_id: p.user_id,
+      profile_status: (p as any).profiles?.status 
+    })))
+
+    if (spError) {
+      console.error("[v0] Error fetching service providers:", spError)
+      return NextResponse.json({ error: spError.message }, { status: 500 })
     }
 
-    // Filter to active providers
-    let profData = allProviders || []
-    if (activeOnly) {
-      // Try multiple status variations: 'Active', 'active', 'approved'
-      profData = profData.filter((p: any) => 
-        p.status === "Active" || 
-        p.status === "active" || 
-        p.status === "approved" ||
-        p.status === "Approved"
-      )
-      console.log("[v0] Filtered to active providers:", profData.length)
-    }
-
-    console.log("[v0] Final service providers count:", profData?.length || 0)
-
-    const providers = (profData || []).map((provider: any) => {
-      // Check various status formats for active state
-      const isActive = provider.status === "Active" || 
-                       provider.status === "active" || 
-                       provider.status === "approved" ||
-                       provider.status === "Approved"
-      
-      return {
-        id: provider.id,
-        name: provider.full_name || provider.email,
-        email: provider.email,
-        phone: provider.phone,
-        location: provider.location,
-        department: provider.department,
-        specialization: [], // Can be enhanced later
-        is_active: isActive,
-        status: provider.status, // Include raw status for debugging
+    // Filter to active providers - check both is_active flag and profile status
+    let providers = (spData || []).filter((p: any) => {
+      if (activeOnly) {
+        // Must be marked active in service_providers table
+        if (!p.is_active) return false
+        
+        // If linked to a profile, check the profile status is Active
+        if (p.profiles && p.profiles.status !== "Active") return false
       }
+      return true
     })
 
-    console.log("[v0] Returning service providers:", providers.length, "providers", providers.map(p => ({ name: p.name, status: p.status, is_active: p.is_active })))
+    console.log("[v0] Filtered service providers count:", providers.length)
 
-    return NextResponse.json({ providers: providers, count: providers.length })
+    const formattedProviders = providers.map((provider: any) => ({
+      id: provider.id, // This is the service_providers.id that repair_requests foreign key expects
+      name: provider.name,
+      email: provider.email,
+      phone: provider.phone,
+      location: provider.location,
+      specialization: provider.specialization || [],
+      is_active: provider.is_active,
+      user_id: provider.user_id,
+    }))
+
+    console.log("[v0] Returning service providers:", formattedProviders.length, "providers")
+
+    return NextResponse.json({ providers: formattedProviders, count: formattedProviders.length })
   } catch (error) {
     console.error("[v0] API Service Providers error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
