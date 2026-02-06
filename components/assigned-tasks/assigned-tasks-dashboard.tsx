@@ -105,30 +105,66 @@ export function AssignedTasksDashboard() {
       if (ticketError) {
         console.error("[v0] Error loading service tickets:", ticketError)
       } else if (serviceTickets) {
-        const mappedTickets: AssignedTask[] = serviceTickets.map((ticket: any) => ({
-          id: ticket.id,
-          type: "service_desk" as const,
-          title: ticket.title || ticket.subject || "Service Desk Request",
-          description: ticket.description || ticket.notes || "",
-          priority: (ticket.priority || "medium") as AssignedTask["priority"],
-          status: mapTicketStatus(ticket.status),
-          assignedBy: ticket.assigned_by || "IT Head",
-          assignedByRole: "it_head",
-          assignedDate: ticket.assigned_at || ticket.created_at,
-          dueDate: ticket.due_date || "",
-          location: ticket.location || ticket.requester_location || "",
-          requestedBy: ticket.requester_name || ticket.submitted_by || "Unknown",
-          ticketInfo: {
-            category: ticket.category || "General",
-            subcategory: ticket.subcategory || "",
-            ticketNumber: ticket.ticket_number || ticket.id,
-          },
-          attachments: [],
-          workNotes: ticket.work_notes ? [ticket.work_notes] : [],
-          completionDate: ticket.resolved_at,
-          estimatedHours: ticket.estimated_hours,
-          actualHours: ticket.actual_hours,
-        }))
+        // Helper to check if a string looks like a UUID
+        const isUUID = (str: string) =>
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)
+
+        // Collect any requested_by values that are UUIDs so we can resolve them to names
+        const requesterIds = serviceTickets
+          .map((t: any) => t.requested_by)
+          .filter((val: string) => val && isUUID(val))
+        
+        let requesterNameMap: Record<string, string> = {}
+        if (requesterIds.length > 0) {
+          const uniqueIds = [...new Set(requesterIds)] as string[]
+          const { data: profiles } = await supabase
+            .from("profiles")
+            .select("id, full_name, username, email")
+            .in("id", uniqueIds)
+          if (profiles) {
+            for (const p of profiles) {
+              requesterNameMap[p.id] = p.full_name || p.username || p.email || "Unknown"
+            }
+          }
+        }
+
+        const mappedTickets: AssignedTask[] = serviceTickets.map((ticket: any) => {
+          // Resolve the requester name: use requested_by directly if it's a name,
+          // or look it up from profiles if it's a UUID
+          let requesterName = "Unknown"
+          if (ticket.requested_by) {
+            if (isUUID(ticket.requested_by)) {
+              requesterName = requesterNameMap[ticket.requested_by] || "Unknown"
+            } else {
+              requesterName = ticket.requested_by
+            }
+          }
+
+          return {
+            id: ticket.id,
+            type: "service_desk" as const,
+            title: ticket.title || ticket.subject || "Service Desk Request",
+            description: ticket.description || ticket.notes || "",
+            priority: (ticket.priority || "medium") as AssignedTask["priority"],
+            status: mapTicketStatus(ticket.status),
+            assignedBy: ticket.assigned_by || "IT Head",
+            assignedByRole: "it_head",
+            assignedDate: ticket.assigned_at || ticket.created_at,
+            dueDate: ticket.due_date || "",
+            location: ticket.location || ticket.requester_location || "",
+            requestedBy: requesterName,
+            ticketInfo: {
+              category: ticket.category || "General",
+              subcategory: ticket.subcategory || "",
+              ticketNumber: ticket.ticket_number || ticket.id,
+            },
+            attachments: [],
+            workNotes: ticket.work_notes ? [ticket.work_notes] : [],
+            completionDate: ticket.resolved_at,
+            estimatedHours: ticket.estimated_hours,
+            actualHours: ticket.actual_hours,
+          }
+        })
         allTasks.push(...mappedTickets)
       }
 
