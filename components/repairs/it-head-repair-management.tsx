@@ -59,6 +59,8 @@ interface RepairTask {
   priority: "low" | "medium" | "high" | "critical"
   status: "draft" | "assigned" | "pickup_scheduled" | "collected" | "in_repair" | "completed" | "returned" | "cancelled"
   serviceProvider?: ServiceProvider
+  serviceProviderAssignedBy?: string
+  serviceProviderAssignedDate?: string
   createdBy: string
   createdDate: string
   estimatedCost?: number
@@ -369,6 +371,8 @@ export function ITHeadRepairManagement() {
           priority,
           service_provider_id: provider.id,
           service_provider_name: provider.name,
+          service_provider_assigned_by: user?.name || user?.email || "Unknown",
+          service_provider_assigned_date: new Date().toISOString(),
           requested_by: user?.id,
           requested_by_name: user?.name,
           location: device.location,
@@ -1222,39 +1226,61 @@ export function ITHeadRepairManagement() {
                         </TabsContent>
 
                         <TabsContent value="provider" className="space-y-4">
-                          {task.serviceProvider && (
-                            <div className="bg-muted p-4 rounded-lg">
-                              <h3 className="font-semibold mb-3">Service Provider Details</h3>
-                              <div className="grid md:grid-cols-2 gap-4 text-sm">
-                                <div className="space-y-2">
-                                  <p>
-                                    <strong>Name:</strong> {task.serviceProvider.name}
-                                  </p>
-                                  <p>
-                                    <strong>Phone:</strong> {task.serviceProvider.phone || "Not provided"}
-                                  </p>
-                                  <p>
-                                    <strong>Email:</strong> {task.serviceProvider.email}
-                                  </p>
-                                  <p>
-                                    <strong>Location:</strong> {task.serviceProvider.location || "Not specified"}
-                                  </p>
-                                </div>
-                                <div className="space-y-2">
-                                  <div>
-                                    <p>
-                                      <strong>Specialization:</strong>
-                                    </p>
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                      {(task.serviceProvider.specialization || []).map((spec, index) => (
-                                        <Badge key={index} variant="outline" size="sm">
-                                          {spec}
-                                        </Badge>
-                                      ))}
+                          {task.serviceProvider ? (
+                            <>
+                              <div className="bg-muted p-4 rounded-lg">
+                                <h3 className="font-semibold mb-3">Service Provider</h3>
+                                <div className="space-y-3 text-sm">
+                                  <div className="flex items-center justify-between p-3 bg-background rounded-lg">
+                                    <div>
+                                      <p className="font-semibold text-base">{task.serviceProvider.name}</p>
+                                      <p className="text-muted-foreground text-xs mt-1">
+                                        {task.serviceProvider.email}
+                                      </p>
                                     </div>
                                   </div>
                                 </div>
                               </div>
+
+                              <div className="bg-muted p-4 rounded-lg">
+                                <h3 className="font-semibold mb-3">Assignment Information</h3>
+                                <div className="grid gap-3 text-sm">
+                                  <div className="flex justify-between p-3 bg-background rounded-lg">
+                                    <span className="text-muted-foreground">Assigned By:</span>
+                                    <span className="font-medium">{task.serviceProviderAssignedBy || task.createdBy}</span>
+                                  </div>
+                                  <div className="flex justify-between p-3 bg-background rounded-lg">
+                                    <span className="text-muted-foreground">Assigned Date:</span>
+                                    <span className="font-medium">
+                                      {task.serviceProviderAssignedDate 
+                                        ? new Date(task.serviceProviderAssignedDate).toLocaleString()
+                                        : new Date(task.createdDate).toLocaleString()}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="bg-muted p-4 rounded-lg">
+                                <h3 className="font-semibold mb-3">Cost Information</h3>
+                                <div className="space-y-2 text-sm">
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Estimated:</span>
+                                    <span className="font-medium">
+                                      GHS {task.estimatedCost?.toFixed(2) || "N/A"}
+                                    </span>
+                                  </div>
+                                  {task.actualCost && (
+                                    <div className="flex justify-between">
+                                      <span className="text-muted-foreground">Actual:</span>
+                                      <span className="font-medium">GHS {task.actualCost.toFixed(2)}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="bg-muted p-4 rounded-lg text-center text-muted-foreground">
+                              <p>No service provider assigned yet</p>
                             </div>
                           )}
                         </TabsContent>

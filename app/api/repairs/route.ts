@@ -193,6 +193,8 @@ export async function POST(request: NextRequest) {
         requested_by: body.requested_by,
         service_provider_id: null, // Set to null - using hardcoded providers, not DB references
         service_provider_name: body.service_provider_name || null,
+        service_provider_assigned_by: body.service_provider_assigned_by || null,
+        service_provider_assigned_date: body.service_provider_assigned_date || null,
         estimated_cost: body.estimated_cost || null,
         task_number: taskNumber,
         created_at: new Date().toISOString(),
