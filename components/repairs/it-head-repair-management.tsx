@@ -59,6 +59,8 @@ interface RepairTask {
   priority: "low" | "medium" | "high" | "critical"
   status: "draft" | "assigned" | "pickup_scheduled" | "collected" | "in_repair" | "completed" | "returned" | "cancelled"
   serviceProvider?: ServiceProvider
+  serviceProviderAssignedBy?: string
+  serviceProviderAssignedDate?: string
   createdBy: string
   createdDate: string
   estimatedCost?: number
@@ -197,29 +199,30 @@ export function ITHeadRepairManagement() {
   }
 
   const loadServiceProviders = async () => {
-    try {
-      console.log("[v0] Loading service providers from API...")
-      // Only request active providers for dropdowns
-      const response = await fetch("/api/admin/service-providers?activeOnly=true")
-      const result = await response.json()
-
-      if (!response.ok) {
-        console.error("[v0] Error loading service providers:", result.error)
-        return
-      }
-
-      // Filter on client side as an extra safety net
-      const providers = (result.providers || []).filter((p: any) => p.is_active !== false)
-      console.log("[v0] Successfully loaded active service providers:", providers.length)
-
-      if (providers.length > 0) {
-        setServiceProviders(providers)
-      } else {
-        console.warn("[v0] No active service providers found")
-      }
-    } catch (error) {
-      console.error("[v0] Exception loading service providers:", error)
-    }
+    // Hardcoded service providers - only two providers available
+    const providers: ServiceProvider[] = [
+      {
+        id: "nathland-company",
+        name: "NATHLAND COMPANY LIMITED",
+        email: "nathland@gmail.com",
+        phone: "020000",
+        specialization: [],
+        location: "Head Office",
+        is_active: true,
+      },
+      {
+        id: "intel-computers",
+        name: "INTEL COMPUTERS",
+        email: "intel@computers.com",
+        phone: "",
+        specialization: [],
+        location: "Head Office",
+        is_active: true,
+      },
+    ]
+    
+    console.log("[v0] Using hardcoded service providers:", providers.length)
+    setServiceProviders(providers)
   }
 
   const loadRepairTasks = async () => {
@@ -318,12 +321,39 @@ export function ITHeadRepairManagement() {
   })
 
   const createRepairTask = async () => {
-    if (!selectedDevice || !issueDescription || !selectedProvider) return
+    if (!selectedDevice || !issueDescription || !selectedProvider) {
+      toast({
+        title: "❌ Missing Information",
+        description: "Please fill in all required fields: device, issue description, and service provider",
+        variant: "destructive",
+      })
+      return
+    }
 
     const device = devices.find((d) => d.id === selectedDevice)
     const provider = serviceProviders.find((p) => p.id === selectedProvider)
 
-    if (!device || !provider) return
+    console.log("[v0] Validating repair task - Device:", !!device, "Provider:", !!provider)
+    console.log("[v0] Selected provider ID:", selectedProvider)
+    console.log("[v0] Available providers:", serviceProviders.map(p => ({ id: p.id, name: p.name })))
+
+    if (!device) {
+      toast({
+        title: "❌ Device Not Found",
+        description: "The selected device could not be found. Please refresh and try again.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!provider) {
+      toast({
+        title: "❌ Selected service provider not found",
+        description: "The selected service provider is not available. Please refresh the page and try selecting a different provider.",
+        variant: "destructive",
+      })
+      return
+    }
 
     try {
       console.log("[v0] Saving repair task via API")
@@ -341,6 +371,8 @@ export function ITHeadRepairManagement() {
           priority,
           service_provider_id: provider.id,
           service_provider_name: provider.name,
+          service_provider_assigned_by: user?.name || user?.email || "Unknown",
+          service_provider_assigned_date: new Date().toISOString(),
           requested_by: user?.id,
           requested_by_name: user?.name,
           location: device.location,
@@ -1194,39 +1226,61 @@ export function ITHeadRepairManagement() {
                         </TabsContent>
 
                         <TabsContent value="provider" className="space-y-4">
-                          {task.serviceProvider && (
-                            <div className="bg-muted p-4 rounded-lg">
-                              <h3 className="font-semibold mb-3">Service Provider Details</h3>
-                              <div className="grid md:grid-cols-2 gap-4 text-sm">
-                                <div className="space-y-2">
-                                  <p>
-                                    <strong>Name:</strong> {task.serviceProvider.name}
-                                  </p>
-                                  <p>
-                                    <strong>Phone:</strong> {task.serviceProvider.phone || "Not provided"}
-                                  </p>
-                                  <p>
-                                    <strong>Email:</strong> {task.serviceProvider.email}
-                                  </p>
-                                  <p>
-                                    <strong>Location:</strong> {task.serviceProvider.location || "Not specified"}
-                                  </p>
-                                </div>
-                                <div className="space-y-2">
-                                  <div>
-                                    <p>
-                                      <strong>Specialization:</strong>
-                                    </p>
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                      {(task.serviceProvider.specialization || []).map((spec, index) => (
-                                        <Badge key={index} variant="outline" size="sm">
-                                          {spec}
-                                        </Badge>
-                                      ))}
+                          {task.serviceProvider ? (
+                            <>
+                              <div className="bg-muted p-4 rounded-lg">
+                                <h3 className="font-semibold mb-3">Service Provider</h3>
+                                <div className="space-y-3 text-sm">
+                                  <div className="flex items-center justify-between p-3 bg-background rounded-lg">
+                                    <div>
+                                      <p className="font-semibold text-base">{task.serviceProvider.name}</p>
+                                      <p className="text-muted-foreground text-xs mt-1">
+                                        {task.serviceProvider.email}
+                                      </p>
                                     </div>
                                   </div>
                                 </div>
                               </div>
+
+                              <div className="bg-muted p-4 rounded-lg">
+                                <h3 className="font-semibold mb-3">Assignment Information</h3>
+                                <div className="grid gap-3 text-sm">
+                                  <div className="flex justify-between p-3 bg-background rounded-lg">
+                                    <span className="text-muted-foreground">Assigned By:</span>
+                                    <span className="font-medium">{task.serviceProviderAssignedBy || task.createdBy}</span>
+                                  </div>
+                                  <div className="flex justify-between p-3 bg-background rounded-lg">
+                                    <span className="text-muted-foreground">Assigned Date:</span>
+                                    <span className="font-medium">
+                                      {task.serviceProviderAssignedDate 
+                                        ? new Date(task.serviceProviderAssignedDate).toLocaleString()
+                                        : new Date(task.createdDate).toLocaleString()}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="bg-muted p-4 rounded-lg">
+                                <h3 className="font-semibold mb-3">Cost Information</h3>
+                                <div className="space-y-2 text-sm">
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Estimated:</span>
+                                    <span className="font-medium">
+                                      GHS {task.estimatedCost?.toFixed(2) || "N/A"}
+                                    </span>
+                                  </div>
+                                  {task.actualCost && (
+                                    <div className="flex justify-between">
+                                      <span className="text-muted-foreground">Actual:</span>
+                                      <span className="font-medium">GHS {task.actualCost.toFixed(2)}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="bg-muted p-4 rounded-lg text-center text-muted-foreground">
+                              <p>No service provider assigned yet</p>
                             </div>
                           )}
                         </TabsContent>
