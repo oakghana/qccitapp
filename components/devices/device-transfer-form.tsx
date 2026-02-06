@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -27,19 +27,37 @@ export function DeviceTransferForm({ device, onSubmit, onCancel }: DeviceTransfe
   const [newLocation, setNewLocation] = useState(device.location)
   const [newAssignee, setNewAssignee] = useState(device.assignedTo)
   const [transferReason, setTransferReason] = useState("")
+  const [locations, setLocations] = useState<{ name: string; code: string }[]>([])
+
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const response = await fetch("/api/admin/lookup-data?type=locations")
+        if (response.ok) {
+          const data = await response.json()
+          setLocations(
+            data
+              .filter((loc: any) => loc.is_active !== false)
+              .map((loc: any) => ({ name: loc.name, code: loc.code || loc.name }))
+          )
+        }
+      } catch (err) {
+        console.error("[v0] Error fetching locations:", err)
+      }
+    }
+    fetchLocations()
+  }, [])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     onSubmit(device.id, newLocation, newAssignee)
   }
 
-  const locationNames = {
-    head_office: "Head Office",
-    accra: "Accra",
-    kumasi: "Kumasi",
-    kaase_inland_port: "Kaase Inland Port",
-    cape_coast: "Cape Coast",
-  }
+  // Build locationNames from fetched data for display
+  const locationNames: Record<string, string> = locations.reduce(
+    (acc, loc) => ({ ...acc, [loc.code]: loc.name }),
+    { head_office: "Head Office", accra: "Accra", kumasi: "Kumasi", kaase_inland_port: "Kaase Inland Port", cape_coast: "Cape Coast" } as Record<string, string>
+  )
 
   return (
     <div>
@@ -64,11 +82,21 @@ export function DeviceTransferForm({ device, onSubmit, onCancel }: DeviceTransfe
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="head_office">Head Office</SelectItem>
-                <SelectItem value="accra">Accra</SelectItem>
-                <SelectItem value="kumasi">Kumasi</SelectItem>
-                <SelectItem value="kaase_inland_port">Kaase Inland Port</SelectItem>
-                <SelectItem value="cape_coast">Cape Coast</SelectItem>
+                {locations.length > 0 ? (
+                  locations.map((loc) => (
+                    <SelectItem key={loc.code} value={loc.code}>
+                      {loc.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <>
+                    <SelectItem value="head_office">Head Office</SelectItem>
+                    <SelectItem value="accra">Accra</SelectItem>
+                    <SelectItem value="kumasi">Kumasi</SelectItem>
+                    <SelectItem value="kaase_inland_port">Kaase Inland Port</SelectItem>
+                    <SelectItem value="cape_coast">Cape Coast</SelectItem>
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>

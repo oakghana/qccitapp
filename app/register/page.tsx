@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -27,6 +27,26 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState("")
+  const [locations, setLocations] = useState<{ name: string; code: string }[]>([])
+
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const response = await fetch("/api/admin/lookup-data?type=locations")
+        if (response.ok) {
+          const data = await response.json()
+          setLocations(
+            data
+              .filter((loc: any) => loc.is_active !== false)
+              .map((loc: any) => ({ name: loc.name, code: loc.code || loc.name }))
+          )
+        }
+      } catch (err) {
+        console.error("[v0] Error fetching locations:", err)
+      }
+    }
+    fetchLocations()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -215,11 +235,15 @@ export default function RegisterPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="head_office">Head Office - Accra</SelectItem>
-                    <SelectItem value="kumasi">Kumasi District Office</SelectItem>
-                    <SelectItem value="accra">Accra Regional Office</SelectItem>
-                    <SelectItem value="kaase_inland_port">Kaase Inland Port</SelectItem>
-                    <SelectItem value="cape_coast">Cape Coast Office</SelectItem>
+                    {locations.length > 0 ? (
+                      locations.map((loc) => (
+                        <SelectItem key={loc.code} value={loc.code}>
+                          {loc.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="head_office">Head Office - Accra</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>

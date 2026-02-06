@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -38,16 +38,25 @@ export function NewTicketForm({ onClose, onTicketCreated }: NewTicketFormProps) 
     officeNumber: "",
   })
 
-  const locations = [
-    "Head Office - Accra",
-    "Kumasi District Office",
-    "Kaase Inland Port District Office",
-    "Cape Coast District Office",
-    "Ho District Office",
-    "Sunyani District Office",
-    "Koforidua District Office",
-    "Wa District Office",
-  ]
+  const [locations, setLocations] = useState<string[]>([])
+
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const response = await fetch("/api/admin/lookup-data?type=locations")
+        if (response.ok) {
+          const data = await response.json()
+          const activeLocations = data
+            .filter((loc: any) => loc.is_active !== false)
+            .map((loc: any) => loc.name)
+          setLocations(activeLocations)
+        }
+      } catch (error) {
+        console.error("[v0] Error fetching locations:", error)
+      }
+    }
+    fetchLocations()
+  }, [])
 
   const categories = [
     { value: "hardware", label: "Hardware Issues", description: "Computer, printer, phone problems" },

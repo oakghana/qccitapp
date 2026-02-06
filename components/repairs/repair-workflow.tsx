@@ -107,14 +107,7 @@ export function RepairWorkflow() {
     }
 
     if (user?.role === "it_head" || user?.role === "it_staff") {
-      const locationNames = {
-        head_office: "Head Office",
-        kumasi: "Kumasi District Office",
-        accra: "Accra Office",
-        kaase_inland_port: "Kaase Inland Port",
-        cape_coast: "Cape Coast Office",
-      }
-      return locationNames[user?.location as keyof typeof locationNames] || "your location"
+        return user?.location || "your location"
     }
 
     return "your requests"
