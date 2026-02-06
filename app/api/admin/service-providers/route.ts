@@ -14,40 +14,55 @@ export async function GET(request: NextRequest) {
 
     console.log("[v0] Fetching service providers with service_provider role, activeOnly:", activeOnly)
 
-    // Fetch from profiles table where role = 'service_provider' and status = 'Active'
-    let query = supabaseAdmin
+    // First, fetch ALL service providers to debug status values
+    const { data: allProviders, error: debugError } = await supabaseAdmin
       .from("profiles")
       .select("id, full_name, email, phone, location, department, status, role")
       .eq("role", "service_provider")
 
-    // Filter to only active providers when activeOnly is true
+    console.log("[v0] ALL service providers (debugging):", allProviders?.map(p => ({ name: p.full_name, status: p.status })))
+
+    if (debugError) {
+      console.error("[v0] Error fetching service providers from profiles:", debugError)
+      return NextResponse.json({ error: debugError.message }, { status: 500 })
+    }
+
+    // Filter to active providers
+    let profData = allProviders || []
     if (activeOnly) {
-      query = query.eq("status", "Active") // Only active users (capital A)
+      // Try multiple status variations: 'Active', 'active', 'approved'
+      profData = profData.filter((p: any) => 
+        p.status === "Active" || 
+        p.status === "active" || 
+        p.status === "approved" ||
+        p.status === "Approved"
+      )
+      console.log("[v0] Filtered to active providers:", profData.length)
     }
 
-    query = query.order("full_name", { ascending: true })
+    console.log("[v0] Final service providers count:", profData?.length || 0)
 
-    const { data: profData, error: profError } = await query
+    const providers = (profData || []).map((provider: any) => {
+      // Check various status formats for active state
+      const isActive = provider.status === "Active" || 
+                       provider.status === "active" || 
+                       provider.status === "approved" ||
+                       provider.status === "Approved"
+      
+      return {
+        id: provider.id,
+        name: provider.full_name || provider.email,
+        email: provider.email,
+        phone: provider.phone,
+        location: provider.location,
+        department: provider.department,
+        specialization: [], // Can be enhanced later
+        is_active: isActive,
+        status: provider.status, // Include raw status for debugging
+      }
+    })
 
-    if (profError) {
-      console.error("[v0] Error fetching service providers from profiles:", profError)
-      return NextResponse.json({ error: profError.message }, { status: 500 })
-    }
-
-    console.log("[v0] Loaded active service providers with service_provider role:", profData?.length || 0)
-
-    const providers = (profData || []).map((provider: any) => ({
-      id: provider.id,
-      name: provider.full_name || provider.email,
-      email: provider.email,
-      phone: provider.phone,
-      location: provider.location,
-      department: provider.department,
-      specialization: [], // Can be enhanced later
-      is_active: provider.status === "Active", // Status must be 'Active' (capital A)
-    }))
-
-    console.log("[v0] Returning service providers:", providers.length, "providers")
+    console.log("[v0] Returning service providers:", providers.length, "providers", providers.map(p => ({ name: p.name, status: p.status, is_active: p.is_active })))
 
     return NextResponse.json({ providers: providers, count: providers.length })
   } catch (error) {
