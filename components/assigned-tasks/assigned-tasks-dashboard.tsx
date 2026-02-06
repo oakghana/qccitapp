@@ -583,6 +583,12 @@ export function AssignedTasksDashboard() {
                             <User className="h-3 w-3" />
                             Assigned by: {task.assignedBy} ({task.assignedByRole})
                           </span>
+                          {task.type === "service_desk" && task.requestedBy && (
+                            <span className="flex items-center gap-1 font-medium text-blue-600 dark:text-blue-400">
+                              <User className="h-3 w-3" />
+                              Requested by: {task.requestedBy}
+                            </span>
+                          )}
                           <span className="flex items-center gap-1">
                             <MapPin className="h-3 w-3" />
                             {task.location}

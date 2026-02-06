@@ -365,13 +365,16 @@ export function ServiceDeskDashboard() {
                             <MapPin className="h-3 w-3" />
                             <span>{ticket.locationName}</span>
                             <span>•</span>
-                            <span>{ticket.requester}</span>
+                            <span className="font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                              <User className="h-3 w-3" />
+                              Requested by: {ticket.requester}
+                            </span>
                             <span>•</span>
                             <span>{ticket.created}</span>
                             {ticket.assignedTo && (
                               <>
                                 <span>•</span>
-                                <span className="text-blue-600 dark:text-blue-400 font-medium">
+                                <span className="text-green-600 dark:text-green-400 font-medium">
                                   Assigned to: {ticket.assignedTo}
                                 </span>
                               </>

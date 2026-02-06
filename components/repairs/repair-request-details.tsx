@@ -158,12 +158,12 @@ export function RepairRequestDetails({ request }: RepairRequestDetailsProps) {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {request.serviceProvider && (
-              <div>
-                <p className="text-sm text-muted-foreground">Service Provider</p>
-                <p className="font-medium">{request.serviceProvider}</p>
-              </div>
-            )}
+            <div>
+              <p className="text-sm text-muted-foreground">Service Provider</p>
+              <p className={`font-semibold text-base ${request.serviceProvider ? "text-blue-700 dark:text-blue-400" : "text-muted-foreground italic"}`}>
+                {request.serviceProvider || "Not Assigned"}
+              </p>
+            </div>
             {request.estimatedCompletion && (
               <div>
                 <p className="text-sm text-muted-foreground">Estimated Completion</p>

@@ -1053,8 +1053,12 @@ export function ITHeadRepairManagement() {
                     </div>
                     <div>
                       <p className="font-medium">Service Provider</p>
-                      <p className="text-muted-foreground">{task.serviceProvider?.name}</p>
-                      <p className="text-muted-foreground">{task.serviceProvider?.company}</p>
+                      <p className={`font-semibold ${task.serviceProvider?.name ? "text-blue-700 dark:text-blue-400" : "text-muted-foreground italic"}`}>
+                        {task.serviceProvider?.name || "Not Assigned"}
+                      </p>
+                      {task.serviceProvider?.email && (
+                        <p className="text-muted-foreground text-xs">{task.serviceProvider.email}</p>
+                      )}
                     </div>
                     <div>
                       <p className="font-medium">Cost Information</p>
@@ -1121,6 +1125,12 @@ export function ITHeadRepairManagement() {
                                   </p>
                                   <p>
                                     <strong>Created By:</strong> {task.createdBy}
+                                  </p>
+                                  <p>
+                                    <strong>Service Provider:</strong>{" "}
+                                    <span className="text-blue-700 dark:text-blue-400 font-semibold">
+                                      {task.serviceProvider?.name || "Not Assigned"}
+                                    </span>
                                   </p>
                                   <p>
                                     <strong>Created Date:</strong> {new Date(task.createdDate).toLocaleString()}
@@ -1344,7 +1354,7 @@ export function ITHeadRepairManagement() {
                     <span className="font-medium">Task Assigned to Service Provider</span>
                   </div>
                   <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">
-                    Waiting for pickup scheduling by {task.serviceProvider?.name}
+                    Waiting for pickup scheduling by {task.serviceProvider?.name || "service provider"}
                   </p>
                 </div>
               )}
@@ -1356,7 +1366,7 @@ export function ITHeadRepairManagement() {
                     <span className="font-medium">Currently Under Repair</span>
                   </div>
                   <p className="text-sm text-orange-600 dark:text-orange-400 mt-1">
-                    Device is being repaired by {task.serviceProvider?.name}
+                    Device is being repaired by {task.serviceProvider?.name || "service provider"}
                   </p>
                 </div>
               )}
@@ -1368,7 +1378,7 @@ export function ITHeadRepairManagement() {
                     <span className="font-medium">Repair Completed</span>
                   </div>
                   <p className="text-sm text-green-600 dark:text-green-400 mt-1">
-                    Ready for pickup from {task.serviceProvider?.name} • Cost: GHS{" "}
+                    Ready for pickup from {task.serviceProvider?.name || "service provider"} • Cost: GHS{" "}
                     {task.actualCost?.toFixed(2) || task.estimatedCost?.toFixed(2) || "TBD"}
                   </p>
                 </div>
