@@ -209,13 +209,18 @@ export async function POST(request: NextRequest) {
 
     // If a service provider is assigned, fetch their details and send email
     if (body.service_provider_id) {
+      // Fetch from profiles table where service providers are stored
       const { data: provider } = await supabaseAdmin
-        .from("service_providers")
-        .select("id, name, email")
+        .from("profiles")
+        .select("id, full_name, email")
         .eq("id", body.service_provider_id)
+        .eq("role", "service_provider")
         .single()
 
+      console.log("[v0] Fetched service provider for email:", provider)
+
       if (provider && provider.email) {
+        const providerName = provider.full_name || body.service_provider_name || "Service Provider"
         // Fetch device info for email
         let deviceInfo = body.device_name || "Unknown Device"
         if (body.device_id) {
@@ -233,7 +238,7 @@ export async function POST(request: NextRequest) {
         // Send email notification
         const emailResult = await sendServiceProviderEmail(
           provider.email,
-          provider.name,
+          providerName,
           {
             taskNumber,
             deviceInfo,

@@ -318,12 +318,39 @@ export function ITHeadRepairManagement() {
   })
 
   const createRepairTask = async () => {
-    if (!selectedDevice || !issueDescription || !selectedProvider) return
+    if (!selectedDevice || !issueDescription || !selectedProvider) {
+      toast({
+        title: "❌ Missing Information",
+        description: "Please fill in all required fields: device, issue description, and service provider",
+        variant: "destructive",
+      })
+      return
+    }
 
     const device = devices.find((d) => d.id === selectedDevice)
     const provider = serviceProviders.find((p) => p.id === selectedProvider)
 
-    if (!device || !provider) return
+    console.log("[v0] Validating repair task - Device:", !!device, "Provider:", !!provider)
+    console.log("[v0] Selected provider ID:", selectedProvider)
+    console.log("[v0] Available providers:", serviceProviders.map(p => ({ id: p.id, name: p.name })))
+
+    if (!device) {
+      toast({
+        title: "❌ Device Not Found",
+        description: "The selected device could not be found. Please refresh and try again.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!provider) {
+      toast({
+        title: "❌ Selected service provider not found",
+        description: "The selected service provider is not available. Please refresh the page and try selecting a different provider.",
+        variant: "destructive",
+      })
+      return
+    }
 
     try {
       console.log("[v0] Saving repair task via API")

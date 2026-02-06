@@ -14,13 +14,18 @@ export async function GET(request: NextRequest) {
 
     console.log("[v0] Fetching service providers with service_provider role, activeOnly:", activeOnly)
 
-    // Fetch from profiles table where role = 'service_provider' and status = 'approved' (active)
+    // Fetch from profiles table where role = 'service_provider' and status = 'Active'
     let query = supabaseAdmin
       .from("profiles")
       .select("id, full_name, email, phone, location, department, status, role")
       .eq("role", "service_provider")
-      .eq("status", "approved") // Only approved/active users
-      .order("full_name", { ascending: true })
+
+    // Filter to only active providers when activeOnly is true
+    if (activeOnly) {
+      query = query.eq("status", "Active") // Only active users (capital A)
+    }
+
+    query = query.order("full_name", { ascending: true })
 
     const { data: profData, error: profError } = await query
 
@@ -39,8 +44,10 @@ export async function GET(request: NextRequest) {
       location: provider.location,
       department: provider.department,
       specialization: [], // Can be enhanced later
-      is_active: provider.status === "approved",
+      is_active: provider.status === "Active", // Status must be 'Active' (capital A)
     }))
+
+    console.log("[v0] Returning service providers:", providers.length, "providers")
 
     return NextResponse.json({ providers: providers, count: providers.length })
   } catch (error) {
