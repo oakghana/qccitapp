@@ -251,23 +251,51 @@ export function ITHeadRepairManagement() {
       } else {
         console.warn('[v0] Unexpected repairs API response:', result);
       }
+      // Hardcoded provider lookup for matching names to full details
+      const hardcodedProviders: Record<string, { id: string; email: string; phone: string }> = {
+        "NATHLAND COMPANY LIMITED": { id: "nathland-company", email: "nathland@gmail.com", phone: "020000" },
+        "INTEL COMPUTERS": { id: "intel-computers", email: "intel@computers.com", phone: "" },
+      }
+
       const transformedTasks: RepairTask[] = repairs.map((item: any) => {
-        // Map service provider from joined data
-        const serviceProviderData = item.service_provider ? {
-          id: item.service_provider.id,
-          name: item.service_provider.name || item.service_provider_name || "Unknown",
-          phone: item.service_provider.phone || "",
-          email: item.service_provider.email || "",
-          location: item.service_provider.location || "",
-          specialization: item.service_provider.specialization || [],
-        } : (item.service_provider_id ? {
-          id: item.service_provider_id,
-          name: item.service_provider_name || "Unknown Provider",
-          phone: "",
-          email: "",
-          location: "",
-          specialization: [],
-        } : undefined)
+        // Map service provider from joined data, then fallback to service_provider_name field
+        let serviceProviderData: ServiceProvider | undefined = undefined
+
+        if (item.service_provider && item.service_provider.name) {
+          // From DB JOIN (service_providers table)
+          serviceProviderData = {
+            id: item.service_provider.id,
+            name: item.service_provider.name,
+            phone: item.service_provider.phone || "",
+            email: item.service_provider.email || "",
+            location: item.service_provider.location || "",
+            specialization: item.service_provider.specialization || [],
+            is_active: true,
+          }
+        } else if (item.service_provider_name) {
+          // From service_provider_name column (hardcoded providers stored by name)
+          const known = hardcodedProviders[item.service_provider_name]
+          serviceProviderData = {
+            id: known?.id || item.service_provider_id || "unknown",
+            name: item.service_provider_name,
+            phone: known?.phone || "",
+            email: known?.email || "",
+            location: "Head Office",
+            specialization: [],
+            is_active: true,
+          }
+        } else if (item.service_provider_id) {
+          // Fallback: only have provider ID
+          serviceProviderData = {
+            id: item.service_provider_id,
+            name: "Unknown Provider",
+            phone: "",
+            email: "",
+            location: "",
+            specialization: [],
+            is_active: true,
+          }
+        }
 
         return {
           id: item.id,
