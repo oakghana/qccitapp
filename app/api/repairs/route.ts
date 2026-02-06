@@ -280,7 +280,7 @@ export async function PUT(request: NextRequest) {
       device_name,
       issue_description,
       priority,
-      service_provider_id,
+      service_provider_id: null, // Set to null - using hardcoded providers, not DB references
       service_provider_name,
       location,
       estimated_cost,
