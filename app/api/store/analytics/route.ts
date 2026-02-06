@@ -117,30 +117,35 @@ export async function GET(request: Request) {
     })
 
     // Movement summary (issues vs receipts)
+    // Accept multiple variants of transaction_type created across the codebase
+    const isIssueType = (tt: string) => ["issue", "assigned", "assignment", "assignment_edit"].includes(tt)
+    const isReceiptType = (tt: string) => ["received", "receipt", "added", "addition", "stock_in", "stock_addition", "initial_stock"].includes(tt)
+    const isTransferType = (tt: string) => tt && (tt.startsWith("transfer") || tt === "transfer")
+
     const movementSummary = {
-      totalIssues: txns.filter((t) => t.transaction_type === "issue" || t.transaction_type === "assigned").length,
-      totalReceipts: txns.filter((t) => t.transaction_type === "received" || t.transaction_type === "added" || t.transaction_type === "stock_in").length,
-      totalTransfers: txns.filter((t) => t.transaction_type === "transfer").length,
+      totalIssues: txns.filter((t) => isIssueType(t.transaction_type)).length,
+      totalReceipts: txns.filter((t) => isReceiptType(t.transaction_type)).length,
+      totalTransfers: txns.filter((t) => isTransferType(t.transaction_type)).length,
       totalRequisitions: txns.filter((t) => t.transaction_type === "requisition").length,
     }
 
-    // Recent activity
+    // Recent activity (use location_name fallback)
     const recentActivity = txns.slice(0, 10).map((t) => ({
       id: t.id,
       type: t.transaction_type,
       itemName: t.item_name,
       quantity: t.quantity,
-      location: t.location,
-      performedBy: t.performed_by,
+      location: t.location_name || t.location || t.to_location || t.from_location || "Unknown",
+      performedBy: t.performed_by || t.performed_by_name,
       notes: t.notes,
       createdAt: t.created_at,
     }))
 
     // Stock reduction remarks by location
     const stockReductionByLocation: Record<string, { item: string; type: string; quantity: number; date: string }[]> = {}
-    txns.filter((t) => t.transaction_type === "issue" || t.transaction_type === "assigned" || t.transaction_type === "transfer_out")
+    txns.filter((t) => isIssueType(t.transaction_type) || t.transaction_type === "transfer_out")
       .forEach((t) => {
-        const loc = t.location || "Unknown"
+        const loc = t.location_name || t.location || t.from_location || "Unknown"
         if (!stockReductionByLocation[loc]) {
           stockReductionByLocation[loc] = []
         }

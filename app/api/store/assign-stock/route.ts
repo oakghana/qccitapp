@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { recordTransaction } from "@/lib/transaction-utils"
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -228,7 +229,7 @@ export async function POST(request: NextRequest) {
       notes || ''
     ].filter(Boolean).join('. ')
 
-    await supabaseAdmin.from("stock_transactions").insert({
+    await recordTransaction(supabaseAdmin, {
       item_id: item_id,
       item_name: stockItem.name,
       transaction_type: "assignment",
@@ -243,7 +244,6 @@ export async function POST(request: NextRequest) {
       reference_number: requisition_number || `ASSIGN-${assignment.id}`,
       notes: transactionNotes,
       performed_by: assigned_by,
-      created_at: new Date().toISOString(),
     })
 
     console.log("[assign-stock] Stock assignment completed successfully")

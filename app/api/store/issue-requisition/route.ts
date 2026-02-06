@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { recordTransaction } from "@/lib/transaction-utils"
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -361,8 +362,8 @@ export async function POST(request: Request) {
 
       if (transactionError) {
         console.warn("[v0] Could not record transaction via function, using direct insert:", transactionError)
-        // Fallback to direct insert
-        await supabaseAdmin.from("stock_transactions").insert({
+        // Fallback to direct insert using normalized helper
+        await recordTransaction(supabaseAdmin, {
           item_id: currentItem.id,
           item_name: itemName,
           transaction_type: "issue",
@@ -377,7 +378,6 @@ export async function POST(request: Request) {
           reference_number: requisition.requisition_number,
           notes: notes || `Issued via ${requisition.requisition_number}${destinationLocation ? ` (transferred from ${sourceLocation})` : ''}`,
           performed_by: "Store Manager",
-          created_at: new Date().toISOString(),
         })
       }
     }

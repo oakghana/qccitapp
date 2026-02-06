@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { recordTransaction } from "@/lib/transaction-utils"
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -116,13 +117,7 @@ export async function POST(request: NextRequest) {
           created_at: new Date().toISOString(),
         }
 
-        const { error: transactionError } = await supabaseAdmin
-          .from("stock_transactions")
-          .insert(transactionData)
-
-        if (transactionError) {
-          console.warn("[v0] Could not record transaction:", transactionError)
-        }
+        await recordTransaction(supabaseAdmin, transactionData)
       } catch (txErr) {
         console.warn("[v0] Transaction recording skipped:", txErr)
       }
@@ -213,13 +208,7 @@ export async function POST(request: NextRequest) {
           created_at: new Date().toISOString(),
         }
 
-        const { error: transactionError } = await supabaseAdmin
-          .from("stock_transactions")
-          .insert(transactionData)
-
-        if (transactionError) {
-          console.warn("[v0] Could not record transaction:", transactionError)
-        }
+        await recordTransaction(supabaseAdmin, transactionData)
       } catch (txErr) {
         console.warn("[v0] Transaction recording skipped:", txErr)
       }
@@ -280,13 +269,7 @@ export async function POST(request: NextRequest) {
           created_at: new Date().toISOString(),
         }
 
-        const { error: transactionError } = await supabaseAdmin
-          .from("stock_transactions")
-          .insert(transactionData)
-
-        if (transactionError) {
-          console.warn("[v0] Could not record transaction:", transactionError)
-        }
+        await recordTransaction(supabaseAdmin, transactionData)
       } catch (txErr) {
         console.warn("[v0] Transaction recording skipped:", txErr)
       }

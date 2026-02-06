@@ -81,24 +81,28 @@ export async function GET(request: Request) {
         issuanceDetails: Array<{ recipient: string; location: string; qty: number }>;
       }> = {}
 
+      // Accept multiple transaction type variants used across the codebase
+      const isIssueType = (tt: string) => ["issue", "assigned", "assignment", "assignment_edit"].includes(tt)
+      const isReceiptType = (tt: string) => ["received", "receipt", "added", "addition", "stock_in", "stock_addition", "initial_stock"].includes(tt)
+
       transactions?.forEach((txn) => {
         const itemId = txn.item_id
         if (!itemMovements[itemId]) {
           itemMovements[itemId] = { receipts: 0, issues: 0, requisitionCount: 0, issuanceDetails: [] }
         }
 
-        if (txn.transaction_type === "transfer_in" || txn.transaction_type === "receipt") {
+        if (isReceiptType(txn.transaction_type) || txn.transaction_type === "transfer_in") {
           itemMovements[itemId].receipts += txn.quantity || 0
           itemMovements[itemId].requisitionCount++
         }
 
-        if (txn.transaction_type === "transfer_out" || txn.transaction_type === "issue") {
+        if (isIssueType(txn.transaction_type) || txn.transaction_type === "transfer_out") {
           itemMovements[itemId].issues += txn.quantity || 0
 
           if (txn.recipient || txn.office_location) {
             itemMovements[itemId].issuanceDetails.push({
               recipient: txn.recipient || "N/A",
-              location: txn.office_location || txn.location_name || "N/A",
+              location: txn.office_location || txn.location_name || txn.location || "N/A",
               qty: txn.quantity || 0
             })
           }

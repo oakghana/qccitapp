@@ -21,6 +21,7 @@ import {
   AlertDialogDescription,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogFooter,
 } from "@/components/ui/alert-dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
@@ -208,17 +209,17 @@ export function ItemManagementModal({
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Manage Store Item</DialogTitle>
-            <DialogDescription>
+            <DialogDescription asChild>
               <div className="mt-2 space-y-1">
-                <p>
+                <div>
                   <strong>Item:</strong> {item.name}
-                </p>
-                <p>
+                </div>
+                <div>
                   <strong>SKU:</strong> {item.sku}
-                </p>
-                <p>
+                </div>
+                <div>
                   <strong>Current Stock:</strong> {item.quantity} units
-                </p>
+                </div>
               </div>
             </DialogDescription>
           </DialogHeader>
