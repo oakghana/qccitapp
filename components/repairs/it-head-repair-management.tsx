@@ -197,29 +197,30 @@ export function ITHeadRepairManagement() {
   }
 
   const loadServiceProviders = async () => {
-    try {
-      console.log("[v0] Loading service providers from API...")
-      // Only request active providers for dropdowns
-      const response = await fetch("/api/admin/service-providers?activeOnly=true")
-      const result = await response.json()
-
-      if (!response.ok) {
-        console.error("[v0] Error loading service providers:", result.error)
-        return
-      }
-
-      // Filter on client side as an extra safety net
-      const providers = (result.providers || []).filter((p: any) => p.is_active !== false)
-      console.log("[v0] Successfully loaded active service providers:", providers.length)
-
-      if (providers.length > 0) {
-        setServiceProviders(providers)
-      } else {
-        console.warn("[v0] No active service providers found")
-      }
-    } catch (error) {
-      console.error("[v0] Exception loading service providers:", error)
-    }
+    // Hardcoded service providers - only two providers available
+    const providers: ServiceProvider[] = [
+      {
+        id: "nathland-company",
+        name: "NATHLAND COMPANY LIMITED",
+        email: "nathland@gmail.com",
+        phone: "020000",
+        specialization: [],
+        location: "Head Office",
+        is_active: true,
+      },
+      {
+        id: "intel-computers",
+        name: "INTEL COMPUTERS",
+        email: "intel@computers.com",
+        phone: "",
+        specialization: [],
+        location: "Head Office",
+        is_active: true,
+      },
+    ]
+    
+    console.log("[v0] Using hardcoded service providers:", providers.length)
+    setServiceProviders(providers)
   }
 
   const loadRepairTasks = async () => {

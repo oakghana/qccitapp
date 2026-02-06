@@ -179,6 +179,7 @@ export async function POST(request: NextRequest) {
     const taskNumber = `REP-${Date.now().toString(36).toUpperCase()}`
 
     // Insert the repair request
+    // Note: service_provider_id is set to null to avoid FK constraint issues with hardcoded providers
     const { data, error } = await supabaseAdmin
       .from("repair_requests")
       .insert({
@@ -187,10 +188,10 @@ export async function POST(request: NextRequest) {
         description: body.description || body.issue_description,
         issue_description: body.issue_description,
         priority: body.priority || "medium",
-        status: body.service_provider_id ? "assigned" : "pending",
+        status: body.service_provider_name ? "assigned" : "pending",
         location: body.location,
         requested_by: body.requested_by,
-        service_provider_id: body.service_provider_id || null,
+        service_provider_id: null, // Set to null - using hardcoded providers, not DB references
         service_provider_name: body.service_provider_name || null,
         estimated_cost: body.estimated_cost || null,
         task_number: taskNumber,
@@ -207,19 +208,20 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Created repair request:", data)
 
-    // If a service provider is assigned, fetch their details and send email
-    if (body.service_provider_id) {
-      // Fetch from service_providers table (this is the correct table with the foreign key)
-      const { data: provider } = await supabaseAdmin
-        .from("service_providers")
-        .select("id, name, email, user_id")
-        .eq("id", body.service_provider_id)
-        .single()
+    // If a service provider is assigned, send email using hardcoded provider info
+    if (body.service_provider_name) {
+      // Hardcoded service provider email addresses
+      const providerEmails: Record<string, string> = {
+        "NATHLAND COMPANY LIMITED": "nathland@gmail.com",
+        "INTEL COMPUTERS": "intel@computers.com",
+      }
+      
+      const providerName = body.service_provider_name
+      const providerEmail = providerEmails[providerName]
 
-      console.log("[v0] Fetched service provider for email:", provider)
+      console.log("[v0] Using hardcoded service provider:", providerName, providerEmail)
 
-      if (provider && provider.email) {
-        const providerName = provider.name || body.service_provider_name || "Service Provider"
+      if (providerEmail) {
         // Fetch device info for email
         let deviceInfo = body.device_name || "Unknown Device"
         if (body.device_id) {
@@ -236,7 +238,7 @@ export async function POST(request: NextRequest) {
 
         // Send email notification
         const emailResult = await sendServiceProviderEmail(
-          provider.email,
+          providerEmail,
           providerName,
           {
             taskNumber,
