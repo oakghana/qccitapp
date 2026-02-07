@@ -60,13 +60,21 @@ export async function GET(request: NextRequest) {
     }
 
     const allocationStats = {
-      totalDevices: devices?.length || 0,
+      totalDevices: devices?.length || 0, // Count ALL devices regardless of status
       activeDevices: devices?.filter((d) => d.status === "active" || d.status === "assigned").length || 0,
-      devicesInRepair: devices?.filter((d) => d.status === "repair" || d.status === "under_repair").length || 0,
-      retiredDevices: devices?.filter((d) => d.status === "retired").length || 0,
+      devicesInRepair: devices?.filter((d) => d.status === "repair" || d.status === "under_repair" || d.status === "in_repair").length || 0,
+      retiredDevices: devices?.filter((d) => d.status === "retired" || d.status === "disposed").length || 0,
       byDeviceType: {} as Record<string, number>,
       byLocation: {} as Record<string, number>,
     }
+
+    // Validation: ensure sum breakdown doesn't exceed total
+    const breakdown = allocationStats.activeDevices + allocationStats.devicesInRepair + allocationStats.retiredDevices
+    const unaccountedDevices = Math.max(0, allocationStats.totalDevices - breakdown)
+
+    console.log("[v0] Device allocation stats - Total: %d, Active: %d, Repair: %d, Retired: %d, Unaccounted: %d",
+      allocationStats.totalDevices, allocationStats.activeDevices, allocationStats.devicesInRepair, 
+      allocationStats.retiredDevices, unaccountedDevices)
 
     devices?.forEach((device) => {
       // Count by type

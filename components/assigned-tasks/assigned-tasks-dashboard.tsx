@@ -28,6 +28,7 @@ import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 import { notificationService } from "@/lib/notification-service"
+import { CompletionAcknowledgementModal } from "@/components/notifications/completion-acknowledgement-modal"
 
 interface AssignedTask {
   id: string
@@ -82,6 +83,7 @@ export function AssignedTasksDashboard() {
   const [isUpdating, setIsUpdating] = useState(false)
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false)
   const [newStatus, setNewStatus] = useState<string>("")
+  const [showAcknowledgement, setShowAcknowledgement] = useState(false)
 
   useEffect(() => {
     loadAssignedTasks()
@@ -373,6 +375,8 @@ export function AssignedTasksDashboard() {
           "Task Completed! 🎉",
           `"${selectedTask.title}" has been marked as complete. Great work!`
         )
+        // Show acknowledgement modal for completed tasks
+        setShowAcknowledgement(true)
       } else if (newStatus === "in_progress") {
         notificationService.info(
           "Task In Progress",
@@ -863,6 +867,18 @@ export function AssignedTasksDashboard() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Task Completion Acknowledgement Modal */}
+      {selectedTask && (
+        <CompletionAcknowledgementModal
+          isOpen={showAcknowledgement}
+          onClose={() => setShowAcknowledgement(false)}
+          ticketId={selectedTask.id}
+          ticketTitle={selectedTask.title}
+          completedBy={user?.name || user?.email || "IT Staff"}
+          type={selectedTask.type === "repair" ? "repair" : "ticket"}
+        />
+      )}
     </div>
   )
 }
