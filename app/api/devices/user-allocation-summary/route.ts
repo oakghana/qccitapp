@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
+import { getCanonicalLocationName } from "@/lib/location-filter"
 
 export async function GET(request: NextRequest) {
   try {
@@ -74,11 +75,12 @@ export async function GET(request: NextRequest) {
       }
       allocationStats.byDeviceType[device.device_type]++
 
-      // Count by location
-      if (!allocationStats.byLocation[device.location]) {
-        allocationStats.byLocation[device.location] = 0
+      // Count by location – merge duplicates via canonical name
+      const canonicalLocation = getCanonicalLocationName(device.location)
+      if (!allocationStats.byLocation[canonicalLocation]) {
+        allocationStats.byLocation[canonicalLocation] = 0
       }
-      allocationStats.byLocation[device.location]++
+      allocationStats.byLocation[canonicalLocation]++
     })
 
     return NextResponse.json({

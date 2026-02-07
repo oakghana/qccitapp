@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
+import { getCanonicalLocationName } from "@/lib/location-filter"
 
 export async function GET(request: NextRequest) {
   try {
@@ -48,11 +49,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: devicesError.message }, { status: 500 })
     }
 
-    // Calculate summary statistics by location
+    // Calculate summary statistics by location (merging duplicate names)
     const locationSummary: Record<string, any> = {}
     devices?.forEach((device) => {
-      if (!locationSummary[device.location]) {
-        locationSummary[device.location] = {
+      const canonicalLocation = getCanonicalLocationName(device.location)
+      if (!locationSummary[canonicalLocation]) {
+        locationSummary[canonicalLocation] = {
           total: 0,
           assigned: 0,
           available: 0,
@@ -62,7 +64,7 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      const loc = locationSummary[device.location]
+      const loc = locationSummary[canonicalLocation]
       loc.total++
 
       // Count by status
@@ -101,11 +103,12 @@ export async function GET(request: NextRequest) {
       else if (device.status === "repair") type.inRepair++
       else if (device.status === "retired") type.retired++
 
-      // Count by location
-      if (!type.locations[device.location]) {
-        type.locations[device.location] = 0
+      // Count by location (using canonical name)
+      const canonLoc = getCanonicalLocationName(device.location)
+      if (!type.locations[canonLoc]) {
+        type.locations[canonLoc] = 0
       }
-      type.locations[device.location]++
+      type.locations[canonLoc]++
     })
 
     // Calculate overall totals
