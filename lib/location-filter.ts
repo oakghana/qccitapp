@@ -1,5 +1,3 @@
-"use client"
-
 import type { User } from "./auth-context"
 
 /**
@@ -9,6 +7,27 @@ export function normalizeLocation(location: string | null | undefined): string {
   if (!location) return ""
   // Convert to lowercase and handle common variations
   return location.toLowerCase().replace(/[\s_-]+/g, "_").trim()
+}
+
+/**
+ * Map of normalised keys → canonical display names.
+ * Used to merge duplicate / inconsistent location strings coming from the DB
+ * into a single entry for reports and charts.
+ */
+const LOCATION_CANONICAL_MAP: Record<string, string> = {
+  tema_training_school: "Tema Training School-TSCH",
+  tema_research: "Tema Research",
+}
+
+/**
+ * Returns the canonical display name for a location.
+ * If the location matches a known variant it is mapped to the canonical name,
+ * otherwise the original string is returned as-is.
+ */
+export function getCanonicalLocationName(location: string | null | undefined): string {
+  if (!location) return "Unspecified"
+  const key = normalizeLocation(location)
+  return LOCATION_CANONICAL_MAP[key] ?? location
 }
 
 /**
