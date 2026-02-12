@@ -15,6 +15,7 @@ import { useAuth } from "@/lib/auth-context"
 import { getRoleColorScheme } from "@/lib/role-colors"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
+import { getCanonicalLocationName } from "@/lib/location-filter"
 
 interface AssignTicketData {
   ticketId: string
@@ -426,7 +427,7 @@ export function AssignTicketDialog({
                               >
                                 {staff.currentTickets} {staff.currentTickets === 1 ? 'task' : 'tasks'}
                               </Badge>
-                              <span className="text-xs text-muted-foreground">{staff.location}</span>
+                              <span className="text-xs text-muted-foreground">{getCanonicalLocationName(staff.location)}</span>
                             </div>
                           </div>
                         </SelectItem>

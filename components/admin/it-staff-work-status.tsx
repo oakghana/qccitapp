@@ -24,7 +24,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { cn } from "@/lib/utils"
-import { applyLocationFilter } from "@/lib/location-filter"
+import { applyLocationFilter, getCanonicalLocationName } from "@/lib/location-filter"
 
 interface ITStaffMember {
   id: string
@@ -87,10 +87,17 @@ export function ITStaffWorkStatus() {
         const activeLocations = data
           .filter((loc: any) => loc.is_active)
           .map((loc: any) => ({
-            code: loc.code,
-            name: loc.name,
+            code: getCanonicalLocationName(loc.code),
+            name: getCanonicalLocationName(loc.name),
           }))
-        setDbLocations(activeLocations)
+        // Deduplicate by canonical code
+        const seen = new Set<string>()
+        const deduped = activeLocations.filter((loc: { code: string }) => {
+          if (seen.has(loc.code)) return false
+          seen.add(loc.code)
+          return true
+        })
+        setDbLocations(deduped)
       }
     } catch (error) {
       console.error("Error loading locations:", error)
@@ -278,7 +285,7 @@ export function ITStaffWorkStatus() {
   const filteredStaff = staffMembers.filter((staff) => {
     let matches = true
 
-    if (locationFilter !== "all" && staff.location !== locationFilter) {
+    if (locationFilter !== "all" && getCanonicalLocationName(staff.location) !== locationFilter) {
       matches = false
     }
 
@@ -516,7 +523,7 @@ export function ITStaffWorkStatus() {
                       <div className="flex-1">
                         <CardTitle className="text-lg">{staff.name}</CardTitle>
                         <CardDescription className="text-sm">
-                          {staff.email} • {staff.location}
+                          {staff.email} • {getCanonicalLocationName(staff.location)}
                         </CardDescription>
                         <div className="flex items-center gap-2 mt-2">
                           <Badge className={getWorkloadColor(staff.currentWorkload)}>

@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CheckCircle2, Loader2, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { getCanonicalLocationName } from "@/lib/location-filter"
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -35,10 +36,20 @@ export default function RegisterPage() {
         const response = await fetch("/api/admin/lookup-data?type=locations")
         if (response.ok) {
           const data = await response.json()
+          const mapped = data
+            .filter((loc: any) => loc.is_active !== false)
+            .map((loc: any) => ({
+              name: getCanonicalLocationName(loc.name),
+              code: getCanonicalLocationName(loc.code || loc.name),
+            }))
+          // Deduplicate by canonical code
+          const seen = new Set<string>()
           setLocations(
-            data
-              .filter((loc: any) => loc.is_active !== false)
-              .map((loc: any) => ({ name: loc.name, code: loc.code || loc.name }))
+            mapped.filter((loc: { code: string }) => {
+              if (seen.has(loc.code)) return false
+              seen.add(loc.code)
+              return true
+            })
           )
         }
       } catch (err) {

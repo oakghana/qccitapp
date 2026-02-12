@@ -12,7 +12,7 @@ import { AddDeviceForm } from "./add-device-form"
 import { Plus, Monitor, Smartphone, Printer, HardDrive, Laptop, Server, UsbIcon, Download } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
-import { canSeeAllLocations } from "@/lib/location-filter"
+import { canSeeAllLocations, getCanonicalLocationName } from "@/lib/location-filter"
 import { toast } from "@/hooks/use-toast"
 
 interface Device {
@@ -188,14 +188,23 @@ export function DeviceInventory() {
         activeLocations = data
           .filter((loc: any) => loc.is_active && loc.code && loc.code.trim() !== "")
           .map((loc: any) => ({
-            code: loc.code || loc.name, // Fallback to name if code is empty
-            name: loc.name,
-            region_id: loc.region_id || null, // Include region_id for auto-population
+            code: loc.code || loc.name,
+            name: getCanonicalLocationName(loc.name),
+            region_id: loc.region_id || null,
           }))
+        // Deduplicate by canonical name (merge WN/WS variants)
+        const seen = new Set<string>()
+        activeLocations = activeLocations.filter((loc) => {
+          const canonical = getCanonicalLocationName(loc.code)
+          if (seen.has(canonical)) return false
+          seen.add(canonical)
+          loc.code = canonical // use canonical as the code for filter matching
+          return true
+        })
       }
       // Always include Takoradi Port if not present
-      if (!activeLocations.some(loc => loc.code === "takoradi_port")) {
-        activeLocations.push({ code: "takoradi_port", name: "Takoradi Port" })
+      if (!activeLocations.some(loc => loc.code === "Takoradi Port" || loc.name === "Takoradi Port")) {
+        activeLocations.push({ code: "Takoradi Port", name: "Takoradi Port" })
       }
       setDbLocations(activeLocations)
     } catch (error) {
@@ -279,11 +288,10 @@ export function DeviceInventory() {
 
     const matchesStatus = statusFilter === "all" || device.status === statusFilter
     
-    // Normalize location comparison - handle case-insensitive and underscore/space variations
-    const normalizeLocation = (loc: string) => loc.toLowerCase().replace(/[\s-]+/g, "_").trim()
+    // Use canonical location names for comparison
     const matchesLocation = 
       locationFilter === "all" || 
-      normalizeLocation(device.location || "") === normalizeLocation(locationFilter)
+      getCanonicalLocationName(device.location) === locationFilter
 
     return matchesSearch && matchesStatus && matchesLocation
   })

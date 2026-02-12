@@ -35,7 +35,7 @@ import {
   Loader2,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { canSeeAllLocations } from "@/lib/location-filter"
+import { canSeeAllLocations, getCanonicalLocationName } from "@/lib/location-filter"
 import { createClient } from "@/supabase/supabase-client"
 import { LOCATIONS } from "@/lib/locations"
 
@@ -99,7 +99,7 @@ export function ITReportsDashboard() {
         .select("location")
         .not("location", "is", null)
       
-      const uniqueLocations = [...new Set(deviceLocations?.map(d => d.location).filter(Boolean) || [])]
+      const uniqueLocations = [...new Set(deviceLocations?.map(d => getCanonicalLocationName(d.location)).filter(Boolean) || [])].sort()
       setAvailableLocations(uniqueLocations)
       
       // Filter locations based on user role

@@ -1,11 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
+import { getCanonicalLocationName, normalizeLocation } from "@/lib/location-filter"
 
 /**
- * Normalizes location string for consistent querying
+ * Returns all raw DB variants that map to the same canonical location name.
+ * e.g. "Western North" → ["wn", "western_north", "Western North"]
  */
-function normalizeLocation(location: string): string {
-  return location.toLowerCase().replace(/[\s-]+/g, "_").trim()
+function getLocationVariants(canonicalName: string): string[] {
+  const VARIANT_MAP: Record<string, string[]> = {
+    "Western North": ["wn", "western_north", "Western North"],
+    "Western South": ["ws", "western_south", "Western South"],
+  }
+  return VARIANT_MAP[canonicalName] || [canonicalName]
 }
 
 export async function GET(request: NextRequest) {
@@ -22,9 +28,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Username is required" }, { status: 401 })
     }
 
-    // Normalize location for consistent querying
-    const normalizedLocation = normalizeLocation(location)
-    console.log("[v0] Fetching devices for location:", location, "→ normalized:", normalizedLocation)
+    // Resolve to canonical name, then get all known variants
+    const canonical = getCanonicalLocationName(location)
+    const variants = getLocationVariants(canonical)
+    console.log("[v0] Fetching devices for location:", location, "→ canonical:", canonical, "→ variants:", variants)
 
     const supabase = await createServerClient()
 
@@ -35,11 +42,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 401 })
     }
 
-    // Fetch devices for the specified location (case-insensitive with normalized value)
+    // Build an OR filter that matches every known variant (case-insensitive)
+    const orClauses = variants.map((v) => `location.ilike.${v}`).join(",")
     const { data: devices, error } = await supabase
       .from("devices")
       .select("*")
-      .or(`location.eq.${normalizedLocation},location.ilike.${location},location.ilike.${normalizedLocation}`)
+      .or(orClauses)
       .order("brand", { ascending: true })
 
     if (error) {

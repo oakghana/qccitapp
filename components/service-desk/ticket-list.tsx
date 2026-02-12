@@ -35,7 +35,7 @@ import {
 import { AssignTicketDialog } from "./assign-ticket-dialog"
 import { useAuth } from "@/lib/auth-context"
 import { createClient } from "@/lib/supabase/client"
-import { canSeeAllLocations } from "@/lib/location-filter"
+import { canSeeAllLocations, getCanonicalLocationName } from "@/lib/location-filter"
 import { useToast } from "@/hooks/use-toast"
 
 interface Ticket {
@@ -113,10 +113,17 @@ export function TicketList({ tickets: propTickets, onRefresh }: { tickets?: Tick
         const activeLocations = data
           .filter((loc: any) => loc.is_active && loc.code && loc.code.trim() !== "")
           .map((loc: any) => ({
-            code: loc.code,
-            name: loc.name,
+            code: getCanonicalLocationName(loc.code),
+            name: getCanonicalLocationName(loc.name),
           }))
-        setDbLocations(activeLocations)
+        // Deduplicate by canonical code
+        const seen = new Set<string>()
+        const deduped = activeLocations.filter((loc: { code: string }) => {
+          if (seen.has(loc.code)) return false
+          seen.add(loc.code)
+          return true
+        })
+        setDbLocations(deduped)
       }
     } catch (error) {
       console.error("Error loading locations:", error)
@@ -156,7 +163,7 @@ export function TicketList({ tickets: propTickets, onRefresh }: { tickets?: Tick
         category: ticket.category || "Other",
         priority: ticket.priority || "Medium",
         status: ticket.status || "Open",
-        location: ticket.location || "Unknown",
+            location: getCanonicalLocationName(ticket.location) || "Unknown",
         requester: ticket.requested_by || "Unknown",
         assignee: ticket.assigned_to || "Unassigned",
         created: new Date(ticket.created_at).toLocaleString(),
@@ -534,7 +541,7 @@ export function TicketList({ tickets: propTickets, onRefresh }: { tickets?: Tick
       ticket.id?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || ticket.status === statusFilter
     const matchesPriority = priorityFilter === "all" || ticket.priority === priorityFilter
-    const matchesLocation = locationFilter === "all" || ticket.location === locationFilter
+    const matchesLocation = locationFilter === "all" || getCanonicalLocationName(ticket.location) === locationFilter
 
     return matchesSearch && matchesStatus && matchesPriority && matchesLocation
   })
