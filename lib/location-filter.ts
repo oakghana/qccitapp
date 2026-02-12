@@ -17,6 +17,12 @@ export function normalizeLocation(location: string | null | undefined): string {
 const LOCATION_CANONICAL_MAP: Record<string, string> = {
   tema_training_school: "Tema Training School-TSCH",
   tema_research: "Tema Research",
+  // Merge all Western North variants → "Western North"
+  wn: "Western North",
+  western_north: "Western North",
+  // Merge all Western South variants → "Western South"
+  ws: "Western South",
+  western_south: "Western South",
 }
 
 /**
