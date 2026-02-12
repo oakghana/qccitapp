@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { getCanonicalLocationName } from "@/lib/location-filter"
 
 export async function GET() {
   try {
@@ -17,8 +18,8 @@ export async function GET() {
       return NextResponse.json({ error: "Failed to fetch locations" }, { status: 500 })
     }
 
-    // Extract unique locations and sort them
-    const uniqueLocations = [...new Set(data.map((row) => row.location))].filter(Boolean).sort()
+    // Map raw locations to canonical names, then deduplicate and sort
+    const uniqueLocations = [...new Set(data.map((row) => getCanonicalLocationName(row.location)))].filter(Boolean).sort()
 
     return NextResponse.json({ success: true, locations: uniqueLocations })
   } catch (error: any) {

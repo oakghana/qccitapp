@@ -13,6 +13,7 @@ import { AssignTicketDialog } from "./assign-ticket-dialog"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
+import { getCanonicalLocationName } from "@/lib/location-filter"
 import { Separator } from "@/components/ui/separator"
 import { TicketList } from "./ticket-list" // Import TicketList component
 
@@ -79,8 +80,8 @@ export function ServiceDeskDashboard() {
         category: ticket.category || "Other",
         priority: ticket.priority || "Medium",
         status: ticket.status || "Open",
-        location: ticket.location || "head_office",
-        locationName: ticket.location || "Unknown Location",
+          location: ticket.location || "head_office",
+          locationName: getCanonicalLocationName(ticket.location) || "Unknown Location",
         requester: ticket.requested_by || "Unknown",
         created: new Date(ticket.created_at).toLocaleString(),
         assignedTo: ticket.assigned_to_name || null,

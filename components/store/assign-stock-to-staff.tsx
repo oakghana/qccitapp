@@ -47,6 +47,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { LOCATIONS } from "@/lib/locations"
+import { getCanonicalLocationName } from "@/lib/location-filter"
 import { downloadCSV } from "@/lib/export-utils"
 import { filterByCategory } from "@/lib/category-utils"
 import { useToast } from "@/hooks/use-toast"
@@ -685,7 +686,7 @@ export function AssignStockToStaff() {
                               <Badge variant="outline">{item.category}</Badge>
                             </TableCell>
                             <TableCell>
-                              {LOCATIONS[item.location as keyof typeof LOCATIONS] || item.location}
+                              {getCanonicalLocationName(item.location)}
                             </TableCell>
                             <TableCell className="text-center">
                               <Badge variant={item.quantity <= (item.reorder_level || 5) ? "destructive" : "secondary"}>

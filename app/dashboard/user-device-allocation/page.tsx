@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, Monitor, Wrench, Archive, CheckCircle, Download, User, MapPin, Filter, Loader2 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
+import { getCanonicalLocationName } from "@/lib/location-filter"
 
 interface Device {
   id: string
@@ -160,13 +161,13 @@ export default function UserDeviceAllocationPage() {
       user.username?.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
-  // Filter devices by location
+  // Filter devices by location (compare using canonical names)
   const filteredDevices = locationFilter === "all" 
     ? devices 
-    : devices.filter(d => d.location?.toLowerCase() === locationFilter.toLowerCase())
+    : devices.filter(d => getCanonicalLocationName(d.location) === locationFilter)
   
-  // Get unique locations from devices
-  const uniqueLocations = [...new Set(devices.map(d => d.location).filter(Boolean))]
+  // Get unique canonical locations from devices
+  const uniqueLocations = [...new Set(devices.map(d => getCanonicalLocationName(d.location)).filter(Boolean))].sort()
 
   if (authLoading) {
     return (
@@ -417,7 +418,7 @@ export default function UserDeviceAllocationPage() {
                           </Badge>
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          Serial: {device.serial_number} | Location: {device.location}
+                          Serial: {device.serial_number} | Location: {getCanonicalLocationName(device.location)}
                         </div>
                         <div className="text-sm text-muted-foreground">
                           Assigned to: <span className="font-medium">{device.assigned_to}</span>

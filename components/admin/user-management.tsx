@@ -36,6 +36,7 @@ import { getRoleColorScheme } from "@/lib/role-colors"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/supabase/supabase-client"
 import { getLocationOptions, LOCATIONS } from "@/lib/locations"
+import { getCanonicalLocationName } from "@/lib/location-filter"
 import { useToast } from "@/hooks/use-toast"
 
 interface SystemUser {
@@ -178,7 +179,7 @@ export function UserManagement() {
         user.id.toLowerCase().includes(searchTerm.toLowerCase())
 
       const matchesRole = roleFilter === "all" || user.role === roleFilter
-      const matchesLocation = locationFilter === "all" || user.location === locationFilter
+      const matchesLocation = locationFilter === "all" || getCanonicalLocationName(user.location) === locationFilter
 
       return matchesSearch && matchesRole && matchesLocation
     })
@@ -581,7 +582,7 @@ export function UserManagement() {
                     <MapPin className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-muted-foreground">Location</p>
-                      <p className="font-medium">{user.location}</p>
+                      <p className="font-medium">{getCanonicalLocationName(user.location)}</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">

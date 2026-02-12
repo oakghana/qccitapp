@@ -186,22 +186,16 @@ export default function StoreHeadDashboard() {
     
     // Normalize location names to handle case variations
     const normalizeLocation = (loc: string) => {
-      const lower = loc.toLowerCase()
-      if (lower === "head office" || lower === "head_office") {
-        return "Head Office"
-      }
-      if (lower === "kumasi") {
-        return "Kumasi"
-      }
-      if (lower === "kaase") {
-        return "Kaase"
-      }
-      if (lower === "tema port" || lower === "tema_port") {
-        return "Tema Port"
-      }
-      if (lower === "central stores" || lower === "central_stores") {
-        return "Central Stores"
-      }
+      const lower = loc.toLowerCase().replace(/[\s_-]+/g, "_").trim()
+      if (lower === "head_office") return "Head Office"
+      if (lower === "kumasi") return "Kumasi"
+      if (lower === "kaase") return "Kaase"
+      if (lower === "tema_port") return "Tema Port"
+      if (lower === "central_stores") return "Central Stores"
+      // Merge Western North variants
+      if (lower === "wn" || lower === "western_north") return "Western North"
+      // Merge Western South variants
+      if (lower === "ws" || lower === "western_south") return "Western South"
       // Return with proper casing (capitalize first letter)
       return loc.charAt(0).toUpperCase() + loc.slice(1).toLowerCase()
     }

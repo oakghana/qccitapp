@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { getCanonicalLocationName } from "@/lib/location-filter"
 
 export async function GET() {
   const supabase = await createClient()
@@ -24,10 +25,10 @@ export async function GET() {
     return NextResponse.json({ error: locError.message }, { status: 500 })
   }
   
-  // Count by location
+  // Count by canonical location
   const locationCounts: Record<string, number> = {}
   allLocations?.forEach(device => {
-    const loc = device.location || "empty"
+    const loc = getCanonicalLocationName(device.location) || "empty"
     locationCounts[loc] = (locationCounts[loc] || 0) + 1
   })
   

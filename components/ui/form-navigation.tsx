@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useAuth } from "@/lib/auth-context"
+import { getCanonicalLocationName } from "@/lib/location-filter"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useRouter } from "next/navigation"
@@ -108,7 +109,7 @@ export function FormNavigation({ currentPage, className = "" }: FormNavigationPr
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-medium text-gray-600 dark:text-gray-400">Quick Navigation</h3>
           <span className="text-xs text-gray-500 dark:text-gray-500 capitalize">
-            {user.role.replace("_", " ")} • {user.location.replace("_", " ")}
+            {user.role.replace("_", " ")} • {getCanonicalLocationName(user.location)}
           </span>
         </div>
       </CardContent>
