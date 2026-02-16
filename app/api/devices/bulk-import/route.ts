@@ -1,0 +1,149 @@
+import { type NextRequest, NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
+import { validateCsvImport, type DeviceImportRecord } from "@/lib/device-import/csv-validator"
+
+// Use service role key to bypass RLS
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+export async function POST(request: NextRequest) {
+  try {
+    // Parse form data
+    const formData = await request.formData()
+    const file = formData.get("file") as File
+    const userLocation = formData.get("userLocation") as string
+    const userRole = formData.get("userRole") as string
+
+    console.log("[v0] Bulk import started - userLocation:", userLocation, "userRole:", userRole)
+
+    // Permission check - only IT staff and admins can import
+    if (!["admin", "it_staff", "regional_it_head"].includes(userRole)) {
+      return NextResponse.json(
+        { error: "You do not have permission to import devices" },
+        { status: 403 }
+      )
+    }
+
+    if (!file) {
+      return NextResponse.json({ error: "No file provided" }, { status: 400 })
+    }
+
+    if (!userLocation) {
+      return NextResponse.json({ error: "User location is required" }, { status: 400 })
+    }
+
+    // Fetch existing serial numbers to check for duplicates
+    const { data: existingDevices, error: fetchError } = await supabase
+      .from("devices")
+      .select("serial_number")
+
+    if (fetchError) {
+      console.error("[v0] Error fetching existing devices:", fetchError)
+      return NextResponse.json({ error: "Failed to check for duplicates" }, { status: 500 })
+    }
+
+    const existingSerialNumbers = new Set(
+      existingDevices?.map((d: any) => d.serial_number?.toLowerCase()) || []
+    )
+
+    // Validate CSV
+    const validationResult = await validateCsvImport(file, existingSerialNumbers)
+
+    console.log(
+      "[v0] Validation complete - Valid records:",
+      validationResult.records.length,
+      "Errors:",
+      validationResult.errors.length
+    )
+
+    // If there are errors, return them without importing
+    if (!validationResult.isValid) {
+      return NextResponse.json(
+        {
+          success: false,
+          validationErrors: validationResult.errors,
+          importedCount: 0,
+          totalRows: validationResult.records.length + validationResult.errors.length,
+        },
+        { status: 400 }
+      )
+    }
+
+    // Insert all valid records in batch
+    const devicesToInsert = validationResult.records.map((record) => ({
+      device_type: record.device_type,
+      brand: record.brand,
+      model: record.model,
+      serial_number: record.serial_number,
+      status: record.status || "active",
+      location: userLocation, // Force location to user's location
+      assigned_to: record.assigned_to || null,
+      purchase_date: record.purchase_date || null,
+      warranty_expiry: record.warranty_expiry || null,
+      room_number: record.room_number || null,
+      building: record.building || null,
+      floor: record.floor || null,
+      toner_type: record.toner_type || null,
+      toner_model: record.toner_model || null,
+      toner_yield: record.toner_yield || null,
+      monthly_print_volume: record.monthly_print_volume || null,
+    }))
+
+    const { data, error: insertError } = await supabase
+      .from("devices")
+      .insert(devicesToInsert)
+
+    if (insertError) {
+      console.error("[v0] Error inserting devices:", insertError)
+      return NextResponse.json(
+        { error: "Failed to import devices: " + insertError.message },
+        { status: 500 }
+      )
+    }
+
+    console.log("[v0] Successfully imported", validationResult.records.length, "devices")
+
+    return NextResponse.json({
+      success: true,
+      importedCount: validationResult.records.length,
+      totalRows: validationResult.records.length,
+      message: `Successfully imported ${validationResult.records.length} device(s)`,
+    })
+  } catch (error: any) {
+    console.error("[v0] Bulk import error:", error)
+    return NextResponse.json(
+      { error: "An unexpected error occurred: " + error.message },
+      { status: 500 }
+    )
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams
+    const action = searchParams.get("action")
+
+    if (action === "template") {
+      // Return CSV template
+      const template = `device_type,brand,model,serial_number,status,purchase_date,warranty_expiry,assigned_to,room_number,building,floor,toner_type
+laptop,Dell,Latitude 5520,SN12345,active,2023-01-15,2025-01-15,John Doe,204,Main Block,2nd Floor,
+desktop,HP,ProDesk 400,SN12346,active,2023-02-20,2025-02-20,Admin Dept,105,Admin Building,1st Floor,
+printer,HP,LaserJet M404,SN12347,active,2023-03-10,2025-03-10,Print Room,101,Main Block,Ground Floor,CF217A`
+
+      return new NextResponse(template, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/csv",
+          "Content-Disposition": "attachment; filename=device-import-template.csv",
+        },
+      })
+    }
+
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 })
+  } catch (error: any) {
+    console.error("[v0] Error in bulk import GET:", error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
