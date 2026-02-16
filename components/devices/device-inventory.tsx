@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DeviceTransferForm } from "./device-transfer-form"
 import { AddDeviceForm } from "./add-device-form"
-import { Plus, Monitor, Smartphone, Printer, HardDrive, Laptop, Server, UsbIcon, Download } from "lucide-react"
+import { BulkDeviceImportDialog } from "./bulk-device-import-dialog"
+import { Plus, Monitor, Smartphone, Printer, HardDrive, Laptop, Server, UsbIcon, Download, Upload } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations, getCanonicalLocationName } from "@/lib/location-filter"
@@ -124,6 +125,7 @@ export function DeviceInventory() {
   const [transferDeviceOpen, setTransferDeviceOpen] = useState(false)
   const [editDeviceOpen, setEditDeviceOpen] = useState(false)
   const [addDeviceOpen, setAddDeviceOpen] = useState(false)
+  const [bulkImportOpen, setBulkImportOpen] = useState(false)
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState("")
   const [editFormData, setEditFormData] = useState({
@@ -484,6 +486,12 @@ export function DeviceInventory() {
             <Download className="mr-1.5 h-4 w-4" />
             Export
           </Button>
+          {user && ["admin", "it_staff", "regional_it_head"].includes(user.role || "") && (
+            <Button variant="outline" size="sm" onClick={() => setBulkImportOpen(true)}>
+              <Upload className="mr-1.5 h-4 w-4" />
+              Bulk Import
+            </Button>
+          )}
           <Button size="sm" onClick={handleAddDevice}>
             <Plus className="mr-1.5 h-4 w-4" />
             Add Device
@@ -785,6 +793,14 @@ export function DeviceInventory() {
           <AddDeviceForm onSubmit={handleAddDeviceSubmit} />
         </DialogContent>
       </Dialog>
+
+      <BulkDeviceImportDialog
+        open={bulkImportOpen}
+        onOpenChange={setBulkImportOpen}
+        onImportSuccess={() => {
+          loadDevices()
+        }}
+      />
     </div>
   )
 }
