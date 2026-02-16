@@ -16,10 +16,11 @@ export async function POST(request: NextRequest) {
     const userLocation = formData.get("userLocation") as string
     const userRole = formData.get("userRole") as string
 
-    console.log("[v0] Bulk import started - userLocation:", userLocation, "userRole:", userRole)
+    console.log("[v0] Bulk import started - userLocation:", userLocation, "userRole:", userRole, "Time:", new Date().toISOString())
 
     // Permission check - only IT staff and admins can import
     if (!["admin", "it_staff", "regional_it_head"].includes(userRole)) {
+      console.log("[v0] Unauthorized import attempt - role:", userRole)
       return NextResponse.json(
         { error: "You do not have permission to import devices" },
         { status: 403 }
@@ -33,6 +34,23 @@ export async function POST(request: NextRequest) {
     if (!userLocation) {
       return NextResponse.json({ error: "User location is required" }, { status: 400 })
     }
+
+    // Fetch location details to capture location_id, region_id, district_id
+    const { data: locationData, error: locationError } = await supabase
+      .from("locations")
+      .select("id, region_id, district_id, name, region, type")
+      .ilike("name", userLocation)
+      .single()
+
+    if (locationError || !locationData) {
+      console.log("[v0] Could not find location:", userLocation)
+    }
+
+    const locationId = locationData?.id
+    const regionId = locationData?.region_id
+    const districtId = locationData?.district_id
+
+    console.log("[v0] Location metadata - locationId:", locationId, "regionId:", regionId, "districtId:", districtId)
 
     // Fetch existing serial numbers to check for duplicates
     const { data: existingDevices, error: fetchError } = await supabase
@@ -60,6 +78,7 @@ export async function POST(request: NextRequest) {
 
     // If there are errors, return them without importing
     if (!validationResult.isValid) {
+      console.log("[v0] Import validation failed - returning errors to user")
       return NextResponse.json(
         {
           success: false,
@@ -71,7 +90,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Insert all valid records in batch
+    // Insert all valid records in batch with location metadata
     const devicesToInsert = validationResult.records.map((record) => ({
       device_type: record.device_type,
       brand: record.brand,
@@ -79,12 +98,15 @@ export async function POST(request: NextRequest) {
       serial_number: record.serial_number,
       status: record.status || "active",
       location: userLocation, // Force location to user's location
+      location_id: locationId || null, // Add location_id if available
+      region_id: regionId || null, // Add region_id if available
+      district_id: districtId || null, // Add district_id if available
       assigned_to: record.assigned_to || null,
       purchase_date: record.purchase_date || null,
       warranty_expiry: record.warranty_expiry || null,
       room_number: record.room_number || null,
       building: record.building || null,
-      floor: record.floor || null,
+      floor_level: record.floor || null,
       toner_type: record.toner_type || null,
       toner_model: record.toner_model || null,
       toner_yield: record.toner_yield || null,
@@ -103,13 +125,33 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log("[v0] Successfully imported", validationResult.records.length, "devices")
+    console.log("[v0] Successfully imported", validationResult.records.length, "devices to location:", userLocation, "at", new Date().toISOString())
+
+    // Create audit log entry for the bulk import
+    try {
+      await supabase.from("audit_logs").insert({
+        action: "bulk_device_import",
+        resource: "devices",
+        details: JSON.stringify({
+          location: userLocation,
+          location_id: locationId,
+          region_id: regionId,
+          district_id: districtId,
+          devices_imported: validationResult.records.length,
+          device_types: validationResult.records.map((r) => r.device_type),
+        }),
+        severity: "info",
+      })
+    } catch (auditError) {
+      console.log("[v0] Could not create audit log entry:", auditError)
+      // Don't fail the import if audit logging fails
+    }
 
     return NextResponse.json({
       success: true,
       importedCount: validationResult.records.length,
       totalRows: validationResult.records.length,
-      message: `Successfully imported ${validationResult.records.length} device(s)`,
+      message: `Successfully imported ${validationResult.records.length} device(s) to ${userLocation}`,
     })
   } catch (error: any) {
     console.error("[v0] Bulk import error:", error)

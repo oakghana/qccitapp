@@ -196,6 +196,23 @@ export function BulkDeviceImportDialog({
           <DialogDescription>Import multiple devices at once using a CSV file</DialogDescription>
         </DialogHeader>
 
+        {/* Location Info Banner */}
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+          <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 text-green-700 font-semibold text-sm">
+            📍
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-green-900">Location for Import</p>
+            <p className="text-sm text-green-800 mt-1">
+              {user?.location || "Your Location"}
+              {user?.region && ` • ${user.region}`}
+            </p>
+            <p className="text-xs text-green-700 mt-2">
+              All devices imported will be assigned to this location
+            </p>
+          </div>
+        </div>
+
         <div className="space-y-6">
           {step === "upload" && (
             <>
@@ -300,14 +317,41 @@ export function BulkDeviceImportDialog({
           {step === "results" && importResult && (
             <>
               {importResult.success ? (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-green-900">{importResult.message}</p>
-                      <p className="text-sm text-green-700 mt-1">
-                        {importResult.importedCount} device(s) imported successfully
-                      </p>
+                <div className="space-y-4">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-green-900">{importResult.message}</p>
+                        <p className="text-sm text-green-700 mt-1">
+                          {importResult.importedCount} device(s) imported successfully
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Import Summary */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm font-medium text-blue-900 mb-3">Import Summary</p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-blue-700">Location:</span>
+                        <span className="font-medium text-blue-900">{user?.location || "N/A"}</span>
+                      </div>
+                      {user?.region && (
+                        <div className="flex justify-between">
+                          <span className="text-blue-700">Region:</span>
+                          <span className="font-medium text-blue-900">{user.region}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-blue-700">Devices Imported:</span>
+                        <span className="font-medium text-blue-900">{importResult.importedCount}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-blue-700">Import Time:</span>
+                        <span className="font-medium text-blue-900">{new Date().toLocaleString()}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
