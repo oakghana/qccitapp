@@ -7,7 +7,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { AlertCircle, CheckCircle2, Download, Upload, X } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
-import { Spinner } from "@/components/ui/spinner"
 
 interface BulkDeviceImportDialogProps {
   open: boolean
@@ -284,14 +283,7 @@ export function BulkDeviceImportDialog({
                   disabled={!selectedFile || loading}
                   className="gap-2"
                 >
-                  {loading ? (
-                    <>
-                      <Spinner className="h-4 w-4" />
-                      Validating...
-                    </>
-                  ) : (
-                    "Import Devices"
-                  )}
+                  {loading ? "Importing..." : "Import Devices"}
                 </Button>
               </div>
             </>
@@ -299,7 +291,7 @@ export function BulkDeviceImportDialog({
 
           {step === "validating" && (
             <div className="flex flex-col items-center justify-center py-12">
-              <Spinner className="h-8 w-8 mb-3" />
+              <div className="h-8 w-8 mb-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               <p className="text-sm font-medium text-gray-900">Validating your file...</p>
               <p className="text-xs text-gray-500 mt-1">Checking for errors and duplicates</p>
             </div>
