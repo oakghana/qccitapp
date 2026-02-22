@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { DeviceTransferForm } from "./device-transfer-form"
 import { AddDeviceForm } from "./add-device-form"
 import { BulkDeviceImportDialog } from "./bulk-device-import-dialog"
-import { Plus, Monitor, Smartphone, Printer, HardDrive, Laptop, Server, UsbIcon, Download, Upload } from "lucide-react"
+import { Plus, Monitor, Smartphone, Printer, HardDrive, Laptop, Server, UsbIcon, Download, Upload, FileDown } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations, getCanonicalLocationName } from "@/lib/location-filter"
@@ -455,6 +455,55 @@ export function DeviceInventory() {
     }
   }
 
+  const [exportingReimport, setExportingReimport] = useState(false)
+
+  const handleExportForReimport = async () => {
+    if (!user?.location) {
+      toast({
+        title: "Error",
+        description: "User location is required for export",
+        variant: "destructive",
+      })
+      return
+    }
+    setExportingReimport(true)
+    try {
+      const locationParam = locationFilter !== "all" ? locationFilter : user.location
+      const response = await fetch(
+        `/api/devices/bulk-import?action=export&location=${encodeURIComponent(locationParam)}`
+      )
+      if (!response.ok) {
+        const err = await response.json()
+        toast({
+          title: "Export Failed",
+          description: err.error || "Failed to export devices",
+          variant: "destructive",
+        })
+        return
+      }
+      const csv = await response.text()
+      const blob = new Blob([csv], { type: "text/csv" })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `devices-reimport-${locationParam.replace(/\s+/g, "_")}-${new Date().toISOString().split("T")[0]}.csv`
+      a.click()
+      window.URL.revokeObjectURL(url)
+      toast({
+        title: "Export Complete",
+        description: "CSV exported in import-compatible format. Make your corrections, then use Bulk Import with 'Skip Duplicates' enabled to re-import.",
+      })
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: "An error occurred while exporting devices",
+        variant: "destructive",
+      })
+    } finally {
+      setExportingReimport(false)
+    }
+  }
+
   const locationNames: Record<string, string> = {}
   dbLocations.forEach((loc) => {
     locationNames[loc.code] = loc.name
@@ -487,10 +536,22 @@ export function DeviceInventory() {
             Export
           </Button>
           {user && ["admin", "it_staff", "regional_it_head"].includes(user.role || "") && (
-            <Button variant="outline" size="sm" onClick={() => setBulkImportOpen(true)}>
-              <Upload className="mr-1.5 h-4 w-4" />
-              Bulk Import
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportForReimport}
+                disabled={exportingReimport}
+                className="border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-950"
+              >
+                <FileDown className="mr-1.5 h-4 w-4" />
+                {exportingReimport ? "Exporting..." : "Export for Corrections"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setBulkImportOpen(true)}>
+                <Upload className="mr-1.5 h-4 w-4" />
+                Bulk Import
+              </Button>
+            </>
           )}
           <Button size="sm" onClick={handleAddDevice}>
             <Plus className="mr-1.5 h-4 w-4" />

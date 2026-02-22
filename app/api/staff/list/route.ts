@@ -42,6 +42,16 @@ export async function GET(request: Request) {
       ]
     }
 
+    // Regional IT heads should also see themselves in the list (for self-assignment)
+    // and IT staff in their region
+    if (userRole === 'regional_it_head') {
+      rolesToFetch = [
+        'it_staff',
+        'regional_it_head',
+        'service_desk_staff',
+      ]
+    }
+
     // Filter by role if specified
     if (role && role !== 'all') {
       // Special-case: return all approved users except admin when `all_users` requested
@@ -65,6 +75,9 @@ export async function GET(request: Request) {
               'regional_it_head',
               'service_desk_staff',
             ])
+          } else if (userRole === 'regional_it_head') {
+            // Regional IT heads can assign to IT staff and themselves
+            query = query.in('role', ['it_staff', 'service_desk_staff', 'regional_it_head'])
           } else {
             query = query.in('role', ['it_staff', 'service_desk_staff', 'regional_it_head'])
           }
