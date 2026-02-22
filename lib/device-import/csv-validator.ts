@@ -49,16 +49,16 @@ export const DEVICE_STATUSES = ["active", "repair", "maintenance", "retired"]
 
 export const REQUIRED_FIELDS = ["device_type", "brand", "model", "serial_number"]
 
-export function parseCsvFile(file: File): Promise<any[]> {
+export function parseCsvFile(fileOrText: File | string): Promise<any[]> {
   return new Promise((resolve, reject) => {
-    Papa.parse(file, {
+    Papa.parse(fileOrText, {
       header: true,
       skipEmptyLines: true,
       dynamicTyping: false,
       complete: (results) => {
         resolve(results.data)
       },
-      error: (error) => {
+      error: (error: any) => {
         reject(new Error(`CSV parsing error: ${error.message}`))
       },
     })
@@ -198,11 +198,11 @@ function isValidIsoDate(dateString: string): boolean {
 }
 
 export async function validateCsvImport(
-  file: File,
+  fileOrText: File | string,
   existingSerialNumbers: Set<string>
 ): Promise<ValidationResult> {
   try {
-    const csvData = await parseCsvFile(file)
+    const csvData = await parseCsvFile(fileOrText)
 
     if (csvData.length === 0) {
       return {

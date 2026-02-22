@@ -66,8 +66,12 @@ export async function POST(request: NextRequest) {
       existingDevices?.map((d: any) => d.serial_number?.toLowerCase()) || []
     )
 
+    // Read file content as text so papaparse can parse it in Node.js
+    // (File objects with FileReaderSync are not supported in Node.js)
+    const fileText = await file.text()
+
     // Validate CSV
-    const validationResult = await validateCsvImport(file, existingSerialNumbers)
+    const validationResult = await validateCsvImport(fileText, existingSerialNumbers)
 
     console.log(
       "[v0] Validation complete - Valid records:",
