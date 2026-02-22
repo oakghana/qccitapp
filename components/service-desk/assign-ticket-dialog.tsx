@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { User, Send, MapPin, Mail, AlertTriangle, Users, Loader2, Edit } from "lucide-react"
+import { User, Send, MapPin, Mail, AlertTriangle, Users, Loader2, Edit, UserCheck } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { getRoleColorScheme } from "@/lib/role-colors"
 import { cn } from "@/lib/utils"
@@ -101,8 +101,8 @@ export function AssignTicketDialog({
 
   useEffect(() => {
     if (isOpen) {
-      // Default to "all" for admin/service_desk_head/it_head, otherwise use ticket location
-      if (user?.role === "admin" || user?.role === "it_head" || user?.role === "service_desk_head") {
+      // Default to "all" for admin/service_desk_head/it_head/regional_it_head, otherwise use ticket location
+      if (user?.role === "admin" || user?.role === "it_head" || user?.role === "service_desk_head" || user?.role === "regional_it_head") {
         setSelectedLocation("all")
       } else {
         setSelectedLocation(ticketLocation || "all")
@@ -112,7 +112,7 @@ export function AssignTicketDialog({
   }, [isOpen, ticketLocation, user?.role])
 
   useEffect(() => {
-    if (user?.role === "admin" || user?.role === "it_head" || user?.role === "service_desk_head") {
+    if (user?.role === "admin" || user?.role === "it_head" || user?.role === "service_desk_head" || user?.role === "regional_it_head") {
       let filtered = allStaff
       
       // Filter by location
@@ -137,8 +137,8 @@ export function AssignTicketDialog({
     try {
       setLoadingStaff(true)
       const roleParam = 'staff_roles'
-      // Admin/IT Head/Service Desk Head should get all staff, then filter by location in UI
-      const locationParam = (user?.role === 'admin' || user?.role === 'it_head' || user?.role === 'service_desk_head') 
+      // Admin/IT Head/Service Desk Head/Regional IT Head should get all staff, then filter by location in UI
+      const locationParam = (user?.role === 'admin' || user?.role === 'it_head' || user?.role === 'service_desk_head' || user?.role === 'regional_it_head') 
         ? 'all' 
         : (ticketLocation ? encodeURIComponent(ticketLocation) : 'all')
       const userRoleParam = user?.role || 'staff'
@@ -192,6 +192,7 @@ export function AssignTicketDialog({
           setAvailableStaff(mappedStaff)
         }
       } else if (user?.role === 'regional_it_head') {
+        // Regional IT heads see staff in their region, including themselves
         const userLoc = (user?.location || '').toLowerCase().trim()
         const regionFiltered = mappedStaff.filter((s) => {
           const staffLoc = (s.location || '').toLowerCase().trim()
@@ -230,7 +231,23 @@ export function AssignTicketDialog({
     setIsSubmitting(true)
 
     try {
-      const selectedStaffMember = availableStaff.find((s) => s.id === assignmentData.assignee)
+      let selectedStaffMember = availableStaff.find((s) => s.id === assignmentData.assignee)
+        || allStaff.find((s) => s.id === assignmentData.assignee)
+
+      // Fallback for self-assignment: use logged-in user data if not found in staff list
+      if (!selectedStaffMember && assignmentData.assignee === user?.id) {
+        selectedStaffMember = {
+          id: user.id,
+          name: user.full_name || user.name || user.email || "Regional IT Head",
+          email: user.email || "",
+          phone: user.phone || "",
+          role: user.role || "regional_it_head",
+          location: user.location || "",
+          department: "IT",
+          isOnline: true,
+          currentTickets: 0,
+        }
+      }
 
       console.log("[v0] Submitting assignment - ticketId:", ticketId, "staff:", selectedStaffMember?.name)
 
@@ -298,6 +315,7 @@ export function AssignTicketDialog({
   }
 
   const selectedStaff = availableStaff.find((staff) => staff.id === assignmentData.assignee)
+    || allStaff.find((staff) => staff.id === assignmentData.assignee)
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -330,7 +348,7 @@ export function AssignTicketDialog({
           </Card>
 
           <div className="space-y-4">
-            {(user?.role === "admin" || user?.role === "it_head" || user?.role === "service_desk_head") && (
+            {(user?.role === "admin" || user?.role === "it_head" || user?.role === "service_desk_head" || user?.role === "regional_it_head") && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="locationFilter">Filter by Location</Label>
@@ -376,8 +394,48 @@ export function AssignTicketDialog({
               </div>
             )}
 
+            {/* Self-assign option for Regional IT Heads */}
+            {user?.role === "regional_it_head" && (
+              <Card className="border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/30">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-green-100 dark:bg-green-900 rounded-full">
+                        <UserCheck className="h-4 w-4 text-green-700 dark:text-green-300" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-green-900 dark:text-green-100">Assign to Myself</p>
+                        <p className="text-xs text-green-700 dark:text-green-300">
+                          Take this ticket and work on it yourself
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-600"
+                      disabled={isSubmitting}
+                      onClick={() => {
+                        if (user?.id) {
+                          setAssignmentData((prev) => ({ ...prev, assignee: user.id }))
+                        }
+                      }}
+                    >
+                      <UserCheck className="h-3 w-3 mr-1" />
+                      Pick Me
+                    </Button>
+                  </div>
+                  {assignmentData.assignee === user?.id && (
+                    <div className="mt-2 p-2 bg-green-100 dark:bg-green-900 rounded text-xs text-green-800 dark:text-green-200 font-medium">
+                      You are selected as the assignee. Fill in priority and instructions below, then click "Assign Ticket".
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             <div>
-              <Label htmlFor="assignee">Select Staff Member *</Label>
+              <Label htmlFor="assignee">{user?.role === "regional_it_head" ? "Or Select Staff Member *" : "Select Staff Member *"}</Label>
               {loadingStaff ? (
                 <div className="flex items-center gap-2 p-4 border rounded-md">
                   <Loader2 className="h-4 w-4 animate-spin" />

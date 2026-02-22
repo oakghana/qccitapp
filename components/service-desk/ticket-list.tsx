@@ -31,6 +31,8 @@ import {
   AlertTriangle,
   Send,
   Trash2,
+  UserCheck,
+  Loader2,
 } from "lucide-react"
 import { AssignTicketDialog } from "./assign-ticket-dialog"
 import { useAuth } from "@/lib/auth-context"
@@ -86,6 +88,7 @@ export function TicketList({ tickets: propTickets, onRefresh }: { tickets?: Tick
   const isDeletingRef = useRef(false) // Use ref for immediate check
   const [itRequestFormFile, setItRequestFormFile] = useState<File | null>(null)
   const [isEscalating, setIsEscalating] = useState(false)
+  const [selfAssigningTicketId, setSelfAssigningTicketId] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 50
   const supabase = createClient()
@@ -372,6 +375,61 @@ export function TicketList({ tickets: propTickets, onRefresh }: { tickets?: Tick
     } finally {
       setAssignDialogOpen(false)
       setSelectedTicket(null)
+    }
+  }
+
+  const handleSelfAssign = async (ticket: Ticket) => {
+    if (!user?.id) return
+    setSelfAssigningTicketId(ticket.uuid || ticket.id)
+    try {
+      const response = await fetch("/api/service-tickets/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticketId: ticket.uuid || ticket.id,
+          assigneeId: user.id,
+          assignee: user.full_name || user.name || user.email || "Regional IT Head",
+          assigneeEmail: user.email,
+          assigneePhone: user.phone || "",
+          priority: ticket.priority?.toLowerCase() || "medium",
+          dueDate: "",
+          instructions: "Self-assigned by Regional IT Head",
+          assignedBy: user.full_name || user.name || user.email || "Regional IT Head",
+          assignedById: user.id,
+          notifyEmail: false,
+          notifySMS: false,
+        }),
+      })
+
+      if (!response.ok) {
+        const result = await response.json()
+        toast({
+          title: "Assignment Failed",
+          description: result.error || "Failed to self-assign ticket",
+          variant: "destructive",
+        })
+        return
+      }
+
+      toast({
+        title: "Ticket Assigned to You",
+        description: `Ticket ${ticket.id} has been assigned to you successfully.`,
+      })
+
+      if (onRefresh) {
+        onRefresh()
+      } else {
+        await loadTickets()
+      }
+    } catch (error) {
+      console.error("[v0] Error self-assigning ticket:", error)
+      toast({
+        title: "Error",
+        description: "An error occurred while self-assigning the ticket",
+        variant: "destructive",
+      })
+    } finally {
+      setSelfAssigningTicketId(null)
     }
   }
 
@@ -722,18 +780,36 @@ export function TicketList({ tickets: propTickets, onRefresh }: { tickets?: Tick
                         Comment
                       </Button>
                       {isItHeadOrAdmin && ticket.status !== "Resolved" && ticket.status !== "Escalated" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedTicket(ticket)
-                            setAssignDialogOpen(true)
-                          }}
-                          className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                        >
-                          <Send className="h-4 w-4 mr-1" />
-                          Assign
-                        </Button>
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedTicket(ticket)
+                              setAssignDialogOpen(true)
+                            }}
+                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                          >
+                            <Send className="h-4 w-4 mr-1" />
+                            Assign
+                          </Button>
+                          {user?.role === "regional_it_head" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleSelfAssign(ticket)}
+                              disabled={selfAssigningTicketId === (ticket.uuid || ticket.id)}
+                              className="text-green-600 hover:text-green-800 hover:bg-green-50"
+                            >
+                              {selfAssigningTicketId === (ticket.uuid || ticket.id) ? (
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                              ) : (
+                                <UserCheck className="h-4 w-4 mr-1" />
+                              )}
+                              Self-Assign
+                            </Button>
+                          )}
+                        </>
                       )}
                       {ticket.status !== "Resolved" && ticket.status !== "Escalated" && (
                         <Button variant="ghost" size="sm" onClick={() => handleStatusChange(ticket.id, "Resolved")}>

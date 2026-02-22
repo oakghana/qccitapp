@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Plus, Clock, AlertTriangle, Ticket, MapPin, Monitor, Wifi, Smartphone, Printer, UserPlus, Eye, CheckCircle, User, Calendar, FileText, Trash2 } from "lucide-react"
+import { Plus, Clock, AlertTriangle, Ticket, MapPin, Monitor, Wifi, Smartphone, Printer, UserPlus, Eye, CheckCircle, User, Calendar, FileText, Trash2, UserCheck, Loader2 } from "lucide-react"
 import { NewTicketForm } from "./new-ticket-form"
 import { KnowledgeBase } from "./knowledge-base"
 import { AssignTicketDialog } from "./assign-ticket-dialog"
@@ -31,6 +31,7 @@ export function ServiceDeskDashboard() {
   const { toast } = useToast()
   const [allTickets, setAllTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [selfAssigningTicketId, setSelfAssigningTicketId] = useState<string | null>(null)
 
   // Check if user can assign tickets (IT Head, Regional IT Head, Admin)
   const canAssignTickets = () => {
@@ -107,6 +108,58 @@ export function ServiceDeskDashboard() {
       console.error("[v0] Error refreshing tickets:", error)
     } finally {
       setSelectedTicketForAssign(null)
+    }
+  }
+
+  // Quick self-assign for regional IT heads
+  const handleSelfAssign = async (ticket: any) => {
+    if (!user?.id) return
+    setSelfAssigningTicketId(ticket.uuid || ticket.dbId || ticket.id)
+    try {
+      const response = await fetch("/api/service-tickets/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticketId: ticket.uuid || ticket.dbId || ticket.id,
+          assigneeId: user.id,
+          assignee: user.full_name || user.name || user.email || "Regional IT Head",
+          assigneeEmail: user.email,
+          assigneePhone: user.phone || "",
+          priority: ticket.priority?.toLowerCase() || "medium",
+          dueDate: "",
+          instructions: "Self-assigned by Regional IT Head",
+          assignedBy: user.full_name || user.name || user.email || "Regional IT Head",
+          assignedById: user.id,
+          notifyEmail: false,
+          notifySMS: false,
+        }),
+      })
+
+      if (!response.ok) {
+        const result = await response.json()
+        toast({
+          title: "Assignment Failed",
+          description: result.error || "Failed to self-assign ticket",
+          variant: "destructive",
+        })
+        return
+      }
+
+      toast({
+        title: "Ticket Assigned to You",
+        description: `Ticket ${ticket.id} has been assigned to you successfully.`,
+      })
+
+      await loadTickets()
+    } catch (error) {
+      console.error("[v0] Error self-assigning ticket:", error)
+      toast({
+        title: "Error",
+        description: "An error occurred while self-assigning the ticket",
+        variant: "destructive",
+      })
+    } finally {
+      setSelfAssigningTicketId(null)
     }
   }
 
@@ -414,15 +467,33 @@ export function ServiceDeskDashboard() {
                         </Button>
                         {/* Assign button for IT Heads */}
                         {canAssignTickets() && (ticket.status === "Open" || ticket.status === "open") && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2 text-xs border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950 bg-transparent"
-                            onClick={() => setSelectedTicketForAssign(ticket)}
-                          >
-                            <UserPlus className="h-3 w-3 mr-1" />
-                            Assign
-                          </Button>
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950 bg-transparent"
+                              onClick={() => setSelectedTicketForAssign(ticket)}
+                            >
+                              <UserPlus className="h-3 w-3 mr-1" />
+                              Assign
+                            </Button>
+                            {user?.role === "regional_it_head" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-xs border-green-200 text-green-700 hover:bg-green-50 dark:border-green-800 dark:text-green-300 dark:hover:bg-green-950 bg-transparent"
+                                onClick={() => handleSelfAssign(ticket)}
+                                disabled={selfAssigningTicketId === (ticket.uuid || ticket.dbId || ticket.id)}
+                              >
+                                {selfAssigningTicketId === (ticket.uuid || ticket.dbId || ticket.id) ? (
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                ) : (
+                                  <UserCheck className="h-3 w-3 mr-1" />
+                                )}
+                                Self-Assign
+                              </Button>
+                            )}
+                          </>
                         )}
                         {/* Delete button for Admins */}
                         {user?.role === "admin" && (
@@ -713,16 +784,35 @@ export function ServiceDeskDashboard() {
                   Close
                 </Button>
                 {canAssignTickets() && (ticketDetails.status === "Open" || ticketDetails.status === "open") && (
-                  <Button 
-                    onClick={() => {
-                      setSelectedTicketForDetails(null)
-                      setSelectedTicketForAssign(ticketDetails)
-                    }}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Assign Ticket
-                  </Button>
+                  <>
+                    {user?.role === "regional_it_head" && (
+                      <Button
+                        onClick={() => {
+                          handleSelfAssign(ticketDetails)
+                          setSelectedTicketForDetails(null)
+                        }}
+                        disabled={selfAssigningTicketId === (ticketDetails.uuid || ticketDetails.dbId || ticketDetails.id)}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        {selfAssigningTicketId === (ticketDetails.uuid || ticketDetails.dbId || ticketDetails.id) ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <UserCheck className="h-4 w-4 mr-2" />
+                        )}
+                        Assign to Me
+                      </Button>
+                    )}
+                    <Button 
+                      onClick={() => {
+                        setSelectedTicketForDetails(null)
+                        setSelectedTicketForAssign(ticketDetails)
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Assign to Staff
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
