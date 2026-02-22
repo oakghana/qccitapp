@@ -4,7 +4,9 @@ import type React from "react"
 import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { AlertCircle, CheckCircle2, Download, Upload, X } from "lucide-react"
+import { AlertCircle, CheckCircle2, Download, Upload, X, FileDown, AlertTriangle } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import { toast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 
@@ -34,10 +36,14 @@ export function BulkDeviceImportDialog({
   const [importResult, setImportResult] = useState<{
     success: boolean
     importedCount: number
+    skippedCount?: number
     totalRows: number
     message: string
   } | null>(null)
   const [step, setStep] = useState<"upload" | "validating" | "results">("upload")
+  const [skipDuplicates, setSkipDuplicates] = useState(false)
+  const [warnings, setWarnings] = useState<ValidationError[]>([])
+  const [exportingCsv, setExportingCsv] = useState(false)
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -110,6 +116,7 @@ export function BulkDeviceImportDialog({
       formData.append("file", selectedFile)
       formData.append("userLocation", user.location)
       formData.append("userRole", user.role || "")
+      formData.append("skipDuplicates", String(skipDuplicates))
 
       const response = await fetch("/api/devices/bulk-import", {
         method: "POST",
@@ -120,20 +127,22 @@ export function BulkDeviceImportDialog({
 
       if (response.ok) {
         setStep("results")
+        setWarnings(result.warnings || [])
         setImportResult({
           success: true,
           importedCount: result.importedCount,
+          skippedCount: result.skippedCount || 0,
           totalRows: result.totalRows,
           message: result.message,
         })
         toast({
           title: "Success",
-          description: `Successfully imported ${result.importedCount} device(s)`,
+          description: `Successfully imported ${result.importedCount} device(s)${result.skippedCount ? ` (${result.skippedCount} skipped)` : ""}`,
         })
         setTimeout(() => {
           onImportSuccess()
           handleClose()
-        }, 1500)
+        }, 2500)
       } else {
         setStep("results")
         setValidationErrors(result.validationErrors || [])
@@ -180,11 +189,52 @@ export function BulkDeviceImportDialog({
     window.URL.revokeObjectURL(url)
   }
 
+  const handleExportForReimport = async () => {
+    if (!user?.location) return
+    setExportingCsv(true)
+    try {
+      const response = await fetch(
+        `/api/devices/bulk-import?action=export&location=${encodeURIComponent(user.location)}`
+      )
+      if (!response.ok) {
+        const err = await response.json()
+        toast({
+          title: "Export Failed",
+          description: err.error || "Failed to export devices",
+          variant: "destructive",
+        })
+        return
+      }
+      const csv = await response.text()
+      const blob = new Blob([csv], { type: "text/csv" })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `devices-${user.location.replace(/\s+/g, "_")}-${new Date().toISOString().split("T")[0]}.csv`
+      a.click()
+      window.URL.revokeObjectURL(url)
+      toast({
+        title: "Export Complete",
+        description: "Devices exported. Make corrections in the CSV, then re-import with 'Skip Duplicates' enabled.",
+      })
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: "An error occurred while exporting",
+        variant: "destructive",
+      })
+    } finally {
+      setExportingCsv(false)
+    }
+  }
+
   const handleClose = () => {
     setSelectedFile(null)
     setValidationErrors([])
+    setWarnings([])
     setImportResult(null)
     setStep("upload")
+    setSkipDuplicates(false)
     onOpenChange(false)
   }
 
@@ -279,15 +329,46 @@ export function BulkDeviceImportDialog({
                   </li>
                   <li>Other fields (purchase_date, warranty_expiry, etc.) are optional</li>
                 </ul>
-                <Button
-                  onClick={handleDownloadTemplate}
-                  variant="outline"
-                  size="sm"
-                  className="mt-3 text-xs"
-                >
-                  <Download className="h-3 w-3 mr-1" />
-                  Download Template
-                </Button>
+                <div className="flex gap-2 mt-3">
+                  <Button
+                    onClick={handleDownloadTemplate}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                  >
+                    <Download className="h-3 w-3 mr-1" />
+                    Download Template
+                  </Button>
+                  <Button
+                    onClick={handleExportForReimport}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-950"
+                    disabled={exportingCsv}
+                  >
+                    <FileDown className="h-3 w-3 mr-1" />
+                    {exportingCsv ? "Exporting..." : "Export Location Devices (for corrections)"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Skip Duplicates Option */}
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0 mr-4">
+                    <Label htmlFor="skip-duplicates" className="text-sm font-medium text-amber-900 dark:text-amber-100 cursor-pointer">
+                      Skip Duplicates (for re-import)
+                    </Label>
+                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                      When enabled, devices with serial numbers that already exist in the system will be skipped instead of causing an error. Use this when re-importing a corrected CSV file.
+                    </p>
+                  </div>
+                  <Switch
+                    id="skip-duplicates"
+                    checked={skipDuplicates}
+                    onCheckedChange={setSkipDuplicates}
+                  />
+                </div>
               </div>
 
               {/* Action Buttons */}
@@ -348,12 +429,46 @@ export function BulkDeviceImportDialog({
                         <span className="text-blue-700">Devices Imported:</span>
                         <span className="font-medium text-blue-900">{importResult.importedCount}</span>
                       </div>
+                      {(importResult.skippedCount ?? 0) > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-amber-700">Duplicates Skipped:</span>
+                          <span className="font-medium text-amber-900">{importResult.skippedCount}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between">
                         <span className="text-blue-700">Import Time:</span>
                         <span className="font-medium text-blue-900">{new Date().toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
+
+                  {/* Warnings - Skipped Duplicates */}
+                  {warnings.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                      <div className="flex items-start gap-3 mb-3">
+                        <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-medium text-amber-900">Skipped Duplicates ({warnings.length})</p>
+                          <p className="text-xs text-amber-700 mt-1">
+                            These devices already exist and were not re-imported.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="max-h-40 overflow-y-auto bg-amber-100/50 border border-amber-200 rounded text-xs divide-y divide-amber-200">
+                        {warnings.slice(0, 10).map((w, idx) => (
+                          <div key={idx} className="p-2">
+                            <span className="font-mono text-amber-800">Row {w.row}:</span>{" "}
+                            <span className="text-amber-700">{w.value}</span> - {w.message}
+                          </div>
+                        ))}
+                      </div>
+                      {warnings.length > 10 && (
+                        <p className="text-xs text-amber-600 mt-1">
+                          and {warnings.length - 10} more...
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <>

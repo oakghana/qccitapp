@@ -15,8 +15,9 @@ export async function POST(request: NextRequest) {
     const file = formData.get("file") as File
     const userLocation = formData.get("userLocation") as string
     const userRole = formData.get("userRole") as string
+    const skipDuplicates = formData.get("skipDuplicates") === "true"
 
-    console.log("[v0] Bulk import started - userLocation:", userLocation, "userRole:", userRole, "Time:", new Date().toISOString())
+    console.log("[v0] Bulk import started - userLocation:", userLocation, "userRole:", userRole, "skipDuplicates:", skipDuplicates, "Time:", new Date().toISOString())
 
     // Permission check - only IT staff and admins can import
     if (!["admin", "it_staff", "regional_it_head"].includes(userRole)) {
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
     const fileText = await file.text()
 
     // Validate CSV
-    const validationResult = await validateCsvImport(fileText, existingSerialNumbers)
+    const validationResult = await validateCsvImport(fileText, existingSerialNumbers, { skipDuplicates })
 
     console.log(
       "[v0] Validation complete - Valid records:",
@@ -151,11 +152,16 @@ export async function POST(request: NextRequest) {
       // Don't fail the import if audit logging fails
     }
 
+    const skippedCount = validationResult.warnings?.length || 0
+    const skippedMsg = skippedCount > 0 ? ` (${skippedCount} duplicate(s) skipped)` : ""
+
     return NextResponse.json({
       success: true,
       importedCount: validationResult.records.length,
-      totalRows: validationResult.records.length,
-      message: `Successfully imported ${validationResult.records.length} device(s) to ${userLocation}`,
+      skippedCount,
+      totalRows: validationResult.records.length + skippedCount,
+      warnings: validationResult.warnings || [],
+      message: `Successfully imported ${validationResult.records.length} device(s) to ${userLocation}${skippedMsg}`,
     })
   } catch (error: any) {
     console.error("[v0] Bulk import error:", error)
@@ -183,6 +189,84 @@ printer,HP,LaserJet M404,SN12347,active,2023-03-10,2025-03-10,Print Room,101,Mai
         headers: {
           "Content-Type": "text/csv",
           "Content-Disposition": "attachment; filename=device-import-template.csv",
+        },
+      })
+    }
+
+    if (action === "export") {
+      // Export location devices in re-importable CSV format
+      const location = searchParams.get("location")
+      
+      if (!location) {
+        return NextResponse.json({ error: "Location parameter is required" }, { status: 400 })
+      }
+
+      let query = supabase
+        .from("devices")
+        .select("device_type, brand, model, serial_number, status, purchase_date, warranty_expiry, assigned_to, room_number, building, floor_level, toner_type, toner_model, toner_yield, monthly_print_volume, location")
+        .order("device_type")
+        .order("brand")
+
+      // Filter by location (case-insensitive)
+      if (location !== "all") {
+        query = query.ilike("location", location)
+      }
+
+      const { data: devices, error: fetchError } = await query
+
+      if (fetchError) {
+        console.error("[v0] Error exporting devices:", fetchError)
+        return NextResponse.json({ error: "Failed to export devices" }, { status: 500 })
+      }
+
+      if (!devices || devices.length === 0) {
+        return NextResponse.json({ error: "No devices found for this location" }, { status: 404 })
+      }
+
+      // Build CSV with import-compatible headers
+      const headers = [
+        "device_type",
+        "brand",
+        "model",
+        "serial_number",
+        "status",
+        "purchase_date",
+        "warranty_expiry",
+        "assigned_to",
+        "room_number",
+        "building",
+        "floor",
+        "toner_type",
+        "toner_model",
+        "toner_yield",
+        "monthly_print_volume",
+      ]
+
+      const csvRows = [
+        headers.join(","),
+        ...devices.map((device: any) => {
+          return headers.map((header) => {
+            const key = header === "floor" ? "floor_level" : header
+            const value = device[key] ?? ""
+            // Escape commas and quotes in values
+            const strValue = String(value)
+            if (strValue.includes(",") || strValue.includes('"') || strValue.includes("\n")) {
+              return `"${strValue.replace(/"/g, '""')}"`
+            }
+            return strValue
+          }).join(",")
+        }),
+      ]
+
+      const csvContent = csvRows.join("\n")
+      const locationName = location.replace(/\s+/g, "_")
+      const filename = `devices-${locationName}-${new Date().toISOString().split("T")[0]}.csv`
+
+      return new NextResponse(csvContent, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/csv",
+          "Content-Disposition": `attachment; filename=${filename}`,
         },
       })
     }

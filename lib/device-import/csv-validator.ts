@@ -199,7 +199,8 @@ function isValidIsoDate(dateString: string): boolean {
 
 export async function validateCsvImport(
   fileOrText: File | string,
-  existingSerialNumbers: Set<string>
+  existingSerialNumbers: Set<string>,
+  options?: { skipDuplicates?: boolean }
 ): Promise<ValidationResult> {
   try {
     const csvData = await parseCsvFile(fileOrText)
@@ -215,9 +216,45 @@ export async function validateCsvImport(
 
     const validRecords: DeviceImportRecord[] = []
     const allErrors: ValidationError[] = []
+    const allWarnings: ValidationError[] = []
+
+    // Track serial numbers within the CSV to detect intra-file duplicates
+    const csvSerialNumbers = new Map<string, number>() // serial -> first row number
 
     for (let i = 0; i < csvData.length; i++) {
-      const { record, errors } = validateDeviceRecord(csvData[i], i + 2, existingSerialNumbers) // +2 because row 1 is headers
+      const rowNumber = i + 2 // +2 because row 1 is headers
+
+      // Check for intra-CSV duplicates first
+      const rawSerial = csvData[i]?.serial_number?.toString().trim().toLowerCase() || 
+                        csvData[i]?.Serial_Number?.toString().trim().toLowerCase() ||
+                        csvData[i]?.SERIAL_NUMBER?.toString().trim().toLowerCase() || ""
+      
+      if (rawSerial && csvSerialNumbers.has(rawSerial)) {
+        const firstRow = csvSerialNumbers.get(rawSerial)!
+        allErrors.push({
+          row: rowNumber,
+          field: "serial_number",
+          message: `Duplicate serial number within CSV file (first seen in row ${firstRow})`,
+          value: rawSerial,
+        })
+        continue
+      }
+      if (rawSerial) {
+        csvSerialNumbers.set(rawSerial, rowNumber)
+      }
+
+      // Check for duplicates against existing DB records
+      if (options?.skipDuplicates && rawSerial && existingSerialNumbers.has(rawSerial)) {
+        allWarnings.push({
+          row: rowNumber,
+          field: "serial_number",
+          message: "Skipped - device with this serial number already exists in the system",
+          value: rawSerial,
+        })
+        continue
+      }
+
+      const { record, errors } = validateDeviceRecord(csvData[i], rowNumber, existingSerialNumbers)
 
       if (record) {
         validRecords.push(record)
@@ -230,7 +267,7 @@ export async function validateCsvImport(
       isValid: allErrors.length === 0,
       records: validRecords,
       errors: allErrors,
-      warnings: [],
+      warnings: allWarnings,
     }
   } catch (error: any) {
     return {
