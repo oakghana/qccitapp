@@ -615,8 +615,8 @@ export function ServiceDeskDashboard() {
                             Delete
                           </Button>
                         )}
-                        {/* Reassign button for Service Desk Head and Regional IT Head */}
-                        {(user?.role === "service_desk_head" || user?.role === "regional_it_head") && ticket.assignedToId && (
+                        {/* Reassign button for Service Desk Head, Regional IT Head, and Admin */}
+                        {(user?.role === "service_desk_head" || user?.role === "regional_it_head" || user?.role === "admin") && ticket.assignedToId && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -630,8 +630,8 @@ export function ServiceDeskDashboard() {
                             Reassign
                           </Button>
                         )}
-                        {/* Hold button for Service Desk Head and Regional IT Head */}
-                        {(user?.role === "service_desk_head" || user?.role === "regional_it_head") && (
+                        {/* Hold button for Service Desk Head, Regional IT Head, and Admin */}
+                        {(user?.role === "service_desk_head" || user?.role === "regional_it_head" || user?.role === "admin") && (
                           <>
                             {ticket.status !== "On Hold" && ticket.status !== "on_hold" ? (
                               <Button
