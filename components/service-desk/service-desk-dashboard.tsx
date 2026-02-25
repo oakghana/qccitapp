@@ -1025,7 +1025,7 @@ export function ServiceDeskDashboard() {
                 </Button>
                 {canAssignTickets() && (ticketDetails.status === "Open" || ticketDetails.status === "open") && (
                   <>
-                    {user?.role === "regional_it_head" && (
+                    {(user?.role === "regional_it_head" || user?.role === "it_staff") && (
                       <Button
                         onClick={() => {
                           handleSelfAssign(ticketDetails)
