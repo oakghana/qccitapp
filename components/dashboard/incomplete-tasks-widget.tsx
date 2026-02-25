@@ -37,23 +37,47 @@ export function IncompleteTasksWidget() {
       try {
         const supabase = createClient()
         
-        // Fetch incomplete tasks assigned to this user
+        // Fetch incomplete tasks assigned to this user.
+        // Note: the Postgres enum for repair status uses values like
+        // 'assigned' and 'in_repair' (not 'in_progress'). Query only
+        // valid enum values to avoid DB errors (22P02).
+        // Fetch repair requests assigned to the user without passing an enum
+        // list to Postgres (some deployments use different enum values).
+        // We'll fetch recent assigned repairs and filter client-side to avoid
+        // invalid-enum SQL errors (22P02).
         const { data, error } = await supabase
           .from("repair_requests")
           .select("*")
           .eq("assigned_to", user.id)
-          .in("status", ["pending", "in_progress"])
           .order("created_at", { ascending: true })
-          .limit(5)
+          .limit(20)
 
-        if (error) {
-          console.error("[v0] Error loading incomplete tasks:", error)
+        // Supabase may return an error object that is empty ({}). Treat only
+        // meaningful errors as failures to avoid noisy console output.
+        if (error && (error.message || Object.keys(error).length > 0)) {
+          try {
+            console.error("[v0] Error loading incomplete tasks:", JSON.stringify(error))
+          } catch (e) {
+            console.error("[v0] Error loading incomplete tasks:", error)
+          }
           return
+        } else if (error) {
+          // Empty error object, log a debug message at info level instead of error
+          console.info("[v0] Incomplete tasks returned empty error object; continuing.", error)
         }
 
-        // Calculate days open and check if overdue
+        // Calculate days open and check if overdue. Filter to only include
+        // statuses that represent incomplete work (we check keywords to be
+        // resilient to enum differences across databases).
         const now = new Date()
-        const tasksWithMeta = data?.map((task) => {
+        const incompleteStatusKeywords = ["pending", "in_progress", "in_repair", "assigned", "pickup", "collected", "diagnos"]
+
+        const tasksWithMeta = (data || [])
+          .filter((task: any) => {
+            const status = (task.status || "").toString().toLowerCase()
+            return incompleteStatusKeywords.some((kw) => status.includes(kw))
+          })
+          .map((task) => {
           const createdDate = new Date(task.created_at)
           const daysOpen = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24))
           

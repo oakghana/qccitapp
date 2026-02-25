@@ -19,6 +19,7 @@ import {
   Headphones,
   User,
   Building2,
+  Check,
   Filter,
   Search,
   Download,
@@ -372,6 +373,15 @@ export function AssignedTasksDashboard() {
 
     setIsUpdating(true)
     try {
+      // Prevent IT staff from assigning tasks to themselves via the update-status modal
+      if (user?.role === "it_staff" && newStatus === "assigned") {
+        notificationService.error(
+          "Action not allowed",
+          "IT staff cannot assign tasks to themselves from the Update Status modal."
+        )
+        setIsUpdating(false)
+        return
+      }
       await updateTaskStatus(selectedTask.id, selectedTask.type, {
         status: newStatus as AssignedTask["status"],
         notes: workNotes,
@@ -462,58 +472,68 @@ export function AssignedTasksDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-green-600 to-yellow-600 flex items-center justify-center shadow-lg">
-            <Building2 className="h-6 w-6 text-white" />
+      {/* Modern header */}
+      <div className="flex items-center justify-between bg-white/60 backdrop-blur-md p-4 rounded-lg shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-600 to-teal-500 flex items-center justify-center shadow-md">
+            <Building2 className="h-7 w-7 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">My Assigned Tasks</h1>
-            <p className="text-muted-foreground">
-              Tasks assigned by your IT Head • {user?.location?.replace("_", " ")} Office
-            </p>
+            <h1 className="text-4xl font-extrabold text-foreground">My Assigned Tasks</h1>
+            <p className="text-sm text-muted-foreground mt-1">Tasks assigned by your IT Head • {user?.location?.replace("_", " ")} Office</p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-3">
-          <Button variant="outline" size="sm">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" className="border rounded-md">
             <Download className="h-4 w-4 mr-2" />
-            Export Report
+            Export
           </Button>
-          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-            QCC IT Services
-          </Badge>
+          <div className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-sm font-medium border border-emerald-100">QCC IT Services</div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-blue-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Tasks</CardTitle>
+      {/* Stats cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="flex items-center gap-4 p-4 bg-white rounded-lg shadow border">
+          <div className="w-10 h-10 rounded-md bg-blue-50 flex items-center justify-center">
+            <Download className="h-5 w-5 text-blue-600" />
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground uppercase">Total Tasks</div>
             <div className="text-2xl font-bold">{stats.total}</div>
-          </CardHeader>
-        </Card>
+          </div>
+        </div>
 
-        <Card className="border-l-4 border-l-purple-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Assigned</CardTitle>
+        <div className="flex items-center gap-4 p-4 bg-white rounded-lg shadow border">
+          <div className="w-10 h-10 rounded-md bg-purple-50 flex items-center justify-center">
+            <User className="h-5 w-5 text-purple-600" />
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground uppercase">Assigned</div>
             <div className="text-2xl font-bold">{stats.byStatus.assigned}</div>
-          </CardHeader>
-        </Card>
+          </div>
+        </div>
 
-        <Card className="border-l-4 border-l-orange-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">In Progress</CardTitle>
+        <div className="flex items-center gap-4 p-4 bg-white rounded-lg shadow border">
+          <div className="w-10 h-10 rounded-md bg-orange-50 flex items-center justify-center">
+            <Wrench className="h-5 w-5 text-orange-600" />
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground uppercase">In Progress</div>
             <div className="text-2xl font-bold">{stats.byStatus.in_progress}</div>
-          </CardHeader>
-        </Card>
+          </div>
+        </div>
 
-        <Card className="border-l-4 border-l-green-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
+        <div className="flex items-center gap-4 p-4 bg-white rounded-lg shadow border">
+          <div className="w-10 h-10 rounded-md bg-green-50 flex items-center justify-center">
+            <Check className="h-5 w-5 text-green-600" />
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground uppercase">Completed</div>
             <div className="text-2xl font-bold">{stats.byStatus.completed}</div>
-          </CardHeader>
-        </Card>
+          </div>
+        </div>
       </div>
 
       {/* Assigned Work Metrics Dashboard */}
@@ -688,14 +708,13 @@ export function AssignedTasksDashboard() {
                                 <Label htmlFor="status">Status</Label>
                                 <Select value={newStatus} onValueChange={setNewStatus}>
                                   <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="assigned">Assigned</SelectItem>
-                                    <SelectItem value="in_progress">In Progress</SelectItem>
-                                    <SelectItem value="completed">Completed</SelectItem>
-                                    <SelectItem value="on_hold">On Hold</SelectItem>
-                                  </SelectContent>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="in_progress">In Progress</SelectItem>
+                                      <SelectItem value="completed">Completed</SelectItem>
+                                      <SelectItem value="on_hold">On Hold</SelectItem>
+                                    </SelectContent>
                                 </Select>
                               </div>
 

@@ -29,18 +29,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Ticket not found" }, { status: 404 })
     }
 
-    // Update ticket with new assignee and reassignment info
+    // Update ticket with new assignee. Avoid writing additional reassignment
+    // metadata fields here because some database deployments do not have
+    // columns like `reassigned_at` / `reassigned_by` and attempting to write
+    // them causes schema-cache errors. We record the audit below instead.
     const { data, error } = await supabase
       .from("service_tickets")
       .update({
         assigned_to: newAssigneeId,
         assigned_to_name: newAssignee,
-        previously_assigned_to: ticket.assigned_to,
-        previously_assigned_to_name: ticket.assigned_to_name,
-        reassigned_at: new Date().toISOString(),
-        reassigned_by: reassignedBy,
-        reassigned_by_name: reassignedByName,
-        reassignment_reason: reason,
         updated_at: new Date().toISOString(),
       })
       .eq("id", ticketId)

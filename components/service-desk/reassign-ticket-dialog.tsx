@@ -40,6 +40,16 @@ export function ReassignTicketDialog({
       console.log("[v0] Reassign Dialog: Using provided itStaff list, count:", itStaff.length)
       setLocalStaffList(itStaff)
     }
+    // Initialize selected staff to the ticket's current assignee when opening
+    if (open && ticket) {
+      const currentAssigneeId = ticket.assignedToId || ticket.assigned_to || ticket.assigned_to_id || ""
+      setSelectedStaff(currentAssigneeId)
+    }
+    // Clear selection when dialog closes
+    if (!open) {
+      setSelectedStaff("")
+      setReason("")
+    }
   }, [open, itStaff])
 
   const loadStaff = async () => {
@@ -80,12 +90,17 @@ export function ReassignTicketDialog({
     setIsLoading(true)
     try {
       const staffMember = localStaffList.find((s) => s.id === selectedStaff)
-      
+
+      // Ensure we send the DB primary key (uuid) to the API; the `ticket` prop
+      // may be a mapped object where `id` is the ticket_number. Use known
+      // fallbacks `dbId` or `uuid` when available.
+      const ticketId = ticket?.dbId || ticket?.uuid || ticket?.id
+
       const response = await fetch("/api/service-tickets/reassign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ticketId: ticket.id,
+          ticketId,
           newAssigneeId: selectedStaff,
           newAssignee: staffMember?.full_name || staffMember?.name,
           reassignedBy: currentUser?.id,

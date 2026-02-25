@@ -141,101 +141,87 @@ export function AssignedWorkMetrics() {
       <TabsContent value="overview" className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {/* Total Tasks Card */}
-          <Card className="border-l-4 border-l-blue-500 hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Users className="h-4 w-4" />
+          <Card className="bg-white rounded-lg shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-semibold text-muted-foreground flex items-center gap-2">
+                <Users className="h-4 w-4 text-slate-400" />
                 Total Assigned
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{metrics.total}</div>
-              <p className="text-xs text-muted-foreground mt-2">Work items assigned to you</p>
+              <div className="text-2xl font-extrabold text-slate-800">{metrics.total}</div>
+              <p className="text-xs text-muted-foreground mt-1">Work items assigned to you</p>
             </CardContent>
           </Card>
 
           {/* In Progress Card */}
-          <Card className="border-l-4 border-l-orange-500 hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Clock className="h-4 w-4" />
+          <Card className="bg-white rounded-lg shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-semibold text-muted-foreground flex items-center gap-2">
+                <Clock className="h-4 w-4 text-slate-400" />
                 In Progress
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-orange-600">{metrics.inProgress}</div>
-              <p className="text-xs text-muted-foreground mt-2">Currently being worked on</p>
+              <div className="text-2xl font-extrabold text-slate-800">{metrics.inProgress}</div>
+              <p className="text-xs text-muted-foreground mt-1">Currently being worked on</p>
             </CardContent>
           </Card>
 
           {/* Completed Card */}
-          <Card className="border-l-4 border-l-green-500 hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <CheckCircle className="h-4 w-4" />
+          <Card className="bg-white rounded-lg shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-semibold text-muted-foreground flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-slate-400" />
                 Completed
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-600">{metrics.completed}</div>
+              <div className="text-2xl font-extrabold text-slate-800">{metrics.completed}</div>
               <div className="mt-2">
-                <Progress value={metrics.completionRate} className="h-2" />
+                <Progress value={metrics.completionRate} className="h-1.5" />
                 <p className="text-xs text-muted-foreground mt-1">{metrics.completionRate}% completion rate</p>
               </div>
             </CardContent>
           </Card>
 
           {/* High Priority Card */}
-          <Card className="border-l-4 border-l-red-500 hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" />
+          <Card className="bg-white rounded-lg shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-semibold text-muted-foreground flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-slate-400" />
                 High Priority
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-red-600">{metrics.highPriority}</div>
-              <p className="text-xs text-muted-foreground mt-2">Require immediate attention</p>
+              <div className="text-2xl font-extrabold text-slate-800">{metrics.highPriority}</div>
+              <p className="text-xs text-muted-foreground mt-1">Require immediate attention</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Status Breakdown */}
-        <Card>
+        <Card className="bg-white rounded-lg shadow-sm">
           <CardHeader>
-            <CardTitle className="text-base">Status Distribution</CardTitle>
-            <CardDescription>Your work organized by status</CardDescription>
+            <CardTitle className="text-sm font-semibold">Status Distribution</CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">Your work organized by status</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Assigned</span>
-                <div className="flex items-center gap-2">
-                  <Progress value={(metrics.assigned / (metrics.total || 1)) * 100} className="w-32 h-2" />
-                  <span className="text-sm font-semibold text-muted-foreground">{metrics.assigned}</span>
+              {[
+                { label: "Assigned", value: metrics.assigned },
+                { label: "In Progress", value: metrics.inProgress },
+                { label: "On Hold", value: metrics.onHold },
+                { label: "Completed", value: metrics.completed },
+              ].map((s) => (
+                <div key={s.label} className="flex items-center justify-between">
+                  <span className="text-sm text-slate-600">{s.label}</span>
+                  <div className="flex items-center gap-3">
+                    <Progress value={(s.value / (metrics.total || 1)) * 100} className="w-40 h-1.5" />
+                    <span className="text-sm font-medium text-slate-700">{s.value}</span>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">In Progress</span>
-                <div className="flex items-center gap-2">
-                  <Progress value={(metrics.inProgress / (metrics.total || 1)) * 100} className="w-32 h-2" />
-                  <span className="text-sm font-semibold text-muted-foreground">{metrics.inProgress}</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">On Hold</span>
-                <div className="flex items-center gap-2">
-                  <Progress value={(metrics.onHold / (metrics.total || 1)) * 100} className="w-32 h-2" />
-                  <span className="text-sm font-semibold text-muted-foreground">{metrics.onHold}</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Completed</span>
-                <div className="flex items-center gap-2">
-                  <Progress value={(metrics.completed / (metrics.total || 1)) * 100} className="w-32 h-2" />
-                  <span className="text-sm font-semibold text-muted-foreground">{metrics.completed}</span>
-                </div>
-              </div>
+              ))}
             </div>
           </CardContent>
         </Card>

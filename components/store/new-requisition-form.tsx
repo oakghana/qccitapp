@@ -78,16 +78,18 @@ export function NewRequisitionForm({ onSubmit }: { onSubmit: () => void }) {
     destinationLocation: "", // Destination location for transfers
     itReqNumber: "", // IT Requisition Number field
     notes: "",
-    items: [{ item_id: "", itemName: "", quantity: "", unit: "pcs", availableQty: 0 }],
+    // Show four item rows by default; users can add more as needed
+    items: [
+      { item_id: "", itemName: "", quantity: "", unit: "pcs", availableQty: 0 },
+      { item_id: "", itemName: "", quantity: "", unit: "pcs", availableQty: 0 },
+      { item_id: "", itemName: "", quantity: "", unit: "pcs", availableQty: 0 },
+      { item_id: "", itemName: "", quantity: "", unit: "pcs", availableQty: 0 },
+    ],
   })
 
   useEffect(() => {
     loadAvailableItems()
-    // Debug: Check what locations exist in the database
-    supabase.from("store_items").select("location").then(({ data }) => {
-      const uniqueLocations = [...new Set(data?.map(item => item.location) || [])]
-      console.log("[v0] All locations in store_items:", uniqueLocations)
-    })
+    // avoid noisy debug logs in the UI; inspect locations via scripts if needed
   }, [formData.location])
 
   const loadAvailableItems = async () => {

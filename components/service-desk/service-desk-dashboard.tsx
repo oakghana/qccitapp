@@ -954,16 +954,14 @@ export function ServiceDeskDashboard() {
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Requested By</p>
                     <p>{ticketDetails.requester}</p>
-                    {(user?.role === "it_staff" || user?.role === "regional_it_head") && (
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {ticketDetails.fullData?.requester_department && (
-                          <div>Department: {ticketDetails.fullData.requester_department}</div>
-                        )}
-                        {ticketDetails.fullData?.requester_room_number && (
-                          <div>Room: {ticketDetails.fullData.requester_room_number}</div>
-                        )}
-                      </div>
-                    )}
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {ticketDetails.fullData?.requester_department && (
+                        <div>Department: {ticketDetails.fullData.requester_department}</div>
+                      )}
+                      {ticketDetails.fullData?.requester_room_number && (
+                        <div>Room: {ticketDetails.fullData.requester_room_number}</div>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Location</p>

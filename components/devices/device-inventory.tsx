@@ -121,6 +121,8 @@ export function DeviceInventory() {
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [locationFilter, setLocationFilter] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState("")
+  const [page, setPage] = useState<number>(1)
+  const [pageSize, setPageSize] = useState<number>(20)
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null)
   const [transferDeviceOpen, setTransferDeviceOpen] = useState(false)
   const [editDeviceOpen, setEditDeviceOpen] = useState(false)
@@ -299,6 +301,23 @@ export function DeviceInventory() {
   })
   
   console.log("[v0] Device filter - locationFilter:", locationFilter, "total devices:", devices.length, "filtered:", filteredDevices.length)
+
+  // Pagination calculations
+  const totalDevices = filteredDevices.length
+  const totalPages = Math.max(1, Math.ceil(totalDevices / pageSize))
+  const startIndex = totalDevices === 0 ? 0 : (page - 1) * pageSize + 1
+  const endIndex = Math.min(page * pageSize, totalDevices)
+  const paginatedDevices = filteredDevices.slice((page - 1) * pageSize, page * pageSize)
+
+  // Ensure current page is within bounds when totalPages changes
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages)
+  }, [totalPages])
+
+  // Reset to first page when filters/search change
+  useEffect(() => {
+    setPage(1)
+  }, [searchQuery, statusFilter, locationFilter, pageSize])
 
   const handleAddDevice = () => {
     setAddDeviceOpen(true)
@@ -526,7 +545,11 @@ export function DeviceInventory() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Device Inventory</h1>
           <p className="text-sm text-muted-foreground">
-            {filteredDevices.length} device{filteredDevices.length !== 1 ? "s" : ""}
+            {totalDevices === 0 ? (
+              "No devices"
+            ) : (
+              <>Showing {startIndex}–{endIndex} of {devices.length} devices</>
+            )}
             {user?.location && !canSeeAllLocations(user) ? ` in ${user.location}` : ""}
           </p>
         </div>
@@ -582,6 +605,30 @@ export function DeviceInventory() {
             <SelectItem value="retired">Retired</SelectItem>
           </SelectContent>
         </Select>
+        {/* Page size selector and pagination controls */}
+        <div className="flex items-center gap-2">
+          <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
+            <SelectTrigger className="w-28 h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10 per page</SelectItem>
+              <SelectItem value="20">20 per page</SelectItem>
+              <SelectItem value="50">50 per page</SelectItem>
+              <SelectItem value="100">100 per page</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="outline" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+              Prev
+            </Button>
+            <div className="text-sm px-2">{page} / {totalPages}</div>
+            <Button size="sm" variant="outline" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
+              Next
+            </Button>
+          </div>
+        </div>
         <Select value={locationFilter} onValueChange={setLocationFilter}>
           <SelectTrigger className="w-full sm:w-36 h-9">
             <SelectValue />
@@ -600,7 +647,7 @@ export function DeviceInventory() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filteredDevices.map((device) => {
+        {paginatedDevices.map((device) => {
           const IconComponent = deviceTypeIcons[device.type] || Monitor;
           // Only admin or regional_it_head at the device's location can see delete
           const canDelete =

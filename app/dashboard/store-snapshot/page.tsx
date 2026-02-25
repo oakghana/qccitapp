@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
 import { Package, AlertTriangle, CheckCircle2, Info } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { createClient } from "@/lib/supabase/client"
@@ -26,28 +27,54 @@ export default function StoreSnapshotPage() {
   const { user } = useAuth()
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [dbLocations, setDbLocations] = useState<string[]>([])
+  const [selectedLocation, setSelectedLocation] = useState<string>("my")
   
   // Users with "user" role have view-only access to Central Stores stock levels
   const isViewOnlyUser = user?.role === "user"
 
   useEffect(() => {
+    // Load available locations for the selector
+    const loadLocations = async () => {
+      try {
+        const res = await fetch("/api/admin/lookup-data?type=locations")
+        if (!res.ok) return
+        const data = await res.json()
+        const names = data
+          .filter((l: any) => l && l.name)
+          .map((l: any) => l.name)
+        // ensure Central Stores present
+        if (!names.includes("Central Stores")) names.unshift("Central Stores")
+        setDbLocations(names)
+      } catch (e) {
+        console.error("[v0] Error loading store locations:", e)
+      }
+    }
+
+    loadLocations()
+
     async function fetchInventory() {
       try {
         const supabase = createClient()
 
         let query = supabase.from("store_items").select("*").order("name", { ascending: true })
 
-        // Users with "user" role can see their location + Central Stores inventory
-        if (isViewOnlyUser && user.location) {
-          console.log("[v0] User role - showing", user.location, "+ Central Stores")
-          query = query.or(`location.eq.${user.location},location.eq.Central Stores`)
-        } else if (isViewOnlyUser) {
-          // If user has no location, show only Central Stores
-          console.log("[v0] User role - showing Central Stores only")
+        // Determine server-side filter based on selectedLocation
+        // "my" -> user's location + Central Stores (preferred default)
+        // "central" -> Central Stores only
+        // "all" -> no filter (requires permission)
+        if (selectedLocation === "my") {
+          if (user?.location) {
+            query = query.or(`location.eq.${user.location},location.eq.Central Stores`)
+            console.log("[v0] Loading inventory for:", user.location, "+ Central Stores")
+          } else {
+            query = query.eq("location", "Central Stores")
+          }
+        } else if (selectedLocation === "central") {
           query = query.eq("location", "Central Stores")
-        } else if (user && !canSeeAllLocations(user) && user.location) {
-          console.log("[v0] Filtering store snapshot by location:", user.location, "+ Central Stores")
-          query = query.or(`location.eq.${user.location},location.eq.Central Stores`)
+        } else if (selectedLocation && selectedLocation !== "all") {
+          // a specific named location chosen from the list
+          query = query.eq("location", selectedLocation)
         }
 
         const { data, error } = await query
@@ -67,7 +94,7 @@ export default function StoreSnapshotPage() {
     }
 
     fetchInventory()
-  }, [user, isViewOnlyUser])
+  }, [user, isViewOnlyUser, selectedLocation])
 
   const filteredInventory = inventory
 
@@ -102,6 +129,29 @@ export default function StoreSnapshotPage() {
         </p>
       </div>
       
+      {/* Location Selector */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          Select location to view stock levels. Default shows your location + Central Stores.
+        </div>
+        <div className="w-56">
+          <Select value={selectedLocation} onValueChange={(v) => setSelectedLocation(v)}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select location" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="my">My Location ({user?.location || "Central Stores"})</SelectItem>
+              <SelectItem value="central">Central Stores</SelectItem>
+              {canSeeAllLocations(user) && <SelectItem value="all">All Locations</SelectItem>}
+              {dbLocations.map((loc) => (
+                <SelectItem key={loc} value={loc}>
+                  {loc}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
       {/* View-Only Notice for User Role */}
       {isViewOnlyUser && (
         <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">

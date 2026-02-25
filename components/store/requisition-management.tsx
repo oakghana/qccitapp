@@ -140,7 +140,7 @@ export function RequisitionManagement() {
 
       const mappedRequisitions: Requisition[] = data.map((req: any) => ({
         id: req.id,
-        requisition_number: req.requisition_number || `SIV-${req.id.slice(0, 8)}`,
+        requisition_number: req.requisition_number || `SIV-${String(req.id).slice(0, 8)}`,
         requested_by: req.requested_by,
         beneficiary: req.beneficiary,
         location: req.location || "Unknown",
@@ -226,11 +226,12 @@ export function RequisitionManagement() {
   }
 
   useEffect(() => {
-    const filtered = requisitions.filter(
-      (req) =>
-        req.requisition_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        req.requested_by.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    const filtered = requisitions.filter((req) => {
+      const siv = (req.requisition_number || "").toString().toLowerCase()
+      const requester = (req.requested_by || "").toString().toLowerCase()
+      const term = searchTerm.toLowerCase()
+      return siv.includes(term) || requester.includes(term)
+    })
     setFilteredRequisitions(filtered)
   }, [searchTerm, requisitions])
 
@@ -1106,7 +1107,7 @@ export function RequisitionManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   {getLocationOptions().map((location) => (
-                    <SelectItem key={location.value} value={location.label}>
+                    <SelectItem key={location.value} value={location.value}>
                       {location.label}
                     </SelectItem>
                   ))}
@@ -1193,7 +1194,7 @@ export function RequisitionManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   {getLocationOptions().map((location) => (
-                    <SelectItem key={location.value} value={location.label}>
+                    <SelectItem key={location.value} value={location.value}>
                       {location.label}
                     </SelectItem>
                   ))}
