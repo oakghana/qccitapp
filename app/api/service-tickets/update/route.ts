@@ -20,7 +20,9 @@ export async function PATCH(request: NextRequest) {
       assigned: "open",
       in_progress: "in_progress",
       completed: "resolved",
-      on_hold: "on_hold",
+      // DB enum may not include 'on_hold' in some deployments; map to 'open' to avoid invalid enum errors.
+      // Proper hold flow should use the /hold endpoint which sets hold metadata.
+      on_hold: "open",
     }
 
     const updateData: Record<string, any> = {
