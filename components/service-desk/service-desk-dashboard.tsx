@@ -31,6 +31,8 @@ export function ServiceDeskDashboard() {
   const [ticketToDelete, setTicketToDelete] = useState<any>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const { canViewAllLocations, getUserLocation, user } = useAuth()
+  const userLocation = (getUserLocation() || user?.location || '').toLowerCase()
+  const isHeadOfficeUser = userLocation === 'head_office' || userLocation === 'head office'
   const { toast } = useToast()
   const [allTickets, setAllTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -1025,7 +1027,7 @@ export function ServiceDeskDashboard() {
                 </Button>
                 {canAssignTickets() && (ticketDetails.status === "Open" || ticketDetails.status === "open") && (
                   <>
-                    {(user?.role === "regional_it_head" || user?.role === "it_staff") && (
+                    {(user?.role === "regional_it_head" || (user?.role === "it_staff" && !isHeadOfficeUser)) && (
                       <Button
                         onClick={() => {
                           handleSelfAssign(ticketDetails)
