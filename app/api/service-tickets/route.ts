@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
         requester_email: body.requester_email || '',
         requester_phone: body.requester_phone || '',
         requester_department: body.requester_department || '',
-        requester_room: body.requester_room || '',
+        requester_room_number: body.requester_room_number || '',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
