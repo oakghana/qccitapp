@@ -42,10 +42,7 @@ SET location = 'Head Office'
 WHERE location IN ('Head Office - Accra', 'head office - accra', 'HEAD OFFICE - ACCRA', 'Head Office-Accra')
 AND location != 'Head Office';
 
-UPDATE stock_movements 
-SET location = 'Head Office'
-WHERE location IN ('Head Office - Accra', 'head office - accra', 'HEAD OFFICE - ACCRA', 'Head Office-Accra')
-AND location != 'Head Office';
+-- Note: stock_movements is a view and cannot be updated directly, it will automatically reflect changes from underlying tables
 
 UPDATE store_requisitions 
 SET location = 'Head Office'
