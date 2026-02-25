@@ -48,6 +48,8 @@ import { useAuth } from "@/lib/auth-context"
 import { LOCATIONS } from "@/lib/locations"
 import { format, subDays, subMonths, subYears } from "date-fns"
 import { toast } from "sonner"
+import { DocumentActivityHistory } from "./document-activity-history"
+import { DeletionHistoryAdmin } from "@/components/admin/deletion-history"
 
 interface PDFUpload {
   id: string
@@ -308,7 +310,16 @@ export function PDFUploadsDashboard() {
     if (!confirm("Are you sure you want to delete this document?")) return
 
     try {
-      const response = await fetch(`/api/pdf-uploads?id=${uploadId}`, {
+      const params = new URLSearchParams()
+      params.append("id", uploadId)
+      if (user?.id) {
+        params.append("userId", user.id)
+      }
+      if (user?.full_name || user?.name || user?.username) {
+        params.append("userName", user.full_name || user.name || user.username)
+      }
+
+      const response = await fetch(`/api/pdf-uploads?${params.toString()}`, {
         method: "DELETE",
       })
 
@@ -872,6 +883,12 @@ export function PDFUploadsDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Deletion History for Admin Users */}
+      {canDelete && <DeletionHistoryAdmin />}
+
+      {/* Selected Document Activity History */}
+      {selectedUpload && <DocumentActivityHistory documentId={selectedUpload.id} />}
 
       {/* Confirm Dialog */}
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>

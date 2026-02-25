@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { put } from "@vercel/blob"
+import { logDocumentAudit } from "@/lib/audit-logging"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -142,6 +143,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    // Log audit trail for document upload
+    await logDocumentAudit({
+      document_id: data.id,
+      action: "document_uploaded",
+      user_id: uploadedBy,
+      user_name: uploadedByName,
+      details: {
+        title,
+        document_type: documentType,
+        file_name: file.name,
+        file_size: file.size,
+        target_location: targetLocation,
+      },
+    })
+
     return NextResponse.json({ success: true, upload: data })
   } catch (error) {
     console.error("Error in POST /api/pdf-uploads:", error)
@@ -153,20 +169,51 @@ export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get("id")
+    const userId = searchParams.get("userId")
+    const userName = searchParams.get("userName")
 
     if (!id) {
       return NextResponse.json({ error: "Missing upload ID" }, { status: 400 })
     }
 
+    // Get the document details before deletion
+    const { data: documentData, error: fetchError } = await supabase
+      .from("pdf_uploads")
+      .select("*")
+      .eq("id", id)
+      .single()
+
+    if (fetchError) {
+      console.error("Error fetching document for audit:", fetchError)
+      return NextResponse.json({ error: fetchError.message }, { status: 500 })
+    }
+
     // Soft delete - just mark as inactive
     const { error } = await supabase
       .from("pdf_uploads")
-      .update({ is_active: false })
+      .update({ is_active: false, deleted_at: new Date().toISOString(), deleted_by: userId })
       .eq("id", id)
 
     if (error) {
       console.error("Error deleting PDF upload:", error)
       return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    // Log audit trail for document deletion
+    if (userId && userName) {
+      await logDocumentAudit({
+        document_id: id,
+        action: "document_deleted",
+        user_id: userId,
+        user_name: userName,
+        details: {
+          title: documentData.title,
+          document_type: documentData.document_type,
+          file_name: documentData.file_name,
+          uploaded_by: documentData.uploaded_by,
+          uploaded_by_name: documentData.uploaded_by_name,
+        },
+      })
     }
 
     return NextResponse.json({ success: true })
