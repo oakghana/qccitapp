@@ -115,18 +115,17 @@ export function ServiceDeskDashboard() {
 
   const loadITStaff = async () => {
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name, name, email, role")
-        .in("role", ["it_staff", "it_technician", "service_desk_head", "regional_it_head"])
-        .eq("status", "active")
-
-      if (error) {
-        console.error("[v0] Error loading IT staff:", error)
+      const response = await fetch("/api/staff-members?roles=it_staff,it_technician,service_desk_head,regional_it_head&onlyActive=true")
+      
+      if (!response.ok) {
+        console.error("[v0] Error loading IT staff - API returned:", response.status)
         return
       }
 
-      setItStaffList(data || [])
+      const result = await response.json()
+      console.log("[v0] IT Staff loaded from API:", result.data?.length || 0)
+
+      setItStaffList(result.data || [])
     } catch (error) {
       console.error("[v0] Error loading IT staff:", error)
     }
