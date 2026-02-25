@@ -6,16 +6,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Plus, Clock, AlertTriangle, Ticket, MapPin, Monitor, Wifi, Smartphone, Printer, UserPlus, Eye, CheckCircle, User, Calendar, FileText, Trash2, UserCheck, Loader2 } from "lucide-react"
+import { Plus, Clock, AlertTriangle, Ticket, MapPin, Monitor, Wifi, Smartphone, Printer, UserPlus, Eye, CheckCircle, User, Calendar, FileText, Trash2, UserCheck, Loader2, Repeat2, Pause } from "lucide-react"
 import { NewTicketForm } from "./new-ticket-form"
 import { KnowledgeBase } from "./knowledge-base"
 import { AssignTicketDialog } from "./assign-ticket-dialog"
+import { ReassignTicketDialog } from "./reassign-ticket-dialog"
+import { HoldTicketDialog } from "./hold-ticket-dialog"
+import { CompletionConfirmationModal } from "./completion-confirmation-modal"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 import { getCanonicalLocationName } from "@/lib/location-filter"
 import { Separator } from "@/components/ui/separator"
-import { TicketList } from "./ticket-list" // Import TicketList component
+import { TicketList } from "./ticket-list"
 
 export function ServiceDeskDashboard() {
   const [activeTab, setActiveTab] = useState("overview")
@@ -35,6 +38,15 @@ export function ServiceDeskDashboard() {
   const [selectedLocation, setSelectedLocation] = useState<string>("all")
   const [currentPage, setCurrentPage] = useState(1)
   const [ticketsPerPage] = useState(10)
+  const [reassignDialogOpen, setReassignDialogOpen] = useState(false)
+  const [selectedTicketForReassign, setSelectedTicketForReassign] = useState<any>(null)
+  const [holdDialogOpen, setHoldDialogOpen] = useState(false)
+  const [selectedTicketForHold, setSelectedTicketForHold] = useState<any>(null)
+  const [isResumingHold, setIsResumingHold] = useState(false)
+  const [completionModalOpen, setCompletionModalOpen] = useState(false)
+  const [selectedTicketForCompletion, setSelectedTicketForCompletion] = useState<any>(null)
+  const [isStaffSubmitting, setIsStaffSubmitting] = useState(false)
+  const [itStaffList, setItStaffList] = useState<any[]>([])
 
   // Check if user can assign tickets (IT Head, Regional IT Head, Admin)
   const canAssignTickets = () => {
@@ -48,6 +60,7 @@ export function ServiceDeskDashboard() {
 
   useEffect(() => {
     loadTickets()
+    loadITStaff()
   }, [])
 
   const loadTickets = async () => {
@@ -97,6 +110,25 @@ export function ServiceDeskDashboard() {
       console.error("[v0] Error loading tickets:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadITStaff = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, name, email, role")
+        .in("role", ["it_staff", "it_technician", "service_desk_head", "regional_it_head"])
+        .eq("status", "active")
+
+      if (error) {
+        console.error("[v0] Error loading IT staff:", error)
+        return
+      }
+
+      setItStaffList(data || [])
+    } catch (error) {
+      console.error("[v0] Error loading IT staff:", error)
     }
   }
 
@@ -583,6 +615,87 @@ export function ServiceDeskDashboard() {
                             Delete
                           </Button>
                         )}
+                        {/* Reassign button for Service Desk Head and Regional IT Head */}
+                        {(user?.role === "service_desk_head" || user?.role === "regional_it_head") && ticket.assignedToId && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs border-purple-200 text-purple-700 hover:bg-purple-50 dark:border-purple-800 dark:text-purple-300 dark:hover:bg-purple-950 bg-transparent"
+                            onClick={() => {
+                              setSelectedTicketForReassign(ticket)
+                              setReassignDialogOpen(true)
+                            }}
+                          >
+                            <Repeat2 className="h-3 w-3 mr-1" />
+                            Reassign
+                          </Button>
+                        )}
+                        {/* Hold button for Service Desk Head and Regional IT Head */}
+                        {(user?.role === "service_desk_head" || user?.role === "regional_it_head") && (
+                          <>
+                            {ticket.status !== "On Hold" && ticket.status !== "on_hold" ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-xs border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950 bg-transparent"
+                                onClick={() => {
+                                  setSelectedTicketForHold(ticket)
+                                  setIsResumingHold(false)
+                                  setHoldDialogOpen(true)
+                                }}
+                              >
+                                <Pause className="h-3 w-3 mr-1" />
+                                Hold
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-xs border-green-200 text-green-700 hover:bg-green-50 dark:border-green-800 dark:text-green-300 dark:hover:bg-green-950 bg-transparent"
+                                onClick={() => {
+                                  setSelectedTicketForHold(ticket)
+                                  setIsResumingHold(true)
+                                  setHoldDialogOpen(true)
+                                }}
+                              >
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Resume
+                              </Button>
+                            )}
+                          </>
+                        )}
+                        {/* Completion button for IT Staff */}
+                        {ticket.assignedToId === user?.id && (ticket.status === "In Progress" || ticket.status === "in_progress") && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs border-green-200 text-green-700 hover:bg-green-50 dark:border-green-800 dark:text-green-300 dark:hover:bg-green-950 bg-transparent"
+                            onClick={() => {
+                              setSelectedTicketForCompletion(ticket)
+                              setIsStaffSubmitting(true)
+                              setCompletionModalOpen(true)
+                            }}
+                          >
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Complete
+                          </Button>
+                        )}
+                        {/* Confirmation button for Requesters */}
+                        {ticket.status === "Awaiting Confirmation" || ticket.status === "awaiting_confirmation" ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-300 dark:hover:bg-indigo-950 bg-transparent"
+                            onClick={() => {
+                              setSelectedTicketForCompletion(ticket)
+                              setIsStaffSubmitting(false)
+                              setCompletionModalOpen(true)
+                            }}
+                          >
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Confirm
+                          </Button>
+                        ) : null}
                       </div>
                     </div>
                     )
@@ -985,6 +1098,36 @@ export function ServiceDeskDashboard() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Reassign Ticket Dialog */}
+      <ReassignTicketDialog
+        open={reassignDialogOpen}
+        onOpenChange={setReassignDialogOpen}
+        ticket={selectedTicketForReassign}
+        itStaff={itStaffList}
+        onReassignSuccess={loadTickets}
+        currentUser={user}
+      />
+
+      {/* Hold Ticket Dialog */}
+      <HoldTicketDialog
+        open={holdDialogOpen}
+        onOpenChange={setHoldDialogOpen}
+        ticket={selectedTicketForHold}
+        onHoldSuccess={loadTickets}
+        currentUser={user}
+        isResuming={isResumingHold}
+      />
+
+      {/* Completion Confirmation Modal */}
+      <CompletionConfirmationModal
+        open={completionModalOpen}
+        onOpenChange={setCompletionModalOpen}
+        ticket={selectedTicketForCompletion}
+        onConfirmationSuccess={loadTickets}
+        currentUser={user}
+        isStaffSubmitting={isStaffSubmitting}
+      />
     </div>
   )
 }
