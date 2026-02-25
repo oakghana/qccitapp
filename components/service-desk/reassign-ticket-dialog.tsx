@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -29,6 +29,34 @@ export function ReassignTicketDialog({
   const [selectedStaff, setSelectedStaff] = useState("")
   const [reason, setReason] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [localStaffList, setLocalStaffList] = useState<any[]>([])
+
+  useEffect(() => {
+    // Load staff members when dialog opens
+    if (open && (!itStaff || itStaff.length === 0)) {
+      console.log("[v0] Reassign Dialog: itStaff is empty or missing, fetching from API")
+      loadStaff()
+    } else if (open && itStaff && itStaff.length > 0) {
+      console.log("[v0] Reassign Dialog: Using provided itStaff list, count:", itStaff.length)
+      setLocalStaffList(itStaff)
+    }
+  }, [open, itStaff])
+
+  const loadStaff = async () => {
+    try {
+      const response = await fetch("/api/staff-members?roles=it_staff,it_technician,service_desk_head,regional_it_head&onlyActive=true")
+      const result = await response.json()
+      
+      if (result.success && result.data) {
+        console.log("[v0] Reassign Dialog: Loaded staff from API, count:", result.data.length)
+        setLocalStaffList(result.data)
+      } else {
+        console.error("[v0] Reassign Dialog: API returned no data")
+      }
+    } catch (error) {
+      console.error("[v0] Reassign Dialog: Error loading staff:", error)
+    }
+  }
 
   const handleReassign = async () => {
     if (!selectedStaff) {
@@ -38,7 +66,7 @@ export function ReassignTicketDialog({
 
     setIsLoading(true)
     try {
-      const staffMember = itStaff.find((s) => s.id === selectedStaff)
+      const staffMember = localStaffList.find((s) => s.id === selectedStaff)
       
       const response = await fetch("/api/service-tickets/reassign", {
         method: "POST",
@@ -73,6 +101,8 @@ export function ReassignTicketDialog({
     }
   }
 
+  const staffToDisplay = localStaffList.length > 0 ? localStaffList : itStaff || []
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
@@ -86,12 +116,17 @@ export function ReassignTicketDialog({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="staff">Assign to Staff Member</Label>
+            {staffToDisplay.length === 0 ? (
+              <div className="text-sm text-red-600 p-2 bg-red-50 rounded">
+                No staff members available. Please ensure there are active IT staff in the system.
+              </div>
+            ) : null}
             <Select value={selectedStaff} onValueChange={setSelectedStaff}>
               <SelectTrigger>
                 <SelectValue placeholder="Select IT staff member" />
               </SelectTrigger>
               <SelectContent>
-                {itStaff.map((staff) => (
+                {staffToDisplay.map((staff) => (
                   <SelectItem key={staff.id} value={staff.id}>
                     {staff.full_name || staff.name} - {staff.role}
                   </SelectItem>
@@ -116,7 +151,7 @@ export function ReassignTicketDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleReassign} disabled={isLoading || !selectedStaff}>
+          <Button onClick={handleReassign} disabled={isLoading || !selectedStaff || staffToDisplay.length === 0}>
             {isLoading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
