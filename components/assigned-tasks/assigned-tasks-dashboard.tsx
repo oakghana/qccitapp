@@ -29,6 +29,7 @@ import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 import { notificationService } from "@/lib/notification-service"
 import { CompletionAcknowledgementModal } from "@/components/notifications/completion-acknowledgement-modal"
+import { AssignedWorkMetrics } from "./assigned-work-metrics"
 
 interface AssignedTask {
   id: string
@@ -43,6 +44,10 @@ interface AssignedTask {
   dueDate: string
   location: string
   requestedBy: string
+  requesterDepartment?: string
+  requesterRoom?: string
+  requesterPhone?: string
+  requesterEmail?: string
   deviceInfo?: {
     type: string
     model: string
@@ -155,6 +160,10 @@ export function AssignedTasksDashboard() {
             dueDate: ticket.due_date || "",
             location: ticket.location || ticket.requester_location || "",
             requestedBy: requesterName,
+            requesterDepartment: ticket.requester_department || "",
+            requesterRoom: ticket.requester_room || "",
+            requesterPhone: ticket.requester_phone || "",
+            requesterEmail: ticket.requester_email || "",
             ticketInfo: {
               category: ticket.category || "General",
               subcategory: ticket.subcategory || "",
@@ -507,6 +516,17 @@ export function AssignedTasksDashboard() {
         </Card>
       </div>
 
+      {/* Assigned Work Metrics Dashboard */}
+      <AssignedWorkMetrics />
+
+        <Card className="border-l-4 border-l-green-500">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
+            <div className="text-2xl font-bold">{stats.byStatus.completed}</div>
+          </CardHeader>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader className="pb-4">
           <div className="flex flex-col md:flex-row gap-4">
@@ -764,6 +784,36 @@ export function AssignedTasksDashboard() {
                                   <Label className="font-semibold">Location</Label>
                                   <p className="text-sm">{task.location}</p>
                                 </div>
+                              </div>
+
+                              {/* Requester Contact Information */}
+                              {(task.requesterDepartment || task.requesterRoom || task.requesterPhone || task.requesterEmail) && (
+                                <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-2">
+                                  <Label className="font-semibold text-blue-900 dark:text-blue-100">Requester Contact Information</Label>
+                                  {task.requesterDepartment && (
+                                    <p className="text-sm">
+                                      <strong>Department:</strong> {task.requesterDepartment}
+                                    </p>
+                                  )}
+                                  {task.requesterRoom && (
+                                    <p className="text-sm">
+                                      <strong>Room/Office:</strong> {task.requesterRoom}
+                                    </p>
+                                  )}
+                                  {task.requesterPhone && (
+                                    <p className="text-sm">
+                                      <strong>Phone:</strong> {task.requesterPhone}
+                                    </p>
+                                  )}
+                                  {task.requesterEmail && (
+                                    <p className="text-sm">
+                                      <strong>Email:</strong> {task.requesterEmail}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+
+                              <div className="grid grid-cols-2 gap-4">
                                 <div>
                                   <Label className="font-semibold">Due Date</Label>
                                   <p className="text-sm">{new Date(task.dueDate).toLocaleDateString()}</p>

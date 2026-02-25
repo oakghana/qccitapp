@@ -20,6 +20,8 @@ import {
   User,
   MapPin,
   Phone,
+  UserCheck,
+  AlertCircle,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { createClient } from "@/lib/supabase/client"
@@ -44,15 +46,18 @@ interface EscalatedTicket {
 export function RegionalITHeadDashboard() {
   const { user } = useAuth()
   const [escalatedTickets, setEscalatedTickets] = useState<EscalatedTicket[]>([])
+  const [unassignedTickets, setUnassignedTickets] = useState<any[]>([])
+  const [myAssignedTickets, setMyAssignedTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedTicket, setSelectedTicket] = useState<EscalatedTicket | null>(null)
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
   const [reviewNotes, setReviewNotes] = useState("")
   const [isReviewing, setIsReviewing] = useState(false)
+  const [selfAssigningId, setSelfAssigningId] = useState<string | null>(null)
   const supabase = createClient()
 
   useEffect(() => {
-    loadEscalatedTickets()
+    loadAllTickets()
   }, [])
 
   const loadEscalatedTickets = async () => {
@@ -80,6 +85,79 @@ export function RegionalITHeadDashboard() {
       console.error("[v0] Error loading escalated tickets:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadAllTickets = async () => {
+    try {
+      setLoading(true)
+      
+      // Load escalated tickets
+      await loadEscalatedTickets()
+      
+      // Load unassigned tickets in this region
+      const { data: unassigned } = await supabase
+        .from("service_tickets")
+        .select("*")
+        .eq("status", "open")
+        .is("assigned_to", null)
+        .eq("location", user?.location)
+        .order("created_at", { ascending: false })
+
+      setUnassignedTickets(unassigned || [])
+
+      // Load tickets assigned to this regional IT head
+      const { data: myTickets } = await supabase
+        .from("service_tickets")
+        .select("*")
+        .eq("assigned_to", user?.id)
+        .order("created_at", { ascending: false })
+
+      setMyAssignedTickets(myTickets || [])
+    } catch (error) {
+      console.error("[v0] Error loading all tickets:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSelfAssign = async (ticketId: string, ticketData: any) => {
+    if (!user?.id) return
+
+    setSelfAssigningId(ticketId)
+    try {
+      const response = await fetch("/api/service-tickets/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticketId,
+          assigneeId: user.id,
+          assignee: user.full_name || user.name || user.email || "Regional IT Head",
+          assigneeEmail: user.email,
+          assigneePhone: user.phone || "",
+          priority: ticketData.priority?.toLowerCase() || "medium",
+          dueDate: "",
+          instructions: "Self-assigned by Regional IT Head",
+          assignedBy: user.full_name || user.name || user.email || "Regional IT Head",
+          assignedById: user.id,
+          notifyEmail: false,
+          notifySMS: false,
+        }),
+      })
+
+      if (!response.ok) {
+        const result = await response.json()
+        alert(result.error || "Failed to self-assign ticket")
+        return
+      }
+
+      alert("Ticket has been assigned to you successfully")
+      await loadAllTickets()
+    } catch (error) {
+      console.error("[v0] Error self-assigning ticket:", error)
+      alert("An error occurred while self-assigning the ticket")
+    } finally {
+      setSelfAssigningId(null)
     }
   }
 

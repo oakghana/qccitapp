@@ -95,6 +95,11 @@ export function NewTicketForm({ onClose, onTicketCreated }: NewTicketFormProps) 
           priority: formData.priority || "medium",
           location: formData.location || user?.location,
           requested_by: formData.requesterName || user?.full_name || user?.name,
+          requester_name: formData.requesterName || user?.full_name || user?.name,
+          requester_email: formData.requesterEmail || user?.email,
+          requester_phone: formData.requesterPhone,
+          requester_department: formData.department,
+          requester_room: formData.officeNumber,
           description: formData.description,
         }),
       })
