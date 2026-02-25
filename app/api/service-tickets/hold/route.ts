@@ -17,6 +17,9 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
+    if (!holdReason || !holdReason.trim()) {
+      return NextResponse.json({ error: "Hold reason is required" }, { status: 400 })
+    }
 
     // Update ticket to hold status
     const { data, error } = await supabase
@@ -53,6 +56,39 @@ export async function POST(request: Request) {
       },
       created_at: new Date().toISOString(),
     })
+
+    // Create notifications for Service Desk and Regional IT Heads so they see the hold in their portals
+    const subject = `Ticket on Hold: ${data?.title || ticketId}`
+    const message = `Ticket ${data?.ticket_number || ticketId} has been placed on hold by ${heldByName || heldBy} (${heldByRole}).\nReason: ${holdReason}`
+
+    try {
+      await supabase.from("notifications").insert([
+        {
+          type: "info",
+          recipient: "service_desk",
+          recipientType: "it_head",
+          subject,
+          message,
+          status: "sent",
+          related_request: ticketId,
+          priority: "high",
+          created_at: new Date().toISOString(),
+        },
+        {
+          type: "info",
+          recipient: "regional_it_head",
+          recipientType: "it_head",
+          subject,
+          message,
+          status: "sent",
+          related_request: ticketId,
+          priority: "high",
+          created_at: new Date().toISOString(),
+        },
+      ])
+    } catch (notifyErr) {
+      console.error("Error creating hold notifications:", notifyErr)
+    }
 
     return NextResponse.json({ success: true, ticket: data })
   } catch (error) {

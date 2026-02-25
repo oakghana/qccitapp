@@ -10,17 +10,36 @@ const supabaseAdmin = createClient(
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const includeRoles = searchParams.get("roles") || "it_staff,it_technician,service_desk_head,regional_it_head"
+    // sanitize roles to avoid passing invalid enum values to Postgres
+    const includeRoles = searchParams.get("roles") || "it_staff,service_desk_head,regional_it_head"
     const onlyActive = searchParams.get("onlyActive") !== "false"
 
-    const roles = includeRoles.split(",").map(r => r.trim()).filter(Boolean)
+    const allowedRoles = [
+      'admin',
+      'it_head',
+      'regional_it_head',
+      'it_staff',
+      'it_store_head',
+      'service_desk_head',
+      'service_desk_staff',
+      'service_provider',
+      'user',
+      'staff'
+    ]
+
+    const roles = includeRoles
+      .split(",")
+      .map((r) => r.trim())
+      .filter(Boolean)
+      .filter((r) => allowedRoles.includes(r))
 
     console.log("[v0] API Staff Members - roles:", roles, "onlyActive:", onlyActive)
 
     // Fetch staff members from profiles table
+    // Note: use `full_name` (some schemas don't have `name` column)
     let query = supabaseAdmin
       .from("profiles")
-      .select("id, full_name, name, email, role, status, location")
+      .select("id, full_name, email, role, status, location")
       .in("role", roles)
 
     if (onlyActive) {

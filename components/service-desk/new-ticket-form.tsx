@@ -14,6 +14,7 @@ import { FormNavigation } from "@/components/ui/form-navigation"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import { notificationService } from "@/lib/notification-service"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 
 interface NewTicketFormProps {
   onClose: () => void
@@ -156,8 +157,10 @@ export function NewTicketForm({ onClose, onTicketCreated }: NewTicketFormProps) 
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={true} onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent className="p-0">
+        <DialogTitle className="sr-only">Submit IT Support Request</DialogTitle>
+        <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle>Submit IT Support Request</CardTitle>
@@ -362,7 +365,8 @@ export function NewTicketForm({ onClose, onTicketCreated }: NewTicketFormProps) 
             </div>
           </form>
         </CardContent>
-      </Card>
-    </div>
+        </Card>
+      </DialogContent>
+    </Dialog>
   )
 }

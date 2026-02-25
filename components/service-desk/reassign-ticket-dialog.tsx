@@ -47,11 +47,24 @@ export function ReassignTicketDialog({
       const response = await fetch("/api/staff-members?roles=it_staff,it_technician,service_desk_head,regional_it_head&onlyActive=true")
       const result = await response.json()
       
-      if (result.success && result.data) {
+      if (result.success && result.data && result.data.length > 0) {
         console.log("[v0] Reassign Dialog: Loaded staff from API, count:", result.data.length)
         setLocalStaffList(result.data)
       } else {
-        console.error("[v0] Reassign Dialog: API returned no data")
+        console.warn("[v0] Reassign Dialog: API returned no active staff; retrying without onlyActive filter")
+        // Try again including inactive staff as a fallback so admins can reassign
+        try {
+          const fallbackResp = await fetch("/api/staff-members?roles=it_staff,service_desk_head,regional_it_head&onlyActive=false")
+          const fallbackResult = await fallbackResp.json()
+          if (fallbackResult.success && fallbackResult.data && fallbackResult.data.length > 0) {
+            console.log("[v0] Reassign Dialog: Fallback loaded staff, count:", fallbackResult.data.length)
+            setLocalStaffList(fallbackResult.data)
+          } else {
+            console.error("[v0] Reassign Dialog: No staff available after fallback")
+          }
+        } catch (err) {
+          console.error("[v0] Reassign Dialog: Fallback error loading staff:", err)
+        }
       }
     } catch (error) {
       console.error("[v0] Reassign Dialog: Error loading staff:", error)

@@ -100,6 +100,8 @@ export function ServiceDeskDashboard() {
           location: ticket.location || "head_office",
           locationName: getCanonicalLocationName(ticket.location) || "Unknown Location",
         requester: ticket.requested_by || "Unknown",
+        requesterDepartment: ticket.requester_department || "",
+        requesterRoom: ticket.requester_room_number || ticket.requester_room || "",
         created: new Date(ticket.created_at).toLocaleString(),
         assignedTo: ticket.assigned_to_name || null,
         assignedToId: ticket.assigned_to || null,
@@ -526,6 +528,9 @@ export function ServiceDeskDashboard() {
                             <span className="font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1">
                               <User className="h-3 w-3" />
                               Requested by: {ticket.requester}
+                              {(user?.role === "it_staff" || user?.role === "regional_it_head") && (ticket.requesterDepartment || ticket.requesterRoom) && (
+                                <span className="ml-2 text-xs text-muted-foreground">{ticket.requesterDepartment ? `${ticket.requesterDepartment}` : ""}{ticket.requesterDepartment && ticket.requesterRoom ? ' • ' : ''}{ticket.requesterRoom ? `Room ${ticket.requesterRoom}` : ''}</span>
+                              )}
                             </span>
                             <span>•</span>
                             <span>{ticket.created}</span>
@@ -947,6 +952,16 @@ export function ServiceDeskDashboard() {
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Requested By</p>
                     <p>{ticketDetails.requester}</p>
+                    {(user?.role === "it_staff" || user?.role === "regional_it_head") && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {ticketDetails.fullData?.requester_department && (
+                          <div>Department: {ticketDetails.fullData.requester_department}</div>
+                        )}
+                        {ticketDetails.fullData?.requester_room_number && (
+                          <div>Room: {ticketDetails.fullData.requester_room_number}</div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Location</p>

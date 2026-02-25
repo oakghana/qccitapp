@@ -40,10 +40,15 @@ export async function GET(request: Request) {
     }
 
     // Apply location-based access control
-    if (userRole === "it_staff" || userRole === "regional_it_head" || userRole === "it_head") {
-      // IT Staff, Regional IT Head, and IT Head see ALL documents - NO RESTRICTIONS
-      console.log("[v0] IT Staff / Regional IT Head / IT Head - showing all active documents without restrictions")
-      query = query  // No additional filters - show all active documents
+    if (
+      userRole === "it_staff" ||
+      userRole === "regional_it_head" ||
+      userRole === "it_head" ||
+      userRole === "admin"
+    ) {
+      // IT Staff, Regional IT Head, IT Head, and Admin see ALL documents - NO RESTRICTIONS
+      console.log("[v0] Privileged role - showing all active documents without restrictions; role:", userRole)
+      query = query // No additional filters - show all active documents
     } else if (location && location !== "all") {
       // Fallback for other roles with explicit location filter
       console.log("[v0] Filtering by location:", location)

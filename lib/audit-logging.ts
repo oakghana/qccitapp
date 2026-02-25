@@ -20,7 +20,7 @@ export interface AuditLogEntry {
   user_name: string
   user_email?: string
   user_role?: string
-  timestamp?: string
+  created_at?: string
   details?: Record<string, any>
   ip_address?: string
 }
@@ -43,7 +43,7 @@ export async function logDocumentAudit(
         user_name: entry.user_name,
         user_email: entry.user_email || null,
         user_role: entry.user_role || null,
-        timestamp: now,
+        created_at: now,
         details: entry.details || null,
         ip_address: entry.ip_address || null,
       })
@@ -74,7 +74,7 @@ export async function getDocumentAuditTrail(
       .from("document_audit_logs")
       .select("*")
       .eq("document_id", documentId)
-      .order("timestamp", { ascending: false })
+      .order("created_at", { ascending: false })
 
     if (error) {
       console.error("[v0] Error fetching document audit trail:", error)
@@ -116,14 +116,14 @@ export async function getAllAuditLogs(filters?: {
     }
 
     if (filters?.startDate) {
-      query = query.gte("timestamp", filters.startDate)
+      query = query.gte("created_at", filters.startDate)
     }
 
     if (filters?.endDate) {
-      query = query.lte("timestamp", filters.endDate)
+      query = query.lte("created_at", filters.endDate)
     }
 
-    query = query.order("timestamp", { ascending: false })
+    query = query.order("created_at", { ascending: false })
 
     if (filters?.limit) {
       query = query.limit(filters.limit)
@@ -158,7 +158,7 @@ export async function getDeletionHistory(
       .from("document_audit_logs")
       .select("*")
       .eq("action", "document_deleted")
-      .order("timestamp", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(limit)
 
     if (error) {
@@ -185,7 +185,7 @@ export async function getUserDocumentActivity(
       .from("document_audit_logs")
       .select("*")
       .eq("user_id", userId)
-      .order("timestamp", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(limit)
 
     if (error) {
