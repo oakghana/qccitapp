@@ -99,7 +99,7 @@ export function NewTicketForm({ onClose, onTicketCreated }: NewTicketFormProps) 
           requester_email: formData.requesterEmail || user?.email,
           requester_phone: formData.requesterPhone,
           requester_department: formData.department,
-          requester_room: formData.officeNumber,
+          requester_room_number: formData.officeNumber,
           description: formData.description,
         }),
       })
