@@ -224,9 +224,11 @@ export function RegionalITHeadDashboard() {
       </div>
 
       <Tabs defaultValue="pending" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="pending">Pending Review ({escalatedTickets.length})</TabsTrigger>
-          <TabsTrigger value="forwarded">All Forwarded</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="pending">Escalated ({escalatedTickets.length})</TabsTrigger>
+          <TabsTrigger value="unassigned">Available ({unassignedTickets.length})</TabsTrigger>
+          <TabsTrigger value="myassigned">My Tickets ({myAssignedTickets.length})</TabsTrigger>
+          <TabsTrigger value="forwarded">Forwarded</TabsTrigger>
         </TabsList>
 
         <TabsContent value="pending" className="space-y-4 mt-4">
@@ -343,7 +345,155 @@ export function RegionalITHeadDashboard() {
           )}
         </TabsContent>
 
-        <TabsContent value="forwarded" className="space-y-4 mt-4">
+        {/* Available Tickets for Self-Assignment */}
+        <TabsContent value="unassigned" className="space-y-4 mt-4">
+          {loading ? (
+            <Card>
+              <CardContent className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </CardContent>
+            </Card>
+          ) : unassignedTickets.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <CheckCircle className="h-12 w-12 text-green-500 mb-4" />
+                <p className="text-muted-foreground">All tickets in your region have been assigned</p>
+              </CardContent>
+            </Card>
+          ) : (
+            unassignedTickets.map((ticket) => (
+              <Card key={ticket.id} className="hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5 text-amber-600" />
+                        {ticket.title}
+                      </CardTitle>
+                      <CardDescription className="mt-2">{ticket.description}</CardDescription>
+                    </div>
+                    <Badge 
+                      variant={ticket.priority?.toLowerCase() === 'high' ? 'destructive' : 'secondary'}
+                    >
+                      {ticket.priority}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Category</p>
+                      <p className="font-medium">{ticket.category}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Requested By</p>
+                      <p className="font-medium">{ticket.requested_by}</p>
+                    </div>
+                    {ticket.requester_department && (
+                      <div>
+                        <p className="text-muted-foreground">Department</p>
+                        <p className="font-medium">{ticket.requester_department}</p>
+                      </div>
+                    )}
+                    {ticket.requester_room && (
+                      <div>
+                        <p className="text-muted-foreground">Room/Office</p>
+                        <p className="font-medium">{ticket.requester_room}</p>
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    onClick={() => handleSelfAssign(ticket.id, ticket)}
+                    disabled={selfAssigningId === ticket.id}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {selfAssigningId === ticket.id ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Assigning...
+                      </>
+                    ) : (
+                      <>
+                        <UserCheck className="h-4 w-4 mr-2" />
+                        Assign to Myself
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </TabsContent>
+
+        {/* My Assigned Tickets */}
+        <TabsContent value="myassigned" className="space-y-4 mt-4">
+          {loading ? (
+            <Card>
+              <CardContent className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </CardContent>
+            </Card>
+          ) : myAssignedTickets.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">You have no assigned tickets at the moment</p>
+              </CardContent>
+            </Card>
+          ) : (
+            myAssignedTickets.map((ticket) => (
+              <Card key={ticket.id} className="hover:shadow-lg transition-shadow border-l-4 border-l-blue-500">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="flex items-center gap-2">
+                        <User className="h-5 w-5 text-blue-600" />
+                        {ticket.title}
+                      </CardTitle>
+                      <CardDescription className="mt-2">{ticket.description}</CardDescription>
+                    </div>
+                    <Badge 
+                      variant={ticket.status?.toLowerCase() === 'in_progress' ? 'default' : 'outline'}
+                    >
+                      {ticket.status}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Category</p>
+                      <p className="font-medium">{ticket.category}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Priority</p>
+                      <p className="font-medium">{ticket.priority}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Requested By</p>
+                      <p className="font-medium flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        {ticket.requested_by}
+                      </p>
+                    </div>
+                    {ticket.requester_phone && (
+                      <div>
+                        <p className="text-muted-foreground">Contact</p>
+                        <p className="font-medium flex items-center gap-1">
+                          <Phone className="h-3 w-3" />
+                          {ticket.requester_phone}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <Button variant="outline" className="w-full">
+                    View & Update Progress
+                  </Button>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </TabsContent>
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <FileText className="h-12 w-12 text-muted-foreground mb-4" />

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -32,6 +32,9 @@ export function ServiceDeskDashboard() {
   const [allTickets, setAllTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selfAssigningTicketId, setSelfAssigningTicketId] = useState<string | null>(null)
+  const [selectedLocation, setSelectedLocation] = useState<string>("all")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [ticketsPerPage] = useState(10)
 
   // Check if user can assign tickets (IT Head, Regional IT Head, Admin)
   const canAssignTickets = () => {
@@ -245,7 +248,38 @@ export function ServiceDeskDashboard() {
     }
   }
 
-  const filteredTickets = allTickets
+  const filteredTickets = useMemo(() => {
+    let tickets = allTickets
+    
+    // Filter by location
+    if (selectedLocation !== 'all' && canViewAllLocations()) {
+      tickets = tickets.filter(t => t.location === selectedLocation)
+    }
+
+    // Filter by status based on active tab
+    if (activeTab === 'closed') {
+      tickets = tickets.filter(t => 
+        t.status?.toLowerCase() === 'resolved' || 
+        t.status?.toLowerCase() === 'closed'
+      )
+    } else if (activeTab === 'overview') {
+      tickets = tickets.filter(t => 
+        t.status?.toLowerCase() !== 'resolved' && 
+        t.status?.toLowerCase() !== 'closed'
+      )
+    }
+
+    return tickets
+  }, [allTickets, selectedLocation, activeTab, canViewAllLocations()])
+
+  // Pagination
+  const paginatedTickets = useMemo(() => {
+    const startIndex = (currentPage - 1) * ticketsPerPage
+    const endIndex = startIndex + ticketsPerPage
+    return filteredTickets.slice(startIndex, endIndex)
+  }, [filteredTickets, currentPage, ticketsPerPage])
+
+  const totalPages = Math.ceil(filteredTickets.length / ticketsPerPage)
 
   const stats = {
     totalTickets: filteredTickets.length,
@@ -261,6 +295,11 @@ export function ServiceDeskDashboard() {
     t.status === "Resolved" || t.status === "resolved" || 
     t.status === "Closed" || t.status === "closed"
   )
+
+  // Get available locations
+  const availableLocations = useMemo(() => {
+    return [...new Set(allTickets.map(t => t.location))].filter(Boolean)
+  }, [allTickets])
 
   const categoryIcons = {
     Hardware: Monitor,
@@ -381,7 +420,7 @@ export function ServiceDeskDashboard() {
           {/* All Tickets */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                   <CardTitle>All Tickets</CardTitle>
                   <CardDescription>
@@ -396,16 +435,50 @@ export function ServiceDeskDashboard() {
                   {filteredTickets.length} {filteredTickets.length === 1 ? 'ticket' : 'tickets'}
                 </Badge>
               </div>
+
+              {/* Location Filter */}
+              {canViewAllLocations() && availableLocations.length > 0 && (
+                <div className="mt-4 pt-4 border-t">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium">Filter by Location:</span>
+                    <Button
+                      variant={selectedLocation === 'all' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        setSelectedLocation('all')
+                        setCurrentPage(1)
+                      }}
+                      className="text-xs"
+                    >
+                      All Locations
+                    </Button>
+                    {availableLocations.map(loc => (
+                      <Button
+                        key={loc}
+                        variant={selectedLocation === loc ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => {
+                          setSelectedLocation(loc)
+                          setCurrentPage(1)
+                        }}
+                        className="text-xs"
+                      >
+                        {getCanonicalLocationName(loc) || loc}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {filteredTickets.length === 0 ? (
+                {paginatedTickets.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Ticket className="h-12 w-12 mx-auto mb-2 opacity-50" />
                     <p>No tickets found</p>
                   </div>
                 ) : (
-                  filteredTickets.map((ticket) => {
+                  paginatedTickets.map((ticket) => {
                     const IconComponent = categoryIcons[ticket.category as keyof typeof categoryIcons] || Monitor
                     return (
                       <div key={ticket.id} className="flex items-center justify-between p-3 border rounded-lg">
@@ -516,6 +589,46 @@ export function ServiceDeskDashboard() {
                   })
                 )}
               </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between pt-4 border-t">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {((currentPage - 1) * ticketsPerPage) + 1} to {Math.min(currentPage * ticketsPerPage, filteredTickets.length)} of {filteredTickets.length} tickets
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      Previous
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }).map((_, i) => (
+                        <Button
+                          key={i + 1}
+                          variant={currentPage === i + 1 ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setCurrentPage(i + 1)}
+                          className="w-8 h-8 p-0"
+                        >
+                          {i + 1}
+                        </Button>
+                      ))}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
