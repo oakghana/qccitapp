@@ -20,6 +20,8 @@ import {
   User,
   MapPin,
   Phone,
+  UserCheck,
+  AlertCircle,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { createClient } from "@/lib/supabase/client"
@@ -44,15 +46,18 @@ interface EscalatedTicket {
 export function RegionalITHeadDashboard() {
   const { user } = useAuth()
   const [escalatedTickets, setEscalatedTickets] = useState<EscalatedTicket[]>([])
+  const [unassignedTickets, setUnassignedTickets] = useState<any[]>([])
+  const [myAssignedTickets, setMyAssignedTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedTicket, setSelectedTicket] = useState<EscalatedTicket | null>(null)
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
   const [reviewNotes, setReviewNotes] = useState("")
   const [isReviewing, setIsReviewing] = useState(false)
+  const [selfAssigningId, setSelfAssigningId] = useState<string | null>(null)
   const supabase = createClient()
 
   useEffect(() => {
-    loadEscalatedTickets()
+    loadAllTickets()
   }, [])
 
   const loadEscalatedTickets = async () => {
@@ -80,6 +85,79 @@ export function RegionalITHeadDashboard() {
       console.error("[v0] Error loading escalated tickets:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadAllTickets = async () => {
+    try {
+      setLoading(true)
+      
+      // Load escalated tickets
+      await loadEscalatedTickets()
+      
+      // Load unassigned tickets in this region
+      const { data: unassigned } = await supabase
+        .from("service_tickets")
+        .select("*")
+        .eq("status", "open")
+        .is("assigned_to", null)
+        .eq("location", user?.location)
+        .order("created_at", { ascending: false })
+
+      setUnassignedTickets(unassigned || [])
+
+      // Load tickets assigned to this regional IT head
+      const { data: myTickets } = await supabase
+        .from("service_tickets")
+        .select("*")
+        .eq("assigned_to", user?.id)
+        .order("created_at", { ascending: false })
+
+      setMyAssignedTickets(myTickets || [])
+    } catch (error) {
+      console.error("[v0] Error loading all tickets:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSelfAssign = async (ticketId: string, ticketData: any) => {
+    if (!user?.id) return
+
+    setSelfAssigningId(ticketId)
+    try {
+      const response = await fetch("/api/service-tickets/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticketId,
+          assigneeId: user.id,
+          assignee: user.full_name || user.name || user.email || "Regional IT Head",
+          assigneeEmail: user.email,
+          assigneePhone: user.phone || "",
+          priority: ticketData.priority?.toLowerCase() || "medium",
+          dueDate: "",
+          instructions: "Self-assigned by Regional IT Head",
+          assignedBy: user.full_name || user.name || user.email || "Regional IT Head",
+          assignedById: user.id,
+          notifyEmail: false,
+          notifySMS: false,
+        }),
+      })
+
+      if (!response.ok) {
+        const result = await response.json()
+        alert(result.error || "Failed to self-assign ticket")
+        return
+      }
+
+      alert("Ticket has been assigned to you successfully")
+      await loadAllTickets()
+    } catch (error) {
+      console.error("[v0] Error self-assigning ticket:", error)
+      alert("An error occurred while self-assigning the ticket")
+    } finally {
+      setSelfAssigningId(null)
     }
   }
 
@@ -146,9 +224,11 @@ export function RegionalITHeadDashboard() {
       </div>
 
       <Tabs defaultValue="pending" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="pending">Pending Review ({escalatedTickets.length})</TabsTrigger>
-          <TabsTrigger value="forwarded">All Forwarded</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="pending">Escalated ({escalatedTickets.length})</TabsTrigger>
+          <TabsTrigger value="unassigned">Available ({unassignedTickets.length})</TabsTrigger>
+          <TabsTrigger value="myassigned">My Tickets ({myAssignedTickets.length})</TabsTrigger>
+          <TabsTrigger value="forwarded">Forwarded</TabsTrigger>
         </TabsList>
 
         <TabsContent value="pending" className="space-y-4 mt-4">
@@ -265,7 +345,155 @@ export function RegionalITHeadDashboard() {
           )}
         </TabsContent>
 
-        <TabsContent value="forwarded" className="space-y-4 mt-4">
+        {/* Available Tickets for Self-Assignment */}
+        <TabsContent value="unassigned" className="space-y-4 mt-4">
+          {loading ? (
+            <Card>
+              <CardContent className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </CardContent>
+            </Card>
+          ) : unassignedTickets.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <CheckCircle className="h-12 w-12 text-green-500 mb-4" />
+                <p className="text-muted-foreground">All tickets in your region have been assigned</p>
+              </CardContent>
+            </Card>
+          ) : (
+            unassignedTickets.map((ticket) => (
+              <Card key={ticket.id} className="hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5 text-amber-600" />
+                        {ticket.title}
+                      </CardTitle>
+                      <CardDescription className="mt-2">{ticket.description}</CardDescription>
+                    </div>
+                    <Badge 
+                      variant={ticket.priority?.toLowerCase() === 'high' ? 'destructive' : 'secondary'}
+                    >
+                      {ticket.priority}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Category</p>
+                      <p className="font-medium">{ticket.category}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Requested By</p>
+                      <p className="font-medium">{ticket.requested_by}</p>
+                    </div>
+                    {ticket.requester_department && (
+                      <div>
+                        <p className="text-muted-foreground">Department</p>
+                        <p className="font-medium">{ticket.requester_department}</p>
+                      </div>
+                    )}
+                    {ticket.requester_room && (
+                      <div>
+                        <p className="text-muted-foreground">Room/Office</p>
+                        <p className="font-medium">{ticket.requester_room}</p>
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    onClick={() => handleSelfAssign(ticket.id, ticket)}
+                    disabled={selfAssigningId === ticket.id}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {selfAssigningId === ticket.id ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Assigning...
+                      </>
+                    ) : (
+                      <>
+                        <UserCheck className="h-4 w-4 mr-2" />
+                        Assign to Myself
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </TabsContent>
+
+        {/* My Assigned Tickets */}
+        <TabsContent value="myassigned" className="space-y-4 mt-4">
+          {loading ? (
+            <Card>
+              <CardContent className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </CardContent>
+            </Card>
+          ) : myAssignedTickets.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">You have no assigned tickets at the moment</p>
+              </CardContent>
+            </Card>
+          ) : (
+            myAssignedTickets.map((ticket) => (
+              <Card key={ticket.id} className="hover:shadow-lg transition-shadow border-l-4 border-l-blue-500">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="flex items-center gap-2">
+                        <User className="h-5 w-5 text-blue-600" />
+                        {ticket.title}
+                      </CardTitle>
+                      <CardDescription className="mt-2">{ticket.description}</CardDescription>
+                    </div>
+                    <Badge 
+                      variant={ticket.status?.toLowerCase() === 'in_progress' ? 'default' : 'outline'}
+                    >
+                      {ticket.status}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Category</p>
+                      <p className="font-medium">{ticket.category}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Priority</p>
+                      <p className="font-medium">{ticket.priority}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Requested By</p>
+                      <p className="font-medium flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        {ticket.requested_by}
+                      </p>
+                    </div>
+                    {ticket.requester_phone && (
+                      <div>
+                        <p className="text-muted-foreground">Contact</p>
+                        <p className="font-medium flex items-center gap-1">
+                          <Phone className="h-3 w-3" />
+                          {ticket.requester_phone}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <Button variant="outline" className="w-full">
+                    View & Update Progress
+                  </Button>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </TabsContent>
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <FileText className="h-12 w-12 text-muted-foreground mb-4" />

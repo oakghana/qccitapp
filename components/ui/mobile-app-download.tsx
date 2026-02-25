@@ -95,6 +95,17 @@ export function MobileAppDownload({ className, showOnLogin = false, autoShow = f
     }
   }, [showOnLogin, autoShow])
 
+  // Auto-dismiss banner after 40 seconds
+  useEffect(() => {
+    if (showBanner) {
+      const dismissTimer = setTimeout(() => {
+        setShowBanner(false)
+      }, 40000) // 40 seconds
+
+      return () => clearTimeout(dismissTimer)
+    }
+  }, [showBanner])
+
   const handleInstallClick = async () => {
     if (!deferredPrompt) {
       // If no prompt available, provide device-specific instructions
@@ -393,7 +404,7 @@ export function MobileAppDownload({ className, showOnLogin = false, autoShow = f
                       // For browsers that don't support PWA, provide direct options
                       const userAgent = navigator.userAgent.toLowerCase()
                       if (userAgent.includes('android')) {
-                        alert('To install: Open in Chrome → Menu (⋮) → "Add to Home Screen" or "Install App"')
+                        alert('To install: Open in Chrome ��� Menu (⋮) → "Add to Home Screen" or "Install App"')
                       } else if (userAgent.includes('iphone') || userAgent.includes('ipad')) {
                         alert('To install: Open in Safari → Share (⬆️) → "Add to Home Screen"')
                       } else {

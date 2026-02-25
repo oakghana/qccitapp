@@ -126,6 +126,11 @@ export async function POST(request: NextRequest) {
         status: "open",
         location: body.location || '',
         requested_by: body.requested_by || '',
+        requester_name: body.requester_name || '',
+        requester_email: body.requester_email || '',
+        requester_phone: body.requester_phone || '',
+        requester_department: body.requester_department || '',
+        requester_room: body.requester_room || '',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })

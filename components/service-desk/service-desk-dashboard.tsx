@@ -1,21 +1,24 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Plus, Clock, AlertTriangle, Ticket, MapPin, Monitor, Wifi, Smartphone, Printer, UserPlus, Eye, CheckCircle, User, Calendar, FileText, Trash2, UserCheck, Loader2 } from "lucide-react"
+import { Plus, Clock, AlertTriangle, Ticket, MapPin, Monitor, Wifi, Smartphone, Printer, UserPlus, Eye, CheckCircle, User, Calendar, FileText, Trash2, UserCheck, Loader2, Repeat2, Pause } from "lucide-react"
 import { NewTicketForm } from "./new-ticket-form"
 import { KnowledgeBase } from "./knowledge-base"
 import { AssignTicketDialog } from "./assign-ticket-dialog"
+import { ReassignTicketDialog } from "./reassign-ticket-dialog"
+import { HoldTicketDialog } from "./hold-ticket-dialog"
+import { CompletionConfirmationModal } from "./completion-confirmation-modal"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 import { getCanonicalLocationName } from "@/lib/location-filter"
 import { Separator } from "@/components/ui/separator"
-import { TicketList } from "./ticket-list" // Import TicketList component
+import { TicketList } from "./ticket-list"
 
 export function ServiceDeskDashboard() {
   const [activeTab, setActiveTab] = useState("overview")
@@ -32,6 +35,18 @@ export function ServiceDeskDashboard() {
   const [allTickets, setAllTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selfAssigningTicketId, setSelfAssigningTicketId] = useState<string | null>(null)
+  const [selectedLocation, setSelectedLocation] = useState<string>("all")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [ticketsPerPage] = useState(10)
+  const [reassignDialogOpen, setReassignDialogOpen] = useState(false)
+  const [selectedTicketForReassign, setSelectedTicketForReassign] = useState<any>(null)
+  const [holdDialogOpen, setHoldDialogOpen] = useState(false)
+  const [selectedTicketForHold, setSelectedTicketForHold] = useState<any>(null)
+  const [isResumingHold, setIsResumingHold] = useState(false)
+  const [completionModalOpen, setCompletionModalOpen] = useState(false)
+  const [selectedTicketForCompletion, setSelectedTicketForCompletion] = useState<any>(null)
+  const [isStaffSubmitting, setIsStaffSubmitting] = useState(false)
+  const [itStaffList, setItStaffList] = useState<any[]>([])
 
   // Check if user can assign tickets (IT Head, Regional IT Head, Admin)
   const canAssignTickets = () => {
@@ -45,6 +60,7 @@ export function ServiceDeskDashboard() {
 
   useEffect(() => {
     loadTickets()
+    loadITStaff()
   }, [])
 
   const loadTickets = async () => {
@@ -94,6 +110,25 @@ export function ServiceDeskDashboard() {
       console.error("[v0] Error loading tickets:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadITStaff = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, name, email, role")
+        .in("role", ["it_staff", "it_technician", "service_desk_head", "regional_it_head"])
+        .eq("status", "active")
+
+      if (error) {
+        console.error("[v0] Error loading IT staff:", error)
+        return
+      }
+
+      setItStaffList(data || [])
+    } catch (error) {
+      console.error("[v0] Error loading IT staff:", error)
     }
   }
 
@@ -245,7 +280,38 @@ export function ServiceDeskDashboard() {
     }
   }
 
-  const filteredTickets = allTickets
+  const filteredTickets = useMemo(() => {
+    let tickets = allTickets
+    
+    // Filter by location
+    if (selectedLocation !== 'all' && canViewAllLocations()) {
+      tickets = tickets.filter(t => t.location === selectedLocation)
+    }
+
+    // Filter by status based on active tab
+    if (activeTab === 'closed') {
+      tickets = tickets.filter(t => 
+        t.status?.toLowerCase() === 'resolved' || 
+        t.status?.toLowerCase() === 'closed'
+      )
+    } else if (activeTab === 'overview') {
+      tickets = tickets.filter(t => 
+        t.status?.toLowerCase() !== 'resolved' && 
+        t.status?.toLowerCase() !== 'closed'
+      )
+    }
+
+    return tickets
+  }, [allTickets, selectedLocation, activeTab, canViewAllLocations()])
+
+  // Pagination
+  const paginatedTickets = useMemo(() => {
+    const startIndex = (currentPage - 1) * ticketsPerPage
+    const endIndex = startIndex + ticketsPerPage
+    return filteredTickets.slice(startIndex, endIndex)
+  }, [filteredTickets, currentPage, ticketsPerPage])
+
+  const totalPages = Math.ceil(filteredTickets.length / ticketsPerPage)
 
   const stats = {
     totalTickets: filteredTickets.length,
@@ -261,6 +327,11 @@ export function ServiceDeskDashboard() {
     t.status === "Resolved" || t.status === "resolved" || 
     t.status === "Closed" || t.status === "closed"
   )
+
+  // Get available locations
+  const availableLocations = useMemo(() => {
+    return [...new Set(allTickets.map(t => t.location))].filter(Boolean)
+  }, [allTickets])
 
   const categoryIcons = {
     Hardware: Monitor,
@@ -381,7 +452,7 @@ export function ServiceDeskDashboard() {
           {/* All Tickets */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                   <CardTitle>All Tickets</CardTitle>
                   <CardDescription>
@@ -396,16 +467,50 @@ export function ServiceDeskDashboard() {
                   {filteredTickets.length} {filteredTickets.length === 1 ? 'ticket' : 'tickets'}
                 </Badge>
               </div>
+
+              {/* Location Filter */}
+              {canViewAllLocations() && availableLocations.length > 0 && (
+                <div className="mt-4 pt-4 border-t">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium">Filter by Location:</span>
+                    <Button
+                      variant={selectedLocation === 'all' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        setSelectedLocation('all')
+                        setCurrentPage(1)
+                      }}
+                      className="text-xs"
+                    >
+                      All Locations
+                    </Button>
+                    {availableLocations.map(loc => (
+                      <Button
+                        key={loc}
+                        variant={selectedLocation === loc ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => {
+                          setSelectedLocation(loc)
+                          setCurrentPage(1)
+                        }}
+                        className="text-xs"
+                      >
+                        {getCanonicalLocationName(loc) || loc}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {filteredTickets.length === 0 ? (
+                {paginatedTickets.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Ticket className="h-12 w-12 mx-auto mb-2 opacity-50" />
                     <p>No tickets found</p>
                   </div>
                 ) : (
-                  filteredTickets.map((ticket) => {
+                  paginatedTickets.map((ticket) => {
                     const IconComponent = categoryIcons[ticket.category as keyof typeof categoryIcons] || Monitor
                     return (
                       <div key={ticket.id} className="flex items-center justify-between p-3 border rounded-lg">
@@ -510,12 +615,133 @@ export function ServiceDeskDashboard() {
                             Delete
                           </Button>
                         )}
+                        {/* Reassign button for Service Desk Head, Regional IT Head, and Admin */}
+                        {(user?.role === "service_desk_head" || user?.role === "regional_it_head" || user?.role === "admin") && ticket.assignedToId && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs border-purple-200 text-purple-700 hover:bg-purple-50 dark:border-purple-800 dark:text-purple-300 dark:hover:bg-purple-950 bg-transparent"
+                            onClick={() => {
+                              setSelectedTicketForReassign(ticket)
+                              setReassignDialogOpen(true)
+                            }}
+                          >
+                            <Repeat2 className="h-3 w-3 mr-1" />
+                            Reassign
+                          </Button>
+                        )}
+                        {/* Hold button for Service Desk Head, Regional IT Head, and Admin */}
+                        {(user?.role === "service_desk_head" || user?.role === "regional_it_head" || user?.role === "admin") && (
+                          <>
+                            {ticket.status !== "On Hold" && ticket.status !== "on_hold" ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-xs border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-950 bg-transparent"
+                                onClick={() => {
+                                  setSelectedTicketForHold(ticket)
+                                  setIsResumingHold(false)
+                                  setHoldDialogOpen(true)
+                                }}
+                              >
+                                <Pause className="h-3 w-3 mr-1" />
+                                Hold
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-xs border-green-200 text-green-700 hover:bg-green-50 dark:border-green-800 dark:text-green-300 dark:hover:bg-green-950 bg-transparent"
+                                onClick={() => {
+                                  setSelectedTicketForHold(ticket)
+                                  setIsResumingHold(true)
+                                  setHoldDialogOpen(true)
+                                }}
+                              >
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Resume
+                              </Button>
+                            )}
+                          </>
+                        )}
+                        {/* Completion button for IT Staff */}
+                        {ticket.assignedToId === user?.id && (ticket.status === "In Progress" || ticket.status === "in_progress") && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs border-green-200 text-green-700 hover:bg-green-50 dark:border-green-800 dark:text-green-300 dark:hover:bg-green-950 bg-transparent"
+                            onClick={() => {
+                              setSelectedTicketForCompletion(ticket)
+                              setIsStaffSubmitting(true)
+                              setCompletionModalOpen(true)
+                            }}
+                          >
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Complete
+                          </Button>
+                        )}
+                        {/* Confirmation button for Requesters */}
+                        {ticket.status === "Awaiting Confirmation" || ticket.status === "awaiting_confirmation" ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-300 dark:hover:bg-indigo-950 bg-transparent"
+                            onClick={() => {
+                              setSelectedTicketForCompletion(ticket)
+                              setIsStaffSubmitting(false)
+                              setCompletionModalOpen(true)
+                            }}
+                          >
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Confirm
+                          </Button>
+                        ) : null}
                       </div>
                     </div>
                     )
                   })
                 )}
               </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between pt-4 border-t">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {((currentPage - 1) * ticketsPerPage) + 1} to {Math.min(currentPage * ticketsPerPage, filteredTickets.length)} of {filteredTickets.length} tickets
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      Previous
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }).map((_, i) => (
+                        <Button
+                          key={i + 1}
+                          variant={currentPage === i + 1 ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setCurrentPage(i + 1)}
+                          className="w-8 h-8 p-0"
+                        >
+                          {i + 1}
+                        </Button>
+                      ))}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -872,6 +1098,36 @@ export function ServiceDeskDashboard() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Reassign Ticket Dialog */}
+      <ReassignTicketDialog
+        open={reassignDialogOpen}
+        onOpenChange={setReassignDialogOpen}
+        ticket={selectedTicketForReassign}
+        itStaff={itStaffList}
+        onReassignSuccess={loadTickets}
+        currentUser={user}
+      />
+
+      {/* Hold Ticket Dialog */}
+      <HoldTicketDialog
+        open={holdDialogOpen}
+        onOpenChange={setHoldDialogOpen}
+        ticket={selectedTicketForHold}
+        onHoldSuccess={loadTickets}
+        currentUser={user}
+        isResuming={isResumingHold}
+      />
+
+      {/* Completion Confirmation Modal */}
+      <CompletionConfirmationModal
+        open={completionModalOpen}
+        onOpenChange={setCompletionModalOpen}
+        ticket={selectedTicketForCompletion}
+        onConfirmationSuccess={loadTickets}
+        currentUser={user}
+        isStaffSubmitting={isStaffSubmitting}
+      />
     </div>
   )
 }
