@@ -519,14 +519,6 @@ export function AssignedTasksDashboard() {
       {/* Assigned Work Metrics Dashboard */}
       <AssignedWorkMetrics />
 
-        <Card className="border-l-4 border-l-green-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
-            <div className="text-2xl font-bold">{stats.byStatus.completed}</div>
-          </CardHeader>
-        </Card>
-      </div>
-
       <Card>
         <CardHeader className="pb-4">
           <div className="flex flex-col md:flex-row gap-4">
