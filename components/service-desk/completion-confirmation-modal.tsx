@@ -51,7 +51,7 @@ export function CompletionConfirmationModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ticketId: ticket.id,
+          ticketId: ticket.uuid || ticket.id,
           completedBy: currentUser?.id,
           completedByName: currentUser?.full_name || currentUser?.name,
           completedByRole: currentUser?.role,
@@ -68,6 +68,7 @@ export function CompletionConfirmationModal({
 
       toast.success("Work marked as complete! User notification sent for confirmation.", {
         description: "The requester will receive a notification to confirm the work is done.",
+        style: { background: "#22c55e", color: "#ffffff", opacity: 1 },
       })
       setWorkNotes("")
       onOpenChange(false)
@@ -87,7 +88,7 @@ export function CompletionConfirmationModal({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ticketId: ticket.id,
+          ticketId: ticket.uuid || ticket.id,
           confirmedBy: currentUser?.id,
           confirmedByName: currentUser?.full_name || currentUser?.name,
           confirmation: confirmation,
@@ -105,6 +106,7 @@ export function CompletionConfirmationModal({
       if (confirmation === "approved") {
         toast.success("✓ Ticket confirmed as complete!", {
           description: "The work has been approved and the ticket is now resolved.",
+          style: { background: "#22c55e", color: "#ffffff", opacity: 1 },
         })
       } else {
         toast.info("Ticket reopened for rework", {

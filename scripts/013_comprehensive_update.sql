@@ -380,6 +380,7 @@ DO $$ BEGIN
     'in_progress',
     'in_repair',
     'awaiting_parts',
+    'awaiting_confirmation',
     'ready_for_pickup',
     'on_hold',
     'resolved',

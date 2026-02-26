@@ -50,6 +50,33 @@ export function locationsMatch(loc1: string | null | undefined, loc2: string | n
 }
 
 /**
+ * Determine whether two locations should be considered part of the same
+ * geographic region.  This mirrors the heuristic used by the backend when
+ * filtering tickets for regional IT heads.  It allows a user at "Kumasi"
+ * to match tickets for "Kumasi Branch" or "Kumasi - Warehouse" but not
+ * unrelated locations.
+ */
+export function isLocationInSameRegion(
+  loc1: string | null | undefined,
+  loc2: string | null | undefined
+): boolean {
+  if (!loc1 || !loc2) return false
+
+  const a = loc1.toLowerCase().trim()
+  const b = loc2.toLowerCase().trim()
+
+  if (a === b) return true
+  if (a.includes(b) || b.includes(a)) return true
+
+  const partsA = a.split(/[,\s]+/).filter(p => p.length > 2)
+  const partsB = b.split(/[,\s]+/).filter(p => p.length > 2)
+  const keyA = partsA[0] || a
+  const keyB = partsB[0] || b
+
+  return keyA === keyB && keyA.length > 3
+}
+
+/**
  * Determines if a user can see all locations
  * Only Admin and IT Head at Head Office have access to all locations
  * Regional IT heads and other users are restricted to their specific location

@@ -18,14 +18,20 @@ export async function POST(request: Request) {
       )
     }
 
-    // Get current ticket info
-    const { data: ticket, error: fetchError } = await supabase
+    // Get current ticket info - support either UUID or ticket number in case
+    // the frontend accidentally passed the human-readable number.
+    let ticket
+    let fetchError
+
+    // attempt simple lookup by id first, then fall back to ticket_number
+    ({ data: ticket, error: fetchError } = await supabase
       .from("service_tickets")
       .select("*")
-      .eq("id", ticketId)
-      .single()
+      .or(`id.eq.${ticketId},ticket_number.eq.${ticketId}`)
+      .single())
 
-    if (fetchError) {
+    if (fetchError || !ticket) {
+      console.warn("[v0] Complete route could not find ticket", ticketId, fetchError)
       return NextResponse.json({ error: "Ticket not found" }, { status: 404 })
     }
 
@@ -95,6 +101,7 @@ export async function PUT(request: Request) {
         user_confirmed_by: confirmedBy,
         confirmation_status: confirmation,
         confirmation_notes: confirmationNotes,
+        completion_confirmation_notes: confirmationNotes,
         updated_at: new Date().toISOString(),
       })
       .eq("id", ticketId)

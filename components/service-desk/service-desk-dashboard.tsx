@@ -16,7 +16,7 @@ import { CompletionConfirmationModal } from "./completion-confirmation-modal"
 import { useAuth } from "@/lib/auth-context"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
-import { getCanonicalLocationName } from "@/lib/location-filter"
+import { getCanonicalLocationName, isLocationInSameRegion } from "@/lib/location-filter"
 import { Separator } from "@/components/ui/separator"
 import { TicketList } from "./ticket-list"
 
@@ -58,6 +58,31 @@ export function ServiceDeskDashboard() {
       user?.role === "regional_it_head" ||
       user?.role === "service_desk_head"
     )
+  }
+
+  const handleConfirmAll = async () => {
+    if (!user) return
+    try {
+      const res = await fetch("/api/service-tickets/confirm-all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          userName: user.full_name || user.name || "",
+          userRole: user.role,
+        }),
+      })
+      const result = await res.json()
+      if (res.ok) {
+        toast({ title: "All pending tickets confirmed", description: `${result.count || 0} tickets updated` })
+        loadTickets()
+      } else {
+        toast({ title: "Error", description: result.error || "Failed to confirm tickets", variant: "destructive" })
+      }
+    } catch (err) {
+      console.error("[v0] confirm all error", err)
+      toast({ title: "Error", description: "Network error", variant: "destructive" })
+    }
   }
 
   useEffect(() => {
@@ -365,13 +390,24 @@ export function ServiceDeskDashboard() {
                 : `Manage IT support requests for ${getUserLocation()}`}
           </p>
         </div>
-        <Button
-          onClick={() => setShowNewTicketForm(true)}
-          className="bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-600"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          New Ticket
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button
+            onClick={() => setShowNewTicketForm(true)}
+            className="bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-600"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            New Ticket
+          </Button>
+          {(user?.role === "admin" || user?.role === "it_head") && (
+            <Button
+              onClick={handleConfirmAll}
+              variant="outline"
+              size="sm"
+            >
+              Confirm All
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Stats Overview */}
@@ -671,7 +707,9 @@ export function ServiceDeskDashboard() {
                           </>
                         )}
                         {/* Completion button for IT Staff */}
-                        {ticket.assignedToId === user?.id && (ticket.status === "In Progress" || ticket.status === "in_progress") && (
+                        {(ticket.assignedToId === user?.id ||
+                          ( (user?.role === "regional_it_head" || user?.role === "service_desk_head" || user?.role === "it_head") && isLocationInSameRegion(ticket.location, user?.location) )
+                        ) && (ticket.status === "In Progress" || ticket.status === "in_progress") && (
                           <Button
                             size="sm"
                             variant="outline"

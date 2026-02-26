@@ -74,8 +74,8 @@ async function testTicketAssignment() {
     console.log('✅ Ticket assigned successfully!')
     console.log('Result:', JSON.stringify(assignResult, null, 2))
     
-    // Step 4: Verify the assignment
-    console.log('\nStep 4: Verifying assignment...')
+    // Step 4: Verify the assignment from the admin view
+    console.log('\nStep 4: Verifying assignment (admin fetch)...')
     const verifyResponse = await fetch(`${baseUrl}/api/service-tickets?location=all&canSeeAll=true&userRole=admin&userId=test-admin`)
     const verifyData = await verifyResponse.json()
     
@@ -88,6 +88,22 @@ async function testTicketAssignment() {
     } else {
       console.log('❌ Assignment verification failed')
       console.log('Updated ticket:', JSON.stringify(updatedTicket, null, 2))
+    }
+
+    // Step 5: Simulate the assigned staff member fetching tickets using their own
+    // location filter.  Prior to the fix this request would not return a ticket
+    // assigned to them if its location did not match; after the fix it should.
+    console.log('\nStep 5: Verifying staff can see their assigned ticket via their own filter...')
+    const staffFetchUrl = `${baseUrl}/api/service-tickets?location=${encodeURIComponent(testStaff.location || '')}&canSeeAll=false&userRole=${encodeURIComponent(testStaff.role)}&userId=${encodeURIComponent(testStaff.id)}`
+    const staffViewResponse = await fetch(staffFetchUrl)
+    const staffViewData = await staffViewResponse.json()
+    const staffVisible = staffViewData.tickets && staffViewData.tickets.some((t: any) => t.id === testTicket.id)
+    if (staffVisible) {
+      console.log('✅ Staff can see the ticket when fetching with their own location filter.')
+    } else {
+      console.log('⚠️ Staff could NOT see the ticket using their own filter (this was the reported issue).')
+      console.log('Staff fetch url:', staffFetchUrl)
+      console.log('Returned tickets:', JSON.stringify(staffViewData.tickets || [], null, 2))
     }
     
     console.log('\n✨ Test completed!')

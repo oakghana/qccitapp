@@ -23,6 +23,12 @@ ALTER TABLE public.service_tickets ADD COLUMN IF NOT EXISTS work_notes TEXT;
 ALTER TABLE public.service_tickets ADD COLUMN IF NOT EXISTS estimated_hours DECIMAL(6,2);
 ALTER TABLE public.service_tickets ADD COLUMN IF NOT EXISTS actual_hours DECIMAL(6,2);
 ALTER TABLE public.service_tickets ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ;
+-- Completion tracking fields used by service staff before user confirmation
+ALTER TABLE public.service_tickets ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
+ALTER TABLE public.service_tickets ADD COLUMN IF NOT EXISTS completed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
+ALTER TABLE public.service_tickets ADD COLUMN IF NOT EXISTS completed_by_name TEXT;
+ALTER TABLE public.service_tickets ADD COLUMN IF NOT EXISTS completed_by_role TEXT;
+ALTER TABLE public.service_tickets ADD COLUMN IF NOT EXISTS completion_work_notes TEXT;
 
 -- Add assigned_to column to repair_requests if not exists
 -- Make requester_location nullable to prevent NOT NULL constraint errors

@@ -5,6 +5,19 @@ The productivity metrics system tracks and ranks IT staff performance based on t
 
 ## Features
 
+### Auto‑confirmation & Admin Overrides
+
+- Tickets that remain in the `awaiting_confirmation` state for more than 30 minutes are
+  automatically transitioned to `resolved`.  The original `completed_at` timestamp
+  (when the IT staff member marked the job done) is used as the closure time
+  for all productivity calculations.
+- Administrators and IT Heads may also force‑confirm all pending tickets at once
+  by clicking the **Confirm All** button on the Service Desk dashboard, or by
+  calling the `POST /api/service-tickets/confirm-all` endpoint.  This allows
+  confirmations to be applied on behalf of requesting staff when necessary.
+
+## Features
+
 ### 1. Productivity Scoring Algorithm
 The system calculates a comprehensive productivity score (0-120+) for each staff member using four key metrics that reward both quality and volume of work:
 

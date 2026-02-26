@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
       // Fetch service tickets assigned to this staff
       let ticketQuery = supabaseAdmin
         .from("service_tickets")
-        .select("id, status, priority, created_at, updated_at, assigned_at, resolved_at")
+        .select("id, status, priority, created_at, updated_at, assigned_at, resolved_at, completed_at")
         .eq("assigned_to", member.id)
 
       if (startDate) {
@@ -89,9 +89,17 @@ export async function GET(request: NextRequest) {
 
       // Calculate completed tasks
       const completedStatuses = ["completed", "closed", "resolved", "repaired"]
-      const completedTasks = allTasks.filter((t) =>
-        completedStatuses.includes(t.status?.toLowerCase() || "")
-      )
+      const cutoff = new Date(Date.now() - 30 * 60 * 1000)
+      const completedTasks = allTasks.filter((t) => {
+        const status = (t.status || "").toLowerCase()
+        if (completedStatuses.includes(status)) return true
+        // treat tickets still awaiting confirmation as done if old enough
+        if (status === "awaiting_confirmation" && t.completed_at) {
+          const completedDate = new Date(t.completed_at)
+          if (completedDate <= cutoff) return true
+        }
+        return false
+      })
 
       // Calculate completion times and on-time metrics
       let totalCompletionDays = 0
@@ -99,7 +107,8 @@ export async function GET(request: NextRequest) {
 
       completedTasks.forEach((task) => {
         const startDate = new Date(task.created_at)
-        const endDate = new Date(task.updated_at)
+        // use the time IT staff marked completion if available; fallback to updated_at
+        const endDate = new Date(task.completed_at || task.resolved_at || task.updated_at)
         const completionDays = Math.max(
           1,
           Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))

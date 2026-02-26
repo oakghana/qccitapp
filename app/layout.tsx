@@ -91,9 +91,15 @@ export default function RootLayout({
                 closeButton
                 toastOptions={{
                   style: {
-                    background: "hsl(var(--background))",
+                    background: "hsl(var(--background)/1)",
                     border: "1px solid hsl(var(--border))",
                     color: "hsl(var(--foreground))",
+                  },
+                  success: {
+                    style: { background: "#22c55e", color: "#ffffff" },
+                  },
+                  error: {
+                    style: { background: "#dc2626", color: "#ffffff" },
                   },
                 }}
               />

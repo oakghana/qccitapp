@@ -47,10 +47,10 @@ export function TicketConfirmationStatus({ ticket }: TicketConfirmationStatusPro
             <p className="text-green-900 dark:text-green-100">
               ✓ User has confirmed that the work is satisfactory
             </p>
-            {ticket.confirmation_notes && (
+            {(ticket.confirmation_notes || ticket.completion_confirmation_notes) && (
               <div className="mt-2 bg-white dark:bg-gray-900/50 p-2 rounded text-xs">
                 <p className="font-semibold mb-1">User Feedback:</p>
-                <p className="text-gray-700 dark:text-gray-300">{ticket.confirmation_notes}</p>
+                <p className="text-gray-700 dark:text-gray-300">{ticket.confirmation_notes || ticket.completion_confirmation_notes}</p>
               </div>
             )}
           </CardContent>
@@ -69,10 +69,10 @@ export function TicketConfirmationStatus({ ticket }: TicketConfirmationStatusPro
             <p className="text-red-900 dark:text-red-100">
               The user has rejected the work and requested rework
             </p>
-            {ticket.confirmation_notes && (
+            {(ticket.confirmation_notes || ticket.completion_confirmation_notes) && (
               <div className="mt-2 bg-white dark:bg-gray-900/50 p-2 rounded text-xs">
                 <p className="font-semibold mb-1">Issues Reported:</p>
-                <p className="text-gray-700 dark:text-gray-300">{ticket.confirmation_notes}</p>
+                <p className="text-gray-700 dark:text-gray-300">{ticket.confirmation_notes || ticket.completion_confirmation_notes}</p>
               </div>
             )}
           </CardContent>

@@ -2,7 +2,7 @@
 CREATE TYPE user_role AS ENUM ('admin', 'it_head', 'it_staff', 'it_store_head', 'service_desk_head', 'service_desk_staff', 'service_provider', 'user');
 CREATE TYPE device_status AS ENUM ('active', 'inactive', 'under_repair', 'retired');
 CREATE TYPE repair_status AS ENUM ('pending', 'approved', 'in_transit', 'with_provider', 'completed', 'rejected');
-CREATE TYPE ticket_status AS ENUM ('open', 'in_progress', 'resolved', 'closed');
+CREATE TYPE ticket_status AS ENUM ('open', 'in_progress', 'awaiting_confirmation', 'resolved', 'closed');
 CREATE TYPE ticket_category AS ENUM ('hardware', 'software', 'network', 'printer', 'access', 'other');
 CREATE TYPE priority_level AS ENUM ('low', 'medium', 'high', 'urgent');
 CREATE TYPE notification_status AS ENUM ('pending', 'sent', 'failed');

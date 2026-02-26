@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { isLocationInSameRegion } from "@/lib/location-filter"
 
 // Use service role key to bypass RLS
 const supabaseAdmin = createClient(
@@ -16,6 +17,21 @@ export async function GET(request: NextRequest) {
     const userRole = searchParams.get("userRole")
 
     console.log("[v0] API Service Tickets - location:", location, "canSeeAll:", canSeeAll, "role:", userRole)
+
+    // auto-confirm any ticket that has been waiting for >30 minutes
+    const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString()
+    await supabaseAdmin
+      .from("service_tickets")
+      .update({
+        status: "resolved",
+        resolved_at: new Date().toISOString(),
+        completion_confirmed: true,
+        completion_confirmed_at: thirtyMinsAgo,
+        completion_confirmed_by: null,
+        completion_confirmed_by_name: "System (auto)"
+      })
+      .eq("status", "awaiting_confirmation")
+      .lt("completed_at", thirtyMinsAgo)
 
     // Fetch all tickets first, then filter in memory for reliability
     const { data, error } = await supabaseAdmin
@@ -45,23 +61,16 @@ export async function GET(request: NextRequest) {
       // Regional IT Head and Service Desk Head see tickets from their region/location
       // They should see tickets matching their location or locations in the same region
       const loc = location.toLowerCase().trim()
-      
+
       if (loc) {
-        // Get the first significant word for regional matching
-        const locParts = loc.split(/[\s,]+/).filter(p => p.length > 2)
-        const regionKey = locParts[0] || loc
-        
         filteredData = filteredData.filter(t => {
           const ticketLoc = (t.location || "").toLowerCase().trim()
-          // Exact match
-          if (ticketLoc === loc) return true
-          // Location contains user location
-          if (ticketLoc.includes(loc) || loc.includes(ticketLoc)) return true
-          // Regional matching - same region/city
-          const ticketParts = ticketLoc.split(/[\s,]+/).filter((p: string) => p.length > 2)
-          const ticketRegionKey = ticketParts[0] || ticketLoc
-          if (regionKey === ticketRegionKey && regionKey.length > 3) return true
-          return false
+          // Allow tickets that are in the same region OR were directly assigned to me
+          const inRegion = isLocationInSameRegion(ticketLoc, loc)
+          const exact = ticketLoc === loc || ticketLoc.includes(loc) || loc.includes(ticketLoc)
+          const assignedToMe = userId && t.assigned_to?.toLowerCase() === userId.toLowerCase()
+
+          return exact || inRegion || assignedToMe
         })
       }
       console.log("[v0] Regional/Service Desk Head - filtered to", filteredData.length, "tickets for", location)
@@ -70,10 +79,14 @@ export async function GET(request: NextRequest) {
       const loc = location.toLowerCase().trim()
       filteredData = filteredData.filter(t => {
         const ticketLoc = (t.location || "").toLowerCase().trim()
+        const assignedToMe = userId && t.assigned_to?.toLowerCase() === userId.toLowerCase()
         // Exact match
         if (ticketLoc === loc) return true
         // Location contains user location
         if (ticketLoc.includes(loc) || loc.includes(ticketLoc)) return true
+        // allow tasks that were explicitly assigned to the current user even if the
+        // location doesn't match their own (e.g. cross‑region assignments)
+        if (assignedToMe) return true
         return false
       })
     }
