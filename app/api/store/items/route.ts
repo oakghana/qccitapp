@@ -21,7 +21,9 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false })
 
     if (!canSeeAll && location) {
-      query = query.or(`location.eq.${location},location.eq.Central Stores`)
+      // Use ilike for case-insensitive matching so "head_office" matches "Head Office" in DB
+      const locationFuzzy = location.replace(/[_-]+/g, " ").trim()
+      query = query.or(`location.ilike.${locationFuzzy},location.ilike.Central Stores`)
     }
 
     const { data, error } = await query
