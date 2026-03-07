@@ -7,6 +7,25 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+/**
+ * Normalise a location string to a lowercase underscore key for comparison.
+ * Handles both "Head Office" and "head_office" style values from the DB/client.
+ */
+function normaliseLocation(loc: string | null | undefined): string {
+  if (!loc) return ""
+  return loc.toLowerCase().replace(/[\s_-]+/g, "_").trim()
+}
+
+function isCentralStores(loc: string | null | undefined): boolean {
+  const n = normaliseLocation(loc)
+  return n === "central_stores" || n === "central stores"
+}
+
+function isHeadOffice(loc: string | null | undefined): boolean {
+  const n = normaliseLocation(loc)
+  return n === "head_office" || n === "head_office_accra" || n === "headoffice"
+}
+
 export async function POST(request: NextRequest) {
   try {
     const {
@@ -43,10 +62,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Central store stock can only be requisitioned, not assigned directly
+    // Check this BEFORE role-specific checks so it applies to everyone
+    if (isCentralStores(location)) {
+      return NextResponse.json(
+        { error: "Direct assignment from Central Stores is not permitted. Please select the appropriate regional or head office stock, or create a requisition request for Central Stores items." },
+        { status: 403 }
+      )
+    }
+
     // Location-based authorization rules
     if (assigned_by_role === "it_store_head") {
       // IT Store Head can only assign from Head Office stock
-      if (location !== "head_office") {
+      // Use normalised comparison to handle "Head Office" vs "head_office" mismatches
+      if (!isHeadOffice(location)) {
         return NextResponse.json(
           { error: "IT Store Head can only assign items from Head Office stock." },
           { status: 403 }
@@ -54,14 +83,14 @@ export async function POST(request: NextRequest) {
       }
     } else if (assigned_by_role === "regional_it_head") {
       // Regional IT Head can only assign from their location stock, not central stores
-      if (location === "central_stores") {
+      if (isCentralStores(location)) {
         return NextResponse.json(
           { error: "Regional IT Head cannot assign items from Central Stores. Central store items must be requisitioned." },
           { status: 403 }
         )
       }
-      // Check if the user can assign from this location
-      if (user_location && location !== user_location) {
+      // Check if the user can assign from this location using normalised comparison
+      if (user_location && normaliseLocation(location) !== normaliseLocation(user_location)) {
         return NextResponse.json(
           { error: `Regional IT Head can only assign items from their own location (${user_location}).` },
           { status: 403 }
@@ -69,26 +98,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Central store stock can only be requisitioned, not assigned directly
-    if (location === "central_stores" || location === "Central Stores") {
-      return NextResponse.json(
-        { error: "Direct assignment from Central Stores is not permitted. Please select the appropriate regional or head office stock, or create a requisition request for Central Stores items." },
-        { status: 403 }
-      )
-    }
-
     // Get current stock item details
+    // Use ilike for case-insensitive location matching so "Head Office" and "head_office"
+    // both resolve to the same item regardless of how the client sends the location value.
+    const locationFuzzy = location.replace(/[_-]+/g, " ").trim()
     const { data: stockItem, error: stockError } = await supabaseAdmin
       .from("store_items")
       .select("*")
       .eq("id", item_id)
-      .eq("location", location)
-      .single()
+      .ilike("location", locationFuzzy)
+      .maybeSingle()
 
     if (stockError || !stockItem) {
-      console.error("[assign-stock] Error fetching stock item:", stockError)
+      console.error("[assign-stock] Error fetching stock item:", stockError, "location:", locationFuzzy)
       return NextResponse.json(
-        { error: "Stock item not found" },
+        { error: "Stock item not found. Ensure the item exists in the correct location." },
         { status: 404 }
       )
     }
