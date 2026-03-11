@@ -137,6 +137,11 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
             icon: Bell,
             badge: counts.notifications > 0 ? counts.notifications : undefined,
           },
+          {
+            name: "Broadcast Notifications",
+            href: "/dashboard/broadcast-notifications",
+            icon: Send,
+          },
           { name: "Lookup Data", href: "/dashboard/lookup-data", icon: Database },
           { name: "System Settings", href: "/dashboard/system-settings", icon: Settings },
           {
