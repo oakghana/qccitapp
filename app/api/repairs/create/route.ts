@@ -43,10 +43,12 @@ export async function POST(request: NextRequest) {
         {
           task_number: taskNumber,
           device_id: deviceId,
-          device_type: deviceType,
-          brand,
-          model,
-          serial_number: serialNumber,
+          device_info: {
+            device_type: deviceType,
+            brand,
+            model,
+            serial_number: serialNumber,
+          },
           issue_description: issueDescription,
           priority: priority || "medium",
           status: "assigned",
