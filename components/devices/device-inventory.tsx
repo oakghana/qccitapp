@@ -12,12 +12,14 @@ import { AddDeviceForm } from "./add-device-form"
 import { BulkDeviceImportDialog } from "./bulk-device-import-dialog"
 import { DeviceLocationReallocationDialog } from "./device-location-reallocation-dialog"
 import { DeviceQuickEntryDialog } from "./device-quick-entry-dialog"
+import { RepairServiceProviderDialog } from "./repair-service-provider-dialog"
 import { Plus, Monitor, Smartphone, Printer, HardDrive, Laptop, Server, UsbIcon, Download, Upload, FileDown } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations, getCanonicalLocationName } from "@/lib/location-filter"
 import { toast } from "@/hooks/use-toast"
 import { deviceLocationService } from "@/lib/device-location-service"
+import { notificationService } from "@/lib/notification-service"
 
 interface Device {
   id: string
@@ -134,6 +136,9 @@ export function DeviceInventory() {
   const [reallocateDialogOpen, setReallocateDialogOpen] = useState(false)
   const [devicesWithoutLocation, setDevicesWithoutLocation] = useState<any[]>([])
   const [quickEntryOpen, setQuickEntryOpen] = useState(false)
+  const [repairDialogOpen, setRepairDialogOpen] = useState(false)
+  const [deviceForRepair, setDeviceForRepair] = useState<Device | null>(null)
+  const [repairLoading, setRepairLoading] = useState(false)
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState("")
   const [editFormData, setEditFormData] = useState({
@@ -393,6 +398,23 @@ export function DeviceInventory() {
   const handleSaveDeviceEdit = async () => {
     if (!selectedDevice) return
 
+    // Check if status is being changed to "maintenance" (which represents "Under Repair" state)
+    const statusChangingToMaintenance = editFormData.status === "maintenance" && selectedDevice.status !== "maintenance"
+
+    if (statusChangingToMaintenance) {
+      console.log("[v0] Status changing to maintenance, showing repair dialog")
+      // Show repair dialog instead of saving immediately
+      setDeviceForRepair({
+        ...selectedDevice,
+        brand: editFormData.brand,
+        model: editFormData.model,
+        serialNumber: editFormData.serial_number,
+        deviceType: editFormData.device_type,
+      })
+      setRepairDialogOpen(true)
+      return
+    }
+
     try {
       setEditLoading(true)
       setEditError("")
@@ -545,6 +567,86 @@ export function DeviceInventory() {
     }
   }
 
+  const handleRepairConfirm = async (serviceProviderData: {
+    serviceProviderId: string
+    issueDescription: string
+    priority: string
+    estimatedCost: string
+  }) => {
+    if (!selectedDevice) return
+
+    try {
+      setRepairLoading(true)
+
+      // First, update device status to maintenance (which represents "Under Repair")
+      const updateResponse = await fetch("/api/devices/update-device", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedDevice.id,
+          device_type: editFormData.device_type,
+          brand: editFormData.brand,
+          model: editFormData.model,
+          serial_number: editFormData.serial_number,
+          status: "maintenance",
+          location: editFormData.location,
+          assigned_to: editFormData.assigned_to,
+          purchase_date: editFormData.purchase_date || null,
+          warranty_expiry: editFormData.warranty_expiry || null,
+          region_id: editFormData.region_id || null,
+          district_id: editFormData.district_id || null,
+          userRole: user?.role,
+          userLocation: user?.location,
+        }),
+      })
+
+      if (!updateResponse.ok) {
+        const error = await updateResponse.json()
+        throw new Error(error.error || "Failed to update device status")
+      }
+
+      // Then, create a repair ticket with the service provider
+      const repairResponse = await fetch("/api/repairs/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deviceId: selectedDevice.id,
+          deviceType: editFormData.device_type,
+          brand: editFormData.brand,
+          model: editFormData.model,
+          serialNumber: editFormData.serial_number,
+          issueDescription: serviceProviderData.issueDescription,
+          priority: serviceProviderData.priority,
+          estimatedCost: serviceProviderData.estimatedCost || null,
+          serviceProviderId: serviceProviderData.serviceProviderId,
+          createdBy: user?.id,
+        }),
+      })
+
+      if (!repairResponse.ok) {
+        const error = await repairResponse.json()
+        throw new Error(error.error || "Failed to create repair ticket")
+      }
+
+      const repairData = await repairResponse.json()
+      console.log("[v0] Repair ticket created:", repairData)
+
+      notificationService.success(
+        "Device Sent for Repair",
+        `${editFormData.brand} ${editFormData.model} has been marked as "Under Maintenance" and assigned to the service provider`
+      )
+
+      setRepairDialogOpen(false)
+      setEditDeviceOpen(false)
+      setRepairLoading(false)
+      loadDevices()
+    } catch (error: any) {
+      console.error("[v0] Error confirming repair:", error)
+      setRepairLoading(false)
+      throw error
+    }
+  }
+
   const locationNames: Record<string, string> = {}
   dbLocations.forEach((loc) => {
     locationNames[loc.code] = loc.name
@@ -626,8 +728,7 @@ export function DeviceInventory() {
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
             <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="repair">Under Repair</SelectItem>
-            <SelectItem value="maintenance">Maintenance</SelectItem>
+            <SelectItem value="maintenance">Under Maintenance</SelectItem>
             <SelectItem value="retired">Retired</SelectItem>
           </SelectContent>
         </Select>
@@ -829,8 +930,7 @@ export function DeviceInventory() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="repair">Under Repair</SelectItem>
-                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                  <SelectItem value="maintenance">Under Maintenance (Repair)</SelectItem>
                   <SelectItem value="retired">Retired</SelectItem>
                 </SelectContent>
               </Select>
@@ -954,6 +1054,14 @@ export function DeviceInventory() {
           loadDevices()
           checkDevicesWithoutLocation()
         }}
+      />
+
+      <RepairServiceProviderDialog
+        open={repairDialogOpen}
+        onOpenChange={setRepairDialogOpen}
+        device={deviceForRepair}
+        onConfirm={handleRepairConfirm}
+        loading={repairLoading}
       />
     </div>
   )
