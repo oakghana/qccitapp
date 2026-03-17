@@ -106,6 +106,16 @@ export function canDeleteRecords(role?: string): boolean {
 }
 
 /**
+ * Check if a user can assign IT devices to staff
+ * Admin and IT Store Head can assign devices
+ */
+export function canAssignDevices(role?: string): boolean {
+  if (!role) return false;
+  const normalizedRole = role.toLowerCase();
+  return ['admin', 'it_store_head'].includes(normalizedRole);
+}
+
+/**
  * Log authorization failure for audit
  */
 export function logAuthzFailure(
