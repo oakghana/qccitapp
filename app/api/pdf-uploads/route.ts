@@ -107,11 +107,34 @@ export async function POST(request: Request) {
     const targetLocation = formData.get("targetLocation") as string
     const uploadedBy = formData.get("uploadedBy") as string
     const uploadedByName = formData.get("uploadedByName") as string
+    const userRole = formData.get("userRole") as string
+    const userLocation = formData.get("userLocation") as string
 
     if (!file || !title || !documentType || !uploadedBy || !uploadedByName) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
+      )
+    }
+
+    // Validate upload permissions
+    const isAdmin = userRole === "admin"
+    const isITHead = userRole === "it_head"
+    const isRegionalITHead = userRole === "regional_it_head"
+    const isNonHeadOfficeITStaff = 
+      userRole === "it_staff" && 
+      userLocation && 
+      !userLocation.toLowerCase().includes("head")
+
+    const canUploadDocument = isAdmin || isITHead || isRegionalITHead || isNonHeadOfficeITStaff
+
+    if (!canUploadDocument) {
+      console.warn(
+        `[v0] Upload rejected - insufficient permissions. Role: ${userRole}, Location: ${userLocation}`
+      )
+      return NextResponse.json(
+        { error: "You do not have permission to upload documents. Only Admin, IT Head, Regional IT Head, and non-Head Office IT Staff can upload." },
+        { status: 403 }
       )
     }
 
