@@ -398,11 +398,11 @@ export function DeviceInventory() {
   const handleSaveDeviceEdit = async () => {
     if (!selectedDevice) return
 
-    // Check if status is being changed to "repair"
-    const statusChangingToRepair = editFormData.status === "repair" && selectedDevice.status !== "repair"
+    // Check if status is being changed to "maintenance" (which represents "Under Repair" state)
+    const statusChangingToMaintenance = editFormData.status === "maintenance" && selectedDevice.status !== "maintenance"
 
-    if (statusChangingToRepair) {
-      console.log("[v0] Status changing to repair, showing repair dialog")
+    if (statusChangingToMaintenance) {
+      console.log("[v0] Status changing to maintenance, showing repair dialog")
       // Show repair dialog instead of saving immediately
       setDeviceForRepair({
         ...selectedDevice,
@@ -578,7 +578,7 @@ export function DeviceInventory() {
     try {
       setRepairLoading(true)
 
-      // First, update device status to repair
+      // First, update device status to maintenance (which represents "Under Repair")
       const updateResponse = await fetch("/api/devices/update-device", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -588,7 +588,7 @@ export function DeviceInventory() {
           brand: editFormData.brand,
           model: editFormData.model,
           serial_number: editFormData.serial_number,
-          status: "repair",
+          status: "maintenance",
           location: editFormData.location,
           assigned_to: editFormData.assigned_to,
           purchase_date: editFormData.purchase_date || null,
@@ -633,7 +633,7 @@ export function DeviceInventory() {
 
       notificationService.success(
         "Device Sent for Repair",
-        `${editFormData.brand} ${editFormData.model} has been marked as "Under Repair" and assigned to the service provider`
+        `${editFormData.brand} ${editFormData.model} has been marked as "Under Maintenance" and assigned to the service provider`
       )
 
       setRepairDialogOpen(false)
@@ -728,8 +728,7 @@ export function DeviceInventory() {
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
             <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="repair">Under Repair</SelectItem>
-            <SelectItem value="maintenance">Maintenance</SelectItem>
+            <SelectItem value="maintenance">Under Maintenance</SelectItem>
             <SelectItem value="retired">Retired</SelectItem>
           </SelectContent>
         </Select>
@@ -931,8 +930,7 @@ export function DeviceInventory() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="repair">Under Repair</SelectItem>
-                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                  <SelectItem value="maintenance">Under Maintenance (Repair)</SelectItem>
                   <SelectItem value="retired">Retired</SelectItem>
                 </SelectContent>
               </Select>

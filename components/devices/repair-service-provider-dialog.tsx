@@ -126,10 +126,10 @@ export function RepairServiceProviderDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wrench className="w-5 h-5 text-amber-600" />
-            Repair Service Provider
+            Send Device for Under Maintenance
           </DialogTitle>
           <DialogDescription>
-            Complete the repair process by assigning a service provider for {device?.brand} {device?.model}
+            Complete the maintenance process by assigning a service provider for {device?.brand} {device?.model}
           </DialogDescription>
         </DialogHeader>
 
@@ -164,7 +164,7 @@ export function RepairServiceProviderDialog({
             {/* Service Provider Selection */}
             <div className="space-y-2">
               <Label htmlFor="provider" className="text-sm font-medium">
-                Service Provider *
+                Service Provider (for Maintenance) *
               </Label>
               {loadingProviders ? (
                 <div className="text-sm text-muted-foreground py-2">Loading service providers...</div>
@@ -278,7 +278,7 @@ export function RepairServiceProviderDialog({
                 disabled={loading || loadingProviders || serviceProviders.length === 0}
                 className="bg-amber-600 hover:bg-amber-700"
               >
-                {loading ? 'Saving...' : 'Assign Service Provider & Save'}
+                {loading ? 'Saving...' : 'Send for Maintenance'}
               </Button>
             </div>
           </div>

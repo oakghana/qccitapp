@@ -377,8 +377,7 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="repair">Under Repair</SelectItem>
-                <SelectItem value="maintenance">Maintenance</SelectItem>
+                <SelectItem value="maintenance">Under Maintenance</SelectItem>
                 <SelectItem value="retired">Retired</SelectItem>
               </SelectContent>
             </Select>
