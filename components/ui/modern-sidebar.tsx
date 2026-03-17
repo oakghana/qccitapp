@@ -351,6 +351,11 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                 href: "/dashboard/store-summary-report",
                 icon: FileText,
               },
+              {
+                name: "Assign IT Devices",
+                href: "/dashboard/assign-it-devices",
+                icon: Monitor,
+              },
             ],
           },
         ],
@@ -432,6 +437,11 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                 name: "User Device Allocation",
                 href: "/dashboard/user-device-allocation",
                 icon: UserCheck,
+              },
+              {
+                name: "Assign IT Devices",
+                href: "/dashboard/assign-it-devices",
+                icon: Monitor,
               },
             ],
           },
