@@ -10,11 +10,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { DeviceTransferForm } from "./device-transfer-form"
 import { AddDeviceForm } from "./add-device-form"
 import { BulkDeviceImportDialog } from "./bulk-device-import-dialog"
+import { DeviceLocationReallocationDialog } from "./device-location-reallocation-dialog"
+import { DeviceQuickEntryDialog } from "./device-quick-entry-dialog"
 import { Plus, Monitor, Smartphone, Printer, HardDrive, Laptop, Server, UsbIcon, Download, Upload, FileDown } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations, getCanonicalLocationName } from "@/lib/location-filter"
 import { toast } from "@/hooks/use-toast"
+import { deviceLocationService } from "@/lib/device-location-service"
 
 interface Device {
   id: string
@@ -128,6 +131,9 @@ export function DeviceInventory() {
   const [editDeviceOpen, setEditDeviceOpen] = useState(false)
   const [addDeviceOpen, setAddDeviceOpen] = useState(false)
   const [bulkImportOpen, setBulkImportOpen] = useState(false)
+  const [reallocateDialogOpen, setReallocateDialogOpen] = useState(false)
+  const [devicesWithoutLocation, setDevicesWithoutLocation] = useState<any[]>([])
+  const [quickEntryOpen, setQuickEntryOpen] = useState(false)
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState("")
   const [editFormData, setEditFormData] = useState({
@@ -153,6 +159,7 @@ export function DeviceInventory() {
     loadDevices()
     loadLocations()
     loadRegionsAndDistricts()
+    checkDevicesWithoutLocation()
   }, [])
 
   const loadRegionsAndDistricts = async () => {
@@ -180,6 +187,21 @@ export function DeviceInventory() {
       }
     } catch (error) {
       console.error("Error loading regions/districts:", error)
+    }
+  }
+
+  const checkDevicesWithoutLocation = async () => {
+    try {
+      const devicesNoLoc = await deviceLocationService.getDevicesWithoutLocation()
+      console.log("[v0] Devices without location:", devicesNoLoc.length)
+      setDevicesWithoutLocation(devicesNoLoc)
+      
+      // Auto-open reallocation dialog if there are unallocated devices
+      if (devicesNoLoc.length > 0) {
+        setReallocateDialogOpen(true)
+      }
+    } catch (error) {
+      console.error("[v0] Error checking devices without location:", error)
     }
   }
 
@@ -580,6 +602,10 @@ export function DeviceInventory() {
             <Plus className="mr-1.5 h-4 w-4" />
             Add Device
           </Button>
+          <Button size="sm" variant="outline" onClick={() => setQuickEntryOpen(true)}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            Quick Entry
+          </Button>
         </div>
       </div>
 
@@ -907,6 +933,26 @@ export function DeviceInventory() {
         onOpenChange={setBulkImportOpen}
         onImportSuccess={() => {
           loadDevices()
+        }}
+      />
+
+      <DeviceLocationReallocationDialog
+        open={reallocateDialogOpen}
+        onOpenChange={setReallocateDialogOpen}
+        devices={devicesWithoutLocation}
+        onReallocate={() => {
+          setDevicesWithoutLocation([])
+          loadDevices()
+          checkDevicesWithoutLocation()
+        }}
+      />
+
+      <DeviceQuickEntryDialog
+        open={quickEntryOpen}
+        onOpenChange={setQuickEntryOpen}
+        onDeviceAdded={() => {
+          loadDevices()
+          checkDevicesWithoutLocation()
         }}
       />
     </div>
