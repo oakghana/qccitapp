@@ -66,18 +66,26 @@ export function RepairServiceProviderDialog({
   const loadServiceProviders = async () => {
     try {
       setLoadingProviders(true)
-      const response = await fetch('/api/service-providers?is_active=true')
+      setError('')
+      // Fetch all service providers (not just active ones) to ensure dropdown is populated
+      const response = await fetch('/api/service-providers')
       if (!response.ok) {
         throw new Error('Failed to load service providers')
       }
       const data = await response.json()
       console.log('[v0] Loaded service providers:', data)
+      
+      if (!data.providers || data.providers.length === 0) {
+        console.warn('[v0] No service providers available in database')
+        setError('No service providers available. Please add service providers first.')
+      }
+      
       setServiceProviders(data.providers || [])
-      setError('')
     } catch (err: any) {
       console.error('[v0] Error loading service providers:', err)
-      setError(err.message || 'Failed to load service providers')
-      notificationService.error('Error', 'Failed to load service providers')
+      const errorMsg = err.message || 'Failed to load service providers'
+      setError(errorMsg)
+      notificationService.error('Error Loading Service Providers', errorMsg)
     } finally {
       setLoadingProviders(false)
     }
@@ -169,7 +177,10 @@ export function RepairServiceProviderDialog({
               {loadingProviders ? (
                 <div className="text-sm text-muted-foreground py-2">Loading service providers...</div>
               ) : serviceProviders.length === 0 ? (
-                <div className="text-sm text-destructive py-2">No active service providers available</div>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+                  <p className="font-medium">No service providers found</p>
+                  <p className="text-xs mt-1">Please contact your administrator to add service providers to the system before sending devices for maintenance.</p>
+                </div>
               ) : (
                 <Select value={selectedProviderId} onValueChange={setSelectedProviderId}>
                   <SelectTrigger id="provider">
@@ -180,7 +191,9 @@ export function RepairServiceProviderDialog({
                       <SelectItem key={provider.id} value={provider.id}>
                         <div className="flex flex-col">
                           <span>{provider.name}</span>
-                          <span className="text-xs text-muted-foreground">{provider.specialization?.join(', ')}</span>
+                          {provider.specialization && provider.specialization.length > 0 && (
+                            <span className="text-xs text-muted-foreground">{provider.specialization.join(', ')}</span>
+                          )}
                         </div>
                       </SelectItem>
                     ))}
