@@ -11,6 +11,9 @@ import { createClient } from "@/lib/supabase/client"
 import { toast } from "@/components/ui/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations } from "@/lib/location-filter"
+import { deviceLocationService } from "@/lib/device-location-service"
+import { AlertCircle } from "lucide-react"
+import { notificationService } from "@/lib/notification-service"
 
 interface Device {
   type: "laptop" | "desktop" | "printer" | "photocopier" | "handset" | "ups" | "stabiliser" | "mobile" | "server" | "other"
@@ -45,6 +48,8 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
   const [deviceTypes, setDeviceTypes] = useState<{ code: string; name: string }[]>([])
   const [locations, setLocations] = useState<{ code: string; name: string; region_id?: string }[]>([])
   const [regions, setRegions] = useState<{ id: string; name: string; code: string }[]>([])
+  const [duplicateWarning, setDuplicateWarning] = useState<string>("")
+  const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false)
   const supabase = createClient()
   
   // Check if user can select all locations or is restricted to their own
@@ -170,18 +175,27 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
     e.preventDefault()
     setError("")
 
+    // If duplicate warning exists and not confirmed, show confirmation dialog
+    if (duplicateWarning && !showDuplicateConfirm) {
+      setShowDuplicateConfirm(true)
+      return
+    }
+
+    // Reset the confirmation flag
+    setShowDuplicateConfirm(false)
+
     // Location is automatically set to user's location - no validation needed
     // Ensure user has a location
     if (!user?.location || user.location.trim() === "") {
       setError("Your user account does not have a location assigned. Please contact the administrator.")
-      toast.error("Your user account does not have a location assigned. Please contact the administrator.")
+      notificationService.error("Location Not Assigned", "Your user account does not have a location assigned. Please contact the administrator.")
       return
     }
 
     // Validate printer/photocopier-specific fields
     if ((formData.type === "printer" || formData.type === "photocopier") && !formData.tonerType) {
       setError(`Toner type is required for ${formData.type}s.`)
-      toast.error(`Toner type is required for ${formData.type}s.`)
+      notificationService.error(`Validation Failed`, `Toner type is required for ${formData.type}s.`)
       return
     }
 
@@ -220,30 +234,22 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
         const errorData = await response.json()
         console.error("[v0] Error saving device:", errorData)
         setError(errorData.error || "Failed to save device")
-        toast({
-          title: "Error",
-          description: errorData.error || "Failed to save device",
-          variant: "destructive",
-        })
+        notificationService.error("Device Creation Failed", errorData.error || "Failed to save device")
         return
       }
 
       const data = await response.json()
       console.log("[v0] Device saved successfully:", data)
-      toast({
-        title: "Success",
-        description: "Device added successfully",
-      })
+      notificationService.success(
+        "Device Added Successfully",
+        `${formData.brand} ${formData.model} has been added to ${user?.location}`
+      )
       onSubmit()
     } catch (err) {
       console.error("[v0] Error:", err)
       const errorMsg = "Failed to save device"
       setError(errorMsg)
-      toast({
-        title: "Error",
-        description: errorMsg,
-        variant: "destructive",
-      })
+      notificationService.error("Error", errorMsg)
     } finally {
       setLoading(false)
     }
@@ -251,6 +257,31 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
 
   const handleInputChange = (field: keyof Device, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+    
+    // Check for duplicates when serial number changes
+    if (field === "serialNumber" && value && user?.location) {
+      checkForDuplicateLocation(value)
+    }
+  }
+
+  const checkForDuplicateLocation = async (serialNumber: string) => {
+    try {
+      const duplicate = await deviceLocationService.checkDuplicateLocation(
+        serialNumber,
+        user?.location || ""
+      )
+      
+      if (duplicate) {
+        setDuplicateWarning(
+          `Device with serial number "${serialNumber}" already exists at ${user?.location}: ${duplicate.brand} ${duplicate.model}`
+        )
+      } else {
+        setDuplicateWarning("")
+      }
+    } catch (error) {
+      console.error("[v0] Error checking duplicate:", error)
+      setDuplicateWarning("")
+    }
   }
 
   return (
@@ -259,6 +290,19 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && <div className="bg-destructive/10 text-destructive px-4 py-2 rounded">{error}</div>}
+
+        {duplicateWarning && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm text-amber-900 font-medium">Duplicate Device Warning</p>
+              <p className="text-sm text-amber-800 mt-1">{duplicateWarning}</p>
+              {showDuplicateConfirm && (
+                <p className="text-xs text-amber-700 mt-2 italic">Click "Add Device" again to confirm adding this duplicate.</p>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">

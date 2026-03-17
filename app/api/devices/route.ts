@@ -83,6 +83,31 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    // Check for duplicate location + serial number combo
+    const { data: existingDevice, error: checkError } = await supabase
+      .from("devices")
+      .select("id, serial_number, brand, model, location")
+      .eq("serial_number", body.serial_number)
+      .eq("location", body.location)
+      .single()
+
+    if (checkError && checkError.code !== "PGRST116") { // PGRST116 = no rows
+      console.error("[v0] Error checking for duplicates:", checkError)
+    }
+
+    if (existingDevice && !existingDevice.error) {
+      console.warn("[v0] Duplicate device detected at same location:", {
+        serialNumber: body.serial_number,
+        location: body.location,
+        existing: `${existingDevice.brand} ${existingDevice.model}`
+      })
+      return NextResponse.json({
+        error: `Device with serial number "${body.serial_number}" already exists at location "${body.location}". Please use a different serial number or location.`,
+        isDuplicate: true,
+        existingDevice: existingDevice
+      }, { status: 409 })
+    }
+
     const { data, error } = await supabase
       .from("devices")
       .insert([{
@@ -115,7 +140,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    console.log("[v0] Device created:", data)
+    console.log("[v0] Device created successfully:", {
+      id: data?.id,
+      serial_number: data?.serial_number,
+      location: data?.location,
+      brand: data?.brand,
+      model: data?.model
+    })
+    
     return NextResponse.json(data)
   } catch (error: any) {
     console.error("[v0] Error in devices API:", error)
