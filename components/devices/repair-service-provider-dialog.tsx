@@ -81,6 +81,16 @@ export function RepairServiceProviderDialog({
       }
       
       setServiceProviders(data.providers || [])
+
+      // Auto-select first provider if available
+      if (data.providers && data.providers.length > 0) {
+        const firstProviderId = data.providers[0].id
+        setSelectedProviderId(firstProviderId)
+        console.log('[v0] Auto-selected first provider:', {
+          id: firstProviderId,
+          name: data.providers[0].name,
+        })
+      }
     } catch (err: any) {
       console.error('[v0] Error loading service providers:', err)
       const errorMsg = err.message || 'Failed to load service providers'
@@ -103,6 +113,13 @@ export function RepairServiceProviderDialog({
       notificationService.warning('Validation', 'Please describe the issue')
       return
     }
+
+    console.log('[v0] Confirming repair with:', {
+      selectedProviderId,
+      providerName: selectedProvider?.name,
+      issueDescription: issueDescription.trim(),
+      priority,
+    })
 
     try {
       await onConfirm({

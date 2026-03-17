@@ -33,6 +33,32 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    console.log("[v0] Validating service provider ID:", serviceProviderId)
+
+    // Verify the service provider exists before creating repair task
+    const { data: serviceProvider, error: providerCheckError } = await supabase
+      .from("service_providers")
+      .select("id, name")
+      .eq("id", serviceProviderId)
+      .single()
+
+    if (providerCheckError || !serviceProvider) {
+      console.error(
+        "[v0] Service provider not found. ID:",
+        serviceProviderId,
+        "Error:",
+        providerCheckError
+      )
+      return NextResponse.json(
+        {
+          error: `Service provider with ID ${serviceProviderId} not found. Please select a valid service provider.`,
+        },
+        { status: 400 }
+      )
+    }
+
+    console.log("[v0] Service provider validated:", serviceProvider.name)
+
     // Generate task number
     const taskNumber = `REP-${Date.now().toString().slice(-8)}`
 
