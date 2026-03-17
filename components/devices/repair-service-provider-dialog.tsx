@@ -122,6 +122,7 @@ export function RepairServiceProviderDialog({
     })
 
     try {
+      setError('') // Clear any previous errors before attempting
       await onConfirm({
         serviceProviderId: selectedProviderId,
         issueDescription: issueDescription.trim(),
@@ -138,8 +139,9 @@ export function RepairServiceProviderDialog({
       onOpenChange(false)
     } catch (err: any) {
       console.error('[v0] Error confirming repair:', err)
-      setError(err.message || 'Failed to save repair information')
-      notificationService.error('Error', err.message || 'Failed to save repair information')
+      const errorMsg = err.message || 'Failed to save repair information'
+      setError(errorMsg)
+      notificationService.error('Error', errorMsg)
     }
   }
 

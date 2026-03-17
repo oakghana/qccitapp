@@ -642,8 +642,9 @@ export function DeviceInventory() {
       loadDevices()
     } catch (error: any) {
       console.error("[v0] Error confirming repair:", error)
+      // Don't re-throw - the error is already handled by the dialog component
+      // Just log it for debugging purposes
       setRepairLoading(false)
-      throw error
     }
   }
 
