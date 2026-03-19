@@ -20,7 +20,7 @@ export async function POST(request: Request) {
 
     // Only admins can send broadcast notifications
     const { data: user, error: userError } = await supabase
-      .from("users")
+      .from("profiles")
       .select("role")
       .eq("id", sentBy)
       .single()
