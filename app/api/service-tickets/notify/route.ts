@@ -42,6 +42,7 @@ export async function POST(request: Request) {
         target_location_name: targetLocation,
         created_by: sentBy,
         created_by_name: sentByName,
+        created_by_role: user.role,
         notification_type: notificationType,
         created_at: new Date().toISOString(),
       })
