@@ -92,7 +92,7 @@ export async function GET(request: Request) {
     // Fetch notifications targeted to this user's role and location
     let query = supabase
       .from("admin_notifications")
-      .select("*")
+      .select("id,title,message,notification_type,target_role,target_location_name,created_at,created_by_name")
       .eq("target_role", userRole)
       .eq("status", "sent")
       .order("created_at", { ascending: false })

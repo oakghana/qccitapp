@@ -65,9 +65,13 @@ export const AdminBroadcastPanel: React.FC<AdminBroadcastPanelProps> = ({
       if (response.ok) {
         const result = await response.json()
         setSentNotifications(result.notifications || [])
+      } else {
+        console.error('Failed to fetch notifications:', response.statusText)
+        setSentNotifications([])
       }
     } catch (error) {
       console.error('Error fetching notifications:', error)
+      setSentNotifications([])
     }
   }
 
@@ -202,9 +206,9 @@ export const AdminBroadcastPanel: React.FC<AdminBroadcastPanelProps> = ({
                       <span className="inline-block px-2 py-0.5 rounded bg-secondary text-secondary-foreground">
                         {notif.target_role}
                       </span>
-                      {notif.target_location && (
+                      {notif.target_location_name && (
                         <span className="inline-block px-2 py-0.5 rounded bg-secondary text-secondary-foreground">
-                          {notif.target_location}
+                          {notif.target_location_name}
                         </span>
                       )}
                       <span>{new Date(notif.created_at).toLocaleDateString()}</span>
