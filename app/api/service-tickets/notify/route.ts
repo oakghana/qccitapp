@@ -39,9 +39,9 @@ export async function POST(request: Request) {
         title: title,
         message: message,
         target_role: targetRole,
-        target_location: targetLocation,
-        sent_by: sentBy,
-        sent_by_name: sentByName,
+        target_location_name: targetLocation,
+        created_by: sentBy,
+        created_by_name: sentByName,
         notification_type: notificationType,
         created_at: new Date().toISOString(),
       })
@@ -94,11 +94,16 @@ export async function GET(request: Request) {
       .from("admin_notifications")
       .select("*")
       .eq("target_role", userRole)
+      .eq("status", "sent")
       .order("created_at", { ascending: false })
+      .limit(50)
 
     // If location is provided, also include location-specific notifications
     if (userLocation) {
-      query = query.or(`target_location.eq.${userLocation},target_location.is.null`)
+      query = query.or(`target_location_name.eq.${userLocation},target_location_name.is.null`)
+    } else {
+      // Include all location notifications if no specific location
+      query = query.or(`target_location_name.is.null`)
     }
 
     const { data, error } = await query
