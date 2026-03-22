@@ -157,6 +157,39 @@ export function DashboardOverview() {
       ]
     }
 
+    if (user?.role === "it_store_head") {
+      return [
+        {
+          title: "Total Devices",
+          value: loading ? "..." : stats.totalDevices.toString(),
+          description: "Registered in system",
+          icon: Monitor,
+          trend: "",
+        },
+        {
+          title: "Pending Requisitions",
+          value: loading ? "..." : stats.pendingApprovals.toString(),
+          description: "Awaiting processing",
+          icon: Clock,
+          trend: "",
+        },
+        {
+          title: "Active Repairs",
+          value: loading ? "..." : stats.activeRepairs.toString(),
+          description: "Currently in progress",
+          icon: Wrench,
+          trend: "",
+        },
+        {
+          title: "Completed Repairs",
+          value: loading ? "..." : stats.completedRepairs.toString(),
+          description: "This month",
+          icon: CheckCircle,
+          trend: "",
+        },
+      ]
+    }
+
     return [
       {
         title: "Total Devices",
@@ -435,6 +468,43 @@ export function DashboardOverview() {
                     >
                       <Settings className="h-5 w-5 mr-3 text-green-600" />
                       <span className="text-sm font-medium">My Service Requests</span>
+                    </Button>
+                  </>
+                )}
+
+                {user?.role === "it_store_head" && (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start bg-transparent hover:bg-blue-50 hover:border-blue-200 transition-colors"
+                      onClick={() => router.push("/dashboard/store-requisitions")}
+                    >
+                      <Plus className="h-5 w-5 mr-3 text-blue-600" />
+                      <span className="text-sm font-medium">New Store Requisition</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start bg-transparent hover:bg-blue-50 hover:border-blue-200 transition-colors"
+                      onClick={() => router.push("/dashboard/store-overview")}
+                    >
+                      <Monitor className="h-5 w-5 mr-3 text-blue-600" />
+                      <span className="text-sm font-medium">View Store Overview</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start bg-transparent hover:bg-blue-50 hover:border-blue-200 transition-colors"
+                      onClick={() => router.push("/dashboard/assign-stock")}
+                    >
+                      <Users className="h-5 w-5 mr-3 text-blue-600" />
+                      <span className="text-sm font-medium">Assign Stock to Staff</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start bg-transparent hover:bg-blue-50 hover:border-blue-200 transition-colors"
+                      onClick={() => router.push("/dashboard/stock-transfer-requests")}
+                    >
+                      <Settings className="h-5 w-5 mr-3 text-blue-600" />
+                      <span className="text-sm font-medium">Stock Transfer Requests</span>
                     </Button>
                   </>
                 )}
