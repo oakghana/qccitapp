@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Dialog,
@@ -24,6 +25,7 @@ import {
   AlertCircle,
   Send,
   RefreshCcw,
+  Plus,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { FormNavigation } from "@/components/ui/form-navigation"
@@ -76,9 +78,102 @@ export default function StockTransferRequestsPage() {
   const canCreateRequest = user?.role === "it_store_head"
   const isRegionalHead = user?.role === "regional_it_head"
 
+  // Create request dialog state (IT Store Head)
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [centralItems, setCentralItems] = useState<{ id: string; name: string; sku: string; quantity: number; category: string }[]>([])
+  const [centralItemsLoading, setCentralItemsLoading] = useState(false)
+  const [createForm, setCreateForm] = useState({
+    itemId: "",
+    requestedQuantity: "",
+    notes: "",
+  })
+  const [createLoading, setCreateLoading] = useState(false)
+  const [createError, setCreateError] = useState("")
+  const [createSuccess, setCreateSuccess] = useState("")
+
   useEffect(() => {
     loadRequests()
   }, [activeTab])
+
+  async function loadCentralItems() {
+    setCentralItemsLoading(true)
+    try {
+      const response = await fetch("/api/store/items?location=Central+Stores&canSeeAll=true")
+      const result = await response.json()
+      if (response.ok) {
+        const items = (result.items || result.data || []).filter((i: any) => i.quantity > 0)
+        setCentralItems(items.map((i: any) => ({
+          id: i.id,
+          name: i.name,
+          sku: i.sku || i.siv_number || "",
+          quantity: i.quantity,
+          category: i.category,
+        })))
+      }
+    } catch (error) {
+      console.error("[v0] Error loading Central Stores items:", error)
+    } finally {
+      setCentralItemsLoading(false)
+    }
+  }
+
+  function openCreateDialog() {
+    setCreateForm({ itemId: "", requestedQuantity: "", notes: "" })
+    setCreateError("")
+    setCreateSuccess("")
+    loadCentralItems()
+    setCreateDialogOpen(true)
+  }
+
+  async function handleCreateRequest() {
+    const selectedItem = centralItems.find(i => i.id === createForm.itemId)
+    if (!selectedItem) {
+      setCreateError("Please select an item from Central Stores")
+      return
+    }
+    const qty = parseInt(createForm.requestedQuantity)
+    if (isNaN(qty) || qty <= 0) {
+      setCreateError("Please enter a valid quantity greater than 0")
+      return
+    }
+    if (qty > selectedItem.quantity) {
+      setCreateError(`Central Stores only has ${selectedItem.quantity} units available`)
+      return
+    }
+    setCreateLoading(true)
+    setCreateError("")
+    try {
+      const response = await fetch("/api/store/stock-transfer-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemId: selectedItem.id,
+          itemName: selectedItem.name,
+          itemCode: selectedItem.sku,
+          requestedQuantity: qty,
+          requestedBy: user?.full_name || user?.name || user?.email,
+          requestingLocation: user?.location || "Head Office",
+          userRole: user?.role,
+          notes: createForm.notes,
+        }),
+      })
+      const result = await response.json()
+      if (!response.ok) {
+        setCreateError(result.error || "Failed to create transfer request")
+        return
+      }
+      setCreateSuccess("Transfer request submitted successfully! Awaiting Admin approval.")
+      setTimeout(() => {
+        setCreateDialogOpen(false)
+        loadRequests()
+      }, 2000)
+    } catch (error) {
+      console.error("[v0] Error creating transfer request:", error)
+      setCreateError("An error occurred while creating the request")
+    } finally {
+      setCreateLoading(false)
+    }
+  }
 
   async function loadRequests() {
     try {
@@ -224,10 +319,18 @@ export default function StockTransferRequestsPage() {
             </p>
           )}
         </div>
-        <Button variant="outline" onClick={loadRequests}>
-          <RefreshCcw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          {canCreateRequest && (
+            <Button onClick={openCreateDialog}>
+              <Plus className="h-4 w-4 mr-2" />
+              New Transfer Request
+            </Button>
+          )}
+          <Button variant="outline" onClick={loadRequests}>
+            <RefreshCcw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -365,6 +468,95 @@ export default function StockTransferRequestsPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Create Transfer Request Dialog - IT Store Head only */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>New Stock Transfer Request</DialogTitle>
+            <DialogDescription>
+              Request stock from Central Stores to your location. Admin approval required.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="central-item">Item from Central Stores</Label>
+              {centralItemsLoading ? (
+                <p className="text-sm text-muted-foreground">Loading items...</p>
+              ) : (
+                <Select
+                  value={createForm.itemId}
+                  onValueChange={(v) => setCreateForm(prev => ({ ...prev, itemId: v }))}
+                >
+                  <SelectTrigger id="central-item">
+                    <SelectValue placeholder="Select an item..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {centralItems.map(item => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.name} — {item.quantity} available
+                      </SelectItem>
+                    ))}
+                    {centralItems.length === 0 && (
+                      <SelectItem value="__none__" disabled>No items available in Central Stores</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
+              {createForm.itemId && (() => {
+                const sel = centralItems.find(i => i.id === createForm.itemId)
+                return sel ? (
+                  <p className="text-xs text-muted-foreground">
+                    Category: {sel.category} | SKU: {sel.sku} | Available: {sel.quantity}
+                  </p>
+                ) : null
+              })()}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="create-qty">Quantity to Request</Label>
+              <Input
+                id="create-qty"
+                type="number"
+                min="1"
+                max={centralItems.find(i => i.id === createForm.itemId)?.quantity}
+                value={createForm.requestedQuantity}
+                onChange={(e) => setCreateForm(prev => ({ ...prev, requestedQuantity: e.target.value }))}
+                placeholder="Enter quantity..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="create-notes">Notes (optional)</Label>
+              <Textarea
+                id="create-notes"
+                value={createForm.notes}
+                onChange={(e) => setCreateForm(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Reason for request..."
+                rows={2}
+              />
+            </div>
+            {createError && (
+              <div className="bg-red-50 text-red-700 px-3 py-2 rounded flex items-center gap-2 text-sm">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                {createError}
+              </div>
+            )}
+            {createSuccess && (
+              <div className="bg-green-50 text-green-700 px-3 py-2 rounded flex items-center gap-2 text-sm">
+                <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                {createSuccess}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateDialogOpen(false)} disabled={createLoading}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateRequest} disabled={createLoading || !!createSuccess}>
+              {createLoading ? "Submitting..." : "Submit Request"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Approve/Reject Dialog */}
       <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
