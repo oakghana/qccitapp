@@ -109,6 +109,12 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
         items: [
           ...baseItems,
           {
+            name: "Messages",
+            href: "/dashboard/notifications",
+            icon: Bell,
+            badge: counts.notifications > 0 ? counts.notifications : undefined,
+          },
+          {
             name: "Service Desk",
             href: "/dashboard/service-desk",
             icon: Headphones,
@@ -266,6 +272,12 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
         items: [
           ...baseItems,
           {
+            name: "Messages",
+            href: "/dashboard/notifications",
+            icon: Bell,
+            badge: counts.notifications > 0 ? counts.notifications : undefined,
+          },
+          {
             name: "Assigned Tasks",
             href: "/dashboard/assigned-tasks",
             icon: ClipboardList,
@@ -305,6 +317,12 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
       return {
         items: [
           ...baseItems,
+          {
+            name: "Messages",
+            href: "/dashboard/notifications",
+            icon: Bell,
+            badge: counts.notifications > 0 ? counts.notifications : undefined,
+          },
           {
             name: "Assigned Tasks",
             href: "/dashboard/assigned-tasks",
@@ -479,6 +497,12 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
       return {
         items: [
           ...baseItems,
+          {
+            name: "Messages",
+            href: "/dashboard/notifications",
+            icon: Bell,
+            badge: counts.notifications > 0 ? counts.notifications : undefined,
+          },
           {
             name: "Service Desk",
             href: "/dashboard/service-desk",
