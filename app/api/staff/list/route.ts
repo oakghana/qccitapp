@@ -21,32 +21,42 @@ export async function GET(request: Request) {
     if (allUsers) {
       console.log('[v0] Fetching all users from app_users table')
       
-      const { data: users, error } = await supabaseAdmin
-        .from('app_users')
-        .select('id, full_name, email, is_active, created_at')
-        .order('full_name', { ascending: true })
+      try {
+        const { data: users, error } = await supabaseAdmin
+          .from('app_users')
+          .select('*', { count: 'exact' })
+          .order('full_name', { ascending: true })
 
-      if (error) {
-        console.error('[v0] Error fetching app users:', error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
-      }
+        if (error) {
+          console.error('[v0] Error fetching app users:', error)
+          return NextResponse.json({ error: `Database error: ${error.message}` }, { status: 500 })
+        }
 
-      console.log(`[v0] Fetched ${users?.length || 0} users from app_users`)
+        console.log(`[v0] Fetched ${users?.length || 0} users from app_users:`, users)
 
-      return NextResponse.json({
-        staff: (users || []).map(u => ({
+        const mappedStaff = (users || []).map((u: any) => ({
           id: u.id,
-          name: u.full_name,
-          email: u.email,
-          is_active: u.is_active,
+          name: u.full_name || 'Unknown',
+          email: u.email || '',
+          is_active: u.is_active !== false, // Default to active if not specified
           department: '',
           location: '',
           role: '',
           isOnline: true,
           currentTickets: 0,
           isAvailable: true,
-        })),
-      })
+        }))
+
+        console.log('[v0] Mapped staff:', mappedStaff)
+
+        return NextResponse.json({
+          staff: mappedStaff,
+          total: mappedStaff.length,
+        })
+      } catch (dbError: any) {
+        console.error('[v0] Exception fetching app_users:', dbError)
+        return NextResponse.json({ error: `Exception: ${dbError.message}` }, { status: 500 })
+      }
     }
 
     // Build query to fetch users with IT-related roles

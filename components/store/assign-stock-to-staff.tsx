@@ -70,6 +70,7 @@ interface StaffMember {
   department?: string
   location?: string
   role?: string
+  is_active?: boolean
 }
 
 interface StockAssignment {
@@ -227,17 +228,31 @@ export function AssignStockToStaff() {
         allUsers: "true", // Load all users from app_users table with is_active status
       })
       
+      console.log("[v0] Fetching staff list with params:", params.toString())
       const response = await fetch(`/api/staff/list?${params}`)
       const result = await response.json()
 
+      console.log("[v0] Staff list response:", result)
+
       if (!response.ok) {
         console.error("[v0] Error loading staff list:", result.error)
+        toast({
+          title: "Error",
+          description: result.error || "Failed to load staff list",
+          variant: "destructive",
+        })
         return
       }
 
+      console.log("[v0] Setting staff list with", result.staff?.length || 0, "users")
       setStaffList(result.staff || [])
     } catch (error) {
       console.error("[v0] Error loading staff list:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load staff list",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -1029,10 +1044,9 @@ export function AssignStockToStaff() {
                         <SelectItem key={staff.id} value={staff.id}>
                           <div className="flex items-center gap-2">
                             <span>{staff.name}</span>
-                            {staff.is_active === false && (
+                            {staff.is_active === false ? (
                               <Badge variant="secondary" className="text-xs">Inactive</Badge>
-                            )}
-                            {staff.is_active !== false && (
+                            ) : (
                               <Badge variant="default" className="text-xs bg-green-600">Active</Badge>
                             )}
                           </div>
