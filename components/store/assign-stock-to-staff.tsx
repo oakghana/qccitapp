@@ -44,6 +44,8 @@ import {
   Mouse,
   HardDrive,
   Edit,
+  ChevronDown,
+  X,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { LOCATIONS } from "@/lib/locations"
@@ -159,6 +161,11 @@ export function AssignStockToStaff() {
     password: "qcc@123",
   })
   const [addUserLoading, setAddUserLoading] = useState(false)
+
+  // Searchable staff combobox state
+  const [staffSearch, setStaffSearch] = useState("")
+  const [staffDropdownOpen, setStaffDropdownOpen] = useState(false)
+  const [selectedStaffName, setSelectedStaffName] = useState("")
 
   const locationOptions = Object.entries(LOCATIONS).map(([value, label]) => ({
     value,
@@ -292,6 +299,9 @@ export function AssignStockToStaff() {
         assigned_to_email: staff.email || "",
         department: staff.department || prev.department,
       }))
+      setSelectedStaffName(staff.name)
+      setStaffSearch("")
+      setStaffDropdownOpen(false)
     }
   }
 
@@ -346,6 +356,7 @@ export function AssignStockToStaff() {
         department: newUserForm.department,
         room_number: newUserForm.room_number,
       }))
+      setSelectedStaffName(newUserForm.full_name.trim())
 
       toast({ title: "User Created", description: `"${newUserForm.full_name}" was created and selected.` })
       setAddUserDialogOpen(false)
@@ -1072,29 +1083,97 @@ export function AssignStockToStaff() {
                     </DialogContent>
                   </Dialog>
                 </div>
-                <Select onValueChange={handleStaffSelect}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a staff member..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {staffList.length === 0 ? (
-                      <div className="p-4 text-sm text-muted-foreground">No users available. Create a new user to get started.</div>
-                    ) : (
-                      staffList.map((staff) => (
-                        <SelectItem key={staff.id} value={staff.id}>
-                          <div className="flex items-center gap-2">
-                            <span>{staff.name}</span>
-                            {staff.is_active === false ? (
-                              <Badge variant="secondary" className="text-xs">Inactive</Badge>
-                            ) : (
-                              <Badge variant="default" className="text-xs bg-green-600">Active</Badge>
-                            )}
+                <div className="relative">
+                  {/* Trigger button */}
+                  <button
+                    type="button"
+                    onClick={() => setStaffDropdownOpen(prev => !prev)}
+                    className="w-full flex items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  >
+                    <span className={selectedStaffName ? "text-foreground" : "text-muted-foreground"}>
+                      {selectedStaffName || "Select a staff member..."}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      {selectedStaffName && (
+                        <X
+                          className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedStaffName("")
+                            setAssignmentForm(prev => ({ ...prev, assigned_to_name: "", assigned_to_email: "", department: "" }))
+                          }}
+                        />
+                      )}
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </button>
+
+                  {/* Dropdown panel */}
+                  {staffDropdownOpen && (
+                    <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+                      {/* Search input */}
+                      <div className="flex items-center border-b px-3 py-2 gap-2">
+                        <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <input
+                          autoFocus
+                          type="text"
+                          placeholder="Search by name..."
+                          value={staffSearch}
+                          onChange={(e) => setStaffSearch(e.target.value)}
+                          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                        />
+                        {staffSearch && (
+                          <X
+                            className="h-3.5 w-3.5 text-muted-foreground cursor-pointer hover:text-foreground"
+                            onClick={() => setStaffSearch("")}
+                          />
+                        )}
+                      </div>
+
+                      {/* User list */}
+                      <div className="max-h-60 overflow-y-auto">
+                        {staffList.length === 0 ? (
+                          <div className="p-4 text-sm text-muted-foreground text-center">
+                            No users available. Use "Add New User" to create one.
                           </div>
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                        ) : (() => {
+                          const filtered = staffList.filter(s =>
+                            s.name.toLowerCase().includes(staffSearch.toLowerCase())
+                          )
+                          return filtered.length === 0 ? (
+                            <div className="p-4 text-sm text-muted-foreground text-center">
+                              No users match "{staffSearch}"
+                            </div>
+                          ) : (
+                            filtered.map((staff) => (
+                              <button
+                                key={staff.id}
+                                type="button"
+                                onClick={() => handleStaffSelect(staff.id)}
+                                className="w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground outline-none"
+                              >
+                                <span>{staff.name}</span>
+                                {staff.is_active === false ? (
+                                  <Badge variant="secondary" className="text-xs ml-2">Inactive</Badge>
+                                ) : (
+                                  <Badge className="text-xs ml-2 bg-green-600 text-white">Active</Badge>
+                                )}
+                              </button>
+                            ))
+                          )
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Click-outside overlay */}
+                  {staffDropdownOpen && (
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => { setStaffDropdownOpen(false); setStaffSearch("") }}
+                    />
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Or enter details manually below if the person is not in the list
                 </p>
