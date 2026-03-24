@@ -15,48 +15,29 @@ export async function GET(request: Request) {
     const userRole = searchParams.get('userRole') // The role of the requesting user
     const allUsers = searchParams.get('allUsers') === 'true' // Return all users with active status
 
-    console.log('[v0] Staff list API called - role:', role, 'location:', location, 'userRole:', userRole, 'allUsers:', allUsers)
-
-    // If allUsers is requested, return from app_users table instead of profiles
+    // If allUsers is requested, return ALL users from profiles table (no role/status filter)
     if (allUsers) {
-      console.log('[v0] Fetching all users from app_users table')
-      
-      try {
-        const { data: users, error } = await supabaseAdmin
-          .from('app_users')
-          .select('*', { count: 'exact' })
-          .order('full_name', { ascending: true })
+      const { data: users, error } = await supabaseAdmin
+        .from('profiles')
+        .select('id, full_name, email, department, location, role, is_active, status, phone')
+        .order('full_name', { ascending: true })
 
-        if (error) {
-          console.error('[v0] Error fetching app users:', error)
-          return NextResponse.json({ error: `Database error: ${error.message}` }, { status: 500 })
-        }
-
-        console.log(`[v0] Fetched ${users?.length || 0} users from app_users:`, users)
-
-        const mappedStaff = (users || []).map((u: any) => ({
-          id: u.id,
-          name: u.full_name || 'Unknown',
-          email: u.email || '',
-          is_active: u.is_active !== false, // Default to active if not specified
-          department: '',
-          location: '',
-          role: '',
-          isOnline: true,
-          currentTickets: 0,
-          isAvailable: true,
-        }))
-
-        console.log('[v0] Mapped staff:', mappedStaff)
-
-        return NextResponse.json({
-          staff: mappedStaff,
-          total: mappedStaff.length,
-        })
-      } catch (dbError: any) {
-        console.error('[v0] Exception fetching app_users:', dbError)
-        return NextResponse.json({ error: `Exception: ${dbError.message}` }, { status: 500 })
+      if (error) {
+        return NextResponse.json({ error: `Database error: ${error.message}` }, { status: 500 })
       }
+
+      const mappedStaff = (users || []).map((u: any) => ({
+        id: u.id,
+        name: u.full_name || 'Unknown',
+        email: u.email || '',
+        is_active: u.is_active !== false && u.status !== 'suspended',
+        department: u.department || '',
+        location: u.location || '',
+        role: u.role || '',
+        phone: u.phone || '',
+      }))
+
+      return NextResponse.json({ staff: mappedStaff, total: mappedStaff.length })
     }
 
     // Build query to fetch users with IT-related roles

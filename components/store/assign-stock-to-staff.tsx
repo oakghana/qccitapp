@@ -70,6 +70,7 @@ interface StaffMember {
   department?: string
   location?: string
   role?: string
+  phone?: string
   is_active?: boolean
 }
 
@@ -150,6 +151,12 @@ export function AssignStockToStaff() {
   const [newUserForm, setNewUserForm] = useState({
     full_name: "",
     email: "",
+    phone: "",
+    department: "ITD",
+    role: "staff",
+    location: "Head Office",
+    room_number: "",
+    password: "qcc@123",
   })
   const [addUserLoading, setAddUserLoading] = useState(false)
 
@@ -224,35 +231,17 @@ export function AssignStockToStaff() {
 
   const loadStaffList = async () => {
     try {
-      const params = new URLSearchParams({
-        allUsers: "true", // Load all users from app_users table with is_active status
-      })
-      
-      console.log("[v0] Fetching staff list with params:", params.toString())
-      const response = await fetch(`/api/staff/list?${params}`)
+      const response = await fetch(`/api/staff/list?allUsers=true`)
       const result = await response.json()
 
-      console.log("[v0] Staff list response:", result)
-
       if (!response.ok) {
-        console.error("[v0] Error loading staff list:", result.error)
-        toast({
-          title: "Error",
-          description: result.error || "Failed to load staff list",
-          variant: "destructive",
-        })
+        toast({ title: "Error", description: result.error || "Failed to load staff list", variant: "destructive" })
         return
       }
 
-      console.log("[v0] Setting staff list with", result.staff?.length || 0, "users")
       setStaffList(result.staff || [])
     } catch (error) {
-      console.error("[v0] Error loading staff list:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load staff list",
-        variant: "destructive",
-      })
+      toast({ title: "Error", description: "Failed to load staff list", variant: "destructive" })
     } finally {
       setLoading(false)
     }
@@ -307,95 +296,62 @@ export function AssignStockToStaff() {
   }
 
   const handleCreateNewUser = async () => {
-    // Validation
     if (!newUserForm.full_name.trim()) {
-      toast({
-        title: "❌ Validation Error",
-        description: "Full name is required",
-        variant: "destructive",
-      })
+      toast({ title: "Validation Error", description: "Full name is required", variant: "destructive" })
       return
     }
-
-    if (!newUserForm.email.trim()) {
-      toast({
-        title: "❌ Validation Error",
-        description: "Email is required",
-        variant: "destructive",
-      })
-      return
-    }
-
-    // Simple email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(newUserForm.email)) {
-      toast({
-        title: "❌ Validation Error",
-        description: "Please enter a valid email address",
-        variant: "destructive",
-      })
+    if (!newUserForm.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newUserForm.email)) {
+      toast({ title: "Validation Error", description: "A valid email address is required", variant: "destructive" })
       return
     }
 
     setAddUserLoading(true)
     try {
-      const response = await fetch("/api/users/create", {
+      const response = await fetch("/api/admin/create-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          full_name: newUserForm.full_name.trim(),
+          name: newUserForm.full_name.trim(),
           email: newUserForm.email.trim().toLowerCase(),
-          user_role: user?.role,
+          phone: newUserForm.phone.trim(),
+          department: newUserForm.department,
+          role: newUserForm.role,
+          location: newUserForm.location,
+          password: newUserForm.password || "qcc@123",
         }),
       })
 
       const result = await response.json()
 
       if (!response.ok) {
-        toast({
-          title: "❌ Creation Failed",
-          description: result.error || "Failed to create user",
-          variant: "destructive",
-        })
+        toast({ title: "Creation Failed", description: result.error || "Failed to create user", variant: "destructive" })
         return
       }
 
-      // Add the new user to the staff list
       const newStaffMember: StaffMember = {
-        id: result.user.id,
-        name: result.user.name,
-        email: result.user.email,
-        department: "",
-        location: "",
-        role: "",
+        id: result.user?.id || crypto.randomUUID(),
+        name: newUserForm.full_name.trim(),
+        email: newUserForm.email.trim().toLowerCase(),
+        department: newUserForm.department,
+        location: newUserForm.location,
+        role: newUserForm.role,
+        is_active: true,
       }
-      
       setStaffList(prev => [...prev, newStaffMember].sort((a, b) => a.name.localeCompare(b.name)))
 
-      toast({
-        title: "✅ User Created",
-        description: result.message || `User "${newUserForm.full_name}" has been created successfully`,
-      })
-
-      // Auto-select the newly created user in the form
       setAssignmentForm(prev => ({
         ...prev,
-        assigned_to_name: result.user.name,
-        assigned_to_email: result.user.email,
+        assigned_to_name: newUserForm.full_name.trim(),
+        assigned_to_email: newUserForm.email.trim().toLowerCase(),
+        department: newUserForm.department,
+        room_number: newUserForm.room_number,
       }))
 
+      toast({ title: "User Created", description: `"${newUserForm.full_name}" was created and selected.` })
       setAddUserDialogOpen(false)
-      setNewUserForm({
-        full_name: "",
-        email: "",
-      })
+      setNewUserForm({ full_name: "", email: "", phone: "", department: "ITD", role: "staff", location: "Head Office", room_number: "", password: "qcc@123" })
     } catch (error) {
-      console.error("[v0] Error creating user:", error)
-      toast({
-        title: "❌ Error",
-        description: "An error occurred while creating the user",
-        variant: "destructive",
-      })
+      toast({ title: "Error", description: "An unexpected error occurred", variant: "destructive" })
     } finally {
       setAddUserLoading(false)
     }
@@ -987,38 +943,122 @@ export function AssignStockToStaff() {
                         Add New User
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent className="max-w-lg">
                       <DialogHeader>
                         <DialogTitle>Create New User</DialogTitle>
                         <DialogDescription>
-                          Add a new user to the system and assign them the item. The user will be created as active.
+                          Add a new user to the system. They will be created as active and automatically selected.
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="new-user-name">Full Name *</Label>
-                          <Input
-                            id="new-user-name"
-                            placeholder="Enter full name"
-                            value={newUserForm.full_name}
-                            onChange={(e) => setNewUserForm(prev => ({ ...prev, full_name: e.target.value }))}
-                            disabled={addUserLoading}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="new-user-email">Email Address *</Label>
-                          <Input
-                            id="new-user-email"
-                            type="email"
-                            placeholder="Enter email address"
-                            value={newUserForm.email}
-                            onChange={(e) => setNewUserForm(prev => ({ ...prev, email: e.target.value }))}
-                            disabled={addUserLoading}
-                          />
-                        </div>
-                        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded p-3 text-sm text-blue-800 dark:text-blue-200">
-                          <p>✓ User will be created as <strong>active</strong> and ready for assignment</p>
-                          <p className="text-xs mt-1 text-blue-700 dark:text-blue-300">Only Admin, IT Store Head, and Regional IT Head can create users.</p>
+                      <div className="space-y-4 py-2">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label htmlFor="new-user-name">Full Name *</Label>
+                            <Input
+                              id="new-user-name"
+                              placeholder="Enter full name"
+                              value={newUserForm.full_name}
+                              onChange={(e) => setNewUserForm(prev => ({ ...prev, full_name: e.target.value }))}
+                              disabled={addUserLoading}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="new-user-email">Email *</Label>
+                            <Input
+                              id="new-user-email"
+                              type="email"
+                              placeholder="Enter email"
+                              value={newUserForm.email}
+                              onChange={(e) => setNewUserForm(prev => ({ ...prev, email: e.target.value }))}
+                              disabled={addUserLoading}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="new-user-phone">Phone</Label>
+                            <Input
+                              id="new-user-phone"
+                              placeholder="e.g. 0244000000"
+                              value={newUserForm.phone}
+                              onChange={(e) => setNewUserForm(prev => ({ ...prev, phone: e.target.value }))}
+                              disabled={addUserLoading}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="new-user-department">Department</Label>
+                            <Select
+                              value={newUserForm.department}
+                              onValueChange={(v) => setNewUserForm(prev => ({ ...prev, department: v }))}
+                              disabled={addUserLoading}
+                            >
+                              <SelectTrigger id="new-user-department">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {["ITD","Marketing","AUDIT","ACCOUNTS","RESEARCH","ESTATE","SECURITY","OPERATIONS","PROCUREMENT","HR","LEGAL","FINANCE"].map(d => (
+                                  <SelectItem key={d} value={d}>{d}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="new-user-role">Role</Label>
+                            <Select
+                              value={newUserForm.role}
+                              onValueChange={(v) => setNewUserForm(prev => ({ ...prev, role: v }))}
+                              disabled={addUserLoading}
+                            >
+                              <SelectTrigger id="new-user-role">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="staff">Staff</SelectItem>
+                                <SelectItem value="it_staff">IT Staff</SelectItem>
+                                <SelectItem value="it_head">IT Head</SelectItem>
+                                <SelectItem value="it_store_head">IT Store Head</SelectItem>
+                                <SelectItem value="service_desk_head">Service Desk Head</SelectItem>
+                                <SelectItem value="service_desk_staff">Service Desk Staff</SelectItem>
+                                <SelectItem value="regional_it_head">Regional IT Head</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="new-user-location">Location</Label>
+                            <Select
+                              value={newUserForm.location}
+                              onValueChange={(v) => setNewUserForm(prev => ({ ...prev, location: v }))}
+                              disabled={addUserLoading}
+                            >
+                              <SelectTrigger id="new-user-location">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {["Head Office","Accra","Kumasi","Takoradi","Tema","Cape Coast","Ho","Tamale","Sunyani"].map(l => (
+                                  <SelectItem key={l} value={l}>{l}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="new-user-room">Room Number</Label>
+                            <Input
+                              id="new-user-room"
+                              placeholder="e.g. Room 205"
+                              value={newUserForm.room_number}
+                              onChange={(e) => setNewUserForm(prev => ({ ...prev, room_number: e.target.value }))}
+                              disabled={addUserLoading}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="new-user-password">Default Password</Label>
+                            <Input
+                              id="new-user-password"
+                              type="password"
+                              value={newUserForm.password}
+                              onChange={(e) => setNewUserForm(prev => ({ ...prev, password: e.target.value }))}
+                              disabled={addUserLoading}
+                            />
+                            <p className="text-xs text-muted-foreground">User can change after first login</p>
+                          </div>
                         </div>
                       </div>
                       <DialogFooter>
