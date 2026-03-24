@@ -13,8 +13,41 @@ export async function GET(request: Request) {
     const role = searchParams.get('role') || 'all'
     const location = searchParams.get('location') || 'all'
     const userRole = searchParams.get('userRole') // The role of the requesting user
+    const allUsers = searchParams.get('allUsers') === 'true' // Return all users with active status
 
-    console.log('[v0] Staff list API called - role:', role, 'location:', location, 'userRole:', userRole)
+    console.log('[v0] Staff list API called - role:', role, 'location:', location, 'userRole:', userRole, 'allUsers:', allUsers)
+
+    // If allUsers is requested, return from app_users table instead of profiles
+    if (allUsers) {
+      console.log('[v0] Fetching all users from app_users table')
+      
+      const { data: users, error } = await supabaseAdmin
+        .from('app_users')
+        .select('id, full_name, email, is_active, created_at')
+        .order('full_name', { ascending: true })
+
+      if (error) {
+        console.error('[v0] Error fetching app users:', error)
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      console.log(`[v0] Fetched ${users?.length || 0} users from app_users`)
+
+      return NextResponse.json({
+        staff: (users || []).map(u => ({
+          id: u.id,
+          name: u.full_name,
+          email: u.email,
+          is_active: u.is_active,
+          department: '',
+          location: '',
+          role: '',
+          isOnline: true,
+          currentTickets: 0,
+          isAvailable: true,
+        })),
+      })
+    }
 
     // Build query to fetch users with IT-related roles
     let query = supabaseAdmin

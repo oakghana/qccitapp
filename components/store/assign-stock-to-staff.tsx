@@ -144,6 +144,14 @@ export function AssignStockToStaff() {
     notes: "",
   })
 
+  // Add new user dialog state
+  const [addUserDialogOpen, setAddUserDialogOpen] = useState(false)
+  const [newUserForm, setNewUserForm] = useState({
+    full_name: "",
+    email: "",
+  })
+  const [addUserLoading, setAddUserLoading] = useState(false)
+
   const locationOptions = Object.entries(LOCATIONS).map(([value, label]) => ({
     value,
     label,
@@ -216,9 +224,7 @@ export function AssignStockToStaff() {
   const loadStaffList = async () => {
     try {
       const params = new URLSearchParams({
-        role: "all_users",
-        location: user?.location || "all",
-        userRole: user?.role || "",
+        allUsers: "true", // Load all users from app_users table with is_active status
       })
       
       const response = await fetch(`/api/staff/list?${params}`)
@@ -284,6 +290,102 @@ export function AssignStockToStaff() {
       }))
     }
   }
+
+  const handleCreateNewUser = async () => {
+    // Validation
+    if (!newUserForm.full_name.trim()) {
+      toast({
+        title: "❌ Validation Error",
+        description: "Full name is required",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!newUserForm.email.trim()) {
+      toast({
+        title: "❌ Validation Error",
+        description: "Email is required",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Simple email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(newUserForm.email)) {
+      toast({
+        title: "❌ Validation Error",
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setAddUserLoading(true)
+    try {
+      const response = await fetch("/api/users/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          full_name: newUserForm.full_name.trim(),
+          email: newUserForm.email.trim().toLowerCase(),
+          user_role: user?.role,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        toast({
+          title: "❌ Creation Failed",
+          description: result.error || "Failed to create user",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Add the new user to the staff list
+      const newStaffMember: StaffMember = {
+        id: result.user.id,
+        name: result.user.name,
+        email: result.user.email,
+        department: "",
+        location: "",
+        role: "",
+      }
+      
+      setStaffList(prev => [...prev, newStaffMember].sort((a, b) => a.name.localeCompare(b.name)))
+
+      toast({
+        title: "✅ User Created",
+        description: result.message || `User "${newUserForm.full_name}" has been created successfully`,
+      })
+
+      // Auto-select the newly created user in the form
+      setAssignmentForm(prev => ({
+        ...prev,
+        assigned_to_name: result.user.name,
+        assigned_to_email: result.user.email,
+      }))
+
+      setAddUserDialogOpen(false)
+      setNewUserForm({
+        full_name: "",
+        email: "",
+      })
+    } catch (error) {
+      console.error("[v0] Error creating user:", error)
+      toast({
+        title: "❌ Error",
+        description: "An error occurred while creating the user",
+        variant: "destructive",
+      })
+    } finally {
+      setAddUserLoading(false)
+    }
+  }
+
 
   const handleSubmitAssignment = async () => {
     if (!selectedItem) return
@@ -860,18 +962,83 @@ export function AssignStockToStaff() {
               </div>
 
               {/* Staff Selection */}
-              <div className="space-y-2">
-                <Label>Select Staff Member *</Label>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Select Staff Member *</Label>
+                  <Dialog open={addUserDialogOpen} onOpenChange={setAddUserDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" variant="outline" className="text-xs">
+                        <UserPlus className="h-3 w-3 mr-1" />
+                        Add New User
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Create New User</DialogTitle>
+                        <DialogDescription>
+                          Add a new user to the system and assign them the item. The user will be created as active.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="new-user-name">Full Name *</Label>
+                          <Input
+                            id="new-user-name"
+                            placeholder="Enter full name"
+                            value={newUserForm.full_name}
+                            onChange={(e) => setNewUserForm(prev => ({ ...prev, full_name: e.target.value }))}
+                            disabled={addUserLoading}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="new-user-email">Email Address *</Label>
+                          <Input
+                            id="new-user-email"
+                            type="email"
+                            placeholder="Enter email address"
+                            value={newUserForm.email}
+                            onChange={(e) => setNewUserForm(prev => ({ ...prev, email: e.target.value }))}
+                            disabled={addUserLoading}
+                          />
+                        </div>
+                        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded p-3 text-sm text-blue-800 dark:text-blue-200">
+                          <p>✓ User will be created as <strong>active</strong> and ready for assignment</p>
+                          <p className="text-xs mt-1 text-blue-700 dark:text-blue-300">Only Admin, IT Store Head, and Regional IT Head can create users.</p>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setAddUserDialogOpen(false)} disabled={addUserLoading}>
+                          Cancel
+                        </Button>
+                        <Button onClick={handleCreateNewUser} disabled={addUserLoading}>
+                          {addUserLoading ? "Creating..." : "Create User"}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
                 <Select onValueChange={handleStaffSelect}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a staff member..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {staffList.map((staff) => (
-                      <SelectItem key={staff.id} value={staff.id}>
-                        {staff.name} {staff.department ? `- ${staff.department}` : ""} ({staff.location || "Unknown"})
-                      </SelectItem>
-                    ))}
+                    {staffList.length === 0 ? (
+                      <div className="p-4 text-sm text-muted-foreground">No users available. Create a new user to get started.</div>
+                    ) : (
+                      staffList.map((staff) => (
+                        <SelectItem key={staff.id} value={staff.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{staff.name}</span>
+                            {staff.is_active === false && (
+                              <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                            )}
+                            {staff.is_active !== false && (
+                              <Badge variant="default" className="text-xs bg-green-600">Active</Badge>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
