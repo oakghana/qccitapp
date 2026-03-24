@@ -878,14 +878,16 @@ export function AssignStockToStaff() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEditAssignment(assignment)}
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Edit
-                            </Button>
+                            {["admin", "it_store_head", "it_head", "regional_it_head"].includes(user?.role || "") && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleEditAssignment(assignment)}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Edit
+                              </Button>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
