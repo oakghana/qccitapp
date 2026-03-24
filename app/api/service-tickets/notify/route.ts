@@ -102,10 +102,17 @@ export async function POST(request: Request) {
 
     const recipients = profiles ?? []
 
-    // Filter out any profiles with null IDs to prevent FK violations
-    const validRecipients = recipients.filter((p) => p.id && typeof p.id === "string" && p.id.trim())
+    // Filter out any profiles with null/empty IDs to prevent FK violations
+    const validRecipients = recipients.filter((p) => {
+      const idValid = p.id && typeof p.id === "string" && p.id.trim().length > 0
+      if (!idValid) {
+        console.log("[v0] Skipping profile with invalid ID:", { profile: p, hasId: !!p.id, idType: typeof p.id })
+      }
+      return idValid
+    })
 
     if (validRecipients.length === 0) {
+      console.log("[v0] No valid recipients found. Total profiles fetched:", recipients.length, "Role:", targetRole, "Profiles:", recipients)
       return NextResponse.json({
         success: true,
         broadcast,
@@ -125,16 +132,29 @@ export async function POST(request: Request) {
       created_at: new Date().toISOString(),
     }))
 
+    console.log("[v0] Inserting", notificationRows.length, "notification rows:", { 
+      sample: notificationRows[0],
+      totalRows: notificationRows.length 
+    })
+
     const { error: notifError, data: notifData } = await supabaseAdmin
       .from("notifications")
       .insert(notificationRows)
 
     if (notifError) {
+      console.error("[v0] FK Constraint or insert error:", {
+        message: notifError.message,
+        code: (notifError as any).code,
+        details: (notifError as any).details,
+        hint: (notifError as any).hint,
+      })
       return NextResponse.json({
         error: `Failed to insert notifications: ${notifError.message}. Checked ${validRecipients.length} recipients.`,
         details: notifError,
       }, { status: 500 })
     }
+
+    console.log("[v0] Successfully inserted notifications. Rows affected:", notifData?.length || 0)
 
     // 5. Track recipients in admin_notification_recipients for admin reporting
     const recipientRows = validRecipients.map((p) => ({

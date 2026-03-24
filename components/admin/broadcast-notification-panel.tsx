@@ -137,6 +137,7 @@ export const AdminBroadcastPanel: React.FC<AdminBroadcastPanelProps> = ({
       // Refresh notifications list
       fetchSentNotifications()
     } catch (error: any) {
+      console.error("[v0] Broadcast send error:", error)
       toast({
         title: 'Error',
         description: error.message || 'Failed to send notification',
