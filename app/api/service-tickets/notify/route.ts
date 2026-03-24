@@ -51,15 +51,12 @@ export async function POST(request: Request) {
       )
     }
 
-    // 1. Save the broadcast record (admin_notifications has no title column — title goes in message)
-    const broadcastMessage = title.trim() !== message.trim()
-      ? `${title.trim()}: ${message.trim()}`
-      : message.trim()
-
+    // 1. Save the broadcast record (admin_notifications requires both title and message)
     const { data: broadcast, error: broadcastError } = await supabaseAdmin
       .from("admin_notifications")
       .insert({
-        message: broadcastMessage,
+        title: title.trim(),
+        message: message.trim(),
         target_role: targetRole,
         target_location_name: targetLocation || null,
         notification_type: notificationType,
