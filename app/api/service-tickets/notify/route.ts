@@ -102,7 +102,17 @@ export async function POST(request: Request) {
 
     const recipients = profiles ?? []
 
-    if (recipients.length === 0) {
+    // Filter out any profiles with null/empty IDs to prevent FK violations
+    const validRecipients = recipients.filter((p) => {
+      const idValid = p.id && typeof p.id === "string" && p.id.trim().length > 0
+      if (!idValid) {
+        console.log("[v0] Skipping profile with invalid ID:", { profile: p, hasId: !!p.id, idType: typeof p.id })
+      }
+      return idValid
+    })
+
+    if (validRecipients.length === 0) {
+      console.log("[v0] No valid recipients found. Total profiles fetched:", recipients.length, "Role:", targetRole, "Profiles:", recipients)
       return NextResponse.json({
         success: true,
         broadcast,
@@ -113,24 +123,41 @@ export async function POST(request: Request) {
 
     // 4. Fan out a row into `notifications` for every matched user
     //    This is what the dashboard widget and inbox page read from.
-    const notificationRows = recipients.map((p) => ({
+    const notificationRows = validRecipients.map((p) => ({
       user_id: p.id,
       title: title.trim(),
       message: message.trim(),
       type: notificationType === "urgent" ? "warning" : notificationType,
       is_read: false,
+      created_at: new Date().toISOString(),
     }))
 
-    const { error: notifError } = await supabaseAdmin
+    console.log("[v0] Inserting", notificationRows.length, "notification rows:", { 
+      sample: notificationRows[0],
+      totalRows: notificationRows.length 
+    })
+
+    const { error: notifError, data: notifData } = await supabaseAdmin
       .from("notifications")
       .insert(notificationRows)
 
     if (notifError) {
-      return NextResponse.json({ error: notifError.message }, { status: 500 })
+      console.error("[v0] FK Constraint or insert error:", {
+        message: notifError.message,
+        code: (notifError as any).code,
+        details: (notifError as any).details,
+        hint: (notifError as any).hint,
+      })
+      return NextResponse.json({
+        error: `Failed to insert notifications: ${notifError.message}. Checked ${validRecipients.length} recipients.`,
+        details: notifError,
+      }, { status: 500 })
     }
 
+    console.log("[v0] Successfully inserted notifications. Rows affected:", notifData?.length || 0)
+
     // 5. Track recipients in admin_notification_recipients for admin reporting
-    const recipientRows = recipients.map((p) => ({
+    const recipientRows = validRecipients.map((p) => ({
       notification_id: broadcast.id,
       user_id: p.id,
       user_name: p.full_name || p.email,
