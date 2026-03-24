@@ -44,7 +44,9 @@ export const AdminBroadcastPanel: React.FC<AdminBroadcastPanelProps> = ({
   const [dialogOpen, setDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [sentNotifications, setSentNotifications] = useState<any[]>([])
-  const [isAdminOnly] = useState(currentUserRole === 'admin')
+  const [isAdminOnly] = useState(
+    ["admin", "it_head", "regional_it_head"].includes(currentUserRole)
+  )
 
   // Form states
   const [title, setTitle] = useState('')
@@ -119,7 +121,7 @@ export const AdminBroadcastPanel: React.FC<AdminBroadcastPanelProps> = ({
 
       await showNotification({
         title: 'Broadcast Sent',
-        description: `Notification sent to ${targetRole} users`,
+        description: result.message || `Notification sent to ${targetRole} users`,
         type: 'success',
         sound: true,
       })

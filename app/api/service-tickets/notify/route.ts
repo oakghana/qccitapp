@@ -1,122 +1,182 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
-const supabase = createClient(
+const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+// Maps broadcast target_role values to the actual role values stored in profiles
+const ROLE_MAP: Record<string, string[]> = {
+  it_staff:           ["it_staff"],
+  service_desk_staff: ["service_desk_staff"],
+  service_desk_head:  ["service_desk_head"],
+  it_head:            ["it_head", "regional_it_head"],
+  staff:              ["staff"],
+  user:               ["admin", "it_head", "regional_it_head", "it_staff",
+                       "service_desk_staff", "service_desk_head", "staff",
+                       "user", "it_store_head"],
+}
+
+const ALLOWED_SENDER_ROLES = ["admin", "it_head", "regional_it_head"]
+
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { title, message, targetRole, targetLocation, sentBy, sentByName, notificationType } = body
+    const {
+      title,
+      message,
+      targetRole,
+      targetLocation,
+      sentBy,
+      sentByName,
+      notificationType = "info",
+    } = body
 
-    if (!title || !message || !targetRole || !sentBy) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      )
+    if (!title?.trim() || !message?.trim() || !targetRole) {
+      return NextResponse.json({ error: "title, message and targetRole are required" }, { status: 400 })
     }
 
-    // Only admins can send broadcast notifications
-    const { data: user, error: userError } = await supabase
+    // Verify the sender exists and has permission
+    const { data: senderProfile } = await supabaseAdmin
       .from("profiles")
-      .select("role")
+      .select("role, full_name")
       .eq("id", sentBy)
       .single()
 
-    if (userError || !user || user.role !== "admin") {
+    if (!senderProfile || !ALLOWED_SENDER_ROLES.includes(senderProfile.role)) {
       return NextResponse.json(
-        { error: "Unauthorized: Only admins can send notifications" },
+        { error: "Unauthorized: Only admins and IT heads can send broadcast notifications" },
         { status: 403 }
       )
     }
 
-    // Insert admin notification
-    const { data, error } = await supabase
+    // 1. Save the broadcast record
+    const { data: broadcast, error: broadcastError } = await supabaseAdmin
       .from("admin_notifications")
       .insert({
-        title: title,
-        message: message,
+        title: title.trim(),
+        message: message.trim(),
         target_role: targetRole,
-        target_location_name: targetLocation,
-        created_by: sentBy,
-        created_by_name: sentByName,
-        created_by_role: user.role,
+        target_location_name: targetLocation || null,
         notification_type: notificationType,
-        created_at: new Date().toISOString(),
+        sent_by: sentBy || null,
+        sent_by_name: sentByName || senderProfile.full_name || "Admin",
+        created_by: sentBy || null,
+        created_by_name: sentByName || senderProfile.full_name || "Admin",
+        created_by_role: senderProfile.role,
+        status: "sent",
+        sent_at: new Date().toISOString(),
       })
       .select()
       .single()
 
-    if (error) {
-      console.error("Error creating notification:", error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (broadcastError) {
+      return NextResponse.json({ error: broadcastError.message }, { status: 500 })
     }
 
-    // Log the action
-    await supabase.from("audit_logs").insert({
-      action: "admin_notification_sent",
-      table_name: "admin_notifications",
-      record_id: data.id,
-      user_id: sentBy,
-      user_name: sentByName,
-      details: {
-        target_role: targetRole,
-        target_location: targetLocation,
-        notification_type: notificationType,
-      },
-      created_at: new Date().toISOString(),
-    })
+    // 2. Resolve which profile roles should receive this broadcast
+    const rolesToNotify = ROLE_MAP[targetRole] ?? [targetRole]
 
-    return NextResponse.json({ success: true, notification: data })
-  } catch (error) {
-    console.error("Error in broadcast endpoint:", error)
-    return NextResponse.json({ error: "Failed to send notification" }, { status: 500 })
+    // 3. Fetch all active matching users from profiles
+    let profileQuery = supabaseAdmin
+      .from("profiles")
+      .select("id, full_name, email, role, location")
+      .in("role", rolesToNotify)
+      .eq("is_active", true)
+
+    if (targetLocation) {
+      profileQuery = profileQuery.ilike("location", `%${targetLocation}%`)
+    }
+
+    const { data: profiles, error: profileError } = await profileQuery
+
+    if (profileError) {
+      return NextResponse.json({ error: profileError.message }, { status: 500 })
+    }
+
+    const recipients = profiles ?? []
+
+    if (recipients.length === 0) {
+      return NextResponse.json({
+        success: true,
+        broadcast,
+        recipientsCount: 0,
+        message: "Broadcast saved but no active users found for the selected role.",
+      })
+    }
+
+    // 4. Fan out a row into `notifications` for every matched user
+    //    This is what the dashboard widget and inbox page read from.
+    const notificationRows = recipients.map((p) => ({
+      user_id: p.id,
+      title: title.trim(),
+      message: message.trim(),
+      type: notificationType === "urgent" ? "warning" : notificationType,
+      is_read: false,
+    }))
+
+    const { error: notifError } = await supabaseAdmin
+      .from("notifications")
+      .insert(notificationRows)
+
+    if (notifError) {
+      return NextResponse.json({ error: notifError.message }, { status: 500 })
+    }
+
+    // 5. Track recipients in admin_notification_recipients for admin reporting
+    const recipientRows = recipients.map((p) => ({
+      notification_id: broadcast.id,
+      user_id: p.id,
+      user_name: p.full_name || p.email,
+      user_email: p.email,
+      user_role: p.role,
+      user_location: p.location || null,
+      is_read: false,
+      received_at: new Date().toISOString(),
+    }))
+
+    await supabaseAdmin.from("admin_notification_recipients").insert(recipientRows)
+
+    // 6. Update the recipients_count on the broadcast record
+    await supabaseAdmin
+      .from("admin_notifications")
+      .update({ recipients_count: recipients.length })
+      .eq("id", broadcast.id)
+
+    return NextResponse.json({
+      success: true,
+      broadcast,
+      recipientsCount: recipients.length,
+      message: `Notification delivered to ${recipients.length} user${recipients.length !== 1 ? "s" : ""}.`,
+    })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || "Failed to send notification" }, { status: 500 })
   }
 }
 
+// GET – returns sent broadcast history for the admin panel history list
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const userId = searchParams.get("userId")
-    const userRole = searchParams.get("userRole")
-    const userLocation = searchParams.get("userLocation")
+    const userRole = searchParams.get("userRole") || ""
 
-    if (!userId || !userRole) {
-      return NextResponse.json(
-        { error: "Missing userId or userRole parameter" },
-        { status: 400 }
-      )
+    if (!ALLOWED_SENDER_ROLES.includes(userRole)) {
+      return NextResponse.json({ notifications: [] })
     }
 
-    // Fetch notifications targeted to this user's role and location
-    let query = supabase
+    const { data, error } = await supabaseAdmin
       .from("admin_notifications")
-      .select("id,title,message,notification_type,target_role,target_location_name,created_at,created_by_name")
-      .eq("target_role", userRole)
-      .eq("status", "sent")
+      .select("*")
       .order("created_at", { ascending: false })
       .limit(50)
 
-    // If location is provided, also include location-specific notifications
-    if (userLocation) {
-      query = query.or(`target_location_name.eq.${userLocation},target_location_name.is.null`)
-    } else {
-      // Include all location notifications if no specific location
-      query = query.or(`target_location_name.is.null`)
-    }
-
-    const { data, error } = await query
-
     if (error) {
-      console.error("Error fetching notifications:", error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ notifications: data })
-  } catch (error) {
-    console.error("Error in get notifications endpoint:", error)
-    return NextResponse.json({ error: "Failed to fetch notifications" }, { status: 500 })
+    return NextResponse.json({ notifications: data || [] })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || "Failed to fetch notifications" }, { status: 500 })
   }
 }
