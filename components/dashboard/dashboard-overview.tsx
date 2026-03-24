@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 import { canSeeAllLocations } from "@/lib/location-filter"
 import { StaffProductivityWidget } from "./staff-productivity-widget"
 import { IncompleteTasksWidget } from "./incomplete-tasks-widget"
+import { UserNotificationsWidget } from "./user-notifications-widget"
 
 export function DashboardOverview() {
   const router = useRouter()
@@ -284,6 +285,9 @@ export function DashboardOverview() {
           <IncompleteTasksWidget />
         </div>
       )}
+
+      {/* User Notifications Widget */}
+      <UserNotificationsWidget />
 
       {/* Recent Activity */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
