@@ -52,28 +52,35 @@ export async function POST(request: Request) {
     }
 
     // 1. Save the broadcast record (admin_notifications requires both title and message)
+    const broadcastPayload = {
+      title: title.trim(),
+      message: message.trim(),
+      target_role: targetRole,
+      target_location_name: targetLocation || null,
+      notification_type: notificationType,
+      sent_by: sentBy || null,
+      sent_by_name: sentByName || senderProfile.full_name || "Admin",
+      created_by: sentBy || null,
+      created_by_name: sentByName || senderProfile.full_name || "Admin",
+      created_by_role: senderProfile.role,
+      status: "sent",
+      sent_at: new Date().toISOString(),
+    }
+
+    console.log("[v0] Saving broadcast:", broadcastPayload)
+
     const { data: broadcast, error: broadcastError } = await supabaseAdmin
       .from("admin_notifications")
-      .insert({
-        title: title.trim(),
-        message: message.trim(),
-        target_role: targetRole,
-        target_location_name: targetLocation || null,
-        notification_type: notificationType,
-        sent_by: sentBy || null,
-        sent_by_name: sentByName || senderProfile.full_name || "Admin",
-        created_by: sentBy || null,
-        created_by_name: sentByName || senderProfile.full_name || "Admin",
-        created_by_role: senderProfile.role,
-        status: "sent",
-        sent_at: new Date().toISOString(),
-      })
+      .insert([broadcastPayload])
       .select()
       .single()
 
-    if (broadcastError) {
-      return NextResponse.json({ error: broadcastError.message }, { status: 500 })
+    if (broadcastError || !broadcast) {
+      console.error("[v0] Broadcast insert error:", broadcastError?.message)
+      return NextResponse.json({ error: broadcastError?.message || "Broadcast save failed" }, { status: 500 })
     }
+
+    console.log("[v0] Broadcast saved with ID:", broadcast.id)
 
     // 2. Resolve which profile roles should receive this broadcast
     const rolesToNotify = ROLE_MAP[targetRole] ?? [targetRole]
@@ -122,8 +129,7 @@ export async function POST(request: Request) {
     }
 
     // 4. Fan out a row into `notifications` for every matched user
-    //    This is what the dashboard widget and inbox page read from.
-    const notificationRows = validRecipients.map((p) => ({
+    const notificationPayload = validRecipients.map((p) => ({
       user_id: p.id,
       title: title.trim(),
       message: message.trim(),
@@ -132,29 +138,20 @@ export async function POST(request: Request) {
       created_at: new Date().toISOString(),
     }))
 
-    console.log("[v0] Inserting", notificationRows.length, "notification rows:", { 
-      sample: notificationRows[0],
-      totalRows: notificationRows.length 
-    })
+    console.log("[v0] Fanning out", notificationPayload.length, "notifications. Sample user_id:", notificationPayload[0]?.user_id)
 
-    const { error: notifError, data: notifData } = await supabaseAdmin
+    const { error: notifError } = await supabaseAdmin
       .from("notifications")
-      .insert(notificationRows)
+      .insert(notificationPayload)
 
     if (notifError) {
-      console.error("[v0] FK Constraint or insert error:", {
-        message: notifError.message,
-        code: (notifError as any).code,
-        details: (notifError as any).details,
-        hint: (notifError as any).hint,
-      })
+      console.error("[v0] Notification insert error:", notifError.message)
       return NextResponse.json({
-        error: `Failed to insert notifications: ${notifError.message}. Checked ${validRecipients.length} recipients.`,
-        details: notifError,
+        error: `Failed to fan out notifications: ${notifError.message}`,
       }, { status: 500 })
     }
 
-    console.log("[v0] Successfully inserted notifications. Rows affected:", notifData?.length || 0)
+    console.log("[v0] Successfully fanned out', notificationPayload.length, 'notifications")
 
     // 5. Track recipients in admin_notification_recipients for admin reporting
     const recipientRows = validRecipients.map((p) => ({
@@ -169,12 +166,6 @@ export async function POST(request: Request) {
     }))
 
     await supabaseAdmin.from("admin_notification_recipients").insert(recipientRows)
-
-    // 6. Update the recipients_count on the broadcast record
-    await supabaseAdmin
-      .from("admin_notifications")
-      .update({ recipients_count: recipients.length })
-      .eq("id", broadcast.id)
 
     return NextResponse.json({
       success: true,
