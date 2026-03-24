@@ -102,7 +102,10 @@ export async function POST(request: Request) {
 
     const recipients = profiles ?? []
 
-    if (recipients.length === 0) {
+    // Filter out any profiles with null IDs to prevent FK violations
+    const validRecipients = recipients.filter((p) => p.id && typeof p.id === "string" && p.id.trim())
+
+    if (validRecipients.length === 0) {
       return NextResponse.json({
         success: true,
         broadcast,
@@ -113,24 +116,28 @@ export async function POST(request: Request) {
 
     // 4. Fan out a row into `notifications` for every matched user
     //    This is what the dashboard widget and inbox page read from.
-    const notificationRows = recipients.map((p) => ({
+    const notificationRows = validRecipients.map((p) => ({
       user_id: p.id,
       title: title.trim(),
       message: message.trim(),
       type: notificationType === "urgent" ? "warning" : notificationType,
       is_read: false,
+      created_at: new Date().toISOString(),
     }))
 
-    const { error: notifError } = await supabaseAdmin
+    const { error: notifError, data: notifData } = await supabaseAdmin
       .from("notifications")
       .insert(notificationRows)
 
     if (notifError) {
-      return NextResponse.json({ error: notifError.message }, { status: 500 })
+      return NextResponse.json({
+        error: `Failed to insert notifications: ${notifError.message}. Checked ${validRecipients.length} recipients.`,
+        details: notifError,
+      }, { status: 500 })
     }
 
     // 5. Track recipients in admin_notification_recipients for admin reporting
-    const recipientRows = recipients.map((p) => ({
+    const recipientRows = validRecipients.map((p) => ({
       notification_id: broadcast.id,
       user_id: p.id,
       user_name: p.full_name || p.email,
