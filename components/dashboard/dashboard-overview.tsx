@@ -39,8 +39,6 @@ export function DashboardOverview() {
       const canSeeAll = canSeeAllLocations(user)
       const userLoc = user.location?.trim() || ""
 
-      console.log("[v0] Dashboard stats - user:", user.username, "role:", user.role, "location:", userLoc, "canSeeAll:", canSeeAll)
-
       try {
         // Use API endpoint that bypasses RLS
         const params = new URLSearchParams({

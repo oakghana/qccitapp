@@ -51,12 +51,15 @@ export async function POST(request: Request) {
       )
     }
 
-    // 1. Save the broadcast record
+    // 1. Save the broadcast record (admin_notifications has no title column — title goes in message)
+    const broadcastMessage = title.trim() !== message.trim()
+      ? `${title.trim()}: ${message.trim()}`
+      : message.trim()
+
     const { data: broadcast, error: broadcastError } = await supabaseAdmin
       .from("admin_notifications")
       .insert({
-        title: title.trim(),
-        message: message.trim(),
+        message: broadcastMessage,
         target_role: targetRole,
         target_location_name: targetLocation || null,
         notification_type: notificationType,
@@ -77,13 +80,18 @@ export async function POST(request: Request) {
 
     // 2. Resolve which profile roles should receive this broadcast
     const rolesToNotify = ROLE_MAP[targetRole] ?? [targetRole]
+    const isAllUsers = targetRole === "user" || targetRole === "all"
 
     // 3. Fetch all active matching users from profiles
     let profileQuery = supabaseAdmin
       .from("profiles")
       .select("id, full_name, email, role, location")
-      .in("role", rolesToNotify)
       .eq("is_active", true)
+
+    // Only filter by role if not targeting all users
+    if (!isAllUsers) {
+      profileQuery = profileQuery.in("role", rolesToNotify)
+    }
 
     if (targetLocation) {
       profileQuery = profileQuery.ilike("location", `%${targetLocation}%`)
