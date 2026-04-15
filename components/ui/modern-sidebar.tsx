@@ -130,6 +130,8 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
             icon: FileText,
             items: [
               { name: "Equipment Requisition", href: "/dashboard/it-forms/equipment-requisition", icon: Laptop },
+              { name: "Maintenance & Repairs", href: "/dashboard/it-forms/maintenance-repairs", icon: Wrench },
+              { name: "New Gadget Request", href: "/dashboard/it-forms/new-gadget", icon: Laptop },
             ],
           },
         ],
@@ -277,6 +279,8 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
             icon: FileText,
             items: [
               { name: "Equipment Requisition", href: "/dashboard/it-forms/equipment-requisition", icon: Laptop },
+              { name: "Maintenance & Repairs", href: "/dashboard/it-forms/maintenance-repairs", icon: Wrench },
+              { name: "New Gadget Request", href: "/dashboard/it-forms/new-gadget", icon: Laptop },
               { name: "Approvals", href: "/dashboard/it-forms/approvals", icon: ClipboardList },
             ],
           },
@@ -510,6 +514,8 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
             icon: FileText,
             items: [
               { name: "Equipment Requisition", href: "/dashboard/it-forms/equipment-requisition", icon: Laptop },
+              { name: "Maintenance & Repairs", href: "/dashboard/it-forms/maintenance-repairs", icon: Wrench },
+              { name: "New Gadget Request", href: "/dashboard/it-forms/new-gadget", icon: Laptop },
               { name: "Approvals", href: "/dashboard/it-forms/approvals", icon: ClipboardList },
             ],
           },
