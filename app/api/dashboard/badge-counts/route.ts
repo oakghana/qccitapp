@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
       notifications: 0,
       userAccounts: 0,
       updates: 0,
+      itEquipmentRequisitions: 0,
     }
 
     // 1. Service Desk Tickets (open status)
@@ -220,6 +221,18 @@ export async function GET(request: NextRequest) {
       }
     } catch (e) {
       console.error("[v0] Error fetching user accounts:", e)
+    }
+
+    // 14. IT Equipment Requisitions (pending approval)
+    try {
+      const { data, error } = await supabaseAdmin.from("it_equipment_requisitions").select("id, status")
+
+      if (!error && data) {
+        const pending = data.filter((r) => matchesStatus(r.status, ["pending", "draft", "pending_approval"]))
+        counts.itEquipmentRequisitions = pending.length
+      }
+    } catch (e) {
+      console.error("[v0] Error fetching IT equipment requisitions:", e)
     }
 
     console.log("[v0] Badge counts result:", counts)
