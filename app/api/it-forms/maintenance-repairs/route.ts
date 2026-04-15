@@ -1,0 +1,142 @@
+import { NextRequest, NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    
+    const {
+      staffName,
+      departmentName,
+      complaintsFromUsers,
+      requestDate,
+      faultItems,
+      otherComments,
+      hardwareSupervisorName,
+      hardwareSupervisorDate,
+      dateOfLastRepairs,
+      dateOfPurchase,
+      numberOfTimesRepaired,
+      sectionalHeadName,
+      sectionalHeadDate,
+      confirmedBy,
+      confirmedDate,
+      repairStatus,
+    } = body
+
+    console.log("[maintenance-repairs] Creating new maintenance request:", {
+      staffName,
+      departmentName,
+    })
+
+    // Generate request number
+    const date = new Date()
+    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "")
+    const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, "0")
+    const requestNumber = `MR-${dateStr}-${randomNum}`
+
+    const insertData = {
+      request_number: requestNumber,
+      staff_name: staffName,
+      department_name: departmentName,
+      complaints_from_users: complaintsFromUsers,
+      request_date: requestDate || new Date().toISOString().split("T")[0],
+      diagnosis_items: faultItems || [],
+      other_comments: otherComments || null,
+      hardware_supervisor_name: hardwareSupervisorName || null,
+      hardware_supervisor_date: hardwareSupervisorDate || null,
+      date_of_last_repairs: dateOfLastRepairs || null,
+      date_of_purchase: dateOfPurchase || null,
+      times_repaired: numberOfTimesRepaired ? parseInt(numberOfTimesRepaired) : null,
+      sectional_head_name: sectionalHeadName || null,
+      sectional_head_date: sectionalHeadDate || null,
+      confirmed_by: confirmedBy || null,
+      confirmed_date: confirmedDate || null,
+      gadget_working_status: repairStatus || null,
+      status: "draft",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    const { data, error: insertError } = await supabaseAdmin
+      .from("maintenance_repair_requests")
+      .insert([insertData])
+      .select()
+
+    if (insertError) {
+      console.error("[maintenance-repairs] Error creating request:", insertError)
+      return NextResponse.json(
+        { error: insertError.message || "Failed to create maintenance request" },
+        { status: 500 }
+      )
+    }
+
+    console.log("[maintenance-repairs] Request created successfully:", data)
+
+    return NextResponse.json({
+      success: true,
+      message: "Maintenance and repairs request created successfully",
+      request: data?.[0],
+      requestNumber
+    })
+
+  } catch (error: any) {
+    console.error("[maintenance-repairs] Error:", error)
+    return NextResponse.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 }
+    )
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const status = searchParams.get("status")
+    const department = searchParams.get("department")
+    const staffName = searchParams.get("staffName")
+
+    console.log("[maintenance-repairs] Loading maintenance requests:", { status, department })
+
+    let query = supabaseAdmin
+      .from("maintenance_repair_requests")
+      .select("*")
+      .order("created_at", { ascending: false })
+
+    if (status && status !== "all") {
+      query = query.eq("status", status)
+    }
+
+    if (department && department !== "all") {
+      query = query.eq("department_name", department)
+    }
+
+    if (staffName) {
+      query = query.eq("staff_name", staffName)
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      console.error("[maintenance-repairs] Error loading requests:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      requests: data || []
+    })
+
+  } catch (error: any) {
+    console.error("[maintenance-repairs] Error:", error)
+    return NextResponse.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 }
+    )
+  }
+}
