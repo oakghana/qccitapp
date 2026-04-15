@@ -613,10 +613,15 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
         items: [
           { name: "Dashboard", href: "/dashboard", icon: Home },
           {
-            name: "My Tasks",
-            href: "/dashboard/service-provider",
+            name: "My Repair Jobs",
+            href: "/dashboard/service-provider/my-repairs",
             icon: Wrench,
             badge: counts.assignedTasks > 0 ? counts.assignedTasks : undefined,
+          },
+          {
+            name: "My Tasks (Legacy)",
+            href: "/dashboard/service-provider",
+            icon: Wrench,
           },
         ],
         groups: [],
