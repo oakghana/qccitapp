@@ -48,6 +48,7 @@ import {
   Store,
   Edit2,
   Target,
+  Laptop,
 } from "lucide-react"
 import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
 
@@ -123,7 +124,15 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
           { name: "IT Store Stock Levels", href: "/dashboard/store-snapshot", icon: Database },
         ],
-        groups: [],
+        groups: [
+          {
+            name: "IT Forms",
+            icon: FileText,
+            items: [
+              { name: "Equipment Requisition", href: "/dashboard/it-forms/equipment-requisition", icon: Laptop },
+            ],
+          },
+        ],
       }
     }
 
@@ -261,6 +270,14 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                 icon: UserPlus,
                 badge: counts.userAccounts > 0 ? counts.userAccounts : undefined,
               },
+            ],
+          },
+          {
+            name: "IT Forms",
+            icon: FileText,
+            items: [
+              { name: "Equipment Requisition", href: "/dashboard/it-forms/equipment-requisition", icon: Laptop },
+              { name: "Approvals", href: "/dashboard/it-forms/approvals", icon: ClipboardList },
             ],
           },
         ],
@@ -488,6 +505,14 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
               },
             ],
           },
+          {
+            name: "IT Forms",
+            icon: FileText,
+            items: [
+              { name: "Equipment Requisition", href: "/dashboard/it-forms/equipment-requisition", icon: Laptop },
+              { name: "Approvals", href: "/dashboard/it-forms/approvals", icon: ClipboardList },
+            ],
+          },
         ],
       }
     }
@@ -588,10 +613,15 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
         items: [
           { name: "Dashboard", href: "/dashboard", icon: Home },
           {
-            name: "My Tasks",
-            href: "/dashboard/service-provider",
+            name: "My Repair Jobs",
+            href: "/dashboard/service-provider/my-repairs",
             icon: Wrench,
             badge: counts.assignedTasks > 0 ? counts.assignedTasks : undefined,
+          },
+          {
+            name: "My Tasks (Legacy)",
+            href: "/dashboard/service-provider",
+            icon: Wrench,
           },
         ],
         groups: [],

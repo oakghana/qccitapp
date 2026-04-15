@@ -46,6 +46,8 @@ export async function GET(request: NextRequest) {
       notifications: 0,
       userAccounts: 0,
       updates: 0,
+      itEquipmentRequisitions: 0,
+      devicesUnderRepair: 0,
     }
 
     // 1. Service Desk Tickets (open status)
@@ -220,6 +222,30 @@ export async function GET(request: NextRequest) {
       }
     } catch (e) {
       console.error("[v0] Error fetching user accounts:", e)
+    }
+
+    // 14. IT Equipment Requisitions (pending approval)
+    try {
+      const { data, error } = await supabaseAdmin.from("it_equipment_requisitions").select("id, status")
+
+      if (!error && data) {
+        const pending = data.filter((r) => matchesStatus(r.status, ["pending", "draft", "pending_approval"]))
+        counts.itEquipmentRequisitions = pending.length
+      }
+    } catch (e) {
+      console.error("[v0] Error fetching IT equipment requisitions:", e)
+    }
+
+    // 15. Devices Under Repair
+    try {
+      const { data, error } = await supabaseAdmin.from("devices").select("id, status, location")
+
+      if (!error && data) {
+        const underRepair = data.filter((d) => d.status === "repair")
+        counts.devicesUnderRepair = filterByLocation(underRepair, location, canSeeAll).length
+      }
+    } catch (e) {
+      console.error("[v0] Error fetching devices under repair:", e)
     }
 
     console.log("[v0] Badge counts result:", counts)

@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     // Verify the service provider exists before creating repair task
     const { data: serviceProvider, error: providerCheckError } = await supabase
       .from("service_providers")
-      .select("id, name")
+      .select("id, name, email, user_id")
       .eq("id", serviceProviderId)
       .single()
 
@@ -102,6 +102,26 @@ export async function POST(request: NextRequest) {
       deviceId,
       serviceProviderId,
     })
+
+    // Send notification to service provider
+    if (serviceProvider.user_id) {
+      try {
+        const notificationMessage = `New repair task assigned: ${brand} ${model} (SN: ${serialNumber || "N/A"}). Issue: ${issueDescription}. Priority: ${priority || "Medium"}`
+
+        await supabase.from("notifications").insert({
+          user_id: serviceProvider.user_id,
+          title: "New Repair Task Assigned",
+          message: notificationMessage,
+          type: "repair_assigned",
+          is_read: false,
+        })
+
+        console.log("[v0] Notification sent to service provider:", serviceProvider.user_id)
+      } catch (notificationError) {
+        console.error("[v0] Error sending notification:", notificationError)
+        // Don't fail the repair creation if notification fails
+      }
+    }
 
     return NextResponse.json({
       success: true,
