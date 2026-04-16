@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const validStatuses = ["pending", "assigned", "in_progress", "completed", "returned", "cancelled"]
+    const validStatuses = ["pending", "assigned", "in_transit", "awaiting_parts", "quality_check", "in_progress", "completed", "returned", "cancelled"]
     if (!validStatuses.includes(status)) {
       return NextResponse.json(
         { error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` },
@@ -57,6 +57,13 @@ export async function POST(request: NextRequest) {
       updateData.notes = notes
     }
 
+    // Get previous data for audit trail
+    const { data: previousData } = await supabaseAdmin
+      .from("repair_tasks")
+      .select()
+      .eq("id", repairTaskId)
+      .single()
+
     const { data: repairTask, error: updateError } = await supabaseAdmin
       .from("repair_tasks")
       .update(updateData)
@@ -72,6 +79,27 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Update status_history JSON field with complete audit trail
+    const statusHistory = previousData?.status_history || []
+    const newHistoryEntry = {
+      timestamp: new Date().toISOString(),
+      status,
+      previous_status: previousData?.status,
+      changed_by: confirmedBy || "system",
+      notes,
+      actual_cost: actualCost,
+      work_started_at: status === "in_progress" ? updateData.work_started_at : null,
+      work_completed_at: status === "completed" ? updateData.work_completed_at : null,
+    }
+
+    await supabaseAdmin
+      .from("repair_tasks")
+      .update({
+        status_history: [...statusHistory, newHistoryEntry],
+      })
+      .eq("id", repairTaskId)
+      .catch((err) => console.error("[v0] Error updating status_history:", err))
+
     // Update device status if repair is completed or returned
     if (status === "returned" || status === "completed") {
       await supabaseAdmin
@@ -83,23 +111,83 @@ export async function POST(request: NextRequest) {
         .eq("id", repairTask.device_id)
     }
 
-    // Log to repair audit trail
+    // Create cross-portal notifications
     try {
-      await supabaseAdmin.from("repair_audit_trail").insert({
-        repair_task_id: repairTaskId,
-        action: `Status changed to ${status}`,
-        changed_by: confirmedBy || "system",
-        change_details: {
-          previous_status: repairTask.status,
-          new_status: status,
-          notes,
-          actual_cost: actualCost,
-        },
-        created_at: new Date().toISOString(),
+      const notificationMessages: any[] = []
+
+      // Notify IT Head/Admin of status change
+      notificationMessages.push({
+        recipient_type: "it_head",
+        recipient_id: "admin",
+        title: `Repair Task Status Updated: ${status.replace(/_/g, " ")}`,
+        message: `Repair ${previousData?.task_number || repairTask.id} status changed to ${status.replace(/_/g, " ")}`,
+        type: "repair_status_change",
+        related_id: repairTaskId,
+        related_type: "repair_request",
+        read: false,
       })
-    } catch (auditError) {
-      console.error("[v0] Error logging to audit trail:", auditError)
-      // Don't fail the update if audit logging fails
+
+      // Notify IT Staff of status change
+      if (previousData?.location) {
+        notificationMessages.push({
+          recipient_type: "it_staff",
+          recipient_id: previousData.location,
+          title: `Repair Task Status Updated`,
+          message: `Device repair status: ${status.replace(/_/g, " ")}`,
+          type: "repair_status_change",
+          related_id: repairTaskId,
+          related_type: "repair_request",
+          read: false,
+        })
+      }
+
+      // Notify Regional Heads if applicable
+      if (previousData?.location && previousData?.location.includes("regional")) {
+        notificationMessages.push({
+          recipient_type: "regional_it_head",
+          recipient_id: previousData.location,
+          title: `Repair Task Update`,
+          message: `Regional repair task status: ${status.replace(/_/g, " ")}`,
+          type: "repair_status_change",
+          related_id: repairTaskId,
+          related_type: "repair_request",
+          read: false,
+        })
+      }
+
+      // Notify Service Provider
+      if (previousData?.service_provider_id) {
+        notificationMessages.push({
+          recipient_type: "service_provider",
+          recipient_id: previousData.service_provider_id,
+          title: `Your Repair Task Status Changed`,
+          message: `Repair task for ${previousData?.device_name} is now: ${status.replace(/_/g, " ")}`,
+          type: "repair_status_change",
+          related_id: repairTaskId,
+          related_type: "repair_request",
+          read: false,
+        })
+      }
+
+      // Batch insert notifications
+      if (notificationMessages.length > 0) {
+        const now = new Date().toISOString()
+        await supabaseAdmin
+          .from("notifications")
+          .insert(
+            notificationMessages.map((notif) => ({
+              ...notif,
+              created_at: now,
+            }))
+          )
+          .catch((err) => {
+            console.error("[v0] Error creating cross-portal notifications:", err)
+            // Don't fail the status update if notifications fail
+          })
+      }
+    } catch (err) {
+      console.error("[v0] Error in notification creation:", err)
+      // Don't fail the update if notifications fail
     }
 
     return NextResponse.json({
