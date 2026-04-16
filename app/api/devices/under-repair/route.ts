@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     console.log("[v0] Fetching devices under repair - status:", status, "provider:", serviceProviderId)
 
-    // Query devices marked with "repair" status
+    // Query devices marked with repair-related status values (maintenance, under_repair, or repair)
     let query = supabaseAdmin
       .from("devices")
       .select(
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
         )
       `
       )
-      .eq("status", "repair")
+      .in("status", ["repair", "under_repair", "maintenance"])
       .order("updated_at", { ascending: false })
 
     if (location) {

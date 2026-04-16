@@ -10,7 +10,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { createClient } from "@supabase/supabase-js"
 import {
   Clock,
   MapPin,
@@ -30,6 +29,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
+import { createClient } from "@/lib/supabase/client"
 
 interface ServiceProviderRepairTask {
   id: string
@@ -93,11 +93,8 @@ interface ServiceProviderRepairTask {
   }
 }
 
-const supabaseUrl = "https://your-supabase-url.supabase.co"
-const supabaseKey = "your-supabase-key"
-const supabase = createClient(supabaseUrl, supabaseKey)
-
 export function ServiceProviderTasks() {
+  const supabase = createClient()
   const { user } = useAuth()
   const { toast } = useToast()
   const [tasks, setTasks] = useState<ServiceProviderRepairTask[]>([])

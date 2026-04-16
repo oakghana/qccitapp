@@ -65,10 +65,11 @@ export function HardwareServiceProviderDashboard() {
       setLoading(true)
       setError(null)
 
+      // Query devices that are marked for repair - check multiple possible status values
       const { data, error: err } = await supabase
         .from("devices")
         .select("*")
-        .eq("status", "repair")
+        .in("status", ["repair", "under_repair", "maintenance"])
         .order("updated_at", { ascending: false })
 
       if (err) throw err
