@@ -20,51 +20,41 @@ export async function GET(request: NextRequest) {
     }
 
     let query = supabaseAdmin
-      .from("repair_tasks")
+      .from("repair_requests")
       .select(
         `
         id,
         task_number,
         device_id,
         device_info,
+        device_name,
+        device_type,
+        brand,
+        model,
+        serial_number,
+        asset_tag,
         issue_description,
+        description,
         priority,
         status,
         service_provider_id,
+        service_provider_name,
         assigned_date,
+        requested_date,
         estimated_cost,
         actual_cost,
         work_started_at,
         work_completed_at,
-        confirmed_by,
-        confirmed_at,
+        estimated_completion,
         notes,
+        location,
+        requested_by,
         created_at,
-        devices (
-          id,
-          device_name,
-          device_type,
-          brand,
-          model,
-          serial_number,
-          status,
-          location,
-          assigned_to,
-          profiles (
-            full_name,
-            email
-          )
-        ),
-        service_providers (
-          id,
-          name,
-          email,
-          phone
-        )
+        updated_at
         `
       )
       .eq("service_provider_id", serviceProviderId)
-      .order("assigned_date", { ascending: false })
+      .order("created_at", { ascending: false })
 
     if (status && status !== "all") {
       query = query.eq("status", status)
