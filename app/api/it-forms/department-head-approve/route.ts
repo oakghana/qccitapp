@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
             ? "pending_service_desk"
             : "rejected_department_head"
           : action === "approve"
-            ? "approved"
+            ? "hod_approved"
             : "rejected",
     }
 

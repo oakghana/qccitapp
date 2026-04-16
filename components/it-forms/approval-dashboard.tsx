@@ -100,7 +100,9 @@ export function ITFormsApprovalDashboard() {
     const statusConfig: Record<string, { variant: any; label: string; icon: any }> = {
       draft: { variant: "secondary", label: "Draft", icon: Clock },
       pending: { variant: "default", label: "Awaiting HOD", icon: Clock },
+      pending_hod: { variant: "default", label: "Awaiting HOD", icon: Clock },
       pending_department_head: { variant: "default", label: "Awaiting HOD", icon: Clock },
+      hod_approved: { variant: "secondary", label: "HOD Approved", icon: CheckCircle2 },
       pending_service_desk: { variant: "outline", label: "Service Desk Review", icon: CheckCircle2 },
       pending_it_head: { variant: "outline", label: "IT Head Review", icon: CheckCircle2 },
       pending_admin: { variant: "outline", label: "Admin Review", icon: CheckCircle2 },
@@ -117,7 +119,7 @@ export function ITFormsApprovalDashboard() {
   const canApprove = (req: ITRequisition): boolean => {
     const userRole = user?.role || ""
 
-    if (["draft", "pending_department_head", "pending"].includes(req.status)) {
+    if (["draft", "pending_department_head", "pending", "pending_hod"].includes(req.status)) {
       return false
     }
     if (req.status === "pending_service_desk") {

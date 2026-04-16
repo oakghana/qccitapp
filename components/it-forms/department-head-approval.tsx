@@ -94,7 +94,7 @@ export function DepartmentHeadApprovalModule() {
   const isRejected = (req: ITFormRequest) => req.status.includes("rejected") || req.department_head_approved === false
   const isApproved = (req: ITFormRequest) =>
     req.department_head_approved === true ||
-    ["pending_service_desk", "pending_it_head", "pending_admin", "pending_store", "approved", "issued", "completed"].includes(req.status)
+    ["hod_approved", "pending_manager", "recommended", "not_recommended", "gadget_issued", "sent_for_repair", "repaired", "confirmed_working", "pending_service_desk", "pending_it_head", "pending_admin", "pending_store", "approved", "issued", "completed"].includes(req.status)
 
   const fetchRequisitions = async () => {
     try {
@@ -153,7 +153,7 @@ export function DepartmentHeadApprovalModule() {
   }
 
   const canApprove = (req: ITFormRequest): boolean => {
-    return ["draft", "pending_department_head", "pending"].includes(req.status) && !isApproved(req) && !isRejected(req)
+    return ["draft", "pending_department_head", "pending", "pending_hod"].includes(req.status) && !isApproved(req) && !isRejected(req)
   }
 
   const buildApprovalStages = (req: ITFormRequest): any[] => {

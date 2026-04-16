@@ -27,6 +27,7 @@ import {
   Zap,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { DataPagination } from "@/components/ui/data-pagination"
 import { canSeeAllLocations, canCreateRepairs, normalizeLocation } from "@/lib/location-filter"
 import { useToast } from "@/hooks/use-toast"
 import { useRealtimeUpdates } from "@/hooks/use-realtime-updates"
@@ -100,6 +101,8 @@ export function ITHeadRepairManagement() {
   const [deviceSearchTerm, setDeviceSearchTerm] = useState("")
   const [liveActivity, setLiveActivity] = useState<any[]>([])
   const [showLiveActivity, setShowLiveActivity] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(6)
 
   // Edit form states
   const [editSelectedDevice, setEditSelectedDevice] = useState("")
@@ -387,6 +390,14 @@ export function ITHeadRepairManagement() {
 
     return matchesSearch && matchesStatus && matchesPriority
   })
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, statusFilter, priorityFilter, pageSize, tasks.length])
+
+  const totalPages = Math.max(1, Math.ceil(filteredTasks.length / pageSize))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const paginatedTasks = filteredTasks.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize)
 
   // Filter devices based on search term
   const filteredDevices = devices.filter((device) => {
@@ -1147,7 +1158,7 @@ export function ITHeadRepairManagement() {
 
       {/* Tasks List */}
       <div className="space-y-4">
-        {filteredTasks.map((task) => (
+        {paginatedTasks.map((task) => (
           <Card key={task.id} className="hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between">
@@ -1502,6 +1513,17 @@ export function ITHeadRepairManagement() {
           </Card>
         ))}
       </div>
+
+      {filteredTasks.length > 0 && (
+        <DataPagination
+          currentPage={safeCurrentPage}
+          totalItems={filteredTasks.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          itemLabel="repair tasks"
+        />
+      )}
 
       {filteredTasks.length === 0 && (
         <Card>

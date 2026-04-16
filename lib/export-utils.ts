@@ -357,7 +357,7 @@ export async function exportITFormPDF(data: ITFormPDFData) {
   if (data.formType === "maintenance") {
     y = addCheckboxRow(doc, "Was your repaired gadget working properly?", data.repairStatus || "", [
       { label: "Working perfectly well now", value: "working_perfectly" },
-      { label: "In the same bad condition", value: "same_condition" },
+      { label: "In the same bad condition", value: "same_bad_condition" },
     ], y + 1)
   }
 

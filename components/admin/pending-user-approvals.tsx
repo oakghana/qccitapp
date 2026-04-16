@@ -27,6 +27,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { FormNavigation } from "@/components/ui/form-navigation"
+import { DataPagination } from "@/components/ui/data-pagination"
 import { getRoleColorScheme } from "@/lib/role-colors"
 import { cn } from "@/lib/utils"
 import type { PendingUser } from "../auth/create-user-form"
@@ -309,6 +310,8 @@ export function PendingUserApprovals() {
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [selectedUser, setSelectedUser] = useState<PendingUser | null>(null)
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   // Only admins can see all pending requests
   const isAdmin = user?.role === "admin"
@@ -428,6 +431,14 @@ export function PendingUserApprovals() {
     return matchesSearch && matchesStatus
   })
 
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, statusFilter, pageSize, pendingUsers.length])
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const paginatedUsers = filteredUsers.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize)
+
   if (!isAdmin) {
     return (
       <Card className="max-w-2xl mx-auto">
@@ -489,7 +500,7 @@ export function PendingUserApprovals() {
 
       {/* Pending Requests List */}
       <div className="grid gap-4">
-        {filteredUsers.map((pendingUser) => (
+        {paginatedUsers.map((pendingUser) => (
           <Card key={pendingUser.id} className="hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between">
@@ -591,6 +602,17 @@ export function PendingUserApprovals() {
           </Card>
         ))}
       </div>
+
+      {filteredUsers.length > 0 && (
+        <DataPagination
+          currentPage={safeCurrentPage}
+          totalItems={filteredUsers.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          itemLabel="requests"
+        />
+      )}
 
       {filteredUsers.length === 0 && (
         <Card>

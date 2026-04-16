@@ -550,8 +550,8 @@ export function MaintenanceRepairsForm({ onSubmit }: { onSubmit: () => void }) {
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="same_condition" id="same_condition" />
-                <Label htmlFor="same_condition" className="font-normal cursor-pointer">
+                <RadioGroupItem value="same_bad_condition" id="same_bad_condition" />
+                <Label htmlFor="same_bad_condition" className="font-normal cursor-pointer">
                   In the same bad condition
                 </Label>
               </div>

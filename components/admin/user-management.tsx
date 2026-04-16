@@ -34,6 +34,7 @@ import { useAuth } from "@/lib/auth-context"
 import { FormNavigation } from "@/components/ui/form-navigation"
 import { CreateUserForm } from "@/components/auth/create-user-form"
 import { usePWAInstall } from "@/components/ui/pwa-install"
+import { DataPagination } from "@/components/ui/data-pagination"
 import { getRoleColorScheme } from "@/lib/role-colors"
 import { cn, formatDisplayDate } from "@/lib/utils"
 import { createClient } from "@/supabase/supabase-client"
@@ -112,6 +113,8 @@ export function UserManagement() {
   const [editUserOpen, setEditUserOpen] = useState(false)
   const [selectedUserForEdit, setSelectedUserForEdit] = useState<SystemUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   const handleInstallPWA = () => {
     deferredPrompt.prompt()
@@ -193,6 +196,14 @@ export function UserManagement() {
   }
 
   const filteredUsers = getFilteredUsers()
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, roleFilter, locationFilter, pageSize, users.length])
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const paginatedUsers = filteredUsers.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize)
 
   const getLocationFilterOptions = () => {
     const allOptions = getLocationOptions()
@@ -528,7 +539,7 @@ export function UserManagement() {
             </div>
           ) : (
             <div className="space-y-3">
-              {filteredUsers.map((user) => (
+              {paginatedUsers.map((user) => (
                 <div
                   key={user.id}
                   className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/40 lg:flex-row lg:items-center lg:justify-between"
@@ -589,6 +600,18 @@ export function UserManagement() {
                 </div>
               ))}
             </div>
+          )}
+
+          {filteredUsers.length > 0 && (
+            <DataPagination
+              currentPage={safeCurrentPage}
+              totalItems={filteredUsers.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              itemLabel="users"
+              className="mt-4"
+            />
           )}
         </CardContent>
       </Card>

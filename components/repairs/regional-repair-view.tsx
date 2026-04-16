@@ -23,6 +23,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { DataPagination } from "@/components/ui/data-pagination"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Loader2, Building2, MapPin, Wrench, Plus } from "lucide-react"
@@ -64,6 +65,8 @@ export function RegionalRepairView({ regionId, regionName }: RegionalRepairViewP
   const [priority, setPriority] = useState<"low" | "medium" | "high" | "critical">("medium")
   const [selectedProvider, setSelectedProvider] = useState("")
   const [isCreating, setIsCreating] = useState(false)
+  const [tablePages, setTablePages] = useState<Record<string, number>>({ regional: 1, head_office: 1, all: 1 })
+  const pageSize = 10
 
   const { data, isLoading, error, mutate } = useSWR(
     `/api/repairs/regional-repairs?regionId=${regionId}&type=${viewType}`,
@@ -105,6 +108,10 @@ export function RegionalRepairView({ regionId, regionName }: RegionalRepairViewP
   }, [])
 
   const repairs = data?.results || {}
+
+  useEffect(() => {
+    setTablePages({ regional: 1, head_office: 1, all: 1 })
+  }, [searchTerm, viewType])
 
   const createRepairTask = async () => {
     if (!selectedDevice || !issueDescription || !selectedProvider) {
@@ -226,6 +233,8 @@ export function RegionalRepairView({ regionId, regionName }: RegionalRepairViewP
 
   const renderRepairsTable = (repairList: any[], title: string, source: string) => {
     const filtered = filterRepairs(repairList || [])
+    const currentPage = tablePages[source] || 1
+    const paginatedRepairs = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
     return (
       <div className="space-y-4">
@@ -263,7 +272,7 @@ export function RegionalRepairView({ regionId, regionName }: RegionalRepairViewP
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((repair: any) => (
+                {paginatedRepairs.map((repair: any) => (
                   <TableRow key={repair.id}>
                     <TableCell className="font-medium">{repair.task_number}</TableCell>
                     <TableCell className="text-sm">
@@ -296,6 +305,16 @@ export function RegionalRepairView({ regionId, regionName }: RegionalRepairViewP
               </TableBody>
             </Table>
           </div>
+        )}
+
+        {filtered.length > 0 && (
+          <DataPagination
+            currentPage={currentPage}
+            totalItems={filtered.length}
+            pageSize={pageSize}
+            onPageChange={(page) => setTablePages((prev) => ({ ...prev, [source]: page }))}
+            itemLabel="repairs"
+          />
         )}
       </div>
     )

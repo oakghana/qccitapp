@@ -145,7 +145,7 @@ export function RequestStatusTracker({
     setFilteredRequisitions(filtered)
   }
 
-  const canEditRequest = (req: ITRequisition) => ["draft", "pending_department_head", "pending"].includes(req.status)
+  const canEditRequest = (req: ITRequisition) => ["draft", "pending_department_head", "pending", "pending_hod"].includes(req.status)
 
   const handleDownload = async (req: ITRequisition) => {
     const requestNumber = getRequestNumber(req)
@@ -217,9 +217,9 @@ export function RequestStatusTracker({
       const hodApprover = req.departmental_head_name || req.sectional_head_name
       const hodTimestamp = req.departmental_head_date || req.sectional_head_date
       const isRejected = req.status.includes("rejected")
-      const hodCompleted = Boolean(hodApprover) || ["pending_service_desk", "pending_it_head", "pending_admin", "pending_store", "approved", "issued", "completed"].includes(req.status)
-      const serviceDeskCompleted = ["pending_it_head", "pending_admin", "pending_store", "approved", "issued", "completed"].includes(req.status)
-      const adminCompleted = ["pending_store", "approved", "issued", "completed"].includes(req.status)
+      const hodCompleted = Boolean(hodApprover) || ["hod_approved", "pending_manager", "recommended", "not_recommended", "gadget_issued", "sent_for_repair", "repaired", "confirmed_working", "pending_service_desk", "pending_it_head", "pending_admin", "pending_store", "approved", "issued", "completed"].includes(req.status)
+      const serviceDeskCompleted = ["hod_approved", "pending_manager", "recommended", "not_recommended", "gadget_issued", "sent_for_repair", "repaired", "confirmed_working", "pending_it_head", "pending_admin", "pending_store", "approved", "issued", "completed"].includes(req.status)
+      const adminCompleted = ["pending_manager", "recommended", "not_recommended", "gadget_issued", "sent_for_repair", "repaired", "confirmed_working", "pending_store", "approved", "issued", "completed"].includes(req.status)
 
       return [
         {
@@ -287,7 +287,9 @@ export function RequestStatusTracker({
     const statusConfig: Record<string, { variant: any; label: string }> = {
       draft: { variant: "secondary", label: "Draft" },
       pending: { variant: "default", label: "Awaiting HOD" },
+      pending_hod: { variant: "default", label: "Awaiting HOD" },
       pending_department_head: { variant: "default", label: "Awaiting HOD" },
+      hod_approved: { variant: "secondary", label: "HOD Approved" },
       pending_service_desk: { variant: "default", label: "Processing" },
       pending_it_head: { variant: "default", label: "Awaiting IT Head" },
       pending_admin: { variant: "default", label: "Awaiting Admin" },
@@ -303,7 +305,8 @@ export function RequestStatusTracker({
 
   const getNextStep = (req: ITRequisition) => {
     if (formType !== "requisition") {
-      if (["draft", "pending_department_head", "pending"].includes(req.status)) return "Waiting for Department Head approval"
+      if (["draft", "pending_department_head", "pending", "pending_hod"].includes(req.status)) return "Waiting for Department Head approval"
+      if (req.status === "hod_approved") return "Approved by Department Head and awaiting IT processing"
       if (req.status === "pending_service_desk") return "Being reviewed by IT Service Desk"
       if (req.status === "pending_it_head") return "Awaiting IT Head review"
       if (req.status === "pending_admin") return "Awaiting Admin review"

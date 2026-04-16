@@ -38,67 +38,57 @@ export function CreateRepairForm({ onSubmit, onCancel }: CreateRepairFormProps) 
     }))
   }
 
-  useEffect(() => {
-    const fetchServiceProviders = async () => {
-      try {
-        console.log("[v0] Fetching service providers for repair form via API...")
-        const response = await fetch("/api/admin/service-providers?activeOnly=true")
-        
-        if (!response.ok) {
-          const errorData = await response.json()
-          console.error("[v0] Error fetching service providers:", errorData.error)
-          return
-        }
+  const fetchServiceProviders = async () => {
+    try {
+      console.log("[v0] Fetching service providers for repair form via API...")
+      const response = await fetch("/api/admin/service-providers?activeOnly=true")
 
-        const data = await response.json()
-        console.log("[v0] Loaded service providers for repair form:", data.providers?.length || 0)
-        // Ensure we only keep active providers as a safety net
-        const active = (data.providers || []).filter((p: any) => p.is_active !== false)
-        setServiceProviders(active)
-      } catch (error) {
-        console.error("[v0] Exception fetching service providers:", error)
-      }
-    }
-
-    const fetchDevices = async (field?: string, q?: string) => {
-      try {
-        console.log("[v0] Fetching devices for repair form via API...", { field, q })
-        const params = new URLSearchParams()
-        params.set("canSeeAll", "true")
-        if (field && q) {
-          if (field === "location") params.set("location", q)
-          else {
-            params.set("field", field)
-            params.set("q", q)
-          }
-        }
-        const response = await fetch(`/api/devices?${params.toString()}`)
-        
-        if (!response.ok) {
-          const errorData = await response.json()
-          console.error("[v0] Error fetching devices:", errorData.error)
-          return
-        }
-
-        const data = await response.json()
-        console.log("[v0] Loaded devices:", data.devices?.length || 0)
-        setDevices(data.devices || [])
-      } catch (error) {
-        console.error("[v0] Error fetching devices:", error)
-      }
-    }
-
-    fetchServiceProviders()
-    fetchDevices()
-    
-    const handleSearch = async (field?: string, q?: string) => {
-      const query = (q || searchQuery || "").trim()
-      if (!query) {
-        await fetchDevices()
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("[v0] Error fetching service providers:", errorData.error)
         return
       }
-      await fetchDevices(field || searchField, query)
+
+      const data = await response.json()
+      console.log("[v0] Loaded service providers for repair form:", data.providers?.length || 0)
+      const active = (data.providers || []).filter((p: any) => p.is_active !== false)
+      setServiceProviders(active)
+    } catch (error) {
+      console.error("[v0] Exception fetching service providers:", error)
     }
+  }
+
+  const fetchDevices = async (field?: string, q?: string) => {
+    try {
+      console.log("[v0] Fetching devices for repair form via API...", { field, q })
+      const params = new URLSearchParams()
+      params.set("canSeeAll", "true")
+      if (field && q) {
+        if (field === "location") params.set("location", q)
+        else {
+          params.set("field", field)
+          params.set("q", q)
+        }
+      }
+      const response = await fetch(`/api/devices?${params.toString()}`)
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("[v0] Error fetching devices:", errorData.error)
+        return
+      }
+
+      const data = await response.json()
+      console.log("[v0] Loaded devices:", data.devices?.length || 0)
+      setDevices(data.devices || [])
+    } catch (error) {
+      console.error("[v0] Error fetching devices:", error)
+    }
+  }
+
+  useEffect(() => {
+    fetchServiceProviders()
+    fetchDevices()
   }, [])
 
   const onSearchClick = async (e?: React.MouseEvent) => {
