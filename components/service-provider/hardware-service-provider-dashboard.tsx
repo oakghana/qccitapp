@@ -65,64 +65,75 @@ export function HardwareServiceProviderDashboard() {
       setLoading(true)
       setError(null)
 
-      // Query devices that are marked for repair - check multiple possible status values
-      const { data, error: err } = await supabase
-        .from("devices")
-        .select("*")
-        .in("status", ["repair", "under_repair", "maintenance"])
-        .order("updated_at", { ascending: false })
+      // Query repair_tasks table which contains the actual repairs to be done
+      const { data: repairTasks, error: err } = await supabase
+        .from("repair_tasks")
+        .select(
+          `
+          id,
+          task_number,
+          device_id,
+          device_info,
+          issue_description,
+          priority,
+          status,
+          service_provider_id,
+          assigned_date,
+          estimated_cost,
+          actual_cost,
+          work_started_at,
+          work_completed_at,
+          confirmed_by,
+          confirmed_at,
+          notes,
+          created_at
+          `
+        )
+        .order("assigned_date", { ascending: false })
 
       if (err) throw err
 
-      // Transform data to match interface
-      const formattedDevices: DeviceForRepair[] = (data || []).map((device: any) => ({
-        id: device.id,
-        device_id: device.id,
-        device_name: device.name || `${device.brand} ${device.model}`,
-        device_type: device.device_type || device.category || "Unknown",
-        brand: device.brand || "Unknown",
-        model: device.model || "Unknown",
-        serial_number: device.serial_number || "",
-        asset_tag: device.asset_tag || "",
-        status: "pending_assignment", // Will fetch actual status from repair_requests
-        issue_description: device.notes || "No description provided",
-        priority: "medium",
-        service_provider_id: null,
-        service_provider_name: null,
-        location: device.location || "Unknown",
-        requested_by: device.assigned_to || "Unknown",
-        created_at: device.created_at || new Date().toISOString(),
-        updated_at: device.updated_at || new Date().toISOString(),
-        estimated_completion: null,
-      }))
-
-      // Fetch repair request details to get actual status and service provider
-      const repairData: DeviceForRepair[] = []
-      for (const device of formattedDevices) {
-        const { data: repairReq } = await supabase
-          .from("repair_requests")
-          .select("*, service_providers(name)")
-          .eq("device_id", device.device_id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single()
-
-        if (repairReq) {
-          repairData.push({
-            ...device,
-            status: repairReq.status || "pending_assignment",
-            service_provider_id: repairReq.service_provider_id,
-            service_provider_name: repairReq.service_providers?.name || null,
-            issue_description: repairReq.issue_description || device.issue_description,
-            priority: repairReq.priority || "medium",
-            estimated_completion: repairReq.estimated_completion,
-          })
-        } else {
-          repairData.push(device)
-        }
+      // Get related device data
+      const deviceIds = repairTasks?.map(t => t.device_id).filter(Boolean) || []
+      const devicesMap = new Map()
+      
+      if (deviceIds.length > 0) {
+        const { data: devices } = await supabase
+          .from("devices")
+          .select("id, brand, model, serial_number, asset_tag, location, device_type")
+          .in("id", deviceIds)
+        
+        devices?.forEach(d => devicesMap.set(d.id, d))
       }
 
-      setDevices(repairData)
+      // Transform data to match interface
+      const formattedDevices: DeviceForRepair[] = (repairTasks || []).map((task: any) => {
+        const device = devicesMap.get(task.device_id)
+        const deviceInfo = task.device_info || device || {}
+        
+        return {
+          id: task.id,
+          device_id: task.device_id,
+          device_name: deviceInfo.device_name || deviceInfo.name || `${deviceInfo.brand || "Unknown"} ${deviceInfo.model || "Unknown"}`,
+          device_type: deviceInfo.device_type || "Unknown",
+          brand: deviceInfo.brand || "Unknown",
+          model: deviceInfo.model || "Unknown",
+          serial_number: deviceInfo.serial_number || device?.serial_number || "",
+          asset_tag: deviceInfo.asset_tag || device?.asset_tag || "",
+          status: task.status || "pending_assignment",
+          issue_description: task.issue_description || task.notes || "No description provided",
+          priority: task.priority || "medium",
+          service_provider_id: task.service_provider_id,
+          service_provider_name: null, // Will be fetched separately if needed
+          location: deviceInfo.location || device?.location || "Unknown",
+          requested_by: "System",
+          created_at: task.created_at || new Date().toISOString(),
+          updated_at: task.assigned_date || new Date().toISOString(),
+          estimated_completion: task.estimated_completion || null,
+        }
+      })
+
+      setDevices(formattedDevices)
     } catch (err: any) {
       console.error("[v0] Error loading devices for repair:", err)
       setError(err.message || "Failed to load devices")
@@ -154,47 +165,26 @@ export function HardwareServiceProviderDashboard() {
     try {
       setAssigningId(deviceId)
 
-      // Create or update repair request
-      const { data: existingRepair } = await supabase
-        .from("repair_requests")
-        .select("id")
-        .eq("device_id", deviceId)
-        .single()
+      // Find the repair task for this device
+      const repairTask = devices.find((d) => d.id === deviceId)
+      if (!repairTask) throw new Error("Repair task not found")
 
-      if (existingRepair) {
-        // Update existing repair request
-        const { error: err } = await supabase
-          .from("repair_requests")
-          .update({
-            service_provider_id: providerId,
-            status: "assigned",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", existingRepair.id)
-
-        if (err) throw err
-      } else {
-        // Create new repair request
-        const device = devices.find((d) => d.device_id === deviceId)
-        const provider = serviceProviders.find((p) => p.id === providerId)
-
-        const { error: err } = await supabase.from("repair_requests").insert({
-          device_id: deviceId,
+      // Update repair task with service provider assignment
+      const { error: err } = await supabase
+        .from("repair_tasks")
+        .update({
           service_provider_id: providerId,
           status: "assigned",
-          issue_description: device?.issue_description || "Device sent for repair",
-          priority: device?.priority || "medium",
-          requested_by: user?.id,
-          created_at: new Date().toISOString(),
+          assigned_date: new Date().toISOString(),
         })
+        .eq("id", deviceId)
 
-        if (err) throw err
-      }
+      if (err) throw err
 
       // Update local state
       setDevices((prev) =>
         prev.map((d) =>
-          d.device_id === deviceId
+          d.id === deviceId
             ? {
                 ...d,
                 status: "assigned" as const,
@@ -387,7 +377,7 @@ export function HardwareServiceProviderDashboard() {
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {filteredDevices.map((device) => (
                 <div
-                  key={device.device_id}
+                  key={device.id}
                   className="flex flex-col md:flex-row md:items-center gap-4 p-4 border rounded-lg hover:bg-accent/50 transition-colors"
                 >
                   {/* Device Info */}
@@ -434,11 +424,11 @@ export function HardwareServiceProviderDashboard() {
                         <Button
                           size="sm"
                           variant="default"
-                          onClick={() => assignToServiceProvider(device.device_id, selectedProvider)}
-                          disabled={!selectedProvider || assigningId === device.device_id}
+                          onClick={() => assignToServiceProvider(device.id, selectedProvider)}
+                          disabled={!selectedProvider || assigningId === device.id}
                           className="h-8"
                         >
-                          {assigningId === device.device_id ? "Assigning..." : "Assign"}
+                          {assigningId === device.id ? "Assigning..." : "Assign"}
                         </Button>
                       </div>
                     )}
