@@ -41,10 +41,34 @@ interface StaffMember {
   created_at: string
 }
 
-interface PasswordChangeData {
-  currentPassword: string
-  newPassword: string
-  confirmPassword: string
+interface StockItem {
+  id: string
+  item_name: string
+  quantity: number
+  unit: string
+  category: string
+}
+
+interface DepartmentDevice {
+  id: string
+  device_name: string
+  device_type: string
+  serial_number: string
+  asset_tag?: string
+  status: "active" | "repair" | "maintenance" | "retired"
+  assigned_to?: string
+  location?: string
+}
+
+interface ServiceDeskRequest {
+  id: string
+  task_number: string
+  device_name: string
+  issue_description: string
+  priority: "low" | "medium" | "high" | "critical"
+  status: string
+  assigned_to?: string
+  created_at: string
 }
 
 export function DepartmentHeadDashboard() {
@@ -55,15 +79,20 @@ export function DepartmentHeadDashboard() {
   const [filteredStaff, setFilteredStaff] = useState<StaffMember[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [loading, setLoading] = useState(true)
+  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null)
+  const [showStaffDetailsDialog, setShowStaffDetailsDialog] = useState(false)
+  
+  // New state for stock, devices, and requests
+  const [stockItems, setStockItems] = useState<StockItem[]>([])
+  const [departmentDevices, setDepartmentDevices] = useState<DepartmentDevice[]>([])
+  const [serviceDeskRequests, setServiceDeskRequests] = useState<ServiceDeskRequest[]>([])
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
-  const [passwordData, setPasswordData] = useState<PasswordChangeData>({
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   })
-  const [isChangingPassword, setIsChangingPassword] = useState(false)
-  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null)
-  const [showStaffDetailsDialog, setShowStaffDetailsDialog] = useState(false)
 
   const { data: dashboardStats } = useSWR("/api/dashboard/badge-counts", fetcher)
   const { data: requisitionsData } = useSWR(
@@ -73,6 +102,9 @@ export function DepartmentHeadDashboard() {
 
   useEffect(() => {
     fetchStaffMembers()
+    fetchStockItems()
+    fetchDepartmentDevices()
+    fetchServiceDeskRequests()
   }, [])
 
   useEffect(() => {
@@ -112,6 +144,42 @@ export function DepartmentHeadDashboard() {
         staff.username.toLowerCase().includes(searchTerm.toLowerCase())
     )
     setFilteredStaff(filtered)
+  }
+
+  const fetchStockItems = async () => {
+    try {
+      const response = await fetch("/api/store/stock-items?viewOnly=true")
+      const data = await response.json()
+      if (data.success) {
+        setStockItems(data.items || [])
+      }
+    } catch (error) {
+      console.error("[v0] Error fetching stock items:", error)
+    }
+  }
+
+  const fetchDepartmentDevices = async () => {
+    try {
+      const response = await fetch("/api/devices/department-devices")
+      const data = await response.json()
+      if (data.success) {
+        setDepartmentDevices(data.devices || [])
+      }
+    } catch (error) {
+      console.error("[v0] Error fetching department devices:", error)
+    }
+  }
+
+  const fetchServiceDeskRequests = async () => {
+    try {
+      const response = await fetch("/api/repairs/service-desk-requests?department=true")
+      const data = await response.json()
+      if (data.success) {
+        setServiceDeskRequests(data.requests || [])
+      }
+    } catch (error) {
+      console.error("[v0] Error fetching service desk requests:", error)
+    }
   }
 
   const handlePasswordChange = async () => {
@@ -251,6 +319,15 @@ export function DepartmentHeadDashboard() {
             </TabsTrigger>
             <TabsTrigger value="staff" className="text-slate-300 data-[state=active]:bg-slate-700 data-[state=active]:text-white">
               Staff Management
+            </TabsTrigger>
+            <TabsTrigger value="stock" className="text-slate-300 data-[state=active]:bg-slate-700 data-[state=active]:text-white">
+              IT Stock Levels
+            </TabsTrigger>
+            <TabsTrigger value="devices" className="text-slate-300 data-[state=active]:bg-slate-700 data-[state=active]:text-white">
+              Department Devices
+            </TabsTrigger>
+            <TabsTrigger value="requests" className="text-slate-300 data-[state=active]:bg-slate-700 data-[state=active]:text-white">
+              Service Desk Requests
             </TabsTrigger>
             <TabsTrigger value="settings" className="text-slate-300 data-[state=active]:bg-slate-700 data-[state=active]:text-white">
               Account Settings
@@ -440,6 +517,136 @@ export function DepartmentHeadDashboard() {
                   <Lock className="h-4 w-4" />
                   Change Password
                 </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* IT Stock Levels Tab */}
+          <TabsContent value="stock" className="space-y-4">
+            <Card className="bg-gradient-to-br from-slate-800/50 to-slate-800/30 border-slate-700/50 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  IT Stock Levels (View Only)
+                </CardTitle>
+                <CardDescription className="text-slate-400">Current stock availability in the IT department</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {stockItems.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-600/50">
+                          <th className="text-left py-3 px-2 text-slate-300 font-medium">Item Name</th>
+                          <th className="text-left py-3 px-2 text-slate-300 font-medium">Category</th>
+                          <th className="text-left py-3 px-2 text-slate-300 font-medium">Quantity</th>
+                          <th className="text-left py-3 px-2 text-slate-300 font-medium">Unit</th>
+                          <th className="text-left py-3 px-2 text-slate-300 font-medium">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stockItems.map((item) => (
+                          <tr key={item.id} className="border-b border-slate-700/30 hover:bg-slate-700/20 transition-colors">
+                            <td className="py-3 px-2 text-white">{item.item_name}</td>
+                            <td className="py-3 px-2 text-slate-400">{item.category}</td>
+                            <td className="py-3 px-2 text-slate-400">{item.quantity}</td>
+                            <td className="py-3 px-2 text-slate-400">{item.unit}</td>
+                            <td className="py-3 px-2">
+                              <Badge className={item.quantity > 10 ? "bg-green-500/20 text-green-200" : item.quantity > 0 ? "bg-amber-500/20 text-amber-200" : "bg-red-500/20 text-red-200"}>
+                                {item.quantity > 10 ? "In Stock" : item.quantity > 0 ? "Low Stock" : "Out of Stock"}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-slate-400 text-center py-6">No stock items available</p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Department Devices Tab */}
+          <TabsContent value="devices" className="space-y-4">
+            <Card className="bg-gradient-to-br from-slate-800/50 to-slate-800/30 border-slate-700/50 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-white">Department Devices (View Only)</CardTitle>
+                <CardDescription className="text-slate-400">All devices assigned to your department</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {departmentDevices.length > 0 ? (
+                  <div className="space-y-3">
+                    {departmentDevices.map((device) => (
+                      <div key={device.id} className="p-4 rounded-lg bg-slate-700/30 border border-slate-600/50 hover:border-slate-500/50 transition-colors">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="font-medium text-white">{device.device_name}</p>
+                            <p className="text-sm text-slate-400">Type: {device.device_type}</p>
+                          </div>
+                          <Badge className={device.status === "active" ? "bg-green-500/20 text-green-200" : device.status === "repair" ? "bg-red-500/20 text-red-200" : "bg-amber-500/20 text-amber-200"}>
+                            {device.status}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs text-slate-400 mt-2">
+                          <div>Serial: {device.serial_number}</div>
+                          {device.asset_tag && <div>Asset Tag: {device.asset_tag}</div>}
+                          {device.assigned_to && <div>Assigned to: {device.assigned_to}</div>}
+                          {device.location && <div>Location: {device.location}</div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-slate-400 text-center py-6">No devices found for your department</p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Service Desk Requests Tab */}
+          <TabsContent value="requests" className="space-y-4">
+            <Card className="bg-gradient-to-br from-slate-800/50 to-slate-800/30 border-slate-700/50 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-white">Service Desk Requests (View Only)</CardTitle>
+                <CardDescription className="text-slate-400">Repair and maintenance requests from your department</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {serviceDeskRequests.length > 0 ? (
+                  <div className="space-y-3">
+                    {serviceDeskRequests.map((request) => (
+                      <div key={request.id} className="p-4 rounded-lg bg-slate-700/30 border border-slate-600/50 hover:border-slate-500/50 transition-colors">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <p className="font-medium text-white">{request.task_number}</p>
+                            <p className="text-sm text-slate-400 mt-1">{request.device_name}</p>
+                            <p className="text-sm text-slate-400 mt-1">{request.issue_description}</p>
+                          </div>
+                          <div className="flex flex-col gap-2 ml-4">
+                            <Badge className={
+                              request.priority === "critical" ? "bg-red-500/20 text-red-200" :
+                              request.priority === "high" ? "bg-orange-500/20 text-orange-200" :
+                              request.priority === "medium" ? "bg-yellow-500/20 text-yellow-200" :
+                              "bg-green-500/20 text-green-200"
+                            }>
+                              {request.priority}
+                            </Badge>
+                            <Badge className="bg-blue-500/20 text-blue-200">
+                              {request.status}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="text-xs text-slate-500 mt-2 flex justify-between">
+                          <span>Created: {new Date(request.created_at).toLocaleDateString()}</span>
+                          {request.assigned_to && <span>Assigned to: {request.assigned_to}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-slate-400 text-center py-6">No service desk requests found</p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
