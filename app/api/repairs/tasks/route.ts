@@ -18,21 +18,60 @@ export async function GET(request: NextRequest) {
 
     // If service_provider_id is a user ID, look up the actual service provider ID
     let actualServiceProviderId = serviceProviderId
+    let serviceProviderName = null
     
     if (serviceProviderId && !viewAll) {
-      // Check if this is a user ID by looking up service_providers table
-      const { data: spData } = await supabaseAdmin
+      // First, check if this is a user ID by looking up service_providers table via user_id
+      const { data: spDataByUserId, error: spErrorByUserId } = await supabaseAdmin
         .from("service_providers")
-        .select("id")
+        .select("id, name")
         .eq("user_id", serviceProviderId)
         .single()
       
-      if (spData) {
-        console.log("[v0] Found service provider ID from user_id:", spData.id)
-        actualServiceProviderId = spData.id
+      if (spDataByUserId) {
+        console.log("[v0] Found service provider via user_id:", spDataByUserId.id, spDataByUserId.name)
+        actualServiceProviderId = spDataByUserId.id
+        serviceProviderName = spDataByUserId.name
       } else {
-        console.log("[v0] No user->service_provider mapping found, using provided ID directly:", serviceProviderId)
+        // If not found via user_id, check if the ID is already a service_provider ID
+        const { data: spDataById, error: spErrorById } = await supabaseAdmin
+          .from("service_providers")
+          .select("id, name")
+          .eq("id", serviceProviderId)
+          .single()
+        
+        if (spDataById) {
+          console.log("[v0] ID is already a service_provider ID:", spDataById.id, spDataById.name)
+          actualServiceProviderId = spDataById.id
+          serviceProviderName = spDataById.name
+        } else {
+          // Try finding by matching the name in profiles table
+          const { data: profileData } = await supabaseAdmin
+            .from("profiles")
+            .select("full_name")
+            .eq("id", serviceProviderId)
+            .single()
+          
+          if (profileData?.full_name) {
+            // Look up service provider by name
+            const { data: spByName } = await supabaseAdmin
+              .from("service_providers")
+              .select("id, name")
+              .ilike("name", `%${profileData.full_name}%`)
+              .single()
+            
+            if (spByName) {
+              console.log("[v0] Found service provider by profile name:", spByName.id, spByName.name)
+              actualServiceProviderId = spByName.id
+              serviceProviderName = spByName.name
+            }
+          }
+          
+          console.log("[v0] No direct service_provider mapping found, will also check by name")
+        }
       }
+      
+      console.log("[v0] Final service provider ID for query:", actualServiceProviderId, "Name:", serviceProviderName)
     }
 
     // Query from repair_requests table (the actual repairs table)
@@ -70,9 +109,12 @@ export async function GET(request: NextRequest) {
     if (viewAll) {
       query = query.not("service_provider_id", "is", null)
       console.log("[v0] Querying all repairs with service provider assigned")
-    } else if (actualServiceProviderId) {
-      query = query.eq("service_provider_id", actualServiceProviderId)
-      console.log("[v0] Querying repairs for service_provider_id:", actualServiceProviderId)
+    } else if (actualServiceProviderId || serviceProviderName) {
+      // Try to find repairs by service_provider_id OR by service_provider_name
+      if (actualServiceProviderId) {
+        query = query.eq("service_provider_id", actualServiceProviderId)
+        console.log("[v0] Querying repairs for service_provider_id:", actualServiceProviderId)
+      }
     }
 
     if (status && status !== "all") {

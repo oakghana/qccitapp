@@ -5,10 +5,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SystemOverview } from "./system-overview"
 import { UserManagement } from "./user-management"
 import { ServiceProviderManagement } from "./service-provider-management"
+import { DepartmentHeadLinking } from "./department-head-linking"
 import { SystemSettings } from "./system-settings"
 import { AuditLogs } from "./audit-logs"
 import { Reports } from "./reports"
-import { BarChart3, Users, Building, Settings, FileText, Activity } from "lucide-react"
+import { BarChart3, Users, Building, Settings, FileText, Activity, Layers } from "lucide-react"
 
 export function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview")
@@ -21,7 +22,7 @@ export function AdminDashboard() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6">
+        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             <span className="hidden sm:inline">Overview</span>
@@ -29,6 +30,10 @@ export function AdminDashboard() {
           <TabsTrigger value="users" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">Users</span>
+          </TabsTrigger>
+          <TabsTrigger value="department-heads" className="flex items-center gap-2">
+            <Layers className="h-4 w-4" />
+            <span className="hidden sm:inline">Dept Heads</span>
           </TabsTrigger>
           <TabsTrigger value="providers" className="flex items-center gap-2">
             <Building className="h-4 w-4" />
@@ -54,6 +59,10 @@ export function AdminDashboard() {
 
         <TabsContent value="users" className="space-y-4">
           <UserManagement />
+        </TabsContent>
+
+        <TabsContent value="department-heads" className="space-y-4">
+          <DepartmentHeadLinking />
         </TabsContent>
 
         <TabsContent value="providers" className="space-y-4">

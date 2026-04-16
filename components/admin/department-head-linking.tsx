@@ -1,0 +1,343 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Search, Users, Link2, Unlink2, ChevronRight } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+
+interface DepartmentHead {
+  id: string
+  name: string
+  email: string
+  department?: string
+  staff_count: number
+}
+
+interface StaffMember {
+  id: string
+  name: string
+  email: string
+  department: string
+  linked: boolean
+}
+
+export function DepartmentHeadLinking() {
+  const { toast } = useToast()
+  const [departmentHeads, setDepartmentHeads] = useState<DepartmentHead[]>([])
+  const [staff, setStaff] = useState<StaffMember[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedHeadId, setSelectedHeadId] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [isLinkingOpen, setIsLinkingOpen] = useState(false)
+  const [selectedStaff, setSelectedStaff] = useState<string[]>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    loadDepartmentHeads()
+    loadStaff()
+  }, [])
+
+  const loadDepartmentHeads = async () => {
+    try {
+      const response = await fetch("/api/admin/department-heads")
+      if (!response.ok) throw new Error("Failed to load department heads")
+      const data = await response.json()
+      setDepartmentHeads(data.department_heads || [])
+    } catch (error) {
+      console.error("[v0] Error loading department heads:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load department heads",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const loadStaff = async () => {
+    try {
+      const response = await fetch("/api/admin/staff-list")
+      if (!response.ok) throw new Error("Failed to load staff")
+      const data = await response.json()
+      setStaff(data.staff || [])
+      setLoading(false)
+    } catch (error) {
+      console.error("[v0] Error loading staff:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load staff list",
+        variant: "destructive",
+      })
+      setLoading(false)
+    }
+  }
+
+  const handleLinkStaff = async (headId: string, staffIds: string[]) => {
+    setIsSubmitting(true)
+    try {
+      const response = await fetch("/api/admin/link-department-staff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          department_head_id: headId,
+          staff_ids: staffIds,
+        }),
+      })
+
+      if (!response.ok) throw new Error("Failed to link staff")
+      
+      toast({
+        title: "Success",
+        description: `Successfully linked ${staffIds.length} staff member(s)`,
+      })
+      
+      setIsLinkingOpen(false)
+      setSelectedStaff([])
+      loadDepartmentHeads()
+      loadStaff()
+    } catch (error) {
+      console.error("[v0] Error linking staff:", error)
+      toast({
+        title: "Error",
+        description: "Failed to link staff to department head",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleUnlinkStaff = async (headId: string, staffId: string) => {
+    try {
+      const response = await fetch("/api/admin/unlink-department-staff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          department_head_id: headId,
+          staff_id: staffId,
+        }),
+      })
+
+      if (!response.ok) throw new Error("Failed to unlink staff")
+      
+      toast({
+        title: "Success",
+        description: "Staff member unlinked from department head",
+      })
+      
+      loadDepartmentHeads()
+      loadStaff()
+    } catch (error) {
+      console.error("[v0] Error unlinking staff:", error)
+      toast({
+        title: "Error",
+        description: "Failed to unlink staff",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const selectedHead = departmentHeads.find((h) => h.id === selectedHeadId)
+  const linkedStaffForHead = staff.filter((s) => s.linked && selectedHeadId)
+  const availableStaffForHead = staff.filter((s) => !s.linked || selectedHeadId === s.department)
+
+  const filteredStaff = availableStaffForHead.filter(
+    (s) =>
+      s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.email.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  if (loading) {
+    return <div className="flex justify-center p-8">Loading...</div>
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold">Department Head Staff Linking</h2>
+        <p className="text-muted-foreground">Manage which staff members report to each department head</p>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Department Heads List */}
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Department Heads
+            </CardTitle>
+            <CardDescription>{departmentHeads.length} total</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {departmentHeads.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No department heads found</p>
+            ) : (
+              departmentHeads.map((head) => (
+                <button
+                  key={head.id}
+                  onClick={() => setSelectedHeadId(head.id)}
+                  className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
+                    selectedHeadId === head.id
+                      ? "border-blue-500 bg-blue-50 dark:bg-blue-950"
+                      : "border-transparent hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-medium">{head.name}</p>
+                      <p className="text-xs text-muted-foreground">{head.email}</p>
+                    </div>
+                    <Badge variant="secondary">{head.staff_count}</Badge>
+                  </div>
+                </button>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Staff Management */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Link2 className="h-5 w-5" />
+                  {selectedHead ? `Staff for ${selectedHead.name}` : "Select a Department Head"}
+                </CardTitle>
+                <CardDescription>
+                  {selectedHead ? `${linkedStaffForHead.length} staff members linked` : "Choose a department head above"}
+                </CardDescription>
+              </div>
+              {selectedHead && (
+                <Dialog open={isLinkingOpen} onOpenChange={setIsLinkingOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="gap-2">
+                      <Link2 className="h-4 w-4" />
+                      Link Staff
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Link Staff to {selectedHead.name}</DialogTitle>
+                      <DialogDescription>
+                        Select staff members to add under this department head
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search staff..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="pl-8"
+                        />
+                      </div>
+
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {filteredStaff.length === 0 ? (
+                          <p className="text-sm text-muted-foreground text-center py-4">No staff available</p>
+                        ) : (
+                          filteredStaff.map((member) => (
+                            <label
+                              key={member.id}
+                              className="flex items-center gap-3 p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+                            >
+                              <Checkbox
+                                checked={selectedStaff.includes(member.id)}
+                                onCheckedChange={(checked) => {
+                                  setSelectedStaff(
+                                    checked
+                                      ? [...selectedStaff, member.id]
+                                      : selectedStaff.filter((id) => id !== member.id)
+                                  )
+                                }}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium">{member.name}</p>
+                                <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+                              </div>
+                            </label>
+                          ))
+                        )}
+                      </div>
+
+                      <div className="flex gap-2 justify-end pt-4">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setIsLinkingOpen(false)
+                            setSelectedStaff([])
+                            setSearchTerm("")
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={() => handleLinkStaff(selectedHead.id, selectedStaff)}
+                          disabled={isSubmitting || selectedStaff.length === 0}
+                        >
+                          {isSubmitting ? "Linking..." : `Link ${selectedStaff.length} Staff`}
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
+          </CardHeader>
+
+          {selectedHead ? (
+            <CardContent>
+              {linkedStaffForHead.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Users className="h-12 w-12 mx-auto opacity-20 mb-2" />
+                  <p>No staff linked yet. Click "Link Staff" to add staff members.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {linkedStaffForHead.map((member) => (
+                    <div
+                      key={member.id}
+                      className="flex items-center justify-between p-3 rounded-lg border hover:border-gray-400 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium">{member.name}</p>
+                        <p className="text-sm text-muted-foreground">{member.email}</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleUnlinkStaff(selectedHead.id, member.id)}
+                        className="ml-2"
+                      >
+                        <Unlink2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          ) : (
+            <CardContent className="text-center text-muted-foreground py-8">
+              Select a department head to view and manage their staff
+            </CardContent>
+          )}
+        </Card>
+      </div>
+    </div>
+  )
+}
