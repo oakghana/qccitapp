@@ -1,450 +1,187 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import Link from "next/link"
+import { useMemo, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
-import { AlertCircle, CheckCircle2, XCircle, Clock, Eye } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/lib/auth-context"
-import { useToast } from "@/hooks/use-toast"
+import { Laptop, Wrench, ClipboardList, ShieldCheck, Lock, ArrowRight, Users, Headphones } from "lucide-react"
+import { DepartmentHeadApprovalModule } from "./department-head-approval"
+import { ITServiceDeskProcessingPanel } from "./service-desk-processing"
+import { ITHeadAdminPanel } from "./it-head-admin-panel"
 
-interface ITRequisition {
-  id: string
-  requisition_number: string
-  item_sn: string
-  supplier_name: string
-  items_required: string
-  purpose: string
-  requested_by: string
-  department: string
-  request_date: string
-  status: string
-  approval_timeline?: Array<{
-    approver: string
-    role: string
-    action: string
-    notes: string
-    timestamp: string
-  }>
-  created_at: string
-  updated_at: string
+function LockedSection({ title, description }: { title: string; description: string }) {
+  return (
+    <Card className="border-dashed border-slate-300 bg-slate-100/70 dark:border-slate-700 dark:bg-slate-900/50">
+      <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+        <div className="rounded-full bg-slate-200 p-3 dark:bg-slate-800">
+          <Lock className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-slate-800 dark:text-slate-100">{title}</h3>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{description}</p>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
 export function ITFormsApprovalDashboard() {
-  const [requisitions, setRequisitions] = useState<ITRequisition[]>([])
-  const [filteredRequisitions, setFilteredRequisitions] = useState<ITRequisition[]>([])
-  const [loading, setLoading] = useState(true)
-  const [selectedRequisition, setSelectedRequisition] = useState<ITRequisition | null>(null)
-  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
-  const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false)
-  const [approvalNotes, setApprovalNotes] = useState("")
-  const [approvalAction, setApprovalAction] = useState<"approve" | "reject">("approve")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
   const { user } = useAuth()
-  const { toast } = useToast()
+  const role = user?.role || ""
 
-  useEffect(() => {
-    fetchRequisitions()
-  }, [])
+  const canUseHODDesk = ["department_head", "admin"].includes(role)
+  const canUseServiceDeskDesk = role.startsWith("service_desk") || role === "admin"
+  const canUseManagerDesk = ["it_head", "admin"].includes(role)
 
-  useEffect(() => {
-    filterRequisitions()
-  }, [searchQuery, requisitions])
+  const defaultTab = useMemo(() => {
+    if (canUseHODDesk) return "hod"
+    if (canUseServiceDeskDesk) return "service-desk"
+    if (canUseManagerDesk) return "manager"
+    return "request"
+  }, [canUseHODDesk, canUseServiceDeskDesk, canUseManagerDesk])
 
-  const fetchRequisitions = async () => {
-    try {
-      setLoading(true)
-      const response = await fetch("/api/it-forms/requisitions?status=all")
-      const data = await response.json()
+  const [activeTab, setActiveTab] = useState(defaultTab)
 
-      if (data.success) {
-        setRequisitions(data.requisitions || [])
-      }
-    } catch (error) {
-      console.error("[v0] Error fetching requisitions:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load requisitions",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const filterRequisitions = () => {
-    const filtered = requisitions.filter(
-      (req) =>
-        req.requisition_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        req.requested_by.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        req.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        req.items_required.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-    setFilteredRequisitions(filtered)
-  }
-
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { variant: any; label: string; icon: any }> = {
-      draft: { variant: "secondary", label: "Draft", icon: Clock },
-      pending: { variant: "default", label: "Awaiting HOD", icon: Clock },
-      pending_hod: { variant: "default", label: "Awaiting HOD", icon: Clock },
-      pending_department_head: { variant: "default", label: "Awaiting HOD", icon: Clock },
-      hod_approved: { variant: "secondary", label: "HOD Approved", icon: CheckCircle2 },
-      pending_service_desk: { variant: "outline", label: "Service Desk Review", icon: CheckCircle2 },
-      pending_it_head: { variant: "outline", label: "IT Head Review", icon: CheckCircle2 },
-      pending_admin: { variant: "outline", label: "Admin Review", icon: CheckCircle2 },
-      pending_store: { variant: "outline", label: "Ready for Store", icon: CheckCircle2 },
-      issued: { variant: "default", label: "Issued", icon: CheckCircle2 },
-      rejected_department_head: { variant: "destructive", label: "Rejected by HOD", icon: XCircle },
-      rejected: { variant: "destructive", label: "Rejected", icon: XCircle },
-    }
-
-    const config = statusConfig[status] || { variant: "secondary", label: status.replace(/_/g, " "), icon: Clock }
-    return <Badge variant={config.variant as any}>{config.label}</Badge>
-  }
-
-  const canApprove = (req: ITRequisition): boolean => {
-    const userRole = user?.role || ""
-
-    if (["draft", "pending_department_head", "pending", "pending_hod"].includes(req.status)) {
-      return false
-    }
-    if (req.status === "pending_service_desk") {
-      return userRole === "service_desk_head" || userRole === "admin"
-    }
-    if (req.status === "pending_it_head") {
-      return userRole === "it_head" || userRole === "admin"
-    }
-    if (req.status === "pending_admin") {
-      return userRole === "admin"
-    }
-    if (req.status === "pending_store") {
-      return userRole === "it_store_head"
-    }
-
-    return false
-  }
-
-  const handleApprove = (req: ITRequisition) => {
-    setSelectedRequisition(req)
-    setApprovalAction("approve")
-    setApprovalNotes("")
-    setIsApprovalDialogOpen(true)
-  }
-
-  const handleReject = (req: ITRequisition) => {
-    setSelectedRequisition(req)
-    setApprovalAction("reject")
-    setApprovalNotes("")
-    setIsApprovalDialogOpen(true)
-  }
-
-  const submitApproval = async () => {
-    if (!selectedRequisition) return
-
-    setIsSubmitting(true)
-    try {
-      const action = approvalAction === "approve" ? "approve" : "reject"
-      const response = await fetch("/api/it-forms/approve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          requisitionId: selectedRequisition.id,
-          action,
-          approvedBy: user?.full_name || "Unknown",
-          approverRole: user?.role || "unknown",
-          notes: approvalNotes,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to process approval")
-      }
-
-      toast({
-        title: "Success",
-        description: `Requisition ${approvalAction}d successfully`,
-      })
-
-      // Refresh the requisitions list
-      fetchRequisitions()
-      setIsApprovalDialogOpen(false)
-      setSelectedRequisition(null)
-    } catch (error: any) {
-      console.error("[v0] Error submitting approval:", error)
-      toast({
-        title: "Error",
-        description: error.message || "Failed to process approval",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const getPendingCount = () => {
-    return requisitions.filter((r) => ["pending", "pending_department_head", "pending_service_desk", "pending_it_head", "pending_admin", "pending_store", "draft"].includes(r.status)).length
-  }
+  const requestLinks = [
+    {
+      title: "Equipment Requisition",
+      description: "Request laptops, printers, accessories, and other IT equipment.",
+      href: "/dashboard/it-forms/equipment-requisition",
+      icon: Laptop,
+    },
+    {
+      title: "Maintenance and Repairs",
+      description: "Log faults and request technical support through the approved workflow.",
+      href: "/dashboard/it-forms/maintenance-repairs",
+      icon: Wrench,
+    },
+    {
+      title: "New Gadget Request",
+      description: "Submit new gadget needs for approval and onward IT processing.",
+      href: "/dashboard/it-forms/new-gadget",
+      icon: ClipboardList,
+    },
+  ]
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">IT Forms Dashboard</h1>
-        <p className="text-muted-foreground mt-2">
-          Manage and approve IT equipment requisition requests
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight">IT Forms and Approvals</h1>
+        <p className="text-muted-foreground">
+          All staff can request IT services here. Staff requests move through the Department Head first, then the IT Service Desk, and finally to IT Head or Admin review.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Requisitions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{requisitions.length}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Pending Approval</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{getPendingCount()}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Issued</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {requisitions.filter((r) => r.status === "issued").length}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="shadow-sm">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Request Access</p>
+                <p className="mt-2 text-lg font-semibold">All Staff</p>
+              </div>
+              <ShieldCheck className="h-5 w-5 text-emerald-600" />
             </div>
+          </CardContent>
+        </Card>
+        <Card className={canUseHODDesk ? "shadow-sm border-emerald-200" : "shadow-sm opacity-60 bg-slate-50 dark:bg-slate-900"}>
+          <CardContent className="p-5">
+            <p className="text-sm text-muted-foreground">Head of Department</p>
+            <p className="mt-2 text-lg font-semibold">{canUseHODDesk ? "Enabled" : "Locked"}</p>
+          </CardContent>
+        </Card>
+        <Card className={canUseServiceDeskDesk ? "shadow-sm border-emerald-200" : "shadow-sm opacity-60 bg-slate-50 dark:bg-slate-900"}>
+          <CardContent className="p-5">
+            <p className="text-sm text-muted-foreground">IT Service Desk</p>
+            <p className="mt-2 text-lg font-semibold">{canUseServiceDeskDesk ? "Enabled" : "Locked"}</p>
+          </CardContent>
+        </Card>
+        <Card className={canUseManagerDesk ? "shadow-sm border-emerald-200" : "shadow-sm opacity-60 bg-slate-50 dark:bg-slate-900"}>
+          <CardContent className="p-5">
+            <p className="text-sm text-muted-foreground">IT Head or Admin</p>
+            <p className="mt-2 text-lg font-semibold">{canUseManagerDesk ? "Enabled" : "Locked"}</p>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Requisitions</CardTitle>
-          <CardDescription>View and manage all IT equipment requisitions</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <Input
-              placeholder="Search by requisition number, requester, department, or items..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="max-w-md"
-            />
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid h-auto grid-cols-2 gap-2 md:grid-cols-4">
+          <TabsTrigger value="request">Request Services</TabsTrigger>
+          <TabsTrigger value="hod" disabled={!canUseHODDesk}>Head of Department</TabsTrigger>
+          <TabsTrigger value="service-desk" disabled={!canUseServiceDeskDesk}>IT Service Desk</TabsTrigger>
+          <TabsTrigger value="manager" disabled={!canUseManagerDesk}>IT Manager</TabsTrigger>
+        </TabsList>
 
-            {loading ? (
-              <div className="text-center py-8">Loading...</div>
-            ) : filteredRequisitions.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No requisitions found
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {filteredRequisitions.map((req) => (
-                  <div
-                    key={req.id}
-                    className="border rounded-lg p-4 hover:bg-muted/50 transition-colors space-y-2"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold">{req.requisition_number}</span>
-                          {getStatusBadge(req.status)}
+        <TabsContent value="request" className="space-y-4">
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle>Request IT Services</CardTitle>
+              <CardDescription>Choose a form below to submit your request. Reviewer sections remain greyed out until the proper approver stage.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-3">
+                {requestLinks.map((link) => {
+                  const Icon = link.icon
+                  return (
+                    <Card key={link.href} className="border shadow-none">
+                      <CardContent className="p-5">
+                        <div className="mb-3 flex items-center justify-between">
+                          <Icon className="h-5 w-5 text-emerald-600" />
+                          <Badge variant="secondary">Available</Badge>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          Requested by: {req.requested_by} ({req.department})
-                        </p>
-                        <p className="text-sm">Items: {req.items_required.substring(0, 60)}...</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedRequisition(req)
-                            setIsDetailDialogOpen(true)
-                          }}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
+                        <h3 className="font-semibold">{link.title}</h3>
+                        <p className="mt-2 text-sm text-muted-foreground">{link.description}</p>
+                        <Button asChild className="mt-4 w-full">
+                          <Link href={link.href}>
+                            Open Form
+                            <ArrowRight className="h-4 w-4" />
+                          </Link>
                         </Button>
-                        {canApprove(req) && (
-                          <>
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => handleApprove(req)}
-                            >
-                              <CheckCircle2 className="h-4 w-4 mr-1" />
-                              Approve
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleReject(req)}
-                            >
-                              <XCircle className="h-4 w-4 mr-1" />
-                              Reject
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                      </CardContent>
+                    </Card>
+                  )
+                })}
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {/* Detail Dialog */}
-      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{selectedRequisition?.requisition_number}</DialogTitle>
-            <DialogDescription>
-              Submitted on {selectedRequisition ? new Date(selectedRequisition.created_at).toLocaleDateString() : ""}
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedRequisition && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <Label className="text-muted-foreground">Requested By</Label>
-                  <p className="font-medium">{selectedRequisition.requested_by}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Department</Label>
-                  <p className="font-medium">{selectedRequisition.department}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Status</Label>
-                  <p>{getStatusBadge(selectedRequisition.status)}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Request Date</Label>
-                  <p className="font-medium">
-                    {new Date(selectedRequisition.request_date).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-muted-foreground">Items Required</Label>
-                <div className="bg-muted p-3 rounded text-sm whitespace-pre-wrap">
-                  {selectedRequisition.items_required}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-muted-foreground">Purpose</Label>
-                <div className="bg-muted p-3 rounded text-sm whitespace-pre-wrap">
-                  {selectedRequisition.purpose}
-                </div>
-              </div>
-
-              {(selectedRequisition.approval_timeline || []).length > 0 && (
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Approval History</Label>
-                  <div className="space-y-2">
-                    {(selectedRequisition.approval_timeline || []).map((approval, idx) => (
-                      <div key={idx} className="bg-muted p-3 rounded text-sm space-y-1">
-                        <div className="font-medium">
-                          {approval.action.toUpperCase()} by {approval.approver} ({approval.role})
-                        </div>
-                        <div className="text-muted-foreground">
-                          {new Date(approval.timestamp).toLocaleString()}
-                        </div>
-                        {approval.notes && <div>{approval.notes}</div>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+        <TabsContent value="hod" className="space-y-4">
+          {canUseHODDesk ? (
+            <DepartmentHeadApprovalModule />
+          ) : (
+            <LockedSection
+              title="Head of Department section"
+              description="This section is only for Department Heads and Admin users."
+            />
           )}
+        </TabsContent>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDetailDialogOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <TabsContent value="service-desk" className="space-y-4">
+          {canUseServiceDeskDesk ? (
+            <ITServiceDeskProcessingPanel />
+          ) : (
+            <LockedSection
+              title="IT Service Desk section"
+              description="This section is only for the IT Service Desk team and Admin users."
+            />
+          )}
+        </TabsContent>
 
-      {/* Approval Dialog */}
-      <Dialog open={isApprovalDialogOpen} onOpenChange={setIsApprovalDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {approvalAction === "approve" ? "Approve" : "Reject"} Requisition
-            </DialogTitle>
-            <DialogDescription>
-              {selectedRequisition?.requisition_number}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="bg-muted p-3 rounded text-sm">
-              <p className="font-medium mb-1">Items Requested:</p>
-              <p className="text-muted-foreground">{selectedRequisition?.items_required}</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="notes">
-                {approvalAction === "approve" ? "Approval" : "Rejection"} Notes (Optional)
-              </Label>
-              <Textarea
-                id="notes"
-                value={approvalNotes}
-                onChange={(e) => setApprovalNotes(e.target.value)}
-                placeholder="Add any notes about this decision..."
-                className="min-h-20"
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsApprovalDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={submitApproval}
-              disabled={isSubmitting}
-              variant={approvalAction === "approve" ? "default" : "destructive"}
-            >
-              {isSubmitting
-                ? "Processing..."
-                : `${approvalAction === "approve" ? "Approve" : "Reject"} Requisition`}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <TabsContent value="manager" className="space-y-4">
+          {canUseManagerDesk ? (
+            <ITHeadAdminPanel />
+          ) : (
+            <LockedSection
+              title="IT Manager section"
+              description="This section is only for IT Head and Admin users."
+            />
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

@@ -436,6 +436,11 @@ export function PDFUploadsDashboard() {
 
     const isPublished = upload.is_confirmed || (upload.confirmations?.length || 0) > 0
     const isOwnUpload = upload.uploaded_by === user?.id
+    const isLocationSpecificDocument = Boolean(upload.target_location)
+
+    if (isLocationSpecificDocument) {
+      return true
+    }
 
     return isPublished || isOwnUpload
   })
@@ -487,7 +492,7 @@ export function PDFUploadsDashboard() {
           <p className="text-gray-600 dark:text-gray-400">
             {["admin", "it_head"].includes(user?.role || "")
               ? "View and manage uploaded IT documents across all locations"
-              : `View documents published for ${getCanonicalLocationName(user?.location || "your location")}`}
+              : `View documents available for ${getCanonicalLocationName(user?.location || "your location")}`}
           </p>
         </div>
         {canUpload && (
@@ -725,7 +730,7 @@ export function PDFUploadsDashboard() {
             )}
             {!["admin", "it_head"].includes(user?.role || "") && (
               <div className="px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 rounded border border-blue-200 dark:border-blue-800">
-                {`You can view published documents for ${getCanonicalLocationName(user?.location || "your location")} only.`}
+                {`You can view documents for ${getCanonicalLocationName(user?.location || "your location")} only.`}
               </div>
             )}
           </div>

@@ -332,7 +332,17 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
           { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
         ],
-        groups: [],
+        groups: [
+          {
+            name: "IT Forms",
+            icon: FileText,
+            items: [
+              { name: "Equipment Requisition", href: "/dashboard/it-forms/equipment-requisition", icon: Laptop },
+              { name: "Maintenance & Repairs", href: "/dashboard/it-forms/maintenance-repairs", icon: Wrench },
+              { name: "New Gadget Request", href: "/dashboard/it-forms/new-gadget", icon: Laptop },
+            ],
+          },
+        ],
       }
     }
 
@@ -364,6 +374,15 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
         ],
         groups: [
+          {
+            name: "IT Forms",
+            icon: FileText,
+            items: [
+              { name: "Equipment Requisition", href: "/dashboard/it-forms/equipment-requisition", icon: Laptop },
+              { name: "Maintenance & Repairs", href: "/dashboard/it-forms/maintenance-repairs", icon: Wrench },
+              { name: "New Gadget Request", href: "/dashboard/it-forms/new-gadget", icon: Laptop },
+            ],
+          },
           {
             name: "Store Management",
             icon: Store,
@@ -551,6 +570,15 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
         ],
         groups: [
           {
+            name: "IT Forms",
+            icon: FileText,
+            items: [
+              { name: "Equipment Requisition", href: "/dashboard/it-forms/equipment-requisition", icon: Laptop },
+              { name: "Maintenance & Repairs", href: "/dashboard/it-forms/maintenance-repairs", icon: Wrench },
+              { name: "New Gadget Request", href: "/dashboard/it-forms/new-gadget", icon: Laptop },
+            ],
+          },
+          {
             name: "IT Operations",
             icon: Building2,
             badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
@@ -616,6 +644,38 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
       }
     }
 
+    if (user?.role === "department_head") {
+      return {
+        items: [
+          ...baseItems,
+          {
+            name: "Messages",
+            href: "/dashboard/notifications",
+            icon: Bell,
+            badge: counts.notifications > 0 ? counts.notifications : undefined,
+          },
+          {
+            name: "Service Desk",
+            href: "/dashboard/service-desk",
+            icon: Headphones,
+            badge: counts.serviceDeskTickets > 0 ? counts.serviceDeskTickets : undefined,
+          },
+        ],
+        groups: [
+          {
+            name: "IT Forms",
+            icon: FileText,
+            items: [
+              { name: "Equipment Requisition", href: "/dashboard/it-forms/equipment-requisition", icon: Laptop },
+              { name: "Maintenance & Repairs", href: "/dashboard/it-forms/maintenance-repairs", icon: Wrench },
+              { name: "New Gadget Request", href: "/dashboard/it-forms/new-gadget", icon: Laptop },
+              { name: "Approvals", href: "/dashboard/it-forms/approvals", icon: ClipboardList },
+            ],
+          },
+        ],
+      }
+    }
+
     if (user?.role === "service_provider") {
       return {
         items: [
@@ -637,7 +697,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
     }
 
     // Location-based Service Desk roles
-    if (user?.role?.startsWith("service_desk_")) {
+    if (user?.role?.startsWith("service_desk")) {
       return {
         items: [
           ...baseItems,
@@ -668,7 +728,18 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           },
           { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
         ],
-        groups: [],
+        groups: [
+          {
+            name: "IT Forms",
+            icon: FileText,
+            items: [
+              { name: "Equipment Requisition", href: "/dashboard/it-forms/equipment-requisition", icon: Laptop },
+              { name: "Maintenance & Repairs", href: "/dashboard/it-forms/maintenance-repairs", icon: Wrench },
+              { name: "New Gadget Request", href: "/dashboard/it-forms/new-gadget", icon: Laptop },
+              { name: "Approvals", href: "/dashboard/it-forms/approvals", icon: ClipboardList },
+            ],
+          },
+        ],
       }
     }
 

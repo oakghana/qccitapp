@@ -79,9 +79,9 @@ const navigationItems: NavigationItem[] = [
   },
   {
     name: "IT Forms",
-    href: "/dashboard/it-forms/approvals",
+    href: "/dashboard/it-forms/equipment-requisition",
     icon: FileText,
-    roles: ["admin", "it_head", "department_head"],
+    roles: ["admin", "it_head", "department_head", "it_staff", "regional_it_head", "it_store_head", "service_desk_head", "service_desk_staff", "staff", "user"],
   },
   {
     name: "User Accounts",

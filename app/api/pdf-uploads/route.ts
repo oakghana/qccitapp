@@ -72,6 +72,11 @@ export async function GET(request: Request) {
 
       const isPublished = Boolean(upload.is_confirmed)
       const isOwnUpload = Boolean(userId && upload.uploaded_by === userId)
+      const isLocationSpecificDocument = Boolean(upload.target_location)
+
+      if (isLocationSpecificDocument) {
+        return true
+      }
 
       return isPublished || isOwnUpload
     })
