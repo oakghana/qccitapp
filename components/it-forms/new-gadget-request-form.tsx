@@ -183,7 +183,7 @@ export function NewGadgetRequestForm({ onSubmit }: { onSubmit: () => void }) {
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Quality Control Company Limited</p>
               <h2 className="text-lg font-bold">New IT Gadget Request Form</h2>
-              <p className="text-sm text-muted-foreground">Presented in the same section order as the shared approval form.</p>
+
             </div>
           </div>
           <div className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
