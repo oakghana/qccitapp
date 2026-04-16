@@ -24,10 +24,12 @@ import {
   DollarSign,
   Edit,
   Trash2,
+  Zap,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations, canCreateRepairs, normalizeLocation } from "@/lib/location-filter"
 import { useToast } from "@/hooks/use-toast"
+import { useRealtimeUpdates } from "@/hooks/use-realtime-updates"
 
 interface Device {
   id: string
@@ -95,6 +97,9 @@ export function ITHeadRepairManagement() {
   const [selectedLocation, setSelectedLocation] = useState<string>("")
   const [locations, setLocations] = useState<{ code: string; name: string }[]>([])
   const [attachments, setAttachments] = useState<File[]>([])
+  const [deviceSearchTerm, setDeviceSearchTerm] = useState("")
+  const [liveActivity, setLiveActivity] = useState<any[]>([])
+  const [showLiveActivity, setShowLiveActivity] = useState(true)
 
   // Edit form states
   const [editSelectedDevice, setEditSelectedDevice] = useState("")
@@ -117,6 +122,41 @@ export function ITHeadRepairManagement() {
     
     return () => clearInterval(refreshInterval)
   }, [user])
+
+  // Set up realtime listeners for live updates
+  useRealtimeUpdates({
+    table: "repair_requests",
+    onUpdate: (data) => {
+      console.log("[v0] Repair updated in realtime:", data)
+      loadRepairTasks()
+      // Add to live activity
+      setLiveActivity((prev) => [
+        {
+          id: Date.now(),
+          timestamp: new Date(),
+          action: `Repair task updated: ${data.task_number || data.device_name}`,
+          type: "status_update",
+          data,
+        },
+        ...prev.slice(0, 9), // Keep last 10 activities
+      ])
+    },
+    onInsert: (data) => {
+      console.log("[v0] New repair created in realtime:", data)
+      loadRepairTasks()
+      // Add to live activity
+      setLiveActivity((prev) => [
+        {
+          id: Date.now(),
+          timestamp: new Date(),
+          action: `New repair task created: ${data.task_number || data.device_name}`,
+          type: "new_repair",
+          data,
+        },
+        ...prev.slice(0, 9), // Keep last 10 activities
+      ])
+    },
+  })
 
   // Reload devices when location filter changes
   useEffect(() => {
@@ -346,6 +386,18 @@ export function ITHeadRepairManagement() {
     const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter
 
     return matchesSearch && matchesStatus && matchesPriority
+  })
+
+  // Filter devices based on search term
+  const filteredDevices = devices.filter((device) => {
+    const search = deviceSearchTerm.toLowerCase()
+    return (
+      device.assetTag?.toLowerCase().includes(search) ||
+      device.serialNumber?.toLowerCase().includes(search) ||
+      device.brand?.toLowerCase().includes(search) ||
+      device.model?.toLowerCase().includes(search) ||
+      device.type?.toLowerCase().includes(search)
+    )
   })
 
   const createRepairTask = async () => {
@@ -703,24 +755,45 @@ export function ITHeadRepairManagement() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="device">Select Device</Label>
-                    <Select value={selectedDevice} onValueChange={setSelectedDevice}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={devices.length > 0 ? "Choose device to repair" : "No devices available"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(devices || []).length > 0 ? (
-                          (devices || []).map((device) => (
-                            <SelectItem key={device.id} value={device.id}>
-                              {device.assetTag || device.serialNumber} - {device.type} ({device.brand} {device.model} {device.location ? `@ ${device.location}` : ""})
+                    <div className="space-y-2">
+                      <Input
+                        placeholder="Search by serial, tag, brand, model..."
+                        value={deviceSearchTerm}
+                        onChange={(e) => setDeviceSearchTerm(e.target.value)}
+                        className="w-full"
+                      />
+                      <Select value={selectedDevice} onValueChange={(value) => {
+                        setSelectedDevice(value)
+                        setDeviceSearchTerm("")
+                      }}>
+                        <SelectTrigger>
+                          <SelectValue placeholder={devices.length > 0 ? "Choose device to repair" : "No devices available"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {filteredDevices.length > 0 ? (
+                            filteredDevices.map((device) => (
+                              <SelectItem key={device.id} value={device.id}>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{device.assetTag || device.serialNumber}</span>
+                                  <span className="text-xs text-muted-foreground">{device.type} - {device.brand} {device.model} {device.location ? `@ ${device.location}` : ""}</span>
+                                </div>
+                              </SelectItem>
+                            ))
+                          ) : deviceSearchTerm ? (
+                            <SelectItem value="no-match" disabled>
+                              No devices match your search
                             </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="no-devices" disabled>
-                            {user?.role === "it_staff" ? "No devices in your location" : "Select a location above"}
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
+                          ) : (
+                            <SelectItem value="no-devices" disabled>
+                              {user?.role === "it_staff" ? "No devices in your location" : "Select a location above"}
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        {filteredDevices.length} device(s) found
+                      </p>
+                    </div>
                   </div>
 
                   <div>
@@ -845,6 +918,47 @@ export function ITHeadRepairManagement() {
               </div>
             </DialogContent>
           </Dialog>
+        )}
+
+        {/* Live Activity */}
+        {showLiveActivity && liveActivity.length > 0 && (
+          <Card className="border-l-4 border-l-green-500 bg-gradient-to-r from-green-50 to-transparent dark:from-green-950/20 dark:to-transparent">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-green-600" />
+                  <CardTitle className="text-base">Live Activity</CardTitle>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowLiveActivity(false)}
+                >
+                  ✕
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-h-32 overflow-y-auto">
+                {liveActivity.map((activity) => (
+                  <div
+                    key={activity.id}
+                    className="flex items-start gap-2 text-sm p-2 rounded bg-white/50 dark:bg-black/20 hover:bg-white/75 dark:hover:bg-black/30 transition-colors"
+                  >
+                    <div className="text-green-600 mt-0.5">
+                      {activity.type === "new_repair" ? <Plus className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-muted-foreground truncate">{activity.action}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {activity.timestamp?.toLocaleTimeString()}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Edit Dialog */}

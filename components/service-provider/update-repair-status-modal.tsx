@@ -118,7 +118,10 @@ export function UpdateRepairStatusModal({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="assigned">Assigned (Not Started)</SelectItem>
+                <SelectItem value="in_transit">In Transit (To Workshop)</SelectItem>
+                <SelectItem value="awaiting_parts">Awaiting Parts</SelectItem>
                 <SelectItem value="in_progress">In Progress (Work Started)</SelectItem>
+                <SelectItem value="quality_check">Quality Check</SelectItem>
                 <SelectItem value="completed">Completed (Ready for Pickup)</SelectItem>
                 <SelectItem value="returned">Returned (Device Collected)</SelectItem>
               </SelectContent>
@@ -158,11 +161,38 @@ export function UpdateRepairStatusModal({
           </div>
 
           {/* Status Specific Info */}
+          {status === "in_transit" && (
+            <div className="rounded-lg bg-blue-50 p-3 text-sm">
+              <p className="font-medium text-blue-900">Device In Transit</p>
+              <p className="text-blue-800">
+                Device is being transported to your workshop
+              </p>
+            </div>
+          )}
+
+          {status === "awaiting_parts" && (
+            <div className="rounded-lg bg-yellow-50 p-3 text-sm">
+              <p className="font-medium text-yellow-900">Awaiting Parts</p>
+              <p className="text-yellow-800">
+                Work is on hold pending arrival of replacement parts
+              </p>
+            </div>
+          )}
+
           {status === "in_progress" && (
             <div className="rounded-lg bg-purple-50 p-3 text-sm">
               <p className="font-medium text-purple-900">Work Started</p>
               <p className="text-purple-800">
                 The work start time will be recorded automatically
+              </p>
+            </div>
+          )}
+
+          {status === "quality_check" && (
+            <div className="rounded-lg bg-indigo-50 p-3 text-sm">
+              <p className="font-medium text-indigo-900">Quality Check</p>
+              <p className="text-indigo-800">
+                Repair work is complete and undergoing quality verification
               </p>
             </div>
           )}

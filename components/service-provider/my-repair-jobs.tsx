@@ -25,6 +25,7 @@ import {
 import { AlertCircle, CheckCircle2, Clock, Loader2, Package, Wrench } from "lucide-react"
 import { RepairDetailModal } from "./repair-detail-modal"
 import { UpdateRepairStatusModal } from "./update-repair-status-modal"
+import { useRealtimeUpdates } from "@/hooks/use-realtime-updates"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
@@ -32,26 +33,33 @@ interface RepairJob {
   id: string
   task_number: string
   device_id: string
-  device_info: {
+  device_info?: {
     device_type: string
     brand: string
     model: string
     serial_number: string
+    asset_tag?: string
   }
+  device_name?: string
   issue_description: string
   priority: "low" | "medium" | "high" | "critical"
-  status: "assigned" | "in_progress" | "completed" | "returned"
-  assigned_date: string
+  status: "new" | "pending" | "assigned" | "in_progress" | "completed" | "returned"
+  assigned_date?: string
+  requested_date?: string
   estimated_cost: number | null
-  actual_cost: number | null
-  work_started_at: string | null
-  work_completed_at: string | null
-  confirmed_at: string | null
-  notes: string | null
-  devices: {
+  actual_cost?: number | null
+  work_started_at?: string | null
+  work_completed_at?: string | null
+  confirmed_at?: string | null
+  notes?: string | null
+  location?: string
+  service_provider_id?: string
+  service_provider_name?: string
+  devices?: {
     device_name: string
     assigned_to: string
-    profiles: {
+    asset_tag?: string
+    profiles?: {
       full_name: string
       email: string
     }
@@ -59,26 +67,79 @@ interface RepairJob {
 }
 
 export function MyRepairJobs({ serviceProviderId }: { serviceProviderId: string }) {
+  const [viewMode, setViewMode] = useState<"assigned" | "available">("assigned")
   const [selectedStatus, setSelectedStatus] = useState<string>("all")
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedRepair, setSelectedRepair] = useState<RepairJob | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showUpdateModal, setShowUpdateModal] = useState(false)
+  const [isAssigning, setIsAssigning] = useState(false)
+  const [assigningId, setAssigningId] = useState<string | null>(null)
 
   const { data, isLoading, error, mutate } = useSWR(
-    `/api/repairs/service-provider/my-devices?serviceProviderId=${serviceProviderId}&status=${selectedStatus}`,
+    viewMode === "assigned"
+      ? `/api/repairs/service-provider/my-devices?serviceProviderId=${serviceProviderId}&status=${selectedStatus}`
+      : `/api/repairs/service-provider/all-available?status=${selectedStatus}`,
     fetcher,
     { revalidateOnFocus: false, revalidateOnReconnect: true }
   )
 
+  // Set up realtime listeners for repairs
+  useRealtimeUpdates({
+    table: "repair_requests",
+    onUpdate: (data) => {
+      console.log("[v0] Repair updated in realtime:", data)
+      mutate()
+    },
+    onInsert: (data) => {
+      console.log("[v0] New repair created in realtime:", data)
+      mutate()
+    },
+  })
+
   const repairs: RepairJob[] = data?.repairs || []
+
+  const handleSelfAssign = async (repair: RepairJob) => {
+    setAssigningId(repair.id)
+    setIsAssigning(true)
+
+    try {
+      const response = await fetch("/api/repairs/service-provider/self-assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          repairId: repair.id,
+          serviceProviderId,
+          serviceProviderName: "Service Provider", // TODO: Get from user context
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.error("[v0] Error assigning repair:", result.error)
+        // Show error toast
+        return
+      }
+
+      console.log("[v0] Repair assigned successfully:", result)
+      // Refresh both lists
+      mutate()
+    } catch (error) {
+      console.error("[v0] Error in self-assign:", error)
+    } finally {
+      setIsAssigning(false)
+      setAssigningId(null)
+    }
+  }
 
   const filteredRepairs = repairs.filter((repair) => {
     if (searchTerm) {
       const search = searchTerm.toLowerCase()
       const deviceInfo = repair.device_info || {}
       return (
-        repair.task_number.toLowerCase().includes(search) ||
+        repair.task_number?.toLowerCase().includes(search) ||
+        (repair.device_name || "").toLowerCase().includes(search) ||
         deviceInfo.brand?.toLowerCase().includes(search) ||
         deviceInfo.model?.toLowerCase().includes(search) ||
         deviceInfo.serial_number?.toLowerCase().includes(search) ||
@@ -193,15 +254,37 @@ export function MyRepairJobs({ serviceProviderId }: { serviceProviderId: string 
       {/* Filters and Search */}
       <Card>
         <CardHeader>
-          <CardTitle>My Repair Jobs</CardTitle>
-          <CardDescription>
-            Manage and track all devices assigned to you for repair
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>
+                {viewMode === "assigned" ? "My Repair Jobs" : "Available Repairs"}
+              </CardTitle>
+              <CardDescription>
+                {viewMode === "assigned"
+                  ? "Manage and track all devices assigned to you for repair"
+                  : "Find and claim available repair tasks in your area"}
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* View Mode Tabs */}
+          <Tabs value={viewMode} onValueChange={(v) => {
+            setViewMode(v as "assigned" | "available")
+            setSelectedStatus("all")
+          }}>
+            <TabsList>
+              <TabsTrigger value="assigned">My Jobs ({stats.assigned + stats.inProgress})</TabsTrigger>
+              <TabsTrigger value="available">Available Repairs</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {/* Filters and Search */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <Input
-              placeholder="Search by device name, brand, model, serial number..."
+              placeholder={viewMode === "assigned" 
+                ? "Search by device name, brand, model, serial number..."
+                : "Search by task #, device, or location..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="md:w-64"
@@ -213,10 +296,20 @@ export function MyRepairJobs({ serviceProviderId }: { serviceProviderId: string 
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="assigned">Assigned</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="returned">Returned</SelectItem>
+                  {viewMode === "assigned" ? (
+                    <>
+                      <SelectItem value="assigned">Assigned</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="returned">Returned</SelectItem>
+                    </>
+                  ) : (
+                    <>
+                      <SelectItem value="new">New</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="assigned">Assigned</SelectItem>
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -239,7 +332,11 @@ export function MyRepairJobs({ serviceProviderId }: { serviceProviderId: string 
             <div className="text-center py-8">
               <Package className="mx-auto h-12 w-12 text-muted-foreground opacity-50" />
               <p className="mt-2 text-muted-foreground">
-                {searchTerm ? "No repairs match your search" : "No repairs assigned yet"}
+                {searchTerm 
+                  ? "No repairs match your search" 
+                  : viewMode === "assigned"
+                  ? "No repairs assigned yet"
+                  : "No available repairs at this time"}
               </p>
             </div>
           ) : (
@@ -252,7 +349,7 @@ export function MyRepairJobs({ serviceProviderId }: { serviceProviderId: string 
                     <TableHead>Issue</TableHead>
                     <TableHead>Priority</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Assigned Date</TableHead>
+                    <TableHead>{viewMode === "assigned" ? "Assigned Date" : "Created Date"}</TableHead>
                     <TableHead>Est. Cost</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -268,6 +365,7 @@ export function MyRepairJobs({ serviceProviderId }: { serviceProviderId: string 
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {repair.device_info?.serial_number}
+                            {repair.device_info?.asset_tag && ` (Tag: ${repair.device_info.asset_tag})`}
                           </div>
                         </div>
                       </TableCell>
@@ -288,33 +386,59 @@ export function MyRepairJobs({ serviceProviderId }: { serviceProviderId: string 
                         </div>
                       </TableCell>
                       <TableCell className="text-sm">
-                        {new Date(repair.assigned_date).toLocaleDateString()}
+                        {new Date(
+                          viewMode === "assigned" 
+                            ? repair.assigned_date || repair.requested_date || ""
+                            : repair.requested_date || ""
+                        ).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
                         {repair.estimated_cost ? `₦${repair.estimated_cost.toLocaleString()}` : "—"}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedRepair(repair)
-                              setShowDetailModal(true)
-                            }}
-                          >
-                            View
-                          </Button>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedRepair(repair)
-                              setShowUpdateModal(true)
-                            }}
-                          >
-                            Update
-                          </Button>
+                          {viewMode === "available" && !repair.service_provider_id ? (
+                            <Button
+                              size="sm"
+                              onClick={() => handleSelfAssign(repair)}
+                              disabled={isAssigning && assigningId === repair.id}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              {isAssigning && assigningId === repair.id ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                  Claiming...
+                                </>
+                              ) : (
+                                "Claim"
+                              )}
+                            </Button>
+                          ) : (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedRepair(repair)
+                                  setShowDetailModal(true)
+                                }}
+                              >
+                                View
+                              </Button>
+                              {viewMode === "assigned" && (
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedRepair(repair)
+                                    setShowUpdateModal(true)
+                                  }}
+                                >
+                                  Update
+                                </Button>
+                              )}
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
