@@ -51,6 +51,7 @@ interface SystemUser {
     | "it_staff"
     | "staff"
     | "it_store_head"
+    | "department_head"
     | "service_desk_accra"
     | "service_desk_kumasi"
     | "service_desk_tema"
@@ -58,6 +59,7 @@ interface SystemUser {
     | "service_desk_cape_coast"
     | "service_desk_ho"
   location: string
+  department?: string
   status: "active" | "inactive" | "suspended"
   lastLogin: string
   createdDate: string
@@ -71,6 +73,7 @@ const roleBadgeColors = {
   it_staff: "secondary",
   staff: "outline",
   it_store_head: "secondary",
+  department_head: "secondary",
   service_desk_accra: "outline",
   service_desk_kumasi: "outline",
   service_desk_tema: "outline",
@@ -450,6 +453,7 @@ export function UserManagement() {
                 <SelectItem value="it_head">IT Head</SelectItem>
                 <SelectItem value="it_staff">IT Staff</SelectItem>
                 <SelectItem value="staff">Staff</SelectItem>
+                <SelectItem value="department_head">Department Head</SelectItem>
                 <SelectItem value="it_store_head">IT Store Head</SelectItem>
                 <SelectItem value="service_desk_accra">Service Desk (Accra)</SelectItem>
                 <SelectItem value="service_desk_kumasi">Service Desk (Kumasi)</SelectItem>
@@ -787,6 +791,7 @@ function EditUserForm({
                 <SelectItem value="it_staff">IT Staff</SelectItem>
                 <SelectItem value="it_head">IT Head</SelectItem>
                 <SelectItem value="regional_it_head">Regional IT Head</SelectItem>
+                <SelectItem value="department_head">Department Head</SelectItem>
                 <SelectItem value="it_store_head">IT Store Head</SelectItem>
                 <SelectItem value="service_desk_accra">Service Desk (Accra)</SelectItem>
                 <SelectItem value="service_desk_kumasi">Service Desk (Kumasi)</SelectItem>
@@ -1129,6 +1134,7 @@ function AddUserForm({ onClose, onUserAdded }: { onClose: () => void; onUserAdde
               <SelectContent>
                 <SelectItem value="user">User</SelectItem>
                 <SelectItem value="it_staff">IT Staff</SelectItem>
+                <SelectItem value="department_head">Department Head</SelectItem>
                 <SelectItem value="it_head">IT Head</SelectItem>
                 <SelectItem value="it_store_head">IT Store Head</SelectItem>
                 <SelectItem value="service_desk_head">Service Desk Head</SelectItem>
