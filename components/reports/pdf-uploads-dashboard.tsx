@@ -43,9 +43,11 @@ import {
   BarChart3,
   Info,
   ExternalLink,
+  Pencil,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { LOCATIONS } from "@/lib/locations"
+import { getCanonicalLocationName, locationsMatch } from "@/lib/location-filter"
 import { format, subDays, subMonths, subYears } from "date-fns"
 import { toast } from "sonner"
 import { DocumentActivityHistory } from "./document-activity-history"
@@ -112,6 +114,8 @@ export function PDFUploadsDashboard() {
   const [confirmComment, setConfirmComment] = useState("")
   const [confirming, setConfirming] = useState(false)
   const [showAdminConfirmDialog, setShowAdminConfirmDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [savingEdit, setSavingEdit] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Upload form state
@@ -122,29 +126,35 @@ export function PDFUploadsDashboard() {
     targetLocation: "all",
     file: null as File | null,
   })
+  const [editForm, setEditForm] = useState({
+    title: "",
+    description: "",
+    documentType: "information" as "toner" | "quarterly_report" | "information",
+    targetLocation: "all",
+  })
 
   const canUpload = user && (
     ["admin", "it_head", "regional_it_head"].includes(user.role) ||
     (user.role === "it_staff" && user.location && !user.location.toLowerCase().includes("head"))
   )
+  const canEdit = user && ["admin", "it_head"].includes(user.role)
   const canDelete = user && ["admin", "it_head"].includes(user.role)
   const canConfirmUploads = user && user.role === "admin"
+  const isLocationRestrictedUser = !!user && !["admin", "it_head"].includes(user.role)
 
   useEffect(() => {
-    // Auto-set location filter based on user role
-    if (user && user.role === "it_staff" && user.location) {
-      // IT Staff can only see their location
+    if (!user) return
+
+    if (["admin", "it_head"].includes(user.role)) {
+      setSelectedLocation("all")
+      setUploadForm((current) => ({ ...current, targetLocation: current.targetLocation || "all" }))
+    } else if (user.location) {
       setSelectedLocation(user.location)
-    } else if (user && user.role === "regional_it_head") {
-      // Regional IT Heads see all locations
-      setSelectedLocation("all")
-    } else if (user && user.role === "it_head") {
-      // IT Heads see all locations
-      setSelectedLocation("all")
-    } else if (user && user.role === "admin") {
-      // Admins can filter but default to all
-      setSelectedLocation("all")
+      setUploadForm((current) => ({ ...current, targetLocation: user.location }))
     }
+  }, [user])
+
+  useEffect(() => {
     fetchUploads()
   }, [selectedType, selectedLocation, user])
 
@@ -167,12 +177,12 @@ export function PDFUploadsDashboard() {
         params.append("userLocation", user.location)
       }
       
-      // Add location filter based on user role
-      if (user?.role === "it_staff" && user?.location) {
-        // IT Staff can only see their location
-        params.append("location", user.location)
-      } else if (selectedLocation !== "all" && !["regional_it_head", "it_head", "admin"].includes(user?.role || "")) {
-        // Other roles can filter by location if selected (but not regional_it_head, it_head, admin)
+      // Apply location access rules
+      if (user && !["admin", "it_head"].includes(user.role)) {
+        if (user.location) {
+          params.append("location", user.location)
+        }
+      } else if (selectedLocation !== "all") {
         params.append("location", selectedLocation)
       }
 
@@ -227,7 +237,7 @@ export function PDFUploadsDashboard() {
           title: "",
           description: "",
           documentType: "information",
-          targetLocation: "all",
+          targetLocation: isLocationRestrictedUser ? user?.location || "all" : "all",
           file: null,
         })
         fetchUploads()
@@ -239,6 +249,56 @@ export function PDFUploadsDashboard() {
       toast.error("Failed to upload document")
     } finally {
       setUploading(false)
+    }
+  }
+
+  const openEditDialog = (upload: PDFUpload) => {
+    setSelectedUpload(upload)
+    setEditForm({
+      title: upload.title,
+      description: upload.description || "",
+      documentType: upload.document_type,
+      targetLocation: upload.target_location || "all",
+    })
+    setShowEditDialog(true)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!selectedUpload || !user) return
+
+    setSavingEdit(true)
+    try {
+      const response = await fetch("/api/pdf-uploads", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedUpload.id,
+          title: editForm.title,
+          description: editForm.description,
+          documentType: editForm.documentType,
+          targetLocation: editForm.targetLocation,
+          userRole: user.role,
+          userLocation: user.location,
+          userId: user.id,
+          userName: user.full_name || user.name || user.username,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success("Document updated successfully")
+        setShowEditDialog(false)
+        setSelectedUpload(null)
+        fetchUploads()
+      } else {
+        toast.error(data.error || "Failed to update document")
+      }
+    } catch (error) {
+      console.error("Error updating document:", error)
+      toast.error("Failed to update document")
+    } finally {
+      setSavingEdit(false)
     }
   }
 
@@ -353,45 +413,31 @@ export function PDFUploadsDashboard() {
   }
 
   const filteredUploads = uploads.filter((upload) => {
-    // Admin can see all uploads
-    if (user?.role === "admin") {
-      if (selectedType !== "all" && upload.document_type !== selectedType) {
-        return false
-      }
-      if (selectedLocation !== "all") {
-        if (upload.target_location && upload.target_location !== selectedLocation) {
-          return false
-        }
-      }
+    const matchesType = selectedType === "all" || upload.document_type === selectedType
+    if (!matchesType) return false
+
+    const matchesSelectedLocation =
+      selectedLocation === "all" ||
+      !upload.target_location ||
+      locationsMatch(upload.target_location, selectedLocation)
+
+    if (!matchesSelectedLocation) return false
+
+    const canSeeAllDocuments = ["admin", "it_head"].includes(user?.role || "")
+    if (canSeeAllDocuments) {
       return true
     }
 
-    // Regional IT Head, IT Head, and IT Staff see ALL documents - NO RESTRICTIONS
-    if (["regional_it_head", "it_head", "it_staff"].includes(user?.role || "")) {
-      if (selectedType !== "all" && upload.document_type !== selectedType) {
-        return false
-      }
-      // No other restrictions - show all documents
-      return true
-    }
+    const matchesUserLocation =
+      !upload.target_location ||
+      locationsMatch(upload.target_location, user?.location || selectedLocation)
 
-    // Other roles can only see confirmed documents
-    const isConfirmed = upload.confirmations && upload.confirmations.length > 0
-    if (!isConfirmed) {
-      return false
-    }
+    if (!matchesUserLocation) return false
 
-    // Apply type filter
-    if (selectedType !== "all" && upload.document_type !== selectedType) {
-      return false
-    }
+    const isPublished = upload.is_confirmed || (upload.confirmations?.length || 0) > 0
+    const isOwnUpload = upload.uploaded_by === user?.id
 
-    // Apply location filter if applicable
-    if (upload.target_location && selectedLocation !== "all" && upload.target_location !== selectedLocation) {
-      return false
-    }
-
-    return true
+    return isPublished || isOwnUpload
   })
 
   // Apply period filter (week, month, quarter, year)
@@ -439,9 +485,9 @@ export function PDFUploadsDashboard() {
             IT Documents & Reports
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            {["admin", "it_head", "it_staff", "regional_it_head"].includes(user?.role || "")
-              ? "View all uploaded IT documents and reports across all locations"
-              : "View and confirm official IT documents and reports"}
+            {["admin", "it_head"].includes(user?.role || "")
+              ? "View and manage uploaded IT documents across all locations"
+              : `View documents published for ${getCanonicalLocationName(user?.location || "your location")}`}
           </p>
         </div>
         {canUpload && (
@@ -508,17 +554,22 @@ export function PDFUploadsDashboard() {
                       onValueChange={(value) =>
                         setUploadForm({ ...uploadForm, targetLocation: value })
                       }
+                      disabled={isLocationRestrictedUser}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Locations</SelectItem>
-                        {Object.entries(LOCATIONS).map(([key, label]) => (
-                          <SelectItem key={key} value={key}>
-                            {label}
-                          </SelectItem>
-                        ))}
+                        {!isLocationRestrictedUser && <SelectItem value="all">All Locations</SelectItem>}
+                        {isLocationRestrictedUser && user?.location ? (
+                          <SelectItem value={user.location}>{getCanonicalLocationName(user.location)}</SelectItem>
+                        ) : (
+                          Object.entries(LOCATIONS).map(([key, label]) => (
+                            <SelectItem key={key} value={key}>
+                              {label}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -672,11 +723,9 @@ export function PDFUploadsDashboard() {
                 </SelectContent>
               </Select>
             )}
-            {["it_staff", "regional_it_head"].includes(user?.role || "") && (
+            {!["admin", "it_head"].includes(user?.role || "") && (
               <div className="px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 rounded border border-blue-200 dark:border-blue-800">
-                {user?.role === "regional_it_head"
-                  ? "🔍 You can view all documents for your location"
-                  : "👁️ You can view all approved IT documents across all locations"}
+                {`You can view published documents for ${getCanonicalLocationName(user?.location || "your location")} only.`}
               </div>
             )}
           </div>
@@ -688,7 +737,7 @@ export function PDFUploadsDashboard() {
         <CardHeader>
           <CardTitle>Documents</CardTitle>
           <CardDescription>
-            Click on a document to view, download, or confirm that you have reviewed it.
+            Double-click a document row to open it, or use the actions to download, edit, or confirm it.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -732,7 +781,11 @@ export function PDFUploadsDashboard() {
                     const Icon = documentTypeIcons[upload.document_type]
                     const confirmed = hasUserConfirmed(upload)
                     return (
-                      <TableRow key={upload.id}>
+                      <TableRow
+                        key={upload.id}
+                        className="cursor-pointer"
+                        onDoubleClick={() => window.open(upload.file_url, "_blank", "noopener,noreferrer")}
+                      >
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <div className="h-10 w-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
@@ -758,7 +811,7 @@ export function PDFUploadsDashboard() {
                                 <span className="px-2 py-1 text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 rounded">
                                   {LOCATIONS[upload.target_location as keyof typeof LOCATIONS] || upload.target_location}
                                 </span>
-                                {user?.location === upload.target_location && (
+                                {locationsMatch(user?.location, upload.target_location) && (
                                   <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" title="This document is for your location">
                                     ✓ Your Location
                                   </Badge>
@@ -809,6 +862,16 @@ export function PDFUploadsDashboard() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
+                            {canEdit && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEditDialog(upload)}
+                                title="Edit document"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
@@ -900,6 +963,96 @@ export function PDFUploadsDashboard() {
 
       {/* Selected Document Activity History */}
       {selectedUpload && <DocumentActivityHistory documentId={selectedUpload.id} />}
+
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Document</DialogTitle>
+            <DialogDescription>
+              Update the document details and target location.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-title">Title</Label>
+              <Input
+                id="edit-title"
+                value={editForm.title}
+                onChange={(e) => setEditForm((current) => ({ ...current, title: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Description</Label>
+              <Textarea
+                id="edit-description"
+                value={editForm.description}
+                onChange={(e) => setEditForm((current) => ({ ...current, description: e.target.value }))}
+                rows={3}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Document Type</Label>
+                <Select
+                  value={editForm.documentType}
+                  onValueChange={(value) =>
+                    setEditForm((current) => ({
+                      ...current,
+                      documentType: value as "toner" | "quarterly_report" | "information",
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="toner">Toner Report</SelectItem>
+                    <SelectItem value="quarterly_report">Quarterly Report</SelectItem>
+                    <SelectItem value="information">Information</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Target Location</Label>
+                <Select
+                  value={editForm.targetLocation}
+                  onValueChange={(value) => setEditForm((current) => ({ ...current, targetLocation: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Locations</SelectItem>
+                    {Object.entries(LOCATIONS).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)} disabled={savingEdit}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={savingEdit || !editForm.title.trim()}>
+              {savingEdit ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Save Changes
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Confirm Dialog */}
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>

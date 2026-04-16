@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -33,6 +33,9 @@ import { useAuth } from "@/lib/auth-context"
 import { canSeeAllLocations } from "@/lib/location-filter"
 import { useRouter } from "next/navigation"
 import { filterByCategory, normalizeCategoryName } from "@/lib/category-utils"
+import { DataPagination } from "@/components/ui/data-pagination"
+import { SortControls } from "@/components/ui/sort-controls"
+import { sortItems } from "@/lib/sort-utils"
 
 interface StoreItem {
   id: string
@@ -62,6 +65,10 @@ export function StoreInventory() {
   const [receiptOpen, setReceiptOpen] = useState(false)
   const [updateTonerOpen, setUpdateTonerOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<StoreItem | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(12)
+  const [sortField, setSortField] = useState("itemName")
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
   const { user } = useAuth()
   const router = useRouter()
   
@@ -127,12 +134,25 @@ export function StoreInventory() {
 
   const filteredInventory = filterByCategory(
     inventory.filter((item) =>
-      item.itemName.toLowerCase().includes(searchTerm.toLowerCase())
+      item.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.category.toLowerCase().includes(searchTerm.toLowerCase())
     ),
     categoryFilter
   )
 
+  const sortedInventory = useMemo(
+    () => sortItems(filteredInventory, sortField, sortDirection),
+    [filteredInventory, sortField, sortDirection],
+  )
+
+  const paginatedInventory = sortedInventory.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
   const lowStockItems = inventory.filter((item) => item.quantity <= item.reorderLevel)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, categoryFilter, pageSize, sortField, sortDirection])
 
   if (loading) {
     return (
@@ -277,6 +297,20 @@ export function StoreInventory() {
                 <SelectItem value="peripherals">Peripherals</SelectItem>
               </SelectContent>
             </Select>
+            <SortControls
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onSortFieldChange={setSortField}
+              onSortDirectionChange={setSortDirection}
+              options={[
+                { value: "itemName", label: "Item Name" },
+                { value: "category", label: "Category" },
+                { value: "quantity", label: "Quantity" },
+                { value: "reorderLevel", label: "Reorder Level" },
+                { value: "location", label: "Location" },
+                { value: "lastUpdated", label: "Last Updated" },
+              ]}
+            />
             <Button variant="outline">
               <Download className="mr-2 h-4 w-4" />
               Export
@@ -286,7 +320,7 @@ export function StoreInventory() {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredInventory.map((item) => {
+        {paginatedInventory.map((item) => {
           const IconComponent = categoryIcons[item.category as keyof typeof categoryIcons] || Package
           const isLowStock = item.quantity <= item.reorderLevel
           return (
@@ -348,6 +382,15 @@ export function StoreInventory() {
           )
         })}
       </div>
+
+      <DataPagination
+        currentPage={currentPage}
+        totalItems={sortedInventory.length}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+        onPageSizeChange={setPageSize}
+        itemLabel="inventory items"
+      />
 
       {selectedItem && (
         <StockCardDetailModal item={selectedItem} open={!!selectedItem} onClose={() => setSelectedItem(null)} />

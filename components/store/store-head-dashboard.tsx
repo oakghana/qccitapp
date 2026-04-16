@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -17,6 +17,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface StockItem {
   id: string
@@ -51,6 +52,7 @@ export default function StoreHeadDashboard() {
   const [locationSummaries, setLocationSummaries] = useState<LocationSummary[]>([])
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null)
   const [loading, setLoading] = useState(true)
+  const [activeLocation, setActiveLocation] = useState("")
   const { user } = useAuth()
 
   const locationValues = Object.values(LOCATIONS)
@@ -71,6 +73,18 @@ export default function StoreHeadDashboard() {
       window.removeEventListener("inventory-updated", handleInventoryRefresh)
     }
   }, [])
+
+  const normalizeLocationName = (loc: string) => {
+    const lower = loc.toLowerCase().replace(/[\s_-]+/g, "_").trim()
+    if (lower === "head_office") return "Head Office"
+    if (lower === "kumasi") return "Kumasi"
+    if (lower === "kaase") return "Kaase"
+    if (lower === "tema_port") return "Tema Port"
+    if (lower === "central_stores") return "Central Stores"
+    if (lower === "wn" || lower === "western_north") return "Western North"
+    if (lower === "ws" || lower === "western_south") return "Western South"
+    return loc.charAt(0).toUpperCase() + loc.slice(1).toLowerCase()
+  }
 
   const fetchAllInventory = async () => {
     try {
@@ -184,24 +198,8 @@ export default function StoreHeadDashboard() {
     const uniqueLocationsInData = [...new Set(stockItems.map(item => item.location).filter(Boolean))]
     console.log("[v0] Unique locations in store_items data:", uniqueLocationsInData)
     
-    // Normalize location names to handle case variations
-    const normalizeLocation = (loc: string) => {
-      const lower = loc.toLowerCase().replace(/[\s_-]+/g, "_").trim()
-      if (lower === "head_office") return "Head Office"
-      if (lower === "kumasi") return "Kumasi"
-      if (lower === "kaase") return "Kaase"
-      if (lower === "tema_port") return "Tema Port"
-      if (lower === "central_stores") return "Central Stores"
-      // Merge Western North variants
-      if (lower === "wn" || lower === "western_north") return "Western North"
-      // Merge Western South variants
-      if (lower === "ws" || lower === "western_south") return "Western South"
-      // Return with proper casing (capitalize first letter)
-      return loc.charAt(0).toUpperCase() + loc.slice(1).toLowerCase()
-    }
-    
     // Get normalized unique locations
-    const normalizedLocations = [...new Set(uniqueLocationsInData.map(normalizeLocation))]
+    const normalizedLocations = [...new Set(uniqueLocationsInData.map(normalizeLocationName))]
     
     // Use locations from data if user can see all, otherwise filter by user's location
     let locationsToShow: string[] = []
@@ -210,7 +208,7 @@ export default function StoreHeadDashboard() {
       // For restricted users, show only their location and Central Stores
       locationsToShow = normalizedLocations.filter(loc => 
         loc.toLowerCase() === user.location?.toLowerCase() ||
-        normalizeLocation(user.location).toLowerCase() === loc.toLowerCase() ||
+        normalizeLocationName(user.location).toLowerCase() === loc.toLowerCase() ||
         loc.toLowerCase() === "central stores" ||
         loc.toLowerCase().includes("central")
       )
@@ -222,7 +220,7 @@ export default function StoreHeadDashboard() {
     const summaries = locationsToShow.map((location) => {
       // Case-insensitive location matching with Head Office normalization
       const locationItems = stockItems.filter((item) => 
-        normalizeLocation(item.location)?.toLowerCase() === location?.toLowerCase()
+        normalizeLocationName(item.location)?.toLowerCase() === location?.toLowerCase()
       )
 
       const totalItems = locationItems.reduce((sum, item) => sum + (item.quantity || 0), 0)
@@ -243,6 +241,41 @@ export default function StoreHeadDashboard() {
     
     setLocationSummaries(sortedSummaries)
   }
+
+  useEffect(() => {
+    if (!activeLocation && locationSummaries.length > 0) {
+      setActiveLocation(locationSummaries[0].location)
+    }
+  }, [locationSummaries, activeLocation])
+
+  const overviewStats = useMemo(() => {
+    const totalQuantity = items.reduce((sum, item) => sum + (item.quantity || 0), 0)
+    const lowStockCount = items.filter((item) => item.quantity <= item.reorder_level && item.quantity > 0).length
+    const outOfStockCount = items.filter((item) => item.quantity === 0).length
+
+    return {
+      totalQuantity,
+      totalSkus: items.length,
+      lowStockCount,
+      outOfStockCount,
+      locationsCovered: locationSummaries.length,
+    }
+  }, [items, locationSummaries])
+
+  const activeLocationItems = useMemo(() => {
+    const currentLocation = activeLocation || locationSummaries[0]?.location
+    if (!currentLocation) return []
+
+    return items
+      .filter((item) => normalizeLocationName(item.location)?.toLowerCase() === currentLocation.toLowerCase())
+      .sort((a, b) => {
+        if (a.quantity === 0 && b.quantity !== 0) return -1
+        if (b.quantity === 0 && a.quantity !== 0) return 1
+        if (a.quantity <= a.reorder_level && b.quantity > b.reorder_level) return -1
+        if (b.quantity <= b.reorder_level && a.quantity > a.reorder_level) return 1
+        return a.name.localeCompare(b.name)
+      })
+  }, [items, activeLocation, locationSummaries])
 
   const exportAllStock = () => {
     const data = {
@@ -283,140 +316,185 @@ export default function StoreHeadDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">
-            {user && !canSeeAllLocations(user) && user.location
-              ? `IT Store Stock Levels`
-              : `Store Inventory - All Locations`}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {user && !canSeeAllLocations(user) && user.location
-              ? `View current stock levels for IT items at ${user.location}`
-              : `Comprehensive inventory view across all locations`}
-          </p>
-        </div>
-        <Button onClick={exportAllStock}>
-          <Download className="mr-2 h-4 w-4" />
-          Export All Stock
-        </Button>
+      <Card className="border-0 shadow-sm bg-gradient-to-br from-white to-emerald-50/40 dark:from-slate-950 dark:to-slate-900">
+        <CardContent className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-300">
+              <MapPin className="h-4 w-4" />
+              {user && !canSeeAllLocations(user) && user.location
+                ? `Viewing ${user.location} and Central Stores`
+                : "All store locations overview"}
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">
+                {user && !canSeeAllLocations(user) && user.location ? "Store Overview" : "Modern Store Overview"}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                A compact snapshot of stock health, key alerts, and location highlights.
+              </p>
+            </div>
+          </div>
+          <Button onClick={exportAllStock} className="self-start lg:self-auto">
+            <Download className="mr-2 h-4 w-4" />
+            Export All Stock
+          </Button>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Card className="shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-sm text-muted-foreground">Total Units</p>
+            <p className="mt-2 text-3xl font-bold">{overviewStats.totalQuantity}</p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-sm text-muted-foreground">Stock Lines</p>
+            <p className="mt-2 text-3xl font-bold">{overviewStats.totalSkus}</p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm border-amber-200">
+          <CardContent className="p-5">
+            <p className="text-sm text-muted-foreground">Low Stock</p>
+            <p className="mt-2 text-3xl font-bold text-amber-600">{overviewStats.lowStockCount}</p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm border-red-200">
+          <CardContent className="p-5">
+            <p className="text-sm text-muted-foreground">Out of Stock</p>
+            <p className="mt-2 text-3xl font-bold text-red-600">{overviewStats.outOfStockCount}</p>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {locationSummaries.map((summary) => (
-          <Card key={summary.location} className="cursor-pointer hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="h-5 w-5" />
-                {summary.location}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Total Items</span>
-                  <span className="text-2xl font-bold">{summary.totalItems}</span>
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle>Location Snapshot</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {locationSummaries.map((summary) => (
+              <button
+                key={summary.location}
+                type="button"
+                onClick={() => setActiveLocation(summary.location)}
+                className={`rounded-xl border p-4 text-left transition-all hover:shadow-sm ${activeLocation === summary.location ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20" : "border-border bg-background"}`}
+              >
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="font-semibold">{summary.location}</span>
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Low Stock</span>
-                  <Badge variant={summary.lowStock > 0 ? "destructive" : "secondary"}>{summary.lowStock}</Badge>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Units</span>
+                    <span className="font-semibold">{summary.totalItems}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Low</span>
+                    <Badge variant={summary.lowStock > 0 ? "destructive" : "secondary"}>{summary.lowStock}</Badge>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Out of Stock</span>
-                  <Badge variant={summary.outOfStock > 0 ? "destructive" : "secondary"}>{summary.outOfStock}</Badge>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
-      {(user && !canSeeAllLocations(user) && user.location ? [user.location, "Central Stores"] : locationValues).map(
-        (location) => {
-          // Case-insensitive location matching
-          const locationItems = items.filter((item) => 
-            item.location?.toLowerCase() === location?.toLowerCase()
-          )
-          if (locationItems.length === 0) return null
-
-          return (
-            <div key={location}>
-              <h3 className="text-lg font-semibold mb-3">{location}</h3>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <TooltipProvider>
-                {locationItems.map((item) => {
-                  // Build remark for items with 0 or low stock
-                  const getStockRemark = () => {
-                    if (item.quantity > 0 && item.quantity > item.reorder_level) return null
-                    if (!item.lastTransaction) {
-                      if (item.quantity === 0) return "Out of stock - No recent activity recorded"
-                      return null
-                    }
-                    const { type, quantity, recipient, date, notes } = item.lastTransaction
-                    const formattedDate = new Date(date).toLocaleDateString()
-                    
-                    switch (type) {
-                      case 'assignment':
-                        return `Assigned ${quantity} to ${recipient || 'staff'} on ${formattedDate}${notes ? `. Note: ${notes}` : ''}`
-                      case 'requisition':
-                      case 'issue':
-                        return `Issued ${quantity} to ${recipient || 'location'} on ${formattedDate}${notes ? `. Note: ${notes}` : ''}`
-                      case 'transfer':
-                        return `Transferred ${quantity} on ${formattedDate}${notes ? `. Note: ${notes}` : ''}`
-                      default:
-                        return `${type}: ${quantity} on ${formattedDate}${notes ? `. Note: ${notes}` : ''}`
-                    }
+      <Card className="shadow-sm">
+        <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <CardTitle>{activeLocation || "Selected Location"}</CardTitle>
+            <p className="text-sm text-muted-foreground">Preview of the most important stock items for this location.</p>
+          </div>
+          {locationSummaries.length > 1 && (
+            <Tabs value={activeLocation} onValueChange={setActiveLocation} className="w-full lg:w-auto">
+              <TabsList className="h-auto flex-wrap justify-start">
+                {locationSummaries.map((summary) => (
+                  <TabsTrigger key={summary.location} value={summary.location}>
+                    {summary.location}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          )}
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4 flex items-center justify-between text-sm text-muted-foreground">
+            <span>Showing {Math.min(activeLocationItems.length, 8)} of {activeLocationItems.length} items</span>
+            <span>Click a card for details</span>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <TooltipProvider>
+              {activeLocationItems.slice(0, 8).map((item) => {
+                const getStockRemark = () => {
+                  if (item.quantity > 0 && item.quantity > item.reorder_level) return null
+                  if (!item.lastTransaction) {
+                    if (item.quantity === 0) return "Out of stock - No recent activity recorded"
+                    return null
                   }
-                  
-                  const remark = getStockRemark()
-                  
-                  return (
+                  const { type, quantity, recipient, date, notes } = item.lastTransaction
+                  const formattedDate = new Date(date).toLocaleDateString()
+
+                  switch (type) {
+                    case "assignment":
+                      return `Assigned ${quantity} to ${recipient || "staff"} on ${formattedDate}${notes ? `. Note: ${notes}` : ""}`
+                    case "requisition":
+                    case "issue":
+                      return `Issued ${quantity} to ${recipient || "location"} on ${formattedDate}${notes ? `. Note: ${notes}` : ""}`
+                    case "transfer":
+                      return `Transferred ${quantity} on ${formattedDate}${notes ? `. Note: ${notes}` : ""}`
+                    default:
+                      return `${type}: ${quantity} on ${formattedDate}${notes ? `. Note: ${notes}` : ""}`
+                  }
+                }
+
+                const remark = getStockRemark()
+
+                return (
                   <Card
                     key={item.id}
-                    className={`cursor-pointer hover:shadow-lg transition-shadow ${item.quantity === 0 ? 'border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/20' : ''}`}
+                    className={`cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md ${item.quantity === 0 ? "border-red-200 bg-red-50/40 dark:border-red-900 dark:bg-red-950/20" : item.quantity <= item.reorder_level ? "border-amber-200 bg-amber-50/40 dark:border-amber-900 dark:bg-amber-950/20" : ""}`}
                     onClick={() => setSelectedItem(item)}
                   >
-                    <CardContent className="pt-6">
-                      <div className="flex items-start justify-between mb-3">
-                        <Package className={`h-8 w-8 ${item.quantity === 0 ? 'text-red-500' : 'text-primary'}`} />
+                    <CardContent className="p-5">
+                      <div className="mb-3 flex items-start justify-between">
+                        <Package className={`h-8 w-8 ${item.quantity === 0 ? "text-red-500" : "text-emerald-600"}`} />
                         <div className="flex items-center gap-1">
-                          {item.quantity <= item.reorder_level && <AlertTriangle className="h-5 w-5 text-amber-500" />}
+                          {item.quantity <= item.reorder_level && <AlertTriangle className="h-4 w-4 text-amber-500" />}
                           {remark && (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Info className="h-4 w-4 text-blue-500 cursor-help" />
+                                <Info className="h-4 w-4 cursor-help text-blue-500" />
                               </TooltipTrigger>
                               <TooltipContent className="max-w-[300px]">
-                                <p className="text-xs font-medium">Last Activity:</p>
+                                <p className="text-xs font-medium">Last Activity</p>
                                 <p className="text-xs">{remark}</p>
                               </TooltipContent>
                             </Tooltip>
                           )}
                         </div>
                       </div>
-                      <h4 className="font-semibold mb-1">{item.name}</h4>
-                      <p className="text-sm text-muted-foreground mb-3">{item.category}</p>
-                      <div className="flex items-center justify-between">
-                        <span className={`text-2xl font-bold ${item.quantity === 0 ? 'text-red-600' : ''}`}>{item.quantity}</span>
-                        <span className="text-sm text-muted-foreground">{item.unit}</span>
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-2">Reorder at: {item.reorder_level}</div>
-                      {remark && item.quantity === 0 && (
-                        <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-950/30 rounded border border-amber-200 dark:border-amber-800">
-                          <p className="text-xs text-amber-800 dark:text-amber-200 line-clamp-2">
-                            <span className="font-semibold">Remark:</span> {remark}
-                          </p>
+                      <h4 className="line-clamp-1 font-semibold">{item.name}</h4>
+                      <p className="mb-3 text-sm text-muted-foreground">{item.category}</p>
+                      <div className="flex items-end justify-between">
+                        <div>
+                          <p className={`text-2xl font-bold ${item.quantity === 0 ? "text-red-600" : ""}`}>{item.quantity}</p>
+                          <p className="text-xs text-muted-foreground">{item.unit}</p>
                         </div>
-                      )}
+                        <div className="text-right text-xs text-muted-foreground">
+                          Reorder at
+                          <div className="font-medium text-foreground">{item.reorder_level}</div>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
-                )})}
-                </TooltipProvider>
-              </div>
-            </div>
-          )
-        },
-      )}
+                )
+              })}
+            </TooltipProvider>
+          </div>
+        </CardContent>
+      </Card>
 
       {selectedItem && (
         <StockCardDetailModal

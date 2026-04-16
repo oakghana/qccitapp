@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -36,8 +36,10 @@ import { FormNavigation } from "@/components/ui/form-navigation"
 import { AdminUserForm } from "@/components/admin/admin-user-form"
 import { usePWAInstall } from "@/components/ui/pwa-install"
 import { DataPagination } from "@/components/ui/data-pagination"
+import { SortControls } from "@/components/ui/sort-controls"
 import { getRoleColorScheme } from "@/lib/role-colors"
 import { cn, formatDisplayDate } from "@/lib/utils"
+import { sortItems } from "@/lib/sort-utils"
 import { getLocationOptions, LOCATIONS } from "@/lib/locations"
 import { getCanonicalLocationName } from "@/lib/location-filter"
 import { useToast } from "@/hooks/use-toast"
@@ -118,6 +120,8 @@ export function UserManagement() {
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  const [sortField, setSortField] = useState("name")
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
 
   const mapProfileToSystemUser = (profile: any): SystemUser => ({
     id: profile.id,
@@ -199,14 +203,18 @@ export function UserManagement() {
   }
 
   const filteredUsers = getFilteredUsers()
+  const sortedUsers = useMemo(
+    () => sortItems(filteredUsers, sortField, sortDirection),
+    [filteredUsers, sortField, sortDirection],
+  )
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, roleFilter, locationFilter, pageSize, users.length])
+  }, [searchTerm, roleFilter, locationFilter, pageSize, users.length, sortField, sortDirection])
 
-  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize))
+  const totalPages = Math.max(1, Math.ceil(sortedUsers.length / pageSize))
   const safeCurrentPage = Math.min(currentPage, totalPages)
-  const paginatedUsers = filteredUsers.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize)
+  const paginatedUsers = sortedUsers.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize)
 
   const getLocationFilterOptions = () => {
     const allOptions = getLocationOptions()
@@ -515,6 +523,20 @@ export function UserManagement() {
                 ))}
               </SelectContent>
             </Select>
+            <SortControls
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onSortFieldChange={setSortField}
+              onSortDirectionChange={setSortDirection}
+              options={[
+                { value: "name", label: "Name" },
+                { value: "email", label: "Email" },
+                { value: "role", label: "Role" },
+                { value: "location", label: "Location" },
+                { value: "status", label: "Status" },
+                { value: "createdDate", label: "Created Date" },
+              ]}
+            />
           </div>
         </CardContent>
       </Card>
@@ -527,13 +549,13 @@ export function UserManagement() {
             Users Directory
           </CardTitle>
           <CardDescription>
-            {filteredUsers.length} of {users.length} users shown. Use this list for account updates and HOD mapping access.
+            {sortedUsers.length} of {users.length} users shown. Use this list for account updates and HOD mapping access.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="text-center py-10 text-muted-foreground">Loading users...</div>
-          ) : filteredUsers.length === 0 ? (
+          ) : sortedUsers.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground">
               No users matched the selected filters.
             </div>
@@ -602,10 +624,10 @@ export function UserManagement() {
             </div>
           )}
 
-          {filteredUsers.length > 0 && (
+          {sortedUsers.length > 0 && (
             <DataPagination
               currentPage={safeCurrentPage}
-              totalItems={filteredUsers.length}
+              totalItems={sortedUsers.length}
               pageSize={pageSize}
               onPageChange={setCurrentPage}
               onPageSizeChange={setPageSize}

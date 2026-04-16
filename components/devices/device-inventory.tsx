@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -20,6 +20,9 @@ import { canSeeAllLocations, getCanonicalLocationName } from "@/lib/location-fil
 import { toast } from "@/hooks/use-toast"
 import { deviceLocationService } from "@/lib/device-location-service"
 import { notificationService } from "@/lib/notification-service"
+import { DataPagination } from "@/components/ui/data-pagination"
+import { SortControls } from "@/components/ui/sort-controls"
+import { sortItems } from "@/lib/sort-utils"
 
 interface Device {
   id: string
@@ -129,6 +132,8 @@ export function DeviceInventory() {
   const [searchQuery, setSearchQuery] = useState("")
   const [page, setPage] = useState<number>(1)
   const [pageSize, setPageSize] = useState<number>(20)
+  const [sortField, setSortField] = useState("brand")
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null)
   const [transferDeviceOpen, setTransferDeviceOpen] = useState(false)
   const [editDeviceOpen, setEditDeviceOpen] = useState(false)
@@ -340,12 +345,17 @@ export function DeviceInventory() {
   
   console.log("[v0] Device filter - locationFilter:", locationFilter, "total devices:", devices.length, "filtered:", filteredDevices.length)
 
+  const sortedDevices = useMemo(
+    () => sortItems(filteredDevices, sortField, sortDirection),
+    [filteredDevices, sortField, sortDirection],
+  )
+
   // Pagination calculations
-  const totalDevices = filteredDevices.length
+  const totalDevices = sortedDevices.length
   const totalPages = Math.max(1, Math.ceil(totalDevices / pageSize))
   const startIndex = totalDevices === 0 ? 0 : (page - 1) * pageSize + 1
   const endIndex = Math.min(page * pageSize, totalDevices)
-  const paginatedDevices = filteredDevices.slice((page - 1) * pageSize, page * pageSize)
+  const paginatedDevices = sortedDevices.slice((page - 1) * pageSize, page * pageSize)
 
   // Ensure current page is within bounds when totalPages changes
   useEffect(() => {
@@ -355,7 +365,7 @@ export function DeviceInventory() {
   // Reset to first page when filters/search change
   useEffect(() => {
     setPage(1)
-  }, [searchQuery, statusFilter, locationFilter, pageSize])
+  }, [searchQuery, statusFilter, locationFilter, pageSize, sortField, sortDirection])
 
   const handleAddDevice = () => {
     setAddDeviceOpen(true)
@@ -772,6 +782,21 @@ export function DeviceInventory() {
             </Button>
           </div>
         </div>
+        <SortControls
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onSortFieldChange={setSortField}
+          onSortDirectionChange={setSortDirection}
+          options={[
+            { value: "brand", label: "Brand" },
+            { value: "model", label: "Model" },
+            { value: "assetTag", label: "Asset Tag" },
+            { value: "serialNumber", label: "Serial Number" },
+            { value: "location", label: "Location" },
+            { value: "status", label: "Status" },
+            { value: "assignedTo", label: "Assigned To" },
+          ]}
+        />
         <Select value={locationFilter} onValueChange={setLocationFilter} disabled={!canSelectAllLocations}>
           <SelectTrigger className="w-full sm:w-40 h-9">
             <SelectValue />
@@ -860,7 +885,7 @@ export function DeviceInventory() {
         })}
       </div>
 
-      {filteredDevices.length === 0 && (
+      {sortedDevices.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Monitor className="h-12 w-12 text-muted-foreground mb-4" />
@@ -871,6 +896,15 @@ export function DeviceInventory() {
           </CardContent>
         </Card>
       )}
+
+      <DataPagination
+        currentPage={page}
+        totalItems={sortedDevices.length}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        itemLabel="devices"
+      />
 
       <Dialog open={transferDeviceOpen} onOpenChange={setTransferDeviceOpen}>
         <DialogContent>

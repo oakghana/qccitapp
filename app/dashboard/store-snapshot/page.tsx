@@ -1,13 +1,17 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { DataPagination } from "@/components/ui/data-pagination"
+import { SortControls } from "@/components/ui/sort-controls"
 import { Package, AlertTriangle, CheckCircle2, Info } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { createClient } from "@/lib/supabase/client"
-import { canSeeAllLocations } from "@/lib/location-filter"
+import { canSeeAllLocations, getCanonicalLocationName } from "@/lib/location-filter"
+import { sortItems } from "@/lib/sort-utils"
 
 interface InventoryItem {
   id: string
@@ -29,6 +33,11 @@ export default function StoreSnapshotPage() {
   const [loading, setLoading] = useState(true)
   const [dbLocations, setDbLocations] = useState<string[]>([])
   const [selectedLocation, setSelectedLocation] = useState<string>("my")
+  const [searchTerm, setSearchTerm] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [sortField, setSortField] = useState("name")
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
   
   // Users with "user" role have view-only access to Central Stores stock levels
   const isViewOnlyUser = user?.role === "user"
@@ -96,7 +105,27 @@ export default function StoreSnapshotPage() {
     fetchInventory()
   }, [user, isViewOnlyUser, selectedLocation])
 
-  const filteredInventory = inventory
+  const filteredInventory = inventory.filter((item) => {
+    const search = searchTerm.toLowerCase()
+    const name = (item.name || item.item_name || "").toLowerCase()
+    return (
+      name.includes(search) ||
+      (item.category || "").toLowerCase().includes(search) ||
+      (item.sku || item.siv_number || "").toLowerCase().includes(search) ||
+      getCanonicalLocationName(item.location || "").toLowerCase().includes(search)
+    )
+  })
+
+  const sortedInventory = useMemo(
+    () => sortItems(filteredInventory, sortField, sortDirection),
+    [filteredInventory, sortField, sortDirection],
+  )
+
+  const paginatedInventory = sortedInventory.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [selectedLocation, searchTerm, sortField, sortDirection, pageSize])
 
   const lowStockItems = filteredInventory.filter(
     (item) =>
@@ -130,10 +159,31 @@ export default function StoreSnapshotPage() {
       </div>
       
       {/* Location Selector */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="text-sm text-gray-600 dark:text-gray-400">
           Select location to view stock levels. Default shows your location + Central Stores.
         </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search items, SKU, category..."
+            className="w-full sm:w-64"
+          />
+          <SortControls
+            sortField={sortField}
+            sortDirection={sortDirection}
+            onSortFieldChange={setSortField}
+            onSortDirectionChange={setSortDirection}
+            options={[
+              { value: "name", label: "Item Name" },
+              { value: "category", label: "Category" },
+              { value: "location", label: "Location" },
+              { value: "quantity", label: "Quantity" },
+              { value: "reorder_level", label: "Reorder Level" },
+              { value: "created_at", label: "Created Date" },
+            ]}
+          />
         <div className="w-56">
           <Select value={selectedLocation} onValueChange={(v) => setSelectedLocation(v)}>
             <SelectTrigger className="w-full">
@@ -150,6 +200,7 @@ export default function StoreSnapshotPage() {
               ))}
             </SelectContent>
           </Select>
+        </div>
         </div>
       </div>
       {/* View-Only Notice for User Role */}
@@ -214,6 +265,51 @@ export default function StoreSnapshotPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Sortable Inventory List</CardTitle>
+          <CardDescription>Browse all visible stock items with pagination and sorting.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {paginatedInventory.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No stock items match the current search or location filter.</p>
+          ) : (
+            <div className="space-y-3">
+              {paginatedInventory.map((item) => {
+                const currentQty = item.quantity || item.quantity_in_stock
+                const statusLabel = currentQty === 0 ? "Out of Stock" : currentQty <= item.reorder_level ? "Low Stock" : "In Stock"
+                const statusVariant = currentQty === 0 ? "destructive" : currentQty <= item.reorder_level ? "secondary" : "outline"
+
+                return (
+                  <div key={item.id} className="flex items-center justify-between rounded-lg border p-3">
+                    <div>
+                      <h4 className="font-medium text-gray-900 dark:text-gray-100">{item.name || item.item_name}</h4>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Category: {item.category} • SKU: {item.sku || item.siv_number || "N/A"}
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">Location: {getCanonicalLocationName(item.location)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold">Qty: {currentQty}</p>
+                      <Badge variant={statusVariant as any}>{statusLabel}</Badge>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          <DataPagination
+            currentPage={currentPage}
+            totalItems={sortedInventory.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+            itemLabel="stock items"
+          />
+        </CardContent>
+      </Card>
 
       {/* Stock Level Tables */}
       <div className="space-y-6">

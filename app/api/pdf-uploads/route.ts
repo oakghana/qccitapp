@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { put } from "@vercel/blob"
 import { logDocumentAudit } from "@/lib/audit-logging"
+import { locationsMatch } from "@/lib/location-filter"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -39,48 +40,6 @@ export async function GET(request: Request) {
       query = query.eq("document_type", documentType)
     }
 
-    // Apply location-based access control
-    if (
-      userRole === "it_staff" ||
-      userRole === "regional_it_head" ||
-      userRole === "it_head" ||
-      userRole === "admin"
-    ) {
-      // IT Staff, Regional IT Head, IT Head, and Admin see ALL documents - NO RESTRICTIONS
-      console.log("[v0] Privileged role - showing all active documents without restrictions; role:", userRole)
-      query = query // No additional filters - show all active documents
-    } else if (location && location !== "all") {
-      // Fallback for other roles with explicit location filter
-      console.log("[v0] Filtering by location:", location)
-      const [docsForLocation, docsForAll] = await Promise.all([
-        supabase
-          .from("pdf_uploads")
-          .select(`*,confirmations:pdf_confirmations(id,user_id,user_name,user_location,confirmed_at,comments)`)
-          .eq("is_active", true)
-          .eq("target_location", location)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("pdf_uploads")
-          .select(`*,confirmations:pdf_confirmations(id,user_id,user_name,user_location,confirmed_at,comments)`)
-          .eq("is_active", true)
-          .is("target_location", null)
-          .order("created_at", { ascending: false })
-      ])
-      
-      const combinedData = [
-        ...(docsForLocation.data || []),
-        ...(docsForAll.data || [])
-      ]
-      const uniqueData = Array.from(new Map(combinedData.map(item => [item.id, item])).values())
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      
-      return NextResponse.json({ success: true, uploads: uniqueData })
-    } else {
-      // Default: show only documents for all locations if no role-based filter applies
-      console.log("[v0] Default filter - showing only documents for all locations")
-      query = query.is("target_location", null)
-    }
-
     const { data, error } = await query
 
     console.log("[v0] PDF Uploads query result - count:", data?.length, "error:", error?.message)
@@ -90,7 +49,34 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, uploads: data })
+    const canSeeAllDocuments = userRole === "admin" || userRole === "it_head"
+
+    const filteredUploads = (data || []).filter((upload: any) => {
+      const matchesRequestedLocation =
+        !location ||
+        location === "all" ||
+        !upload.target_location ||
+        locationsMatch(upload.target_location, location)
+
+      if (!matchesRequestedLocation) return false
+
+      if (canSeeAllDocuments) {
+        return true
+      }
+
+      const matchesUserLocation =
+        !upload.target_location ||
+        (userLocation ? locationsMatch(upload.target_location, userLocation) : false)
+
+      if (!matchesUserLocation) return false
+
+      const isPublished = Boolean(upload.is_confirmed)
+      const isOwnUpload = Boolean(userId && upload.uploaded_by === userId)
+
+      return isPublished || isOwnUpload
+    })
+
+    return NextResponse.json({ success: true, uploads: filteredUploads })
   } catch (error) {
     console.error("[v0] Error in GET /api/pdf-uploads:", error)
     return NextResponse.json({ error: "Failed to fetch PDF uploads" }, { status: 500 })
@@ -149,6 +135,12 @@ export async function POST(request: Request) {
 
     console.log("[v0] File uploaded to Vercel Blob successfully:", url)
 
+    const effectiveTargetLocation = isAdmin || isITHead
+      ? targetLocation === "all"
+        ? null
+        : targetLocation
+      : userLocation || null
+
     // Create database record
     const { data, error } = await supabase
       .from("pdf_uploads")
@@ -161,7 +153,7 @@ export async function POST(request: Request) {
         file_size: file.size,
         uploaded_by: uploadedBy,
         uploaded_by_name: uploadedByName,
-        target_location: targetLocation === "all" ? null : targetLocation,
+        target_location: effectiveTargetLocation,
       })
       .select()
       .single()
@@ -182,7 +174,7 @@ export async function POST(request: Request) {
         document_type: documentType,
         file_name: file.name,
         file_size: file.size,
-        target_location: targetLocation,
+        target_location: effectiveTargetLocation,
       },
     })
 
@@ -190,6 +182,57 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Error in POST /api/pdf-uploads:", error)
     return NextResponse.json({ error: "Failed to create PDF upload" }, { status: 500 })
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const { id, title, description, documentType, targetLocation, userRole, userId, userName } = await request.json()
+
+    if (!id || !title || !documentType) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    }
+
+    if (!["admin", "it_head"].includes(userRole)) {
+      return NextResponse.json({ error: "You do not have permission to edit documents" }, { status: 403 })
+    }
+
+    const { data, error } = await supabase
+      .from("pdf_uploads")
+      .update({
+        title,
+        description,
+        document_type: documentType,
+        target_location: targetLocation === "all" ? null : targetLocation,
+      })
+      .eq("id", id)
+      .eq("is_active", true)
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Error updating PDF upload:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    if (userId && userName) {
+      await logDocumentAudit({
+        document_id: id,
+        action: "document_updated",
+        user_id: userId,
+        user_name: userName,
+        details: {
+          title,
+          document_type: documentType,
+          target_location: targetLocation === "all" ? null : targetLocation,
+        },
+      })
+    }
+
+    return NextResponse.json({ success: true, upload: data })
+  } catch (error) {
+    console.error("Error in PATCH /api/pdf-uploads:", error)
+    return NextResponse.json({ error: "Failed to update document" }, { status: 500 })
   }
 }
 

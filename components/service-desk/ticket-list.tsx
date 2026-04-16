@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -40,6 +40,9 @@ import { createClient } from "@/lib/supabase/client"
 import { canSeeAllLocations, getCanonicalLocationName } from "@/lib/location-filter"
 import { safeJsonParse } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
+import { DataPagination } from "@/components/ui/data-pagination"
+import { SortControls } from "@/components/ui/sort-controls"
+import { sortItems } from "@/lib/sort-utils"
 
 interface Ticket {
   id: string
@@ -91,7 +94,9 @@ export function TicketList({ tickets: propTickets, onRefresh }: { tickets?: Tick
   const [isEscalating, setIsEscalating] = useState(false)
   const [selfAssigningTicketId, setSelfAssigningTicketId] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 50
+  const [pageSize, setPageSize] = useState(20)
+  const [sortField, setSortField] = useState("created")
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
   const supabase = createClient()
 
   useEffect(() => {
@@ -607,16 +612,21 @@ export function TicketList({ tickets: propTickets, onRefresh }: { tickets?: Tick
     return matchesSearch && matchesStatus && matchesPriority && matchesLocation
   })
 
+  const sortedTickets = useMemo(
+    () => sortItems(filteredTickets, sortField, sortDirection),
+    [filteredTickets, sortField, sortDirection],
+  )
+
   // Pagination
-  const totalPages = Math.ceil(filteredTickets.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const paginatedTickets = filteredTickets.slice(startIndex, endIndex)
+  const totalPages = Math.max(1, Math.ceil(sortedTickets.length / pageSize))
+  const startIndex = (currentPage - 1) * pageSize
+  const endIndex = startIndex + pageSize
+  const paginatedTickets = sortedTickets.slice(startIndex, endIndex)
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, statusFilter, priorityFilter, locationFilter])
+  }, [searchTerm, statusFilter, priorityFilter, locationFilter, sortField, sortDirection, pageSize])
 
   if (loading) {
     return (
@@ -644,7 +654,7 @@ export function TicketList({ tickets: propTickets, onRefresh }: { tickets?: Tick
           <CardDescription>Search and filter IT support tickets</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
@@ -694,6 +704,21 @@ export function TicketList({ tickets: propTickets, onRefresh }: { tickets?: Tick
               </SelectContent>
             </Select>
 
+            <SortControls
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onSortFieldChange={setSortField}
+              onSortDirectionChange={setSortDirection}
+              options={[
+                { value: "created", label: "Created Date" },
+                { value: "title", label: "Title" },
+                { value: "priority", label: "Priority" },
+                { value: "status", label: "Status" },
+                { value: "location", label: "Location" },
+                { value: "requester", label: "Requester" },
+              ]}
+            />
+
             <Button variant="outline" className="w-full bg-transparent" onClick={clearFilters}>
               <Filter className="mr-2 h-4 w-4" />
               Clear Filters
@@ -705,7 +730,7 @@ export function TicketList({ tickets: propTickets, onRefresh }: { tickets?: Tick
       {/* Results summary and pagination info */}
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <p>
-          Showing {startIndex + 1} to {Math.min(endIndex, filteredTickets.length)} of {filteredTickets.length} tickets
+          Showing {sortedTickets.length === 0 ? 0 : startIndex + 1} to {Math.min(endIndex, sortedTickets.length)} of {sortedTickets.length} tickets
         </p>
         {totalPages > 1 && (
           <p>Page {currentPage} of {totalPages}</p>

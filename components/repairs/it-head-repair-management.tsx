@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -28,8 +28,10 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { DataPagination } from "@/components/ui/data-pagination"
+import { SortControls } from "@/components/ui/sort-controls"
 import { canSeeAllLocations, canCreateRepairs, normalizeLocation } from "@/lib/location-filter"
 import { useToast } from "@/hooks/use-toast"
+import { sortItems } from "@/lib/sort-utils"
 import { useRealtimeUpdates } from "@/hooks/use-realtime-updates"
 
 interface Device {
@@ -103,6 +105,8 @@ export function ITHeadRepairManagement() {
   const [showLiveActivity, setShowLiveActivity] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(6)
+  const [sortField, setSortField] = useState("createdDate")
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
   const isRegionalITHead = user?.role === "regional_it_head"
 
   // Edit form states
@@ -402,11 +406,16 @@ export function ITHeadRepairManagement() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, statusFilter, priorityFilter, pageSize, tasks.length])
+  }, [searchTerm, statusFilter, priorityFilter, pageSize, tasks.length, sortField, sortDirection])
 
-  const totalPages = Math.max(1, Math.ceil(filteredTasks.length / pageSize))
+  const sortedTasks = useMemo(
+    () => sortItems(filteredTasks, sortField, sortDirection),
+    [filteredTasks, sortField, sortDirection],
+  )
+
+  const totalPages = Math.max(1, Math.ceil(sortedTasks.length / pageSize))
   const safeCurrentPage = Math.min(currentPage, totalPages)
-  const paginatedTasks = filteredTasks.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize)
+  const paginatedTasks = sortedTasks.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize)
 
   // Filter devices based on search term
   const filteredDevices = devices.filter((device) => {
@@ -1144,7 +1153,7 @@ export function ITHeadRepairManagement() {
               </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-48">
                   <SelectValue placeholder="Filter by status" />
@@ -1172,6 +1181,21 @@ export function ITHeadRepairManagement() {
                   <SelectItem value="low">Low</SelectItem>
                 </SelectContent>
               </Select>
+
+              <SortControls
+                sortField={sortField}
+                sortDirection={sortDirection}
+                onSortFieldChange={setSortField}
+                onSortDirectionChange={setSortDirection}
+                options={[
+                  { value: "createdDate", label: "Created Date" },
+                  { value: "taskNumber", label: "Task Number" },
+                  { value: "priority", label: "Priority" },
+                  { value: "status", label: "Status" },
+                  { value: "device.assetTag", label: "Asset Tag" },
+                  { value: "device.location", label: "Location" },
+                ]}
+              />
             </div>
           </div>
         </CardHeader>
@@ -1538,7 +1562,7 @@ export function ITHeadRepairManagement() {
       {filteredTasks.length > 0 && (
         <DataPagination
           currentPage={safeCurrentPage}
-          totalItems={filteredTasks.length}
+          totalItems={sortedTasks.length}
           pageSize={pageSize}
           onPageChange={setCurrentPage}
           onPageSizeChange={setPageSize}
