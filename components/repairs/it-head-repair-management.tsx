@@ -797,18 +797,6 @@ export function ITHeadRepairManagement() {
                     </div>
                   </div>
 
-                <div>
-                  <Label htmlFor="issue">Issue Description</Label>
-                  <Textarea
-                    id="issue"
-                    placeholder="Describe the problem with the device..."
-                    value={issueDescription}
-                    onChange={(e) => setIssueDescription(e.target.value)}
-                    rows={4}
-                  />
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="priority">Priority Level</Label>
                     <Select value={priority} onValueChange={(value) => setPriority(value as RepairTask["priority"])}>
@@ -835,6 +823,17 @@ export function ITHeadRepairManagement() {
                       onChange={(e) => setEstimatedCost(e.target.value)}
                     />
                   </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="issue">Issue Description</Label>
+                  <Textarea
+                    id="issue"
+                    placeholder="Describe the problem with the device..."
+                    value={issueDescription}
+                    onChange={(e) => setIssueDescription(e.target.value)}
+                    rows={4}
+                  />
                 </div>
 
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
