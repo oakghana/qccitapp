@@ -75,22 +75,7 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
         query = applyLocationFilter(query, user, "location")
       }
 
-      // Apply search filter if provided
-      if (queryValue) {
-        let field = queryField
-        // If the query looks like a device tag, search asset_tag, id, and serial_number
-        if (/^[A-Z0-9]{6,}$/.test(queryValue)) {
-          query = query.or(`asset_tag.ilike.%${queryValue}%,id.ilike.%${queryValue}%,serial_number.ilike.%${queryValue}%`)
-        } else if (field) {
-          // For assigned_to, search both assigned_to and assigned_user fields if available
-          if (field === "assigned_to") {
-            query = query.or(`assigned_to.ilike.%${queryValue}%,assigned_user.ilike.%${queryValue}%`)
-          } else {
-            query = query.ilike(field, `%${queryValue}%`)
-          }
-        }
-      }
-
+      // Only apply location filter at DB level, do NOT apply search filter at DB level
       const { data, error } = await query
 
       if (error) {
@@ -98,16 +83,23 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
         return
       }
 
-      // Only include devices from the user's assigned region (exclude Central Stores and others)
       let filtered = data || []
-      if (!canSeeAllLocations(user) && user.location) {
-        const { getLocationAliases, locationsMatch, normalizeLocation } = await import("@/lib/location-filter")
-        const aliases = getLocationAliases(user.location)
-        const normalizedAliases = aliases.map(normalizeLocation)
-        const normalizedUserLoc = normalizeLocation(user.location)
+      // In-memory search filtering for all fields
+      if (queryValue) {
+        const q = queryValue.toLowerCase()
         filtered = filtered.filter((d: any) => {
-          const deviceLoc = normalizeLocation(d.location)
-          return normalizedAliases.includes(deviceLoc) || deviceLoc === normalizedUserLoc
+          if (!d) return false
+          // Search all relevant fields
+          return (
+            (d.asset_tag && d.asset_tag.toLowerCase().includes(q)) ||
+            (d.id && d.id.toLowerCase().includes(q)) ||
+            (d.serial_number && d.serial_number.toLowerCase().includes(q)) ||
+            (d.name && d.name.toLowerCase().includes(q)) ||
+            (d.type && d.type.toLowerCase().includes(q)) ||
+            (d.location && d.location.toLowerCase().includes(q)) ||
+            (d.assigned_to && d.assigned_to.toLowerCase().includes(q)) ||
+            (d.assigned_user && d.assigned_user.toLowerCase().includes(q))
+          )
         })
       }
       setDevices(filtered)
