@@ -54,7 +54,7 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
   })
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
-  const [searchField, setSearchField] = useState<"location" | "type" | "name">("location")
+  const [searchField, setSearchField] = useState<"location" | "type" | "name" | "serial_number" | "assigned_to">("location")
   const [searchQuery, setSearchQuery] = useState("")
 
   const canCreate = user && canCreateRepairs(user)
@@ -78,12 +78,16 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
       // Apply search filter if provided
       if (queryValue) {
         let field = queryField
-        // If the query looks like a device tag, search asset_tag and id
+        // If the query looks like a device tag, search asset_tag, id, and serial_number
         if (/^[A-Z0-9]{6,}$/.test(queryValue)) {
-          // Try both asset_tag and id fields
-          query = query.or(`asset_tag.ilike.%${queryValue}%,id.ilike.%${queryValue}%`)
+          query = query.or(`asset_tag.ilike.%${queryValue}%,id.ilike.%${queryValue}%,serial_number.ilike.%${queryValue}%`)
         } else if (field) {
-          query = query.ilike(field, `%${queryValue}%`)
+          // For assigned_to, search both assigned_to and assigned_user fields if available
+          if (field === "assigned_to") {
+            query = query.or(`assigned_to.ilike.%${queryValue}%,assigned_user.ilike.%${queryValue}%`)
+          } else {
+            query = query.ilike(field, `%${queryValue}%`)
+          }
         }
       }
 
@@ -189,7 +193,9 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
                 <SelectContent>
                   <SelectItem value="location">Location</SelectItem>
                   <SelectItem value="type">Type</SelectItem>
-                  <SelectItem value="name">Name</SelectItem>
+                  <SelectItem value="name">Device Name</SelectItem>
+                  <SelectItem value="serial_number">Serial Number</SelectItem>
+                  <SelectItem value="assigned_to">Assigned User</SelectItem>
                 </SelectContent>
               </Select>
               <Input
