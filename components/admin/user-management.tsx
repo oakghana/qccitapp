@@ -21,6 +21,7 @@ import {
   Plus,
   MoreHorizontal,
   User,
+  Users,
   MapPin,
   Mail,
   Phone,
@@ -31,6 +32,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { FormNavigation } from "@/components/ui/form-navigation"
+import { CreateUserForm } from "@/components/auth/create-user-form"
 import { usePWAInstall } from "@/components/ui/pwa-install"
 import { getRoleColorScheme } from "@/lib/role-colors"
 import { cn, formatDisplayDate } from "@/lib/utils"
@@ -413,10 +415,25 @@ export function UserManagement() {
                   <DialogTitle>Add New User</DialogTitle>
                   <DialogDescription>Create a new system user account</DialogDescription>
                 </DialogHeader>
-                <AddUserForm
+                <CreateUserForm
                   onClose={() => setAddUserOpen(false)}
-                  onUserAdded={(newUser) => {
-                    setUsers([...users, newUser])
+                  onUserCreated={(newUser) => {
+                    setUsers((prev) => [
+                      {
+                        id: newUser.id,
+                        name: newUser.name || "New User",
+                        email: newUser.email || "",
+                        phone: newUser.phone || "",
+                        role: "staff",
+                        location: newUser.location || "Head Office",
+                        department: newUser.department || "",
+                        status: "inactive",
+                        lastLogin: newUser.requestedDate || new Date().toISOString(),
+                        createdDate: formatDisplayDate(newUser.requestedDate, "N/A"),
+                        deviceCount: 0,
+                      },
+                      ...prev,
+                    ])
                     setAddUserOpen(false)
                   }}
                 />
