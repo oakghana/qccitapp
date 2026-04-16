@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, FileText, ShieldCheck } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
 
@@ -126,6 +126,18 @@ export function ITEquipmentRequisitionForm({ onSubmit }: { onSubmit: () => void 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="rounded-2xl border bg-gradient-to-r from-slate-900 to-slate-800 p-5 text-white shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold">IT Equipment Requisition</h2>
+            <p className="mt-1 text-sm text-slate-300">Submit a clean, trackable request with approval visibility and PDF-ready output.</p>
+          </div>
+          <div className="flex gap-2 text-xs">
+            <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1"><FileText className="h-3 w-3" /> Professional format</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1"><ShieldCheck className="h-3 w-3" /> Locked after review</span>
+          </div>
+        </div>
+      </div>
       {error && (
         <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md flex items-center gap-2 border border-destructive/20">
           <AlertCircle className="h-4 w-4 flex-shrink-0" />
@@ -161,7 +173,7 @@ export function ITEquipmentRequisitionForm({ onSubmit }: { onSubmit: () => void 
         </div>
       </div>
 
-      <div className="border rounded-lg p-4 bg-muted/30">
+      <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/60">
         <h3 className="font-semibold text-sm mb-4">Request Information</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -210,7 +222,7 @@ export function ITEquipmentRequisitionForm({ onSubmit }: { onSubmit: () => void 
         </div>
       </div>
 
-      <div className="border rounded-lg p-4 bg-muted/30">
+      <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/60">
         <h3 className="font-semibold text-sm mb-4">Items & Purpose</h3>
 
         <div className="space-y-4">

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { MaintenanceRepairsForm } from "@/components/it-forms/maintenance-repairs-form"
+import { RequestStatusTracker } from "@/components/it-forms/request-status-tracker"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Wrench } from "lucide-react"
 
@@ -56,10 +57,11 @@ export default function MaintenanceRepairsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <Wrench className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p>Request tracking coming soon...</p>
-              </div>
+              <RequestStatusTracker
+                formType="maintenance"
+                title="My Maintenance Requests"
+                description="Review submitted maintenance forms, edit drafts, and download PDF copies."
+              />
             </CardContent>
           </Card>
         </TabsContent>

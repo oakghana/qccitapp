@@ -20,7 +20,7 @@ import { Bell, Search, User, LogOut, ChevronDown, WifiOff, Zap, Loader2 } from "
 import { useAuth } from "@/lib/auth-context"
 import { useNotifications } from "@/lib/notification-context"
 import { useOfflineCache } from "@/lib/offline-cache"
-import { cn } from "@/lib/utils"
+import { cn, formatDisplayDateTime, safeStorage } from "@/lib/utils"
 
 interface ModernLayoutProps {
   children: React.ReactNode
@@ -42,10 +42,10 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
 
     setIsOnline(checkOnline())
 
-    const shouldShowMobileDownload = localStorage.getItem("showMobileAppDownload") === "true"
+    const shouldShowMobileDownload = safeStorage.get("showMobileAppDownload") === "true"
     if (shouldShowMobileDownload) {
       setShowMobileDownload(true)
-      localStorage.removeItem("showMobileAppDownload")
+      safeStorage.remove("showMobileAppDownload")
     }
 
     const cleanup = setupConnectivityListeners(
@@ -68,10 +68,7 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
     clearCache()
     
     // Clear localStorage
-    if (typeof window !== "undefined") {
-      localStorage.clear()
-      sessionStorage.clear()
-    }
+    safeStorage.clear()
     
     // Wait a moment for cache to clear, then logout
     setTimeout(() => {
@@ -221,7 +218,7 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
                             </div>
                             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{notification.message}</p>
                             <span className="text-xs text-muted-foreground mt-1">
-                              {new Date(notification.timestamp).toLocaleTimeString()}
+                              {formatDisplayDateTime(notification.timestamp)}
                             </span>
                           </div>
                           <Badge

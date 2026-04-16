@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Download, Smartphone, X, Check, WifiOff, Zap } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, safeStorage } from "@/lib/utils"
 
 interface PWAInstallProps {
   className?: string
@@ -59,18 +59,7 @@ export function PWAInstall({ className }: PWAInstallProps) {
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
     window.addEventListener('appinstalled', handleAppInstalled)
 
-    // Register service worker
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then((registration) => {
-            console.log('SW registered: ', registration)
-          })
-          .catch((registrationError) => {
-            console.log('SW registration failed: ', registrationError)
-          })
-      })
-    }
+    // Service worker registration is intentionally disabled here to avoid stale cached bundles
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)

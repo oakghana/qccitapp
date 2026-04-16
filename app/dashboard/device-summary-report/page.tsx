@@ -7,6 +7,7 @@ import { Download, Package, MapPin, TrendingUp, Monitor, Loader2 } from "lucide-
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { useAuth } from "@/lib/auth-context"
+import { safeJsonParse, safeStorage } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 
 interface DeviceSummaryData {
@@ -76,11 +77,14 @@ export default function DeviceSummaryReportPage() {
       setLoading(true)
       console.log("[v0] Fetching device summary report...")
 
-      const userStr = localStorage.getItem("qcc_current_user")
+      const userStr = safeStorage.get("qcc_current_user")
       if (!userStr) {
         throw new Error("User not logged in")
       }
-      const user = JSON.parse(userStr)
+      const user = safeJsonParse<any>(userStr, null)
+      if (!user?.username) {
+        throw new Error("Invalid user session")
+      }
 
       const response = await fetch(`/api/devices/summary-report?username=${encodeURIComponent(user.username)}`)
 
@@ -106,9 +110,10 @@ export default function DeviceSummaryReportPage() {
       setLoadingDevices(true)
       setSelectedLocation(location)
 
-      const userStr = localStorage.getItem("qcc_current_user")
+      const userStr = safeStorage.get("qcc_current_user")
       if (!userStr) return
-      const user = JSON.parse(userStr)
+      const user = safeJsonParse<any>(userStr, null)
+      if (!user?.username) return
 
       const response = await fetch(
         `/api/devices/by-location?location=${encodeURIComponent(location)}&username=${encodeURIComponent(user.username)}`,

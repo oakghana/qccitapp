@@ -3,6 +3,7 @@
 import { CheckCircle2, Clock, XCircle, ChevronRight } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { formatDisplayDateTime } from "@/lib/utils"
 
 interface ApprovalStage {
   stage: string
@@ -71,7 +72,7 @@ export function ApprovalTracker({ stages, currentStatus }: ApprovalTrackerProps)
                   )}
                   {stage.timestamp && (
                     <p className="text-xs text-muted-foreground">
-                      {new Date(stage.timestamp).toLocaleString()}
+                      {formatDisplayDateTime(stage.timestamp)}
                     </p>
                   )}
                   {stage.notes && (

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { NewGadgetRequestForm } from "@/components/it-forms/new-gadget-request-form"
+import { RequestStatusTracker } from "@/components/it-forms/request-status-tracker"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Laptop } from "lucide-react"
 
@@ -56,10 +57,11 @@ export default function NewGadgetRequestPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <Laptop className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p>Request tracking coming soon...</p>
-              </div>
+              <RequestStatusTracker
+                formType="new-gadget"
+                title="My Gadget Requests"
+                description="View your gadget requests, update drafts before review, and export them to PDF."
+              />
             </CardContent>
           </Card>
         </TabsContent>

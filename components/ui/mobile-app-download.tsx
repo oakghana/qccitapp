@@ -26,7 +26,7 @@ import {
   Monitor,
   Tablet
 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, safeStorage } from "@/lib/utils"
 
 interface MobileAppDownloadProps {
   className?: string
@@ -44,7 +44,7 @@ export function MobileAppDownload({ className, showOnLogin = false, autoShow = f
 
   useEffect(() => {
     // Check if user has already dismissed the banner
-    const hasBeenDismissed = localStorage.getItem('mobile-app-banner-dismissed') === 'true'
+    const hasBeenDismissed = safeStorage.get('mobile-app-banner-dismissed') === 'true'
     setDismissed(hasBeenDismissed)
 
     // Check if app is already installed
@@ -81,7 +81,7 @@ export function MobileAppDownload({ className, showOnLogin = false, autoShow = f
       setIsInstalled(true)
       setIsOpen(false)
       setShowBanner(false)
-      localStorage.setItem('mobile-app-banner-dismissed', 'true')
+      safeStorage.set('mobile-app-banner-dismissed', 'true')
     }
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)

@@ -76,11 +76,12 @@ export default function UserDeviceAllocationPage() {
       setLoading(true)
       setError("")
 
-      const userStr = localStorage.getItem("qcc_current_user")
+      const userStr = safeStorage.get("qcc_current_user")
       if (!userStr) {
         throw new Error("User not logged in")
       }
-      const currentUser = JSON.parse(userStr)
+      const currentUser = safeJsonParse<any>(userStr, null)
+      if (!currentUser) return
 
       const params = new URLSearchParams({
         requestingUser: currentUser.username,

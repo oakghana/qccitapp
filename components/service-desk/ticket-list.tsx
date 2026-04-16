@@ -38,6 +38,7 @@ import { AssignTicketDialog } from "./assign-ticket-dialog"
 import { useAuth } from "@/lib/auth-context"
 import { createClient } from "@/lib/supabase/client"
 import { canSeeAllLocations, getCanonicalLocationName } from "@/lib/location-filter"
+import { safeJsonParse } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 
 interface Ticket {
@@ -343,7 +344,9 @@ export function TicketList({ tickets: propTickets, onRefresh }: { tickets?: Tick
       })
 
       if (updateSuccess) {
-        const existingRepairs = JSON.parse(localStorage.getItem("repairRequests") || "[]")
+        const existingRepairsRaw = localStorage.getItem("repairRequests")
+        const parsedRepairs = safeJsonParse<any[]>(existingRepairsRaw, [])
+        const existingRepairs = Array.isArray(parsedRepairs) ? parsedRepairs : []
         existingRepairs.push(repairRequest)
         localStorage.setItem("repairRequests", JSON.stringify(existingRepairs))
 

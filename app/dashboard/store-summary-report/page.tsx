@@ -286,8 +286,9 @@ export default function StoreSummaryReportPage() {
       })
 
       // Get current user from localStorage for authentication
-      const currentUser = localStorage.getItem("qcc_current_user")
-      const username = currentUser ? JSON.parse(currentUser).username : ""
+      const currentUser = safeStorage.get("qcc_current_user")
+      const parsedUser = safeJsonParse<any>(currentUser, null)
+      const username = parsedUser?.username || ""
 
       const response = await fetch(`/api/store/stock-balance-report?${params}`, {
         headers: {

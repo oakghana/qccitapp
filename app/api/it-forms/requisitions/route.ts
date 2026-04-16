@@ -2,9 +2,21 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
 const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://example.supabase.co",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || "service-role-key-placeholder"
 )
+
+async function generateNextSequentialNumber() {
+  const { data } = await supabaseAdmin
+    .from("it_equipment_requisitions")
+    .select("requisition_number")
+    .order("created_at", { ascending: false })
+    .limit(1)
+
+  const previousNumber = data?.[0]?.requisition_number || "IT-REQ-0000"
+  const lastSequence = Number(previousNumber.split("-").pop() || "0")
+  return `IT-REQ-${String(lastSequence + 1).padStart(4, "0")}`
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,11 +39,7 @@ export async function POST(request: NextRequest) {
       requestedBy,
     })
 
-    // Generate requisition number
-    const date = new Date()
-    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "")
-    const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, "0")
-    const requisitionNumber = `IT-REQ-${dateStr}-${randomNum}`
+    const requisitionNumber = await generateNextSequentialNumber()
 
     const insertData = {
       requisition_number: requisitionNumber,

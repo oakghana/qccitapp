@@ -28,9 +28,14 @@ export default function OfflinePage() {
     // Load cached data from localStorage
     const loadCachedData = () => {
       try {
-        const cached = localStorage.getItem('qcc-offline-data')
+        const cached = safeStorage.get('qcc-offline-data')
         if (cached) {
-          setCachedData(JSON.parse(cached))
+          setCachedData(safeJsonParse(cached, {
+            devices: 12,
+            pendingRepairs: 3,
+            activeUsers: 8,
+            lastSync: new Date().toLocaleString(),
+          }))
         } else {
           // Set default offline data
           setCachedData({

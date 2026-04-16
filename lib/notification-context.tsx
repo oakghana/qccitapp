@@ -37,9 +37,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const unreadCount = notifications.filter((n) => !n.isRead).length
 
   const addNotification = (notificationData: Omit<Notification, "id" | "timestamp" | "isRead">) => {
+    const notificationId = typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `notif-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+
     const newNotification: Notification = {
       ...notificationData,
-      id: crypto.randomUUID(),
+      id: notificationId,
       timestamp: new Date(),
       isRead: false,
     }
@@ -103,20 +107,28 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }
 
   const playNotificationSound = () => {
-    // Create a simple beep sound
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
-    const oscillator = audioContext.createOscillator()
-    const gainNode = audioContext.createGain()
+    try {
+      if (typeof window === "undefined") return
 
-    oscillator.connect(gainNode)
-    gainNode.connect(audioContext.destination)
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
+      if (!AudioContextClass) return
 
-    oscillator.frequency.value = 800
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5)
+      const audioContext = new AudioContextClass()
+      const oscillator = audioContext.createOscillator()
+      const gainNode = audioContext.createGain()
 
-    oscillator.start(audioContext.currentTime)
-    oscillator.stop(audioContext.currentTime + 0.5)
+      oscillator.connect(gainNode)
+      gainNode.connect(audioContext.destination)
+
+      oscillator.frequency.value = 800
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5)
+
+      oscillator.start(audioContext.currentTime)
+      oscillator.stop(audioContext.currentTime + 0.5)
+    } catch (error) {
+      console.error("Notification sound failed:", error)
+    }
   }
 
   const value: NotificationContextType = {

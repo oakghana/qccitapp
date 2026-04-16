@@ -3,6 +3,8 @@
  * Handles caching of critical data for offline functionality
  */
 
+import { safeJsonParse } from "@/lib/utils"
+
 interface CacheData {
   devices: any[]
   repairRequests: any[]
@@ -52,7 +54,10 @@ export class OfflineCacheManager {
     try {
       const cached = localStorage.getItem(this.cacheKey)
       if (cached) {
-        const data = JSON.parse(cached)
+        const data = safeJsonParse<CacheData | null>(cached, null)
+        if (!data) {
+          return this.getDefaultData()
+        }
 
         // Check if cache is still valid
         if (this.isCacheValid(data.lastSync)) {
@@ -172,7 +177,7 @@ export class OfflineCacheManager {
   private getPendingActions(): any[] {
     try {
       const pending = localStorage.getItem("qcc-pending-actions")
-      return pending ? JSON.parse(pending) : []
+      return safeJsonParse<any[]>(pending, [])
     } catch (error) {
       console.error("Failed to get pending actions:", error)
       return []

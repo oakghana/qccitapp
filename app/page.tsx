@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { safeJsonParse, safeStorage } from "@/lib/utils"
 import { LoginForm } from "@/components/auth/login-form"
 import Image from "next/image"
 
@@ -9,10 +10,11 @@ export default function HomePage() {
 
   useEffect(() => {
     // Check if user is already logged in
-    const savedUser = localStorage.getItem("qcc_current_user")
+    const savedUser = safeStorage.get("qcc_current_user")
     if (savedUser) {
       try {
-        const user = JSON.parse(savedUser)
+        const user = safeJsonParse<any>(savedUser, null)
+        if (!user) throw new Error("Invalid saved session")
         // Redirect to appropriate dashboard
         let redirectUrl = "/dashboard"
         if (user.role === "admin") {
@@ -27,7 +29,7 @@ export default function HomePage() {
         window.location.href = redirectUrl
         return
       } catch (e) {
-        localStorage.removeItem("qcc_current_user")
+        safeStorage.remove("qcc_current_user")
       }
     }
     setIsChecking(false)

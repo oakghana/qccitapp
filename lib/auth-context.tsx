@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { offlineCacheManager } from "@/lib/offline-cache"
+import { safeJsonParse, safeStorage } from "@/lib/utils"
 
 export interface User {
   id: string
@@ -43,20 +44,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("qcc_current_user")
-    if (savedUser) {
-      try {
-        const parsed = JSON.parse(savedUser)
-        if (parsed && typeof parsed === "object" && parsed.id && parsed.username) {
-          setUser(parsed)
-        } else {
-          console.error("[v0] Invalid user data in localStorage")
-          localStorage.removeItem("qcc_current_user")
-        }
-      } catch (e) {
-        console.error("[v0] Failed to parse user data from localStorage:", e)
-        localStorage.removeItem("qcc_current_user")
-      }
+    const savedUser = safeStorage.get("qcc_current_user")
+    const parsed = safeJsonParse<User | null>(savedUser, null)
+
+    if (parsed && typeof parsed === "object" && parsed.id && parsed.username) {
+      setUser(parsed)
+    } else if (savedUser) {
+      console.error("[v0] Invalid user data in localStorage")
+      safeStorage.remove("qcc_current_user")
     }
   }, [])
 
@@ -65,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     offlineCacheManager.clearCache()
 
     setUser(null)
-    localStorage.removeItem("qcc_current_user")
+    safeStorage.remove("qcc_current_user")
     try {
       await fetch("/api/auth/logout", { method: "POST" })
     } catch (e) {
@@ -86,9 +81,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateUser = (newUser: User | null) => {
     setUser(newUser)
     if (newUser) {
-      localStorage.setItem("qcc_current_user", JSON.stringify(newUser))
+      safeStorage.set("qcc_current_user", JSON.stringify(newUser))
     } else {
-      localStorage.removeItem("qcc_current_user")
+      safeStorage.remove("qcc_current_user")
     }
   }
 

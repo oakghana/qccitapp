@@ -6,18 +6,26 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { AlertCircle, Eye, Loader2, RefreshCw } from "lucide-react"
+import { AlertCircle, Download, Eye, FileEdit, Loader2, Lock, RefreshCw } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import { ApprovalTracker } from "./approval-tracker"
+import { exportToPDF } from "@/lib/export-utils"
+import { formatDisplayDate, formatDisplayDateTime } from "@/lib/utils"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 
 interface ITRequisition {
   id: string
-  requisition_number: string
-  items_required: string
-  purpose: string
-  requested_by: string
-  department: string
+  requisition_number?: string
+  request_number?: string
+  items_required?: string
+  complaints_from_users?: string
+  purpose?: string
+  other_comments?: string
+  requested_by?: string
+  department?: string
+  department_name?: string
   request_date: string
   status: string
   department_head_approved?: boolean
@@ -39,13 +47,25 @@ interface ITRequisition {
   updated_at: string
 }
 
-export function RequestStatusTracker() {
+interface RequestStatusTrackerProps {
+  formType?: "requisition" | "maintenance" | "new-gadget"
+  title?: string
+  description?: string
+}
+
+export function RequestStatusTracker({
+  formType = "requisition",
+  title,
+  description,
+}: RequestStatusTrackerProps) {
   const [requisitions, setRequisitions] = useState<ITRequisition[]>([])
   const [filteredRequisitions, setFilteredRequisitions] = useState<ITRequisition[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedRequisition, setSelectedRequisition] = useState<ITRequisition | null>(null)
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [editData, setEditData] = useState({ items_required: "", purpose: "" })
+  const [savingEdit, setSavingEdit] = useState(false)
   const { user } = useAuth()
   const { toast } = useToast()
 
@@ -60,11 +80,19 @@ export function RequestStatusTracker() {
   const fetchMyRequisitions = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/it-forms/my-requisitions?userId=${user?.id}`)
+
+      const endpoint =
+        formType === "maintenance"
+          ? `/api/it-forms/maintenance-repairs?staffName=${encodeURIComponent(user?.full_name || user?.name || "")}`
+          : formType === "new-gadget"
+            ? `/api/it-forms/new-gadget?staffName=${encodeURIComponent(user?.full_name || user?.name || "")}`
+            : `/api/it-forms/my-requisitions?userId=${user?.id}`
+
+      const response = await fetch(endpoint)
       const data = await response.json()
 
       if (data.success) {
-        setRequisitions(data.requisitions || [])
+        setRequisitions(data.requisitions || data.requests || [])
       }
     } catch (error) {
       console.error("[v0] Error fetching requisitions:", error)
@@ -78,16 +106,97 @@ export function RequestStatusTracker() {
     }
   }
 
+  const getRequestNumber = (req: ITRequisition) => req.requisition_number || req.request_number || `REQ-${req.id}`
+  const getRequestSummary = (req: ITRequisition) => req.items_required || req.complaints_from_users || "No request details"
+  const getRequestPurpose = (req: ITRequisition) => req.purpose || req.other_comments || req.complaints_from_users || "N/A"
+  const getDepartment = (req: ITRequisition) => req.department || req.department_name || "N/A"
+
   const filterRequisitions = () => {
+    const normalizedSearch = searchQuery.toLowerCase()
     const filtered = requisitions.filter(
       (req) =>
-        req.requisition_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        req.items_required.toLowerCase().includes(searchQuery.toLowerCase())
+        getRequestNumber(req).toLowerCase().includes(normalizedSearch) ||
+        getRequestSummary(req).toLowerCase().includes(normalizedSearch)
     )
     setFilteredRequisitions(filtered)
   }
 
+  const canEditRequest = (req: ITRequisition) => req.status === "draft"
+
+  const handleDownload = (req: ITRequisition) => {
+    const requestNumber = getRequestNumber(req)
+
+    exportToPDF({
+      title: `${formType === "maintenance" ? "Maintenance & Repairs" : formType === "new-gadget" ? "New Gadget" : "IT Requisition"} Report`,
+      fileName: requestNumber,
+      headers: ["Field", "Value"],
+      rows: [
+        ["Request Number", requestNumber],
+        ["Department", getDepartment(req)],
+        ["Status", req.status],
+        ["Request Date", formatDisplayDate(req.request_date)],
+        ["Summary", getRequestSummary(req)],
+        ["Purpose / Notes", getRequestPurpose(req)],
+      ],
+    })
+  }
+
+  const handleEditSave = async () => {
+    if (!selectedRequisition) return
+
+    try {
+      setSavingEdit(true)
+      const patchEndpoint =
+        formType === "maintenance"
+          ? `/api/it-forms/maintenance-repairs?id=${selectedRequisition.id}`
+          : formType === "new-gadget"
+            ? `/api/it-forms/new-gadget?id=${selectedRequisition.id}`
+            : `/api/it-forms/my-requisitions?id=${selectedRequisition.id}`
+
+      const response = await fetch(patchEndpoint, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editData),
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to update request")
+      }
+
+      setRequisitions((prev) => prev.map((req) => req.id === selectedRequisition.id ? { ...req, ...data.requisition } : req))
+      setSelectedRequisition((prev) => prev ? { ...prev, ...data.requisition } : prev)
+      toast({ title: "Request updated", description: "Your draft requisition has been updated." })
+    } catch (error: any) {
+      toast({ title: "Update failed", description: error.message || "Could not update this request.", variant: "destructive" })
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
   const buildApprovalStages = (req: ITRequisition): any[] => {
+    if (formType !== "requisition") {
+      return [
+        {
+          stage: "Request Submitted",
+          role: "Requester",
+          status: "completed",
+          timestamp: req.created_at,
+        },
+        {
+          stage: "IT / Service Desk Review",
+          role: "IT Team",
+          status: req.status === "draft" ? "pending" : req.status.includes("rejected") ? "rejected" : "completed",
+        },
+        {
+          stage: "Final Processing",
+          role: "Admin / Operations",
+          status: ["approved", "issued", "completed"].includes(req.status) ? "completed" : req.status.includes("rejected") ? "rejected" : "pending",
+          timestamp: req.updated_at,
+        },
+      ]
+    }
+
     return [
       {
         stage: "Department Head Review",
@@ -140,6 +249,10 @@ export function RequestStatusTracker() {
   }
 
   const getNextStep = (req: ITRequisition) => {
+    if (formType !== "requisition") {
+      return req.status === "draft" ? "Waiting for IT review" : req.status.replace(/_/g, " ")
+    }
+
     if (!req.department_head_approved_by) return "Waiting for Department Head approval"
     if (req.department_head_approved === false) return "Your request was rejected"
     if (!req.service_desk_approved) return "Being processed by IT Service Desk"
@@ -151,11 +264,28 @@ export function RequestStatusTracker() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">My Requisition Requests</h1>
-        <p className="text-muted-foreground mt-2">
-          Track the approval status of your IT equipment requisitions
-        </p>
+      <div className="rounded-2xl border bg-gradient-to-r from-amber-50 via-white to-emerald-50 p-5 shadow-sm dark:from-amber-950/20 dark:via-background dark:to-emerald-950/20">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <img
+              src="/images/qcc-logo.png"
+              alt="QCC Logo"
+              className="h-14 w-14 rounded-full border bg-white object-contain p-1 shadow-sm"
+            />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-700 dark:text-amber-300">
+                Quality Control Company Limited
+              </p>
+              <h1 className="text-3xl font-bold tracking-tight">{title || "My Submitted Requests"}</h1>
+              <p className="text-muted-foreground mt-1">
+                {description || "Track, edit drafts, and download professional PDF copies of your forms."}
+              </p>
+            </div>
+          </div>
+          <Badge variant="outline" className="w-fit border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
+            Logo-ready reports
+          </Badge>
+        </div>
       </div>
 
       {/* Stats */}
@@ -230,28 +360,35 @@ export function RequestStatusTracker() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-3">
-                        <span className="font-semibold">{req.requisition_number}</span>
+                        <span className="font-semibold">{getRequestNumber(req)}</span>
                         {getStatusBadge(req.status)}
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        Submitted: {new Date(req.request_date).toLocaleDateString()}
+                        Submitted: {formatDisplayDate(req.request_date)}
                       </p>
-                      <p className="text-sm">Items: {req.items_required.substring(0, 80)}...</p>
+                      <p className="text-sm">Summary: {getRequestSummary(req).substring(0, 80)}...</p>
                       <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
                         Next: {getNextStep(req)}
                       </p>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedRequisition(req)
-                        setIsDetailDialogOpen(true)
-                      }}
-                    >
-                      <Eye className="h-4 w-4 mr-1" />
-                      Track
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedRequisition(req)
+                          setEditData({ items_required: req.items_required || "", purpose: req.purpose || "" })
+                          setIsDetailDialogOpen(true)
+                        }}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        View
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => handleDownload(req)}>
+                        <Download className="h-4 w-4 mr-1" />
+                        PDF
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -264,9 +401,16 @@ export function RequestStatusTracker() {
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{selectedRequisition?.requisition_number}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              {selectedRequisition ? getRequestNumber(selectedRequisition) : ""}
+              {selectedRequisition && canEditRequest(selectedRequisition) ? (
+                <Badge variant="secondary" className="gap-1"><FileEdit className="h-3 w-3" /> Editable draft</Badge>
+              ) : (
+                <Badge variant="outline" className="gap-1"><Lock className="h-3 w-3" /> Locked for review</Badge>
+              )}
+            </DialogTitle>
             <DialogDescription>
-              Submitted on {selectedRequisition ? new Date(selectedRequisition.created_at).toLocaleDateString() : ""}
+              Submitted on {selectedRequisition ? formatDisplayDate(selectedRequisition.created_at) : ""}
             </DialogDescription>
           </DialogHeader>
 
@@ -278,7 +422,7 @@ export function RequestStatusTracker() {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Department:</span>
-                    <p className="font-medium">{selectedRequisition.department}</p>
+                    <p className="font-medium">{getDepartment(selectedRequisition)}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Status:</span>
@@ -287,18 +431,40 @@ export function RequestStatusTracker() {
                 </div>
               </div>
 
-              <div>
-                <span className="text-sm text-muted-foreground">Items Required:</span>
-                <p className="text-sm whitespace-pre-wrap mt-1">{selectedRequisition.items_required}</p>
-              </div>
-
-              {selectedRequisition.purpose && (
-                <div>
-                  <span className="text-sm text-muted-foreground">Purpose:</span>
-                  <p className="text-sm mt-1">{selectedRequisition.purpose}</p>
+              <div className="grid gap-4 rounded-xl border bg-slate-50/70 p-4 dark:bg-slate-900/40">
+                <div className="space-y-2">
+                  <Label>Items Required</Label>
+                  <Textarea
+                    value={editData.items_required}
+                    onChange={(e) => setEditData((prev) => ({ ...prev, items_required: e.target.value }))}
+                    placeholder="Request summary or complaint details"
+                    disabled={!canEditRequest(selectedRequisition) || savingEdit}
+                    className="min-h-24"
+                  />
                 </div>
-              )}
 
+                <div className="space-y-2">
+                  <Label>Purpose</Label>
+                  <Textarea
+                    value={editData.purpose}
+                    onChange={(e) => setEditData((prev) => ({ ...prev, purpose: e.target.value }))}
+                    disabled={!canEditRequest(selectedRequisition) || savingEdit}
+                    className="min-h-20"
+                  />
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {canEditRequest(selectedRequisition) && (
+                    <Button onClick={handleEditSave} disabled={savingEdit}>
+                      {savingEdit ? "Saving..." : "Save changes"}
+                    </Button>
+                  )}
+                  <Button variant="outline" onClick={() => handleDownload(selectedRequisition)}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Download PDF
+                  </Button>
+                </div>
+              </div>
               {/* Approval Tracker */}
               <div>
                 <h3 className="font-semibold mb-3">Approval Timeline</h3>
@@ -306,7 +472,9 @@ export function RequestStatusTracker() {
                   stages={buildApprovalStages(selectedRequisition)} 
                   currentStatus={selectedRequisition.status} 
                 />
-              </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Last updated: {formatDisplayDateTime(selectedRequisition.updated_at)}
+                </p>              </div>
             </div>
           )}
         </DialogContent>
