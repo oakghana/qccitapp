@@ -140,7 +140,7 @@ export function ITEquipmentRequisitionForm({ onSubmit }: { onSubmit: () => void 
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Quality Control Company Limited</p>
               <h2 className="text-lg font-bold">IT Equipment Requisition Form</h2>
-              <p className="text-sm text-muted-foreground">Document-style request form with HOD and office-use sections aligned to the shared template.</p>
+
             </div>
           </div>
           <div className="flex gap-2 text-xs">
