@@ -115,6 +115,7 @@ export async function POST(request: NextRequest) {
         brand: body.brand,
         model: body.model,
         serial_number: body.serial_number,
+        asset_tag: body.asset_tag || null,
         location: body.location,
         region_id: body.region_id || null,
         district_id: body.district_id || null,

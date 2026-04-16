@@ -147,6 +147,7 @@ export function DeviceInventory() {
     brand: "",
     model: "",
     serial_number: "",
+    asset_tag: "",
     status: "",
     location: "",
     assigned_to: "",
@@ -285,6 +286,7 @@ export function DeviceInventory() {
         name: `${device.brand} ${device.model}`,
         type: device.device_type?.toLowerCase() || "other",
         serialNumber: device.serial_number,
+        assetTag: device.asset_tag || "",
         model: device.model,
         brand: device.brand,
         status: device.status || "active",
@@ -316,6 +318,7 @@ export function DeviceInventory() {
     const matchesSearch =
       device.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       device.serialNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (device.assetTag || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
       device.assignedTo.toLowerCase().includes(searchQuery.toLowerCase())
 
     const matchesStatus = statusFilter === "all" || device.status === statusFilter
@@ -384,6 +387,7 @@ export function DeviceInventory() {
       brand: device.brand,
       model: device.model,
       serial_number: device.serialNumber,
+      asset_tag: device.assetTag || "",
       status: device.status,
       location: device.location,
       assigned_to: device.assignedTo,
@@ -429,6 +433,7 @@ export function DeviceInventory() {
           brand: editFormData.brand,
           model: editFormData.model,
           serial_number: editFormData.serial_number,
+          asset_tag: editFormData.asset_tag,
           status: editFormData.status,
           location: editFormData.location,
           assigned_to: editFormData.assigned_to,
@@ -590,6 +595,7 @@ export function DeviceInventory() {
           brand: editFormData.brand,
           model: editFormData.model,
           serial_number: editFormData.serial_number,
+          asset_tag: editFormData.asset_tag,
           status: "maintenance",
           location: editFormData.location,
           assigned_to: editFormData.assigned_to,
@@ -923,6 +929,14 @@ export function DeviceInventory() {
               <Input
                 value={editFormData.serial_number}
                 onChange={(e) => setEditFormData({ ...editFormData, serial_number: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Asset Tag</label>
+              <Input
+                value={editFormData.asset_tag}
+                onChange={(e) => setEditFormData({ ...editFormData, asset_tag: e.target.value })}
+                placeholder="QCC-IT-001"
               />
             </div>
             <div className="space-y-2">

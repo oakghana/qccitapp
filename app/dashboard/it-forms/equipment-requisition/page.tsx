@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ITEquipmentRequisitionForm } from "@/components/it-forms/equipment-requisition-form"
+import { RequestStatusTracker } from "@/components/it-forms/request-status-tracker"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function ITEquipmentRequisitionPage() {
@@ -50,9 +51,12 @@ export default function ITEquipmentRequisitionPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <p>Requisition tracking coming soon...</p>
-              </div>
+              <RequestStatusTracker
+                key={refreshKey}
+                formType="requisition"
+                title="My Equipment Requisitions"
+                description="Track your submitted requisitions, edit drafts before review, and download PDF copies."
+              />
             </CardContent>
           </Card>
         </TabsContent>

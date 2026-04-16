@@ -94,8 +94,11 @@ export function RequestStatusTracker({
   const { toast } = useToast()
 
   useEffect(() => {
+    if (!user?.id && formType === "requisition") return
+    if (!user?.name && formType !== "requisition") return
+
     fetchMyRequisitions()
-  }, [])
+  }, [user?.id, user?.name, user?.full_name, formType])
 
   useEffect(() => {
     filterRequisitions()

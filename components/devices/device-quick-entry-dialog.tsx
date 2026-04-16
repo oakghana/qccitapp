@@ -32,6 +32,7 @@ interface DeviceQuickEntryDialogProps {
 
 interface QuickDevice {
   serialNumber: string
+  assetTag: string
   brand: string
   model: string
   deviceType: string
@@ -45,7 +46,7 @@ export function DeviceQuickEntryDialog({
   const [loading, setLoading] = useState(false)
   const [deviceTypes, setDeviceTypes] = useState<Array<{ code: string; name: string }>>([])
   const [devices, setDevices] = useState<QuickDevice[]>([
-    { serialNumber: '', brand: '', model: '', deviceType: 'laptop' },
+    { serialNumber: '', assetTag: '', brand: '', model: '', deviceType: 'laptop' },
   ])
   const [userLocation, setUserLocation] = useState<string>('')
   const [duplicateWarnings, setDuplicateWarnings] = useState<Record<number, string>>({})
@@ -88,7 +89,7 @@ export function DeviceQuickEntryDialog({
   const addDeviceField = () => {
     setDevices([
       ...devices,
-      { serialNumber: '', brand: '', model: '', deviceType: 'laptop' },
+      { serialNumber: '', assetTag: '', brand: '', model: '', deviceType: 'laptop' },
     ])
   }
 
@@ -173,6 +174,7 @@ export function DeviceQuickEntryDialog({
               brand: device.brand,
               model: device.model,
               serial_number: device.serialNumber,
+              asset_tag: device.assetTag || null,
               location: userLocation,
               status: 'active',
             }),
@@ -194,7 +196,7 @@ export function DeviceQuickEntryDialog({
           'Devices Added',
           `Successfully added ${successCount} device(s)`
         )
-        setDevices([{ serialNumber: '', brand: '', model: '', deviceType: 'laptop' }])
+        setDevices([{ serialNumber: '', assetTag: '', brand: '', model: '', deviceType: 'laptop' }])
         setDuplicateWarnings({})
         onOpenChange(false)
         onDeviceAdded?.()
@@ -275,6 +277,18 @@ export function DeviceQuickEntryDialog({
                       value={device.serialNumber}
                       onChange={e => updateDevice(index, 'serialNumber', e.target.value)}
                       required
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor={`asset-${index}`} className="text-xs">
+                      Asset Tag
+                    </Label>
+                    <Input
+                      id={`asset-${index}`}
+                      placeholder="QCC-IT-001"
+                      value={device.assetTag}
+                      onChange={e => updateDevice(index, 'assetTag', e.target.value)}
                     />
                   </div>
 

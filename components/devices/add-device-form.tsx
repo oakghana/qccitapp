@@ -18,6 +18,7 @@ import { notificationService } from "@/lib/notification-service"
 interface Device {
   type: "laptop" | "desktop" | "printer" | "photocopier" | "handset" | "ups" | "stabiliser" | "mobile" | "server" | "other"
   serialNumber: string
+  assetTag: string
   model: string
   brand: string
   status: "active" | "repair" | "maintenance" | "retired"
@@ -58,6 +59,7 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
   const [formData, setFormData] = useState<Device>({
     type: "laptop",
     serialNumber: "",
+    assetTag: "",
     model: "",
     brand: "",
     status: "active",
@@ -213,6 +215,7 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
           brand: formData.brand,
           model: formData.model,
           serial_number: formData.serialNumber,
+          asset_tag: formData.assetTag || null,
           location: user?.location, // Always use the logged-in user's location
           region_id: null, // Region not used - devices inherit user's location only
           district_id: null, // District is managed separately and not required for device creation
@@ -366,6 +369,16 @@ export function AddDeviceForm({ onSubmit }: AddDeviceFormProps) {
               onChange={(e) => handleInputChange("serialNumber", e.target.value)}
               placeholder="Device serial number"
               required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="assetTag">Asset Tag</Label>
+            <Input
+              id="assetTag"
+              value={formData.assetTag}
+              onChange={(e) => handleInputChange("assetTag", e.target.value)}
+              placeholder="e.g., QCC-IT-001"
             />
           </div>
 
