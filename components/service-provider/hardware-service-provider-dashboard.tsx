@@ -65,73 +65,35 @@ export function HardwareServiceProviderDashboard() {
       setLoading(true)
       setError(null)
 
-      // Query repair_tasks table which contains the actual repairs to be done
-      const { data: repairTasks, error: err } = await supabase
-        .from("repair_tasks")
-        .select(
-          `
-          id,
-          task_number,
-          device_id,
-          device_info,
-          issue_description,
-          priority,
-          status,
-          service_provider_id,
-          assigned_date,
-          estimated_cost,
-          actual_cost,
-          work_started_at,
-          work_completed_at,
-          confirmed_by,
-          confirmed_at,
-          notes,
-          created_at
-          `
-        )
-        .order("assigned_date", { ascending: false })
+      // Query repair_requests table which contains the actual repairs
+      const { data: repairRequests, error: err } = await supabase
+        .from("repair_requests")
+        .select("*")
+        .order("created_at", { ascending: false })
 
       if (err) throw err
 
-      // Get related device data
-      const deviceIds = repairTasks?.map(t => t.device_id).filter(Boolean) || []
-      const devicesMap = new Map()
-      
-      if (deviceIds.length > 0) {
-        const { data: devices } = await supabase
-          .from("devices")
-          .select("id, brand, model, serial_number, asset_tag, location, device_type")
-          .in("id", deviceIds)
-        
-        devices?.forEach(d => devicesMap.set(d.id, d))
-      }
-
       // Transform data to match interface
-      const formattedDevices: DeviceForRepair[] = (repairTasks || []).map((task: any) => {
-        const device = devicesMap.get(task.device_id)
-        const deviceInfo = task.device_info || device || {}
-        
-        return {
-          id: task.id,
-          device_id: task.device_id,
-          device_name: deviceInfo.device_name || deviceInfo.name || `${deviceInfo.brand || "Unknown"} ${deviceInfo.model || "Unknown"}`,
-          device_type: deviceInfo.device_type || "Unknown",
-          brand: deviceInfo.brand || "Unknown",
-          model: deviceInfo.model || "Unknown",
-          serial_number: deviceInfo.serial_number || device?.serial_number || "",
-          asset_tag: deviceInfo.asset_tag || device?.asset_tag || "",
-          status: task.status || "pending_assignment",
-          issue_description: task.issue_description || task.notes || "No description provided",
-          priority: task.priority || "medium",
-          service_provider_id: task.service_provider_id,
-          service_provider_name: null, // Will be fetched separately if needed
-          location: deviceInfo.location || device?.location || "Unknown",
-          requested_by: "System",
-          created_at: task.created_at || new Date().toISOString(),
-          updated_at: task.assigned_date || new Date().toISOString(),
-          estimated_completion: task.estimated_completion || null,
-        }
-      })
+      const formattedDevices: DeviceForRepair[] = (repairRequests || []).map((repair: any) => ({
+        id: repair.id,
+        device_id: repair.device_id,
+        device_name: repair.device_name || `Device ${repair.device_id?.slice(0, 8)}`,
+        device_type: repair.device_type || "Unknown",
+        brand: repair.brand || "Unknown",
+        model: repair.model || "Unknown",
+        serial_number: repair.serial_number || "",
+        asset_tag: repair.asset_tag || "",
+        status: repair.status || "pending",
+        issue_description: repair.issue_description || repair.description || "No description provided",
+        priority: repair.priority || "medium",
+        service_provider_id: repair.service_provider_id,
+        service_provider_name: repair.service_provider_name || null,
+        location: repair.location || "Unknown",
+        requested_by: repair.requested_by || "Unknown",
+        created_at: repair.created_at || new Date().toISOString(),
+        updated_at: repair.updated_at || new Date().toISOString(),
+        estimated_completion: repair.estimated_completion || null,
+      }))
 
       setDevices(formattedDevices)
     } catch (err: any) {
@@ -165,17 +127,13 @@ export function HardwareServiceProviderDashboard() {
     try {
       setAssigningId(deviceId)
 
-      // Find the repair task for this device
-      const repairTask = devices.find((d) => d.id === deviceId)
-      if (!repairTask) throw new Error("Repair task not found")
-
-      // Update repair task with service provider assignment
+      // Update repair request with service provider assignment
       const { error: err } = await supabase
-        .from("repair_tasks")
+        .from("repair_requests")
         .update({
           service_provider_id: providerId,
           status: "assigned",
-          assigned_date: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
         .eq("id", deviceId)
 
@@ -227,14 +185,16 @@ export function HardwareServiceProviderDashboard() {
 
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { label: string; variant: any; icon: any }> = {
-      pending_assignment: { label: "Pending Assignment", variant: "outline", icon: AlertCircle },
+      pending: { label: "Pending", variant: "outline", icon: AlertCircle },
       assigned: { label: "Assigned", variant: "secondary", icon: Wrench },
-      in_repair: { label: "In Repair", variant: "default", icon: Wrench },
+      in_progress: { label: "In Progress", variant: "default", icon: Wrench },
       completed: { label: "Completed", variant: "default", icon: CheckCircle },
       returned: { label: "Returned", variant: "outline", icon: CheckCircle },
+      pending_assignment: { label: "Pending Assignment", variant: "outline", icon: AlertCircle },
+      in_repair: { label: "In Repair", variant: "default", icon: Wrench },
     }
 
-    const config = statusConfig[status] || statusConfig.pending_assignment
+    const config = statusConfig[status] || statusConfig.pending
     const Icon = config.icon
 
     return (
@@ -257,9 +217,9 @@ export function HardwareServiceProviderDashboard() {
 
   const stats = {
     total: devices.length,
-    pending: devices.filter((d) => d.status === "pending_assignment").length,
+    pending: devices.filter((d) => d.status === "pending" || d.status === "pending_assignment").length,
     assigned: devices.filter((d) => d.status === "assigned").length,
-    inRepair: devices.filter((d) => d.status === "in_repair").length,
+    inRepair: devices.filter((d) => d.status === "in_repair" || d.status === "in_progress").length,
     completed: devices.filter((d) => d.status === "completed").length,
   }
 
@@ -358,9 +318,9 @@ export function HardwareServiceProviderDashboard() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending_assignment">Pending Assignment</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="assigned">Assigned</SelectItem>
-                <SelectItem value="in_repair">In Repair</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="returned">Returned</SelectItem>
               </SelectContent>
@@ -407,7 +367,7 @@ export function HardwareServiceProviderDashboard() {
                       {getStatusBadge(device.status)}
                     </div>
 
-                    {device.status === "pending_assignment" && (
+                    {device.status === "pending" && (
                       <div className="flex gap-2">
                         <Select value={selectedProvider} onValueChange={(value) => setSelectedProvider(value)}>
                           <SelectTrigger className="w-40 h-8 text-xs">
