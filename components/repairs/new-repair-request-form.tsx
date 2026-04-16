@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback, useReducer } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,6 +16,7 @@ import { createClient } from "@/lib/supabase/client"
 import { canSeeAllLocations, canCreateRepairs, applyLocationFilter } from "@/lib/location-filter"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ShieldAlert } from "lucide-react"
+import debounce from "lodash.debounce";
 
 interface RepairRequest {
   deviceId: string
@@ -33,143 +34,123 @@ interface NewRepairRequestFormProps {
   ) => void
 }
 
-const mockDevices = [
-  { id: "DL-2024-001", name: "Dell Latitude 5520", location: "accra" as const },
-  { id: "HP-2024-045", name: "HP LaserJet Pro", location: "head_office" as const },
-  { id: "LD-2024-012", name: "Lenovo ThinkCentre", location: "kumasi" as const },
-  { id: "IP-2024-008", name: "iPhone 13", location: "kaase_inland_port" as const },
-]
+const initialState = {
+  formData: {
+    deviceId: "",
+    deviceName: "",
+    description: "",
+    priority: "medium" as const,
+    attachments: [] as string[],
+  },
+  selectedFiles: [] as File[],
+  searchField: "location" as "location" | "type" | "name" | "serial_number" | "assigned_to" | "assigned_user",
+  searchQuery: "",
+};
+
+function reducer(state, action) {
+  switch (action.type) {
+    case "SET_FORM_DATA":
+      return { ...state, formData: { ...state.formData, ...action.payload } };
+    case "SET_SELECTED_FILES":
+      return { ...state, selectedFiles: action.payload };
+    case "SET_SEARCH_FIELD":
+      return { ...state, searchField: action.payload };
+    case "SET_SEARCH_QUERY":
+      return { ...state, searchQuery: action.payload };
+    default:
+      return state;
+  }
+}
 
 export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
   const { user } = useAuth()
   const supabase = createClient()
   const [devices, setDevices] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [formData, setFormData] = useState({
-    deviceId: "",
-    deviceName: "",
-    description: "",
-    priority: "medium" as const,
-    attachments: [] as string[],
-  })
+  const [state, dispatch] = useReducer(reducer, initialState)
 
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
-  const [searchField, setSearchField] = useState<"location" | "type" | "name" | "serial_number" | "assigned_to">("location")
-  const [searchQuery, setSearchQuery] = useState("")
+  const canCreate = useMemo(() => user && canCreateRepairs(user), [user])
 
-  const canCreate = user && canCreateRepairs(user)
+  const loadDevices = useCallback(
+    async (queryField?: string, queryValue?: string) => {
+      if (!user) return
+
+      setLoading(true)
+      try {
+        let query: any = supabase.from("devices").select("*")
+
+        if (!canSeeAllLocations(user) && user.location) {
+          query = applyLocationFilter(query, user, "location")
+        }
+
+        const { data, error } = await query
+        if (error) {
+          console.error("Error loading devices:", error)
+          return
+        }
+
+        let filtered = data || []
+        if (queryValue) {
+          const q = queryValue.toLowerCase()
+          filtered = filtered.filter((d: any) =>
+            ["asset_tag", "id", "serial_number", "name", "type", "location", "assigned_to", "assigned_user"]
+              .some((key) => d[key]?.toLowerCase().includes(q))
+          )
+        }
+        setDevices(filtered)
+      } catch (error) {
+        console.error("Error loading devices:", error)
+      } finally {
+        setLoading(false)
+      }
+    },
+    [supabase, user]
+  )
+
+  const debouncedSearch = useMemo(() => debounce(loadDevices, 300), [loadDevices])
+
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault()
+      const attachmentNames = state.selectedFiles.map((file) => file.name)
+      onSubmit({ ...state.formData, attachments: attachmentNames })
+    },
+    [onSubmit, state.selectedFiles, state.formData]
+  )
+
+  const handleInputChange = useCallback(
+    (field: keyof typeof state.formData, value: string) => {
+      dispatch({ type: "SET_FORM_DATA", payload: { [field]: value } })
+    },
+    []
+  )
+
+  const handleSearch = useCallback(
+    (e?: React.FormEvent) => {
+      if (e) e.preventDefault()
+      debouncedSearch(state.searchField, state.searchQuery.trim())
+    },
+    [debouncedSearch, state.searchField, state.searchQuery]
+  )
+
+  const handleFileUpload = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files || [])
+      dispatch({ type: "SET_SELECTED_FILES", payload: [...state.selectedFiles, ...files] })
+    },
+    [state.selectedFiles]
+  )
+
+  const removeFile = useCallback(
+    (index: number) => {
+      dispatch({ type: "SET_SELECTED_FILES", payload: state.selectedFiles.filter((_, i) => i !== index) })
+    },
+    [state.selectedFiles]
+  )
 
   useEffect(() => {
     loadDevices()
-  }, [user])
-
-  const loadDevices = async (queryField?: string, queryValue?: string) => {
-    if (!user) return
-
-    setLoading(true)
-    try {
-      console.debug("[v0] loadDevices start", { user: user ? { id: user.id, role: user.role, location: user.location } : null, queryField, queryValue })
-      let query: any = supabase.from("devices").select("*")
-
-      // Always apply location filter first
-      if (!canSeeAllLocations(user) && user.location) {
-        // log aliases used by applyLocationFilter for debugging
-        try {
-          const { getLocationAliases } = await import("@/lib/location-filter")
-          console.debug("[v0] applying location filter aliases", getLocationAliases(user.location))
-        } catch (e) {
-          console.debug("[v0] could not load aliases for debug", e)
-        }
-        query = applyLocationFilter(query, user, "location")
-      }
-
-      // Only apply location filter at DB level, do NOT apply search filter at DB level
-      const { data, error } = await query
-
-      console.debug("[v0] raw devices fetched", { count: (data || []).length, sample: (data || []).slice(0, 5) })
-
-      if (error) {
-        console.error("[v0] Error loading devices:", error)
-        return
-      }
-
-      let filtered = data || []
-      console.debug("[v0] starting in-memory filtering", { queryValue })
-      // In-memory search filtering for all fields
-      if (queryValue) {
-        const q = queryValue.toLowerCase()
-        filtered = filtered.filter((d: any) => {
-          if (!d) return false
-          // Search all relevant fields
-          return (
-            (d.asset_tag && d.asset_tag.toLowerCase().includes(q)) ||
-            (d.id && d.id.toLowerCase().includes(q)) ||
-            (d.serial_number && d.serial_number.toLowerCase().includes(q)) ||
-            (d.name && d.name.toLowerCase().includes(q)) ||
-            (d.type && d.type.toLowerCase().includes(q)) ||
-            (d.location && d.location.toLowerCase().includes(q)) ||
-            (d.assigned_to && d.assigned_to.toLowerCase().includes(q)) ||
-            (d.assigned_user && d.assigned_user.toLowerCase().includes(q))
-          )
-        })
-        console.debug("[v0] after in-memory filter", { count: filtered.length })
-      }
-      setDevices(filtered)
-    } catch (error) {
-      console.error("[v0] Error loading devices:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const attachmentNames = selectedFiles.map((file) => file.name)
-    onSubmit({
-      ...formData,
-      attachments: attachmentNames,
-    })
-  }
-
-  const handleInputChange = (field: keyof typeof formData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
-
-  const handleDeviceSelect = (deviceId: string) => {
-    const device = devices.find((d) => d.id === deviceId)
-    if (device) {
-      setFormData((prev) => ({
-        ...prev,
-        deviceId: device.id,
-        deviceName: device.name || `${device.type} - ${device.model}`,
-      }))
-    }
-  }
-
-  const handleSearch = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault()
-    // Trim query
-    const q = (searchQuery || "").trim()
-    if (!q) {
-      loadDevices()
-      return
-    }
-    // If query looks like a device tag, ignore searchField and search by asset_tag/id
-    if (/^[A-Z0-9]{6,}$/.test(q)) {
-      await loadDevices(undefined, q)
-    } else {
-      await loadDevices(searchField, q)
-    }
-  }
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    setSelectedFiles((prev) => [...prev, ...files])
-  }
-
-  const removeFile = (index: number) => {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
-  }
+  }, [loadDevices])
 
   return (
     <div>
@@ -199,7 +180,8 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
                   <SelectItem value="type">Type</SelectItem>
                   <SelectItem value="name">Device Name</SelectItem>
                   <SelectItem value="serial_number">Serial Number</SelectItem>
-                  <SelectItem value="assigned_to">Assigned User</SelectItem>
+                  <SelectItem value="assigned_to">Assigned To</SelectItem>
+                  <SelectItem value="assigned_user">Assigned User</SelectItem>
                 </SelectContent>
               </Select>
               <Input
