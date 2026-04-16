@@ -37,7 +37,7 @@ export function UpdateRepairStatusModal({
 }: UpdateRepairStatusModalProps) {
   const [status, setStatus] = useState(repair.status || "assigned")
   const [actualCost, setActualCost] = useState(repair.actual_cost?.toString() || "")
-  const [notes, setNotes] = useState(repair.notes || "")
+  const [notes, setNotes] = useState(repair.work_notes || "")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async () => {
