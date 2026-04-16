@@ -10,7 +10,7 @@ import { downloadCSV } from "@/lib/export-utils"
 import StockCardDetailModal from "./stock-card-detail-modal"
 import { createBrowserClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
-import { canSeeAllLocations } from "@/lib/location-filter"
+import { canSeeAllLocations, locationsMatch } from "@/lib/location-filter"
 import {
   Tooltip,
   TooltipContent,
@@ -83,6 +83,9 @@ export default function StoreHeadDashboard() {
     if (lower === "central_stores") return "Central Stores"
     if (lower === "wn" || lower === "western_north") return "Western North"
     if (lower === "ws" || lower === "western_south") return "Western South"
+    if (lower === "cr" || lower === "cape_coast" || lower === "central_region") return "Cape Coast"
+    if (lower === "vr" || lower === "volta") return "Ho"
+    if (lower === "bar" || lower === "brong_ahafo") return "Sunyani"
     return loc.charAt(0).toUpperCase() + loc.slice(1).toLowerCase()
   }
 
@@ -114,8 +117,8 @@ export default function StoreHeadDashboard() {
         if (user && !canSeeAllLocations(user) && user.location) {
           console.log("[v0] Filtering items by location:", user.location, "+ Central Stores")
           filteredData = data.filter((item: any) => 
-            item.location?.toLowerCase() === user.location?.toLowerCase() ||
-            item.location?.toLowerCase() === "central stores"
+            locationsMatch(item.location, user.location) ||
+            locationsMatch(item.location, "Central Stores")
           )
         }
         

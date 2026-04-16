@@ -10,7 +10,7 @@ import { SortControls } from "@/components/ui/sort-controls"
 import { Package, AlertTriangle, CheckCircle2, Info } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { createClient } from "@/lib/supabase/client"
-import { canSeeAllLocations, getCanonicalLocationName } from "@/lib/location-filter"
+import { canSeeAllLocations, getCanonicalLocationName, locationsMatch } from "@/lib/location-filter"
 import { sortItems } from "@/lib/sort-utils"
 
 interface InventoryItem {
@@ -66,35 +66,34 @@ export default function StoreSnapshotPage() {
       try {
         const supabase = createClient()
 
-        let query = supabase.from("store_items").select("*").order("name", { ascending: true })
-
-        // Determine server-side filter based on selectedLocation
-        // "my" -> user's location + Central Stores (preferred default)
-        // "central" -> Central Stores only
-        // "all" -> no filter (requires permission)
-        if (selectedLocation === "my") {
-          if (user?.location) {
-            query = query.or(`location.eq.${user.location},location.eq.Central Stores`)
-            console.log("[v0] Loading inventory for:", user.location, "+ Central Stores")
-          } else {
-            query = query.eq("location", "Central Stores")
-          }
-        } else if (selectedLocation === "central") {
-          query = query.eq("location", "Central Stores")
-        } else if (selectedLocation && selectedLocation !== "all") {
-          // a specific named location chosen from the list
-          query = query.eq("location", selectedLocation)
-        }
-
-        const { data, error } = await query
+        const { data, error } = await supabase.from("store_items").select("*").order("name", { ascending: true })
 
         if (error) {
           console.error("[v0] Error fetching inventory:", error)
           return
         }
 
-        console.log("[v0] Fetched store items for snapshot:", data)
-        setInventory(data || [])
+        const visibleInventory = (data || []).filter((item: any) => {
+          if (selectedLocation === "my") {
+            return (
+              (user?.location ? locationsMatch(item.location, user.location) : false) ||
+              locationsMatch(item.location, "Central Stores")
+            )
+          }
+
+          if (selectedLocation === "central") {
+            return locationsMatch(item.location, "Central Stores")
+          }
+
+          if (selectedLocation && selectedLocation !== "all") {
+            return locationsMatch(item.location, selectedLocation)
+          }
+
+          return true
+        })
+
+        console.log("[v0] Fetched store items for snapshot:", visibleInventory)
+        setInventory(visibleInventory)
       } catch (error) {
         console.error("[v0] Error loading inventory:", error)
       } finally {

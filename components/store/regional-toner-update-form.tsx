@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
+import { locationsMatch } from "@/lib/location-filter"
 import { toast } from "sonner"
 
 interface TonerItem {
@@ -18,6 +19,7 @@ interface TonerItem {
   quantity: number
   reorder_level: number
   unit: string
+  location?: string
 }
 
 export function RegionalTonerUpdateForm({ onSuccess }: { onSuccess: () => void }) {
@@ -38,8 +40,7 @@ export function RegionalTonerUpdateForm({ onSuccess }: { onSuccess: () => void }
 
     const { data, error } = await supabase
       .from("store_items")
-      .select("id, name, sku, quantity, reorder_level, unit")
-      .eq("location", user.location)
+      .select("id, name, sku, quantity, reorder_level, unit, location")
       .eq("category", "Consumables")
       .order("name")
 
@@ -48,7 +49,7 @@ export function RegionalTonerUpdateForm({ onSuccess }: { onSuccess: () => void }
       return
     }
 
-    setTonerItems(data || [])
+    setTonerItems((data || []).filter((item) => locationsMatch(item.location, user.location)))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

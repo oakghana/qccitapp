@@ -42,6 +42,20 @@ const LOCATION_CANONICAL_MAP: Record<string, string> = {
   nsawam: "Eastern",
 }
 
+const LOCATION_ALIAS_GROUPS: Record<string, string[]> = {
+  "Cape Coast": ["CR", "Cape Coast", "Central Region", "cape_coast", "cr", "central_region"],
+  "Ho": ["VR", "Ho", "Volta", "vr", "ho", "volta"],
+  "Sunyani": ["BAR", "Sunyani", "Brong Ahafo", "bar", "sunyani", "brong_ahafo"],
+  "Head Office": ["Head Office", "head_office", "HeadOffice", "Head Office Accra"],
+}
+
+export function getLocationAliases(location: string | null | undefined): string[] {
+  if (!location) return []
+  const canonical = getCanonicalLocationName(location)
+  const aliases = LOCATION_ALIAS_GROUPS[canonical] || [location, canonical]
+  return Array.from(new Set([location, canonical, ...aliases].filter(Boolean)))
+}
+
 /**
  * Returns the canonical display name for a location.
  * If the location matches a known variant it is mapped to the canonical name,
@@ -144,11 +158,14 @@ export function getLocationFilter(user: User | null): string | null {
 export function applyLocationFilter<T>(query: T, user: User | null, columnName = "location"): T {
   const locationFilter = getLocationFilter(user)
   if (locationFilter) {
-    // Normalize common separators so codes like `head_office` match labels like `Head Office`.
-    const fuzzy = locationFilter.replace(/[_-]+/g, " ").trim()
-    // Use case-insensitive partial match so variants and punctuation don't prevent matches.
+    const aliases = [...getLocationAliases(locationFilter), "Central Stores"]
+    const clauses = aliases
+      .map((alias) => alias.replace(/[,%()]/g, "").trim())
+      .filter(Boolean)
+      .map((alias) => `${columnName}.ilike.%${alias}%`)
+
     // @ts-ignore - Dynamic query building for Supabase/PostgREST
-    return query.or(`${columnName}.ilike.%${fuzzy}%,${columnName}.ilike.%Central Stores%`)
+    return query.or(clauses.join(","))
   }
   return query
 }
@@ -162,8 +179,8 @@ export function applyLocationFilter<T>(query: T, user: User | null, columnName =
 export function canViewLocation(user: User | null, location: string): boolean {
   if (!user) return false
   if (canSeeAllLocations(user)) return true
-  if (location === "Central Stores") return true
-  return user.location === location
+  if (locationsMatch(location, "Central Stores")) return true
+  return locationsMatch(user.location, location)
 }
 
 /**
@@ -175,9 +192,8 @@ export function canViewLocation(user: User | null, location: string): boolean {
 export function canEditLocation(user: User | null, location: string): boolean {
   if (!user) return false
   if (canSeeAllLocations(user)) return true
-  // Regional IT heads can edit their location's data
-  if (user.role === "regional_it_head" && user.location === location) return true
-  return user.location === location
+  if (user.role === "regional_it_head" && locationsMatch(user.location, location)) return true
+  return locationsMatch(user.location, location)
 }
 
 /**
@@ -189,9 +205,9 @@ export function canCreateRepairs(user: User | null): boolean {
   if (!user) return false
   if (user.role === "admin") return true
   if (user.role === "regional_it_head") return true
-  if (user.role === "it_staff" && user.location === "Head Office") return true
-  if (user.role === "it_head" && user.location === "Head Office") return true
-  if (user.role === "it_store_head" && user.location === "Head Office") return true
+  if (user.role === "it_staff" && locationsMatch(user.location, "Head Office")) return true
+  if (user.role === "it_head" && locationsMatch(user.location, "Head Office")) return true
+  if (user.role === "it_store_head" && locationsMatch(user.location, "Head Office")) return true
   return false
 }
 
@@ -205,7 +221,7 @@ export function canManageStock(user: User | null): boolean {
   if (!user) return false
   if (user.role === "admin") return true
   if (user.role === "it_store_head") return true
-  if (user.role === "it_head" && user.location === "Head Office") return true
+  if (user.role === "it_head" && locationsMatch(user.location, "Head Office")) return true
   if (user.role === "regional_it_head") return true
   return false
 }
