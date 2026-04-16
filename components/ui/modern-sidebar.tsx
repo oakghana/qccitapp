@@ -1,10 +1,8 @@
 "use client"
 
-import { useEffect } from "react"
-
-import { useState } from "react"
-
-import React from "react"
+import React, { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import { usePathname, useRouter } from "next/navigation"
 
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
@@ -76,6 +74,8 @@ interface ModernSidebarProps {
 export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }: ModernSidebarProps) {
   const { user, logout } = useAuth()
   const { counts, loading } = useBadgeCounts(user)
+  const pathname = usePathname()
+  const router = useRouter()
   const [isProfileExpanded, setIsProfileExpanded] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
@@ -93,6 +93,8 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
   }, [isCollapsed, onCollapseChange])
 
   const roleColors = user?.role ? getRoleColorScheme(user.role) : null
+
+  const isActiveLink = (href: string) => pathname === href || (href !== "/dashboard" && pathname?.startsWith(`${href}/`))
 
   const toggleGroup = (groupName: string) => {
     setExpandedGroups(prev => 
@@ -690,7 +692,13 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
     }, 100)
   }
 
-  const navigation = getNavigationItems()
+  const navigation = useMemo(() => getNavigationItems(), [user, counts])
+
+  useEffect(() => {
+    if (user?.role === "admin" && navigation.groups.length > 0) {
+      setExpandedGroups((prev) => (prev.length > 0 ? prev : navigation.groups.map((group) => group.name)))
+    }
+  }, [user?.role, navigation.groups])
 
   // Prevent hydration mismatch by not rendering until mounted
   if (!isMounted) {
@@ -711,14 +719,14 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           "dark:bg-gray-950/95 dark:border-gray-800/80",
           // Mobile: fixed overlay
           "fixed left-0 top-0 z-50 transform transition-all duration-300 ease-in-out lg:relative lg:z-auto",
-          isCollapsed ? "w-20" : "w-72",
+          isCollapsed ? "w-20" : "w-64",
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
           className,
         )}
       >
         <div className="flex h-full flex-col">
           {/* Minimalist Header */}
-          <div className="flex h-16 items-center justify-between px-4 border-b border-gray-100 dark:border-gray-800">
+          <div className="flex h-14 items-center justify-between px-3 border-b border-gray-100 dark:border-gray-800">
             {!isCollapsed && (
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-600 to-yellow-600 flex items-center justify-center shadow-lg">
@@ -758,7 +766,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
 
           {/* User Profile */}
           {!isCollapsed && (
-            <div className="p-4 border-b border-gray-100 dark:border-gray-800">
+            <div className="p-3 border-b border-gray-100 dark:border-gray-800">
               <Button
                 variant="ghost"
                 className="w-full p-0 h-auto hover:bg-gray-50 dark:hover:bg-gray-800/50"
@@ -827,15 +835,18 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           )}
 
           {/* Navigation */}
-          <ScrollArea className="flex-1 px-3 py-4 scrollbar-thin scrollbar-thumb-orange-500 scrollbar-track-gray-100 dark:scrollbar-track-gray-800 hover:scrollbar-thumb-orange-600">
-            <nav className="space-y-1">
+          <ScrollArea className="flex-1 px-2 py-3 scrollbar-thin scrollbar-thumb-orange-500 scrollbar-track-gray-100 dark:scrollbar-track-gray-800 hover:scrollbar-thumb-orange-600">
+            <nav className="space-y-0.5">
               {/* Regular navigation items */}
               {navigation.items.map((item) => (
                 <div key={item.name} className="relative group">
-                  <a
+                  <Link
                     href={item.href}
                     className={cn(
-                      "flex items-center space-x-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100 transition-all duration-200 group relative",
+                      "flex items-center space-x-3 rounded-lg px-3 py-2 text-gray-700 transition-all duration-200 group relative dark:text-gray-300",
+                      isActiveLink(item.href)
+                        ? "bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+                        : "hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-800 dark:hover:text-gray-100",
                       isCollapsed ? "justify-center" : "justify-between",
                     )}
                     title={isCollapsed ? item.name : undefined}
@@ -856,7 +867,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                         {item.badge}
                       </Badge>
                     )}
-                  </a>
+                  </Link>
                   {/* Tooltip for collapsed state */}
                   {isCollapsed && (
                     <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
@@ -875,8 +886,12 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                   {navigation.groups.map((group) => (
                     <Collapsible
                       key={group.name}
-                      open={expandedGroups.includes(group.name)}
-                      onOpenChange={() => toggleGroup(group.name)}
+                      open={user?.role === "admin" ? true : expandedGroups.includes(group.name)}
+                      onOpenChange={() => {
+                        if (user?.role !== "admin") {
+                          toggleGroup(group.name)
+                        }
+                      }}
                     >
                       <CollapsibleTrigger asChild>
                         <Button
@@ -893,21 +908,28 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                                 {group.badge}
                               </Badge>
                             )}
-                            <ChevronRight
-                              className={cn(
-                                "h-4 w-4 transition-transform duration-200",
-                                expandedGroups.includes(group.name) && "rotate-90"
-                              )}
-                            />
+                            {user?.role !== "admin" && (
+                              <ChevronRight
+                                className={cn(
+                                  "h-4 w-4 transition-transform duration-200",
+                                  expandedGroups.includes(group.name) && "rotate-90"
+                                )}
+                              />
+                            )}
                           </div>
                         </Button>
                       </CollapsibleTrigger>
                       <CollapsibleContent className="pl-4 space-y-1 mt-1">
                         {group.items.map((item) => (
-                          <a
+                          <Link
                             key={item.name}
                             href={item.href}
-                            className="flex items-center justify-between px-3 py-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100 transition-all duration-200 text-sm"
+                            className={cn(
+                              "flex items-center justify-between rounded-lg px-3 py-1.5 text-sm text-gray-600 transition-all duration-200 dark:text-gray-400",
+                              isActiveLink(item.href)
+                                ? "bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+                                : "hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-800 dark:hover:text-gray-100",
+                            )}
                           >
                             <div className="flex items-center space-x-3">
                               <item.icon className="h-4 w-4" />
@@ -918,7 +940,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                                 {item.badge}
                               </Badge>
                             )}
-                          </a>
+                          </Link>
                         ))}
                       </CollapsibleContent>
                     </Collapsible>
@@ -934,7 +956,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                       <Button
                         variant="ghost"
                         className="w-full justify-center px-3 py-2.5 h-auto"
-                        onClick={() => window.location.href = group.items[0]?.href || "#"}
+                        onClick={() => router.push(group.items[0]?.href || "/dashboard")}
                       >
                         <div className="relative">
                           <group.icon className="h-5 w-5" />
@@ -955,7 +977,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
             </nav>
 
             {/* Quick Actions - only when not collapsed */}
-            {!isCollapsed && (
+            {!isCollapsed && user?.role !== "admin" && (
               <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800">
                 <div className="px-3 mb-3">
                   <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -969,9 +991,9 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                     className="w-full justify-start text-xs bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700 dark:bg-blue-950 dark:hover:bg-blue-900/20 text-blue-700 dark:text-blue-300"
                     onClick={() => {
                       if (user?.role === "staff") {
-                        window.location.href = "/dashboard/complaints"
+                        router.push("/dashboard/complaints")
                       } else {
-                        window.location.href = "/dashboard/repairs"
+                        router.push("/dashboard/repairs")
                       }
                     }}
                   >
@@ -1001,7 +1023,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                   <Button
                     variant="ghost"
                     className="w-full justify-start text-sm h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
-                    onClick={() => (window.location.href = "/dashboard/settings")}
+                    onClick={() => router.push("/dashboard/settings")}
                   >
                     <Settings className="mr-3 h-4 w-4" />
                     Settings
@@ -1034,7 +1056,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                     variant="ghost"
                     size="icon"
                     className="w-full h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
-                    onClick={() => (window.location.href = "/dashboard/settings")}
+                    onClick={() => router.push("/dashboard/settings")}
                   >
                     <Settings className="h-4 w-4" />
                   </Button>

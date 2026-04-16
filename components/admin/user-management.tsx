@@ -33,7 +33,7 @@ import { useAuth } from "@/lib/auth-context"
 import { FormNavigation } from "@/components/ui/form-navigation"
 import { usePWAInstall } from "@/components/ui/pwa-install"
 import { getRoleColorScheme } from "@/lib/role-colors"
-import { cn } from "@/lib/utils"
+import { cn, formatDisplayDate } from "@/lib/utils"
 import { createClient } from "@/supabase/supabase-client"
 import { getLocationOptions, LOCATIONS } from "@/lib/locations"
 import { getCanonicalLocationName } from "@/lib/location-filter"
@@ -141,8 +141,8 @@ export function UserManagement() {
 
         const mappedUsers: SystemUser[] = fetchedUsers.map((profile: any) => ({
           id: profile.id,
-          name: profile.full_name || profile.username,
-          email: profile.email || profile.username,
+          name: profile.full_name || profile.username || "Unnamed User",
+          email: profile.email || profile.username || "",
           phone: profile.phone || "",
           role: profile.role,
           location: profile.location || "Head Office",
@@ -153,7 +153,7 @@ export function UserManagement() {
                 ? "active"
                 : "inactive",
           lastLogin: profile.updated_at,
-          createdDate: new Date(profile.created_at).toISOString().split("T")[0],
+          createdDate: formatDisplayDate(profile.created_at, "N/A"),
           deviceCount: 0,
         }))
 
@@ -176,10 +176,11 @@ export function UserManagement() {
     }
 
     return filteredByAccess.filter((user) => {
+      const normalizedSearch = searchTerm.toLowerCase()
       const matchesSearch =
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.id.toLowerCase().includes(searchTerm.toLowerCase())
+        (user.name || "").toLowerCase().includes(normalizedSearch) ||
+        (user.email || "").toLowerCase().includes(normalizedSearch) ||
+        (user.id || "").toLowerCase().includes(normalizedSearch)
 
       const matchesRole = roleFilter === "all" || user.role === roleFilter
       const matchesLocation = locationFilter === "all" || getCanonicalLocationName(user.location) === locationFilter

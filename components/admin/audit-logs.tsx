@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, User, Shield, Database, Settings, FileText } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { formatDisplayDateTime } from "@/lib/utils"
 
 interface AuditLog {
   id: string
@@ -188,7 +189,7 @@ export function AuditLogs() {
                         <CardDescription className="flex items-center gap-2">
                           <span>{log.user}</span>
                           <span>•</span>
-                          <span>{new Date(log.timestamp).toLocaleString()}</span>
+                          <span>{formatDisplayDateTime(log.timestamp)}</span>
                         </CardDescription>
                       </div>
                     </div>

@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Plus, Pencil, Trash2, Database } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { formatDisplayDate } from "@/lib/utils"
 
 type LookupType = "locations" | "departments" | "device_types" | "item_categories"
 
@@ -222,9 +223,7 @@ export function LookupDataManagement() {
                         {item.is_active ? "Active" : "Inactive"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {new Date(item.created_at).toLocaleDateString()}
-                    </TableCell>
+                    <TableCell className="text-muted-foreground">{formatDisplayDate(item.created_at)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Button variant="ghost" size="sm" onClick={() => openDialog(item)}>

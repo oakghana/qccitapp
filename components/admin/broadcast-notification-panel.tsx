@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import { useNotification } from '@/hooks/use-notification-sound'
+import { formatDisplayDate } from '@/lib/utils'
 import { Bell, Loader2, Send, AlertCircle, InfoIcon } from 'lucide-react'
 
 interface AdminBroadcastPanelProps {
@@ -214,7 +215,7 @@ export const AdminBroadcastPanel: React.FC<AdminBroadcastPanelProps> = ({
                           {notif.target_location_name}
                         </span>
                       )}
-                      <span>{new Date(notif.created_at).toLocaleDateString()}</span>
+                      <span>{formatDisplayDate(notif.created_at)}</span>
                     </div>
                   </div>
                 </div>

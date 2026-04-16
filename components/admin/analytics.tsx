@@ -59,14 +59,22 @@ export function Analytics() {
 
       // Calculate average resolution time from tickets
       const resolvedTickets = tickets?.filter((t) => t.status === "resolved") || []
+      const validResolutionTimes = resolvedTickets
+        .map((ticket) => {
+          const created = new Date(ticket.created_at)
+          const resolved = new Date(ticket.resolved_at || ticket.updated_at)
+
+          if (Number.isNaN(created.getTime()) || Number.isNaN(resolved.getTime())) {
+            return null
+          }
+
+          return (resolved.getTime() - created.getTime()) / (1000 * 60 * 60)
+        })
+        .filter((value): value is number => value !== null && value >= 0)
+
       const avgTime =
-        resolvedTickets.length > 0
-          ? resolvedTickets.reduce((sum, t) => {
-              const created = new Date(t.created_at)
-              const resolved = new Date(t.resolved_at || t.updated_at)
-              const hours = (resolved.getTime() - created.getTime()) / (1000 * 60 * 60)
-              return sum + hours
-            }, 0) / resolvedTickets.length
+        validResolutionTimes.length > 0
+          ? validResolutionTimes.reduce((sum, hours) => sum + hours, 0) / validResolutionTimes.length
           : 0
       setAvgResolutionTime(avgTime)
 

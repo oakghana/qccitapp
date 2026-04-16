@@ -281,14 +281,15 @@ export function ServiceProviderManagement() {
     }
   }
 
-  const filteredProviders = providers.filter(
-    (provider) =>
-      provider.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      provider.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      provider.specialization?.some((specialty) => 
-        specialty.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-  )
+  const filteredProviders = providers.filter((provider) => {
+    const normalizedSearch = searchTerm.toLowerCase()
+
+    return (
+      (provider.name || "").toLowerCase().includes(normalizedSearch) ||
+      (provider.email || "").toLowerCase().includes(normalizedSearch) ||
+      (provider.specialization || []).some((specialty) => (specialty || "").toLowerCase().includes(normalizedSearch))
+    )
+  })
 
   if (loading) {
     return (

@@ -19,6 +19,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { CheckCircle2, XCircle, Clock, Mail, MapPin, Phone, Briefcase, Search, Eye, EyeOff } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getLocationLabel } from "@/lib/locations"
+import { formatDisplayDate } from "@/lib/utils"
 
 interface PendingUser {
   id: string
@@ -191,12 +192,15 @@ export function UserApprovalManagement() {
     return roles[role] || role
   }
 
-  const filteredPendingUsers = pendingUsers.filter(
-    (user) =>
-      user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.username.toLowerCase().includes(searchQuery.toLowerCase()),
-  )
+  const filteredPendingUsers = pendingUsers.filter((user) => {
+    const normalizedSearch = searchQuery.toLowerCase()
+
+    return (
+      (user.fullName || "").toLowerCase().includes(normalizedSearch) ||
+      (user.email || "").toLowerCase().includes(normalizedSearch) ||
+      (user.username || "").toLowerCase().includes(normalizedSearch)
+    )
+  })
 
   return (
     <div className="space-y-6">
@@ -268,7 +272,7 @@ export function UserApprovalManagement() {
                             )}
                             <div className="flex items-center gap-2">
                               <Clock className="w-4 h-4 text-muted-foreground" />
-                              <span>{new Date(user.createdAt).toLocaleDateString()}</span>
+                              <span>{formatDisplayDate(user.createdAt)}</span>
                             </div>
                           </div>
                         </div>

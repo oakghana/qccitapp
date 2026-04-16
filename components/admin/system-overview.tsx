@@ -60,13 +60,24 @@ export function SystemOverview() {
 
       let avgRepairDays = 0
       if (completedRepairs && completedRepairs.length > 0) {
-        const totalDays = completedRepairs.reduce((sum, repair) => {
-          const start = new Date(repair.created_at).getTime()
-          const end = new Date(repair.completed_date!).getTime()
-          const days = (end - start) / (1000 * 60 * 60 * 24)
-          return sum + days
-        }, 0)
-        avgRepairDays = totalDays / completedRepairs.length
+        const validDurations = completedRepairs
+          .map((repair) => {
+            if (!repair.created_at || !repair.completed_date) return null
+
+            const start = new Date(repair.created_at).getTime()
+            const end = new Date(repair.completed_date).getTime()
+
+            if (Number.isNaN(start) || Number.isNaN(end) || end < start) {
+              return null
+            }
+
+            return (end - start) / (1000 * 60 * 60 * 24)
+          })
+          .filter((value): value is number => value !== null)
+
+        avgRepairDays = validDurations.length > 0
+          ? validDurations.reduce((sum, days) => sum + days, 0) / validDurations.length
+          : 0
       }
 
       // Fetch regional statistics
