@@ -91,7 +91,14 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
       }
 
       console.log("[v0] Loaded devices for repair request:", (data || []).length)
-      setDevices(data || [])
+      // Only include devices from the user's assigned region (exclude Central Stores and others)
+      let filtered = data || []
+      if (!canSeeAllLocations(user) && user.location) {
+        const { getLocationAliases } = await import("@/lib/location-filter")
+        const aliases = getLocationAliases(user.location)
+        filtered = filtered.filter((d: any) => aliases.includes(d.location))
+      }
+      setDevices(filtered)
     } catch (error) {
       console.error("[v0] Error loading devices:", error)
     } finally {
