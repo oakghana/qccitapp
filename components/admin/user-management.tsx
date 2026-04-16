@@ -476,77 +476,8 @@ export function UserManagement() {
               </SelectContent>
             </Select>
           </div>
-          {/* Department field for Department Head role */}
-          {formData.role === "department_head" && (
-            <div>
-              <label className="text-sm font-medium">Department *</label>
-              <Input
-                placeholder="e.g., Finance, HR, Operations"
-                value={formData.department || ""}
-                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground mt-1">Specify the department this head oversees</p>
-            </div>
-          )}
-          <div className="col-span-2">
-            <div className="flex items-center space-x-2 mb-2">
-              <input
-                type="checkbox"
-                id="changePassword"
-                checked={formData.changePassword}
-                onChange={(e) => setFormData({ ...formData, changePassword: e.target.checked, password: "" })}
-                className="rounded"
-              />
-              <label htmlFor="changePassword" className="text-sm font-medium">
-                Change Password
-              </label>
-            </div>
-            {formData.changePassword && (
-              <div className="relative">
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="Enter new password"
-                  minLength={6}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-full"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? "👁️" : "👁️‍🗨️"}
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            className={cn(
-              "text-white",
-              roleColors
-                ? `bg-gradient-to-r ${roleColors.gradient} ${roleColors.hoverGradient}`
-                : "bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600",
-            )}
-          >
-            {isSubmitting ? "Updating..." : "Update User"}
-          </Button>
-        </div>
-      </form>
-    </div>
-  )
-}
-
-function ResetPasswordForm({ user, onClose }: { user: SystemUser; onClose: () => void }) {
-  const [newPassword, setNewPassword] = useState("")
+        </CardContent>
+      </Card>
   const [confirmPassword, setConfirmPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
