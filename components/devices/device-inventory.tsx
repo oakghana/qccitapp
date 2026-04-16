@@ -26,6 +26,7 @@ interface Device {
   name: string
   type: "laptop" | "desktop" | "printer" | "mobile" | "server" | "other"
   serialNumber: string
+  assetTag: string
   model: string
   brand: string
   status: "active" | "repair" | "maintenance" | "retired"
@@ -469,6 +470,7 @@ export function DeviceInventory() {
       // Prepare data for export
       const exportData = filteredDevices.map((device, index) => ({
         "S/N": index + 1,
+        "Asset Tag": device.assetTag || "N/A",
         "Device Type": device.deviceType.toUpperCase(),
         Brand: device.brand,
         Model: device.model,
@@ -796,6 +798,9 @@ export function DeviceInventory() {
                     <h3 className="font-semibold text-sm truncate" title={device.name}>
                       {device.brand} {device.model}
                     </h3>
+                    <p className="text-xs text-muted-foreground font-mono truncate" title={device.assetTag}>
+                      Tag: {device.assetTag || "N/A"}
+                    </p>
                     <p className="text-xs text-muted-foreground font-mono truncate" title={device.serialNumber}>
                       {device.serialNumber}
                     </p>

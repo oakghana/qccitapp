@@ -95,6 +95,7 @@ export function ITHeadRepairManagement() {
   const [selectedLocation, setSelectedLocation] = useState<string>("")
   const [locations, setLocations] = useState<{ code: string; name: string }[]>([])
   const [attachments, setAttachments] = useState<File[]>([])
+  const [deviceSearchTerm, setDeviceSearchTerm] = useState("")
 
   // Edit form states
   const [editSelectedDevice, setEditSelectedDevice] = useState("")
@@ -346,6 +347,18 @@ export function ITHeadRepairManagement() {
     const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter
 
     return matchesSearch && matchesStatus && matchesPriority
+  })
+
+  // Filter devices based on search term
+  const filteredDevices = devices.filter((device) => {
+    const search = deviceSearchTerm.toLowerCase()
+    return (
+      device.assetTag?.toLowerCase().includes(search) ||
+      device.serialNumber?.toLowerCase().includes(search) ||
+      device.brand?.toLowerCase().includes(search) ||
+      device.model?.toLowerCase().includes(search) ||
+      device.type?.toLowerCase().includes(search)
+    )
   })
 
   const createRepairTask = async () => {
@@ -703,24 +716,45 @@ export function ITHeadRepairManagement() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="device">Select Device</Label>
-                    <Select value={selectedDevice} onValueChange={setSelectedDevice}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={devices.length > 0 ? "Choose device to repair" : "No devices available"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(devices || []).length > 0 ? (
-                          (devices || []).map((device) => (
-                            <SelectItem key={device.id} value={device.id}>
-                              {device.assetTag || device.serialNumber} - {device.type} ({device.brand} {device.model} {device.location ? `@ ${device.location}` : ""})
+                    <div className="space-y-2">
+                      <Input
+                        placeholder="Search by serial, tag, brand, model..."
+                        value={deviceSearchTerm}
+                        onChange={(e) => setDeviceSearchTerm(e.target.value)}
+                        className="w-full"
+                      />
+                      <Select value={selectedDevice} onValueChange={(value) => {
+                        setSelectedDevice(value)
+                        setDeviceSearchTerm("")
+                      }}>
+                        <SelectTrigger>
+                          <SelectValue placeholder={devices.length > 0 ? "Choose device to repair" : "No devices available"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {filteredDevices.length > 0 ? (
+                            filteredDevices.map((device) => (
+                              <SelectItem key={device.id} value={device.id}>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{device.assetTag || device.serialNumber}</span>
+                                  <span className="text-xs text-muted-foreground">{device.type} - {device.brand} {device.model} {device.location ? `@ ${device.location}` : ""}</span>
+                                </div>
+                              </SelectItem>
+                            ))
+                          ) : deviceSearchTerm ? (
+                            <SelectItem value="no-match" disabled>
+                              No devices match your search
                             </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="no-devices" disabled>
-                            {user?.role === "it_staff" ? "No devices in your location" : "Select a location above"}
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
+                          ) : (
+                            <SelectItem value="no-devices" disabled>
+                              {user?.role === "it_staff" ? "No devices in your location" : "Select a location above"}
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        {filteredDevices.length} device(s) found
+                      </p>
+                    </div>
                   </div>
 
                   <div>

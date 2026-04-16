@@ -210,7 +210,7 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Created repair request:", data)
 
-    // If a service provider is assigned, send email using hardcoded provider info
+    // If a service provider is assigned, send email notification
     if (body.service_provider_name) {
       // Hardcoded service provider email addresses
       const providerEmails: Record<string, string> = {
@@ -254,6 +254,43 @@ export async function POST(request: NextRequest) {
         )
 
         console.log("[v0] Email notification result:", emailResult)
+      }
+    }
+
+    // Create in-app notification for service provider
+    if (body.service_provider_name) {
+      try {
+        // Map hardcoded provider names to user IDs or send to admin
+        const providerMap: Record<string, string> = {
+          "NATHLAND COMPANY LIMITED": "nathland-company",
+          "INTEL COMPUTERS": "intel-computers",
+        }
+
+        const providerId = providerMap[body.service_provider_name] || body.service_provider_name
+
+        // Create notification record
+        const { error: notifError } = await supabaseAdmin
+          .from("notifications")
+          .insert({
+            recipient_type: "service_provider",
+            recipient_id: providerId,
+            title: "New Repair Task Assigned",
+            message: `Task ${taskNumber}: ${body.device_name} - ${body.issue_description}`,
+            type: "repair_assigned",
+            related_id: data.id,
+            related_type: "repair_request",
+            read: false,
+            created_at: new Date().toISOString(),
+          })
+
+        if (notifError) {
+          console.error("[v0] Error creating in-app notification:", notifError)
+        } else {
+          console.log("[v0] In-app notification created for service provider:", providerId)
+        }
+      } catch (err) {
+        console.error("[v0] Error in notification creation:", err)
+        // Don't fail the repair creation if notification fails
       }
     }
 
