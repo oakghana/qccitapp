@@ -23,6 +23,8 @@ export function ITEquipmentRequisitionForm({ onSubmit }: { onSubmit: () => void 
     itemsRequired: "",
     purpose: "",
     requestedBy: user?.full_name || "",
+    requestedById: user?.id || "",
+    requestedByEmail: user?.email || "",
     department: "",
     requestDate: new Date().toISOString().split("T")[0],
   })
@@ -96,7 +98,7 @@ export function ITEquipmentRequisitionForm({ onSubmit }: { onSubmit: () => void 
       console.log("[v0] IT Requisition saved successfully:", result)
       toast({
         title: "✓ Requisition Created",
-        description: `Your IT equipment requisition (${result.requisitionNumber}) has been submitted successfully`,
+        description: `Your IT equipment requisition (${result.requisitionNumber}) has been sent to your HOD for approval`,
       })
 
       // Reset form
@@ -106,6 +108,8 @@ export function ITEquipmentRequisitionForm({ onSubmit }: { onSubmit: () => void 
         itemsRequired: "",
         purpose: "",
         requestedBy: user?.full_name || "",
+        requestedById: user?.id || "",
+        requestedByEmail: user?.email || "",
         department: "",
         requestDate: new Date().toISOString().split("T")[0],
       })

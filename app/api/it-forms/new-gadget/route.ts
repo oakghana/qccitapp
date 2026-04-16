@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       recommended: recommended === "yes" ? true : recommended === "no" ? false : null,
       confirmed_by: confirmedBy || null,
       confirmed_date: confirmedDate || null,
-      status: "draft",
+      status: "pending_department_head",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
@@ -164,7 +164,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 })
     }
 
-    if (existing.status !== "draft") {
+    if (!["draft", "pending_department_head"].includes(existing.status)) {
       return NextResponse.json({ error: "This request is already under review and cannot be edited." }, { status: 403 })
     }
 

@@ -99,35 +99,36 @@ export function ITFormsApprovalDashboard() {
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { variant: any; label: string; icon: any }> = {
       draft: { variant: "secondary", label: "Draft", icon: Clock },
-      pending: { variant: "default", label: "Pending Review", icon: Clock },
-      approved_service_desk: { variant: "outline", label: "Service Desk Approved", icon: CheckCircle2 },
-      approved_it_head: { variant: "outline", label: "IT Head Approved", icon: CheckCircle2 },
-      approved_admin: { variant: "outline", label: "Admin Approved", icon: CheckCircle2 },
-      ready_for_issuance: { variant: "outline", label: "Ready for Issuance", icon: CheckCircle2 },
+      pending_department_head: { variant: "default", label: "Awaiting HOD", icon: Clock },
+      pending_service_desk: { variant: "outline", label: "Service Desk Review", icon: CheckCircle2 },
+      pending_it_head: { variant: "outline", label: "IT Head Review", icon: CheckCircle2 },
+      pending_admin: { variant: "outline", label: "Admin Review", icon: CheckCircle2 },
+      pending_store: { variant: "outline", label: "Ready for Store", icon: CheckCircle2 },
       issued: { variant: "default", label: "Issued", icon: CheckCircle2 },
+      rejected_department_head: { variant: "destructive", label: "Rejected by HOD", icon: XCircle },
       rejected: { variant: "destructive", label: "Rejected", icon: XCircle },
     }
 
-    const config = statusConfig[status] || { variant: "secondary", label: status, icon: Clock }
+    const config = statusConfig[status] || { variant: "secondary", label: status.replace(/_/g, " "), icon: Clock }
     return <Badge variant={config.variant as any}>{config.label}</Badge>
   }
 
   const canApprove = (req: ITRequisition): boolean => {
     const userRole = user?.role || ""
 
-    if (req.status === "draft") {
-      return ["admin", "it_head"].includes(userRole)
+    if (["draft", "pending_department_head"].includes(req.status)) {
+      return false
     }
-    if (req.status === "pending") {
+    if (req.status === "pending_service_desk") {
       return userRole === "service_desk_head" || userRole === "admin"
     }
-    if (req.status === "approved_service_desk") {
+    if (req.status === "pending_it_head") {
       return userRole === "it_head" || userRole === "admin"
     }
-    if (req.status === "approved_it_head") {
+    if (req.status === "pending_admin") {
       return userRole === "admin"
     }
-    if (req.status === "approved_admin") {
+    if (req.status === "pending_store") {
       return userRole === "it_store_head"
     }
 
@@ -194,7 +195,7 @@ export function ITFormsApprovalDashboard() {
   }
 
   const getPendingCount = () => {
-    return requisitions.filter((r) => ["pending", "draft"].includes(r.status)).length
+    return requisitions.filter((r) => ["pending_department_head", "pending_service_desk", "pending_it_head", "pending_admin", "pending_store", "draft"].includes(r.status)).length
   }
 
   return (

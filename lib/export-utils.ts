@@ -4,12 +4,35 @@ import autoTable from "jspdf-autotable"
 const BRAND_NAME = "Quality Control Company Limited"
 const BRAND_SUBTITLE = "Intranet Report"
 const LOGO_PATH = "/images/qcc-logo.png"
+const COMPANY_REG_TEXT = "Reg. No 3071"
 
 export interface ExportData {
   title: string
   fileName: string
   headers: string[]
   rows: (string | number)[][]
+}
+
+export type ITFormType = "requisition" | "maintenance" | "new-gadget"
+
+export interface ITFormPDFData {
+  formType: ITFormType
+  fileName: string
+  requestNumber: string
+  staffName: string
+  department: string
+  requestDate: string
+  summary: string
+  purpose?: string
+  status?: string
+  gadgetMake?: string
+  serialNumber?: string
+  yearOfPurchase?: string | number
+  dateOfPurchase?: string
+  timesRepaired?: string | number
+  hodName?: string
+  hodDate?: string
+  extraNotes?: string
 }
 
 async function getLogoDataUrl() {
@@ -28,6 +51,42 @@ async function getLogoDataUrl() {
     console.error("[export-utils] Failed to load report logo:", error)
     return null
   }
+}
+
+function formatStatus(status?: string) {
+  if (!status) return "Pending"
+  return status
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+function addSectionHeader(doc: jsPDF, title: string, sectionCode: string, y: number) {
+  doc.setFillColor(248, 244, 232)
+  doc.rect(14, y - 4, 182, 7, "F")
+  doc.setDrawColor(120, 120, 120)
+  doc.rect(14, y - 4, 182, 7)
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(8)
+  doc.text(title, 16, y)
+  doc.text(sectionCode, 192, y, { align: "right" })
+  return y + 9
+}
+
+function addFieldLine(doc: jsPDF, label: string, value: string, x: number, y: number) {
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(9)
+  doc.text(`${label}: ${value || "................................"}`, x, y)
+  return y + 6
+}
+
+function addWrappedField(doc: jsPDF, label: string, value: string, x: number, y: number, valueOffset = 36, maxWidth = 135) {
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(9)
+  doc.text(`${label}:`, x, y)
+  const safeValue = value?.trim() || "................................"
+  const lines = doc.splitTextToSize(safeValue, maxWidth)
+  doc.text(lines, x + valueOffset, y)
+  return y + Math.max(7, lines.length * 5 + 2)
 }
 
 export function downloadCSV(data: ExportData) {
@@ -151,4 +210,81 @@ export async function exportToPDF(data: ExportData) {
   }
 
   doc.save(`${fileName}-${new Date().toISOString().split("T")[0]}.pdf`)
+}
+
+export async function exportITFormPDF(data: ITFormPDFData) {
+  const doc = new jsPDF("p", "mm", "a4")
+  const logoDataUrl = await getLogoDataUrl()
+  const pageWidth = doc.internal.pageSize.getWidth()
+
+  const title =
+    data.formType === "maintenance"
+      ? "MAINTENANCE AND REPAIRS REQUEST FORM"
+      : data.formType === "new-gadget"
+        ? "NEW IT GADGET REQUEST FORM"
+        : "REQUISITION FORM: COMPUTER CONSUMABLE (TONER & GADGET)"
+
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, "PNG", pageWidth / 2 - 8, 10, 16, 16)
+  }
+
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(8)
+  doc.text("FOR ISD DEPARTMENT OF QCC", pageWidth / 2, 31, { align: "center" })
+  doc.setFontSize(15)
+  doc.text(title, pageWidth / 2, 39, { align: "center" })
+  doc.setFontSize(9)
+  doc.rect(165, 12, 30, 9)
+  doc.text(COMPANY_REG_TEXT, 180, 18, { align: "center" })
+
+  let y = 49
+
+  y = addSectionHeader(doc, "REQUESTING STAFF INFORMATION", "SECTION A", y)
+  y = addFieldLine(doc, "Name of staff making request", data.staffName, 16, y)
+  y = addFieldLine(doc, "Department name", data.department, 16, y)
+  y = addWrappedField(doc, data.formType === "new-gadget" ? "Complaints / reason" : "Items / complaint", data.summary, 16, y)
+  y = addFieldLine(doc, "Date of request", data.requestDate, 16, y)
+
+  if (data.formType === "requisition") {
+    y = addSectionHeader(doc, "REQUISITION DETAILS", "SECTION B", y + 2)
+    y = addFieldLine(doc, "Request / requisition no", data.requestNumber, 16, y)
+    y = addFieldLine(doc, "Supplier name", data.gadgetMake || "N/A", 16, y)
+    y = addWrappedField(doc, "Purpose", data.purpose || "N/A", 16, y)
+  }
+
+  if (data.formType === "new-gadget") {
+    y = addSectionHeader(doc, "PREVIOUS IT GADGET HISTORY", "SECTION B", y + 2)
+    y = addFieldLine(doc, "Make of IT gadget", data.gadgetMake || "N/A", 16, y)
+    y = addFieldLine(doc, "Serial number", data.serialNumber || "N/A", 16, y)
+    y = addFieldLine(doc, "Year of purchase", String(data.yearOfPurchase || "N/A"), 16, y)
+    y = addWrappedField(doc, "Any other comments", data.extraNotes || data.purpose || "N/A", 16, y)
+  }
+
+  if (data.formType === "maintenance") {
+    y = addSectionHeader(doc, "TECHNICIAN USE ONLY: INITIAL DIAGNOSIS", "SECTION B", y + 2)
+    y = addFieldLine(doc, "Part / item", data.gadgetMake || "IT Gadget", 16, y)
+    y = addFieldLine(doc, "Make / serial no", data.serialNumber || "N/A", 16, y)
+    y = addWrappedField(doc, "Fault / remarks", data.summary, 16, y)
+    y = addWrappedField(doc, "Any other comments", data.extraNotes || data.purpose || "N/A", 16, y)
+    y = addFieldLine(doc, "Date of last repairs", data.requestDate, 16, y)
+    y = addFieldLine(doc, "Date of purchase", data.dateOfPurchase || "N/A", 16, y)
+    y = addFieldLine(doc, "Number of times repaired", String(data.timesRepaired || "N/A"), 16, y)
+  }
+
+  y = addSectionHeader(doc, "AUTHORIZATION FROM THE HEAD OF DEPARTMENT", "SECTION C", y + 2)
+  y = addFieldLine(doc, "Name of sectional / departmental head", data.hodName || "Pending HOD Review", 16, y)
+  y = addFieldLine(doc, "Date", data.hodDate || "Pending", 16, y)
+
+  y = addSectionHeader(doc, "IS MANAGER / OFFICE USE ONLY", "SECTION D", y + 2)
+  y = addFieldLine(doc, "Request number", data.requestNumber, 16, y)
+  y = addFieldLine(doc, "Current workflow status", formatStatus(data.status), 16, y)
+  y = addWrappedField(doc, "Further action / notes", data.purpose || data.extraNotes || "Pending review by IT unit", 16, y)
+
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(8)
+  doc.setTextColor(90, 90, 90)
+  doc.text(`${BRAND_NAME} • ${BRAND_SUBTITLE}`, 14, 286)
+  doc.text(`Generated: ${new Date().toLocaleString()}`, 196, 286, { align: "right" })
+
+  doc.save(`${data.fileName}-${new Date().toISOString().split("T")[0]}.pdf`)
 }

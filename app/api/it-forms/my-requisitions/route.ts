@@ -66,7 +66,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 })
     }
 
-    if (existing.status !== "draft") {
+    if (!["draft", "pending_department_head"].includes(existing.status)) {
       return NextResponse.json({ error: "This request can no longer be edited." }, { status: 403 })
     }
 

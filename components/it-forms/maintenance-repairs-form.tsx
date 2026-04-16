@@ -141,7 +141,7 @@ export function MaintenanceRepairsForm({ onSubmit }: { onSubmit: () => void }) {
 
       toast({
         title: "Request Submitted",
-        description: `Your maintenance request (${result.requestNumber}) has been submitted successfully`,
+        description: `Your maintenance request (${result.requestNumber}) has been sent to your HOD for approval`,
       })
 
       // Reset form

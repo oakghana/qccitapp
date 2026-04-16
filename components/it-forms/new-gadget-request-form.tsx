@@ -120,7 +120,7 @@ export function NewGadgetRequestForm({ onSubmit }: { onSubmit: () => void }) {
 
       toast({
         title: "Request Submitted",
-        description: `Your new gadget request (${result.requestNumber}) has been submitted successfully`,
+        description: `Your new gadget request (${result.requestNumber}) has been sent to your HOD for approval`,
       })
 
       // Reset form

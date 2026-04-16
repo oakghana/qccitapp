@@ -28,6 +28,8 @@ export async function POST(request: NextRequest) {
       itemsRequired,
       purpose,
       requestedBy,
+      requestedById,
+      requestedByEmail,
       department,
       requestDate,
     } = body
@@ -41,6 +43,7 @@ export async function POST(request: NextRequest) {
 
     const requisitionNumber = await generateNextSequentialNumber()
 
+    const now = new Date().toISOString()
     const insertData = {
       requisition_number: requisitionNumber,
       item_sn: itemSN,
@@ -48,11 +51,22 @@ export async function POST(request: NextRequest) {
       items_required: itemsRequired,
       purpose: purpose,
       requested_by: requestedBy,
+      requested_by_id: requestedById || null,
+      requested_by_email: requestedByEmail || null,
       department: department,
-      request_date: requestDate || new Date().toISOString(),
-      status: "draft",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      request_date: requestDate || now,
+      status: "pending_department_head",
+      approval_chain: [
+        {
+          approver: requestedBy,
+          role: "requester",
+          action: "submitted",
+          notes: "Request submitted and routed to Department Head for review",
+          timestamp: now,
+        },
+      ],
+      created_at: now,
+      updated_at: now,
     }
 
     const { data, error: insertError } = await supabaseAdmin

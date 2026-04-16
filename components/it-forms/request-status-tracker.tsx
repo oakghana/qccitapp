@@ -10,7 +10,7 @@ import { AlertCircle, Download, Eye, FileEdit, Loader2, Lock, RefreshCw } from "
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import { ApprovalTracker } from "./approval-tracker"
-import { exportToPDF } from "@/lib/export-utils"
+import { exportITFormPDF } from "@/lib/export-utils"
 import { formatDisplayDate, formatDisplayDateTime } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -24,8 +24,18 @@ interface ITRequisition {
   purpose?: string
   other_comments?: string
   requested_by?: string
+  staff_name?: string
   department?: string
   department_name?: string
+  departmental_head_name?: string
+  departmental_head_date?: string
+  sectional_head_name?: string
+  sectional_head_date?: string
+  gadget_make?: string
+  serial_number?: string
+  year_of_purchase?: number | string
+  date_of_purchase?: string
+  times_repaired?: number | string
   request_date: string
   status: string
   department_head_approved?: boolean
@@ -121,23 +131,29 @@ export function RequestStatusTracker({
     setFilteredRequisitions(filtered)
   }
 
-  const canEditRequest = (req: ITRequisition) => req.status === "draft"
+  const canEditRequest = (req: ITRequisition) => ["draft", "pending_department_head"].includes(req.status)
 
-  const handleDownload = (req: ITRequisition) => {
+  const handleDownload = async (req: ITRequisition) => {
     const requestNumber = getRequestNumber(req)
 
-    exportToPDF({
-      title: `${formType === "maintenance" ? "Maintenance & Repairs" : formType === "new-gadget" ? "New Gadget" : "IT Requisition"} Report`,
+    await exportITFormPDF({
+      formType,
       fileName: requestNumber,
-      headers: ["Field", "Value"],
-      rows: [
-        ["Request Number", requestNumber],
-        ["Department", getDepartment(req)],
-        ["Status", req.status],
-        ["Request Date", formatDisplayDate(req.request_date)],
-        ["Summary", getRequestSummary(req)],
-        ["Purpose / Notes", getRequestPurpose(req)],
-      ],
+      requestNumber,
+      staffName: req.requested_by || req.staff_name || user?.full_name || user?.name || "",
+      department: getDepartment(req),
+      requestDate: formatDisplayDate(req.request_date),
+      summary: getRequestSummary(req),
+      purpose: getRequestPurpose(req),
+      status: req.status,
+      gadgetMake: req.gadget_make,
+      serialNumber: req.serial_number,
+      yearOfPurchase: req.year_of_purchase,
+      dateOfPurchase: req.date_of_purchase,
+      timesRepaired: req.times_repaired,
+      hodName: req.department_head_approved_by || req.departmental_head_name || req.sectional_head_name,
+      hodDate: req.department_head_approved_at || req.departmental_head_date || req.sectional_head_date,
+      extraNotes: req.other_comments,
     })
   }
 
@@ -176,6 +192,13 @@ export function RequestStatusTracker({
 
   const buildApprovalStages = (req: ITRequisition): any[] => {
     if (formType !== "requisition") {
+      const hodApprover = req.departmental_head_name || req.sectional_head_name
+      const hodTimestamp = req.departmental_head_date || req.sectional_head_date
+      const isRejected = req.status.includes("rejected")
+      const hodCompleted = Boolean(hodApprover) || ["pending_service_desk", "pending_it_head", "pending_admin", "pending_store", "approved", "issued", "completed"].includes(req.status)
+      const serviceDeskCompleted = ["pending_it_head", "pending_admin", "pending_store", "approved", "issued", "completed"].includes(req.status)
+      const adminCompleted = ["pending_store", "approved", "issued", "completed"].includes(req.status)
+
       return [
         {
           stage: "Request Submitted",
@@ -184,14 +207,21 @@ export function RequestStatusTracker({
           timestamp: req.created_at,
         },
         {
-          stage: "IT / Service Desk Review",
-          role: "IT Team",
-          status: req.status === "draft" ? "pending" : req.status.includes("rejected") ? "rejected" : "completed",
+          stage: "Department Head Review",
+          role: "Department Head",
+          status: isRejected ? "rejected" : hodCompleted ? "completed" : "pending",
+          approver: hodApprover,
+          timestamp: hodTimestamp,
         },
         {
-          stage: "Final Processing",
-          role: "Admin / Operations",
-          status: ["approved", "issued", "completed"].includes(req.status) ? "completed" : req.status.includes("rejected") ? "rejected" : "pending",
+          stage: "IT Service Desk Review",
+          role: "IT Service Desk",
+          status: isRejected ? "rejected" : serviceDeskCompleted ? "completed" : "pending",
+        },
+        {
+          stage: "IT Head / Admin Review",
+          role: "IT Head / Admin",
+          status: isRejected ? "rejected" : adminCompleted ? "completed" : "pending",
           timestamp: req.updated_at,
         },
       ]
@@ -250,7 +280,13 @@ export function RequestStatusTracker({
 
   const getNextStep = (req: ITRequisition) => {
     if (formType !== "requisition") {
-      return req.status === "draft" ? "Waiting for IT review" : req.status.replace(/_/g, " ")
+      if (["draft", "pending_department_head"].includes(req.status)) return "Waiting for Department Head approval"
+      if (req.status === "pending_service_desk") return "Being reviewed by IT Service Desk"
+      if (req.status === "pending_it_head") return "Awaiting IT Head review"
+      if (req.status === "pending_admin") return "Awaiting Admin review"
+      if (req.status === "pending_store") return "Awaiting final fulfilment"
+      if (req.status.includes("rejected")) return "Request was rejected"
+      return "Request completed"
     }
 
     if (!req.department_head_approved_by) return "Waiting for Department Head approval"
@@ -278,7 +314,7 @@ export function RequestStatusTracker({
               </p>
               <h1 className="text-3xl font-bold tracking-tight">{title || "My Submitted Requests"}</h1>
               <p className="text-muted-foreground mt-1">
-                {description || "Track, edit drafts, and download professional PDF copies of your forms."}
+                {description || "Track requests, edit them while awaiting HOD approval, and download professional PDF copies of your forms."}
               </p>
             </div>
           </div>
@@ -326,7 +362,7 @@ export function RequestStatusTracker({
       <Card>
         <CardHeader>
           <CardTitle>Your Requests</CardTitle>
-          <CardDescription>View and track the status of all your IT equipment requisitions</CardDescription>
+          <CardDescription>View request progress from submission to HOD approval and onward IT processing</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-2">
@@ -404,7 +440,7 @@ export function RequestStatusTracker({
             <DialogTitle className="flex items-center gap-2">
               {selectedRequisition ? getRequestNumber(selectedRequisition) : ""}
               {selectedRequisition && canEditRequest(selectedRequisition) ? (
-                <Badge variant="secondary" className="gap-1"><FileEdit className="h-3 w-3" /> Editable draft</Badge>
+                <Badge variant="secondary" className="gap-1"><FileEdit className="h-3 w-3" /> Editable before HOD review</Badge>
               ) : (
                 <Badge variant="outline" className="gap-1"><Lock className="h-3 w-3" /> Locked for review</Badge>
               )}
