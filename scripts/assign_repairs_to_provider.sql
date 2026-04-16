@@ -4,7 +4,6 @@ SET
   service_provider_id = '808e21d0-8069-4687-8d40-5b5f609c0fb0',
   service_provider_name = 'NATHLAND COMPANY LIMITED',
   status = 'assigned',
-  assigned_date = NOW(),
   updated_at = NOW()
 WHERE service_provider_id IS NULL;
 
