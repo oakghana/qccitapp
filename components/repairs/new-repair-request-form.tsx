@@ -94,9 +94,14 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
       // Only include devices from the user's assigned region (exclude Central Stores and others)
       let filtered = data || []
       if (!canSeeAllLocations(user) && user.location) {
-        const { getLocationAliases, locationsMatch } = await import("@/lib/location-filter")
+        const { getLocationAliases, locationsMatch, normalizeLocation } = await import("@/lib/location-filter")
         const aliases = getLocationAliases(user.location)
-        filtered = filtered.filter((d: any) => aliases.some(alias => locationsMatch(d.location, alias)))
+        const normalizedAliases = aliases.map(normalizeLocation)
+        const normalizedUserLoc = normalizeLocation(user.location)
+        filtered = filtered.filter((d: any) => {
+          const deviceLoc = normalizeLocation(d.location)
+          return normalizedAliases.includes(deviceLoc) || deviceLoc === normalizedUserLoc
+        })
       }
       setDevices(filtered)
     } catch (error) {
