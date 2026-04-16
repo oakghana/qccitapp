@@ -32,6 +32,7 @@ interface StaffMember {
   email: string
   department: string
   linked: boolean
+  department_head_id?: string | null
 }
 
 export function DepartmentHeadLinking() {
@@ -150,8 +151,8 @@ export function DepartmentHeadLinking() {
   }
 
   const selectedHead = departmentHeads.find((h) => h.id === selectedHeadId)
-  const linkedStaffForHead = staff.filter((s) => s.linked && selectedHeadId)
-  const availableStaffForHead = staff.filter((s) => !s.linked || selectedHeadId === s.department)
+  const linkedStaffForHead = staff.filter((s) => s.department_head_id === selectedHeadId)
+  const availableStaffForHead = staff.filter((s) => !s.department_head_id || s.department_head_id === selectedHeadId)
 
   const filteredStaff = availableStaffForHead.filter(
     (s) =>

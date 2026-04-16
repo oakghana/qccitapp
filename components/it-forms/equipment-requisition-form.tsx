@@ -16,6 +16,7 @@ export function ITEquipmentRequisitionForm({ onSubmit }: { onSubmit: () => void 
   const [error, setError] = useState("")
   const { user } = useAuth()
   const { toast } = useToast()
+  const canEditOfficialSections = ["admin", "it_head"].includes(user?.role || "")
 
   const [formData, setFormData] = useState({
     itemSN: "",
@@ -79,7 +80,10 @@ export function ITEquipmentRequisitionForm({ onSubmit }: { onSubmit: () => void 
       const response = await fetch("/api/it-forms/requisitions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          submittedByRole: user?.role || "",
+        }),
       })
 
       const result = await response.json()
@@ -130,15 +134,19 @@ export function ITEquipmentRequisitionForm({ onSubmit }: { onSubmit: () => void 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="rounded-2xl border bg-gradient-to-r from-slate-900 to-slate-800 p-5 text-white shadow-sm">
+      <div className="rounded-2xl border bg-white/95 p-5 shadow-sm dark:bg-slate-950/60">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-xl font-semibold">IT Equipment Requisition</h2>
-            <p className="mt-1 text-sm text-slate-300">Submit a clean, trackable request with approval visibility and PDF-ready output.</p>
+          <div className="flex items-center gap-3">
+            <img src="/images/qcc-logo.png" alt="QCC Logo" className="h-12 w-12 rounded-full border bg-white object-contain p-1" />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Quality Control Company Limited</p>
+              <h2 className="text-lg font-bold">IT Equipment Requisition Form</h2>
+              <p className="text-sm text-muted-foreground">Document-style request form with HOD and office-use sections aligned to the shared template.</p>
+            </div>
           </div>
           <div className="flex gap-2 text-xs">
-            <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1"><FileText className="h-3 w-3" /> Professional format</span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1"><ShieldCheck className="h-3 w-3" /> Locked after review</span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-700"><FileText className="h-3 w-3" /> Form layout</span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700"><ShieldCheck className="h-3 w-3" /> Reviewer lock</span>
           </div>
         </div>
       </div>
@@ -255,6 +263,34 @@ export function ITEquipmentRequisitionForm({ onSubmit }: { onSubmit: () => void 
               required
             />
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/60">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="bg-blue-500/10 text-blue-600 px-2 py-1 rounded text-xs font-semibold">SECTION C</div>
+          <h3 className="font-semibold text-sm">Authorization from Head of Department</h3>
+        </div>
+        <div className="mb-4 rounded-md border border-dashed border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
+          This area is completed during HOD review and remains blank at submission time.
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-70">
+          <Input placeholder="Name of sectional head" disabled={!canEditOfficialSections} />
+          <Input type="date" disabled={!canEditOfficialSections} />
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/60">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="bg-green-500/10 text-green-600 px-2 py-1 rounded text-xs font-semibold">SECTION D</div>
+          <h3 className="font-semibold text-sm">IS Manager / Office Use Only</h3>
+        </div>
+        <div className="mb-4 rounded-md border border-dashed border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300">
+          Only Admin or IT Head can complete this confirmation area.
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-70">
+          <Input placeholder="Confirmed by" disabled={!canEditOfficialSections} />
+          <Input type="date" disabled={!canEditOfficialSections} />
         </div>
       </div>
 

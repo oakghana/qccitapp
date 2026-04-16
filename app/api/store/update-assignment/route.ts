@@ -18,6 +18,8 @@ export async function PATCH(request: NextRequest) {
       department,
       office_location,
       room_number,
+      asset_tag,
+      serial_number,
       notes,
       updatedBy,
       userRole,
@@ -58,6 +60,8 @@ export async function PATCH(request: NextRequest) {
         department: department?.trim() || existing.department,
         office_location: office_location?.trim() || existing.office_location,
         room_number: room_number?.trim() || null,
+        asset_tag: asset_tag?.trim() || null,
+        serial_number: serial_number?.trim() || null,
         notes: notes?.trim() || existing.notes,
         updated_at: new Date().toISOString(),
       })
@@ -76,6 +80,9 @@ export async function PATCH(request: NextRequest) {
         .update({
           assigned_to: assigned_to.trim(),
           room_number: room_number?.trim() || null,
+          asset_tag: asset_tag?.trim() || null,
+          serial_number: serial_number?.trim() || null,
+          notes: notes?.trim() || existing.notes,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existing.device_id)
@@ -96,6 +103,8 @@ export async function PATCH(request: NextRequest) {
           department: existing.department,
           office_location: existing.office_location,
           room_number: existing.room_number,
+          asset_tag: existing.asset_tag,
+          serial_number: existing.serial_number,
           notes: existing.notes,
         },
         after: {
@@ -104,6 +113,8 @@ export async function PATCH(request: NextRequest) {
           department: department?.trim() || null,
           office_location: office_location?.trim() || null,
           room_number: room_number?.trim() || null,
+          asset_tag: asset_tag?.trim() || null,
+          serial_number: serial_number?.trim() || null,
           notes: notes?.trim() || null,
         },
       },

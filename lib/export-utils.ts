@@ -29,10 +29,22 @@ export interface ITFormPDFData {
   serialNumber?: string
   yearOfPurchase?: string | number
   dateOfPurchase?: string
+  lastRepairDate?: string
   timesRepaired?: string | number
   hodName?: string
   hodDate?: string
   extraNotes?: string
+  diagnosisItems?: Array<{
+    partItem?: string
+    makeSerialNo?: string
+    faultRemarks?: string
+  }>
+  supervisorName?: string
+  supervisorDate?: string
+  managerName?: string
+  managerDate?: string
+  recommendation?: string | boolean | null
+  repairStatus?: string
 }
 
 async function getLogoDataUrl() {
@@ -87,6 +99,38 @@ function addWrappedField(doc: jsPDF, label: string, value: string, x: number, y:
   const lines = doc.splitTextToSize(safeValue, maxWidth)
   doc.text(lines, x + valueOffset, y)
   return y + Math.max(7, lines.length * 5 + 2)
+}
+
+function blankLineValue(value?: string | number | boolean | null, fallback = "................................") {
+  if (value === undefined || value === null) return fallback
+  const text = String(value).trim()
+  return text ? text : fallback
+}
+
+function formatRecommendation(value?: string | boolean | null) {
+  if (value === true || value === "yes") return "Yes"
+  if (value === false || value === "no") return "No"
+  return ""
+}
+
+function addCheckboxRow(doc: jsPDF, label: string, selectedValue: string, options: Array<{ label: string; value: string }>, y: number) {
+  doc.setFont("helvetica", "normal")
+  doc.setFontSize(8)
+  doc.text(label, 16, y)
+
+  let x = 118
+  options.forEach((option) => {
+    doc.rect(x, y - 3, 3.2, 3.2)
+    if (selectedValue === option.value) {
+      doc.setFont("helvetica", "bold")
+      doc.text("X", x + 0.8, y - 0.2)
+      doc.setFont("helvetica", "normal")
+    }
+    doc.text(option.label, x + 5, y)
+    x += option.label.length > 18 ? 38 : 30
+  })
+
+  return y + 7
 }
 
 export function downloadCSV(data: ExportData) {
@@ -224,67 +268,104 @@ export async function exportITFormPDF(data: ITFormPDFData) {
         ? "NEW IT GADGET REQUEST FORM"
         : "REQUISITION FORM: COMPUTER CONSUMABLE (TONER & GADGET)"
 
+  doc.setDrawColor(120, 120, 120)
+  doc.rect(10, 8, 190, 279)
+
   if (logoDataUrl) {
-    doc.addImage(logoDataUrl, "PNG", pageWidth / 2 - 8, 10, 16, 16)
+    doc.addImage(logoDataUrl, "PNG", pageWidth / 2 - 8, 11, 16, 16)
   }
 
   doc.setFont("helvetica", "bold")
+  doc.setFontSize(7)
+  doc.text("FOR ISD DEPARTMENT OF QCC", pageWidth / 2, 30, { align: "center" })
+  doc.setFontSize(12)
+  doc.text(title, pageWidth / 2, 37, { align: "center" })
   doc.setFontSize(8)
-  doc.text("FOR ISD DEPARTMENT OF QCC", pageWidth / 2, 31, { align: "center" })
-  doc.setFontSize(15)
-  doc.text(title, pageWidth / 2, 39, { align: "center" })
-  doc.setFontSize(9)
-  doc.rect(165, 12, 30, 9)
-  doc.text(COMPANY_REG_TEXT, 180, 18, { align: "center" })
+  doc.rect(164, 12, 30, 9)
+  doc.text(data.requestNumber || COMPANY_REG_TEXT, 179, 18, { align: "center" })
 
-  let y = 49
+  let y = 47
 
   y = addSectionHeader(doc, "REQUESTING STAFF INFORMATION", "SECTION A", y)
-  y = addFieldLine(doc, "Name of staff making request", data.staffName, 16, y)
-  y = addFieldLine(doc, "Department name", data.department, 16, y)
-  y = addWrappedField(doc, data.formType === "new-gadget" ? "Complaints / reason" : "Items / complaint", data.summary, 16, y)
-  y = addFieldLine(doc, "Date of request", data.requestDate, 16, y)
+  y = addFieldLine(doc, "Name of staff making request", blankLineValue(data.staffName), 16, y)
+  y = addFieldLine(doc, "Department name", blankLineValue(data.department), 16, y)
+  y = addWrappedField(
+    doc,
+    data.formType === "new-gadget" ? "Complaints / reason" : "Items / complaint",
+    blankLineValue(data.summary),
+    16,
+    y
+  )
+  y = addWrappedField(doc, "Purpose / notes", blankLineValue(data.purpose || data.extraNotes), 16, y)
+  y = addFieldLine(doc, "Date of request", blankLineValue(data.requestDate), 16, y)
 
   if (data.formType === "requisition") {
     y = addSectionHeader(doc, "REQUISITION DETAILS", "SECTION B", y + 2)
-    y = addFieldLine(doc, "Request / requisition no", data.requestNumber, 16, y)
-    y = addFieldLine(doc, "Supplier name", data.gadgetMake || "N/A", 16, y)
-    y = addWrappedField(doc, "Purpose", data.purpose || "N/A", 16, y)
+    y = addFieldLine(doc, "Item S/N", blankLineValue(data.serialNumber), 16, y)
+    y = addFieldLine(doc, "Supplier name", blankLineValue(data.gadgetMake), 16, y)
+    y = addWrappedField(doc, "Items required", blankLineValue(data.summary), 16, y)
+    y = addWrappedField(doc, "Purpose", blankLineValue(data.purpose), 16, y)
   }
 
   if (data.formType === "new-gadget") {
     y = addSectionHeader(doc, "PREVIOUS IT GADGET HISTORY", "SECTION B", y + 2)
-    y = addFieldLine(doc, "Make of IT gadget", data.gadgetMake || "N/A", 16, y)
-    y = addFieldLine(doc, "Serial number", data.serialNumber || "N/A", 16, y)
-    y = addFieldLine(doc, "Year of purchase", String(data.yearOfPurchase || "N/A"), 16, y)
-    y = addWrappedField(doc, "Any other comments", data.extraNotes || data.purpose || "N/A", 16, y)
+    y = addFieldLine(doc, "Make of IT gadget", blankLineValue(data.gadgetMake), 16, y)
+    y = addFieldLine(doc, "Serial number", blankLineValue(data.serialNumber), 16, y)
+    y = addFieldLine(doc, "Year of purchase", blankLineValue(data.yearOfPurchase), 16, y)
+    y = addWrappedField(doc, "Any other comments", blankLineValue(data.extraNotes), 16, y)
   }
 
   if (data.formType === "maintenance") {
     y = addSectionHeader(doc, "TECHNICIAN USE ONLY: INITIAL DIAGNOSIS", "SECTION B", y + 2)
-    y = addFieldLine(doc, "Part / item", data.gadgetMake || "IT Gadget", 16, y)
-    y = addFieldLine(doc, "Make / serial no", data.serialNumber || "N/A", 16, y)
-    y = addWrappedField(doc, "Fault / remarks", data.summary, 16, y)
-    y = addWrappedField(doc, "Any other comments", data.extraNotes || data.purpose || "N/A", 16, y)
-    y = addFieldLine(doc, "Date of last repairs", data.requestDate, 16, y)
-    y = addFieldLine(doc, "Date of purchase", data.dateOfPurchase || "N/A", 16, y)
-    y = addFieldLine(doc, "Number of times repaired", String(data.timesRepaired || "N/A"), 16, y)
+
+    const diagnosisItems = data.diagnosisItems?.length
+      ? data.diagnosisItems.slice(0, 2)
+      : [{ partItem: "", makeSerialNo: "", faultRemarks: "" }, { partItem: "", makeSerialNo: "", faultRemarks: "" }]
+
+    diagnosisItems.forEach((item, index) => {
+      y = addFieldLine(doc, `${index + 1}. Part / item`, blankLineValue(item.partItem), 16, y)
+      y = addFieldLine(doc, "Make / serial no", blankLineValue(item.makeSerialNo), 80, y - 6)
+      y = addFieldLine(doc, "Fault / remarks", blankLineValue(item.faultRemarks), 138, y - 6)
+      y += 1
+    })
+
+    y = addWrappedField(doc, "Any other comments", blankLineValue(data.extraNotes), 16, y)
+    y = addFieldLine(doc, "IT Hardware Supervisor", blankLineValue(data.supervisorName), 16, y)
+    y = addFieldLine(doc, "Date", blankLineValue(data.supervisorDate), 126, y - 6)
+    y = addFieldLine(doc, "Date of last repairs", blankLineValue(data.lastRepairDate), 16, y)
+    y = addFieldLine(doc, "Date of purchase", blankLineValue(data.dateOfPurchase), 96, y - 6)
+    y = addFieldLine(doc, "Number of times repaired", blankLineValue(data.timesRepaired), 16, y)
   }
 
-  y = addSectionHeader(doc, "AUTHORIZATION FROM THE HEAD OF DEPARTMENT", "SECTION C", y + 2)
-  y = addFieldLine(doc, "Name of sectional / departmental head", data.hodName || "Pending HOD Review", 16, y)
-  y = addFieldLine(doc, "Date", data.hodDate || "Pending", 16, y)
+  y = addSectionHeader(doc, "AUTHORIZATION FROM THE HEAD OF DEPARTMENT", "SECTION C", y + 3)
+  y = addFieldLine(doc, "Name of sectional / departmental head", blankLineValue(data.hodName), 16, y)
+  y = addFieldLine(doc, "Date", blankLineValue(data.hodDate), 126, y - 6)
+  y = addFieldLine(doc, "Stamp / Signature", "____________________________", 16, y)
 
-  y = addSectionHeader(doc, "IS MANAGER / OFFICE USE ONLY", "SECTION D", y + 2)
-  y = addFieldLine(doc, "Request number", data.requestNumber, 16, y)
-  y = addFieldLine(doc, "Current workflow status", formatStatus(data.status), 16, y)
-  y = addWrappedField(doc, "Further action / notes", data.purpose || data.extraNotes || "Pending review by IT unit", 16, y)
+  y = addSectionHeader(doc, "IS MANAGER / OFFICE USE ONLY", "SECTION D", y + 3)
+
+  if (data.formType === "new-gadget") {
+    y = addCheckboxRow(doc, "Recommended", formatRecommendation(data.recommendation).toLowerCase(), [
+      { label: "Yes", value: "yes" },
+      { label: "No", value: "no" },
+    ], y)
+  }
+
+  y = addFieldLine(doc, data.formType === "requisition" ? "Approved / issued by" : "Confirmed by", blankLineValue(data.managerName), 16, y)
+  y = addFieldLine(doc, "Date", blankLineValue(data.managerDate), 126, y - 6)
+
+  if (data.formType === "maintenance") {
+    y = addCheckboxRow(doc, "Was your repaired gadget working properly?", data.repairStatus || "", [
+      { label: "Working perfectly well now", value: "working_perfectly" },
+      { label: "In the same bad condition", value: "same_condition" },
+    ], y + 1)
+  }
 
   doc.setFont("helvetica", "normal")
-  doc.setFontSize(8)
+  doc.setFontSize(7)
   doc.setTextColor(90, 90, 90)
-  doc.text(`${BRAND_NAME} • ${BRAND_SUBTITLE}`, 14, 286)
-  doc.text(`Generated: ${new Date().toLocaleString()}`, 196, 286, { align: "right" })
+  doc.text(`${BRAND_NAME}`, 14, 283)
+  doc.text(`Generated: ${new Date().toLocaleString()}`, 196, 283, { align: "right" })
 
   doc.save(`${data.fileName}-${new Date().toISOString().split("T")[0]}.pdf`)
 }

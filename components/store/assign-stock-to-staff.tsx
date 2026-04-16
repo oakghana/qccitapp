@@ -91,6 +91,8 @@ interface StockAssignment {
   assigned_by: string
   assigned_by_role: string
   requisition_number?: string
+  asset_tag?: string
+  serial_number?: string
   is_replacement: boolean
   replacement_reason?: string
   is_hardware: boolean
@@ -131,6 +133,8 @@ export function AssignStockToStaff() {
     department: "",
     office_location: "",
     room_number: "",
+    asset_tag: "",
+    serial_number: "",
     notes: "",
   })
   const [editLoading, setEditLoading] = useState(false)
@@ -142,6 +146,8 @@ export function AssignStockToStaff() {
     department: "",
     room_number: "",
     requisition_number: "",
+    asset_tag: "",
+    serial_number: "",
     is_replacement: false,
     replacement_reason: "",
     quantity: 1,
@@ -174,6 +180,37 @@ export function AssignStockToStaff() {
 
   // Check if user has permission to assign stock
   const canAssignStock = ["admin", "it_store_head", "regional_it_head"].includes(user?.role || "")
+
+  const isTrackableAsset = (item: StockItem | null) => {
+    if (!item) return false
+    const text = `${item.name} ${item.category}`.toLowerCase()
+    return ["laptop", "desktop", "printer", "monitor", "server", "router", "switch", "scanner", "projector", "keyboard", "mouse", "ups", "hardware", "computer"].some((keyword) => text.includes(keyword))
+  }
+
+  const extractTrackingValue = (notes?: string, label?: string) => {
+    if (!notes || !label) return ""
+    const match = notes.match(new RegExp(`${label}:\\s*([^\\n.]+)`, "i"))
+    return match?.[1]?.trim() || ""
+  }
+
+  const stripTrackingNotes = (notes = "") => {
+    return notes
+      .replace(/Asset Tag:\s*[^\n.]+[.\n]?/gi, "")
+      .replace(/Serial Number:\s*[^\n.]+[.\n]?/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .trim()
+  }
+
+  const buildTrackingNotes = (notes: string, assetTag: string, serialNumber: string) => {
+    const cleanedNotes = stripTrackingNotes(notes)
+    return [
+      assetTag.trim() ? `Asset Tag: ${assetTag.trim()}` : "",
+      serialNumber.trim() ? `Serial Number: ${serialNumber.trim()}` : "",
+      cleanedNotes,
+    ]
+      .filter(Boolean)
+      .join(". ")
+  }
 
   useEffect(() => {
     if (canAssignStock) {
@@ -280,6 +317,8 @@ export function AssignStockToStaff() {
       department: "",
       room_number: "",
       requisition_number: "",
+      asset_tag: "",
+      serial_number: "",
       is_replacement: false,
       replacement_reason: "",
       quantity: 1,
@@ -393,6 +432,10 @@ export function AssignStockToStaff() {
       setError("Please provide a reason for replacement")
       return
     }
+    if (isTrackableAsset(selectedItem) && !assignmentForm.asset_tag.trim()) {
+      setError("Please enter an asset tag for this issued item so it can be tracked")
+      return
+    }
 
     setAssignmentLoading(true)
     setError("")
@@ -408,9 +451,15 @@ export function AssignStockToStaff() {
           department: assignmentForm.department.trim(),
           room_number: assignmentForm.room_number.trim(),
           requisition_number: assignmentForm.requisition_number.trim(),
+          asset_tag: assignmentForm.asset_tag.trim(),
+          serial_number: assignmentForm.serial_number.trim(),
           is_replacement: assignmentForm.is_replacement,
           replacement_reason: assignmentForm.replacement_reason.trim(),
-          notes: assignmentForm.notes.trim(),
+          notes: buildTrackingNotes(
+            assignmentForm.notes,
+            assignmentForm.asset_tag,
+            assignmentForm.serial_number,
+          ),
           quantity: assignmentForm.quantity,
           location: selectedItem.location,
           assigned_by: user?.full_name || user?.name || user?.username,
@@ -434,7 +483,9 @@ export function AssignStockToStaff() {
       setSuccess(`Successfully assigned ${assignmentForm.quantity} ${selectedItem.name} to ${assignmentForm.assigned_to_name}`)
       toast({
         title: "✅ Item Assigned",
-        description: `Successfully assigned ${assignmentForm.quantity} ${selectedItem.name} to ${assignmentForm.assigned_to_name}`,
+        description: assignmentForm.asset_tag.trim()
+          ? `Successfully assigned ${selectedItem.name} with asset tag ${assignmentForm.asset_tag.trim()}`
+          : `Successfully assigned ${assignmentForm.quantity} ${selectedItem.name} to ${assignmentForm.assigned_to_name}`,
       })
       
       // Refresh data
@@ -481,7 +532,9 @@ export function AssignStockToStaff() {
       department: assignment.department || "",
       office_location: assignment.office_location || "",
       room_number: assignment.room_number || "",
-      notes: assignment.notes || "",
+      asset_tag: assignment.asset_tag || extractTrackingValue(assignment.notes, "Asset Tag"),
+      serial_number: assignment.serial_number || extractTrackingValue(assignment.notes, "Serial Number"),
+      notes: stripTrackingNotes(assignment.notes || ""),
     })
     setEditDialogOpen(true)
   }
@@ -511,7 +564,9 @@ export function AssignStockToStaff() {
           department: editForm.department,
           office_location: editForm.office_location,
           room_number: editForm.room_number,
-          notes: editForm.notes,
+          asset_tag: editForm.asset_tag,
+          serial_number: editForm.serial_number,
+          notes: buildTrackingNotes(editForm.notes, editForm.asset_tag, editForm.serial_number),
           updatedBy: user?.full_name || user?.username || user?.email,
           userRole: user?.role,
         }),
@@ -559,6 +614,8 @@ export function AssignStockToStaff() {
       "Room Number",
       "Location",
       "Requisition #",
+      "Asset Tag",
+      "Serial Number",
       "Is Replacement",
       "Replacement Reason",
       "Is Hardware",
@@ -578,6 +635,8 @@ export function AssignStockToStaff() {
       a.room_number || "",
       a.location,
       a.requisition_number || "",
+      a.asset_tag || extractTrackingValue(a.notes, "Asset Tag"),
+      a.serial_number || extractTrackingValue(a.notes, "Serial Number"),
       a.is_replacement ? "Yes" : "No",
       a.replacement_reason || "",
       a.is_hardware ? "Yes" : "No",
@@ -820,77 +879,89 @@ export function AssignStockToStaff() {
                         <TableHead>Item</TableHead>
                         <TableHead>Qty</TableHead>
                         <TableHead>Assigned To</TableHead>
-                        <TableHead>Department</TableHead>
-                        <TableHead>Location</TableHead>
-                        <TableHead>Req. #</TableHead>
+                        <TableHead>Dept / Location</TableHead>
+                        <TableHead>Tag / Req No</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {assignments.map((assignment) => (
-                        <TableRow key={assignment.id}>
-                          <TableCell className="whitespace-nowrap">
-                            {new Date(assignment.created_at).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{assignment.item_name}</p>
-                              {assignment.is_hardware && (
+                      {assignments.map((assignment) => {
+                        const assetTag = assignment.asset_tag || extractTrackingValue(assignment.notes, "Asset Tag")
+                        const serialNumber = assignment.serial_number || extractTrackingValue(assignment.notes, "Serial Number")
+
+                        return (
+                          <TableRow key={assignment.id}>
+                            <TableCell className="whitespace-nowrap">
+                              {new Date(assignment.created_at).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{assignment.item_name}</p>
+                                {assignment.is_hardware && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {assignment.devices_created} device(s) created
+                                  </p>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>{assignment.quantity}</TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{assignment.assigned_to}</p>
+                                {assignment.assigned_to_email && (
+                                  <p className="text-xs text-muted-foreground">{assignment.assigned_to_email}</p>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <p>{assignment.department || "-"}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {assignment.devices_created} device(s) created
+                                  {getCanonicalLocationName(assignment.location || "") || "-"}
+                                  {assignment.room_number ? ` • Room: ${assignment.room_number}` : ""}
                                 </p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <p className="text-sm font-medium">{assetTag || "-"}</p>
+                                <p className="text-xs text-muted-foreground">Req: {assignment.requisition_number || "-"}</p>
+                                {serialNumber && (
+                                  <p className="text-xs text-muted-foreground">SN: {serialNumber}</p>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {assignment.is_replacement ? (
+                                <Badge variant="secondary">Replacement</Badge>
+                              ) : (
+                                <Badge variant="outline">New</Badge>
                               )}
-                            </div>
-                          </TableCell>
-                          <TableCell>{assignment.quantity}</TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{assignment.assigned_to}</p>
-                              {assignment.assigned_to_email && (
-                                <p className="text-xs text-muted-foreground">{assignment.assigned_to_email}</p>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p>{assignment.department}</p>
-                              {assignment.room_number && (
-                                <p className="text-xs text-muted-foreground">Room: {assignment.room_number}</p>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>{assignment.location}</TableCell>
-                          <TableCell>{assignment.requisition_number || "-"}</TableCell>
-                          <TableCell>
-                            {assignment.is_replacement ? (
-                              <Badge variant="secondary">Replacement</Badge>
-                            ) : (
-                              <Badge variant="outline">New</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={assignment.status === "assigned" ? "default" : "secondary"}
-                            >
-                              {assignment.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {["admin", "it_store_head", "it_head", "regional_it_head"].includes(user?.role || "") && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleEditAssignment(assignment)}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={assignment.status === "assigned" ? "default" : "secondary"}
                               >
-                                <Edit className="h-4 w-4 mr-1" />
-                                Edit
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                                {assignment.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {["admin", "it_store_head", "it_head", "regional_it_head"].includes(user?.role || "") && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleEditAssignment(assignment)}
+                                >
+                                  <Edit className="h-4 w-4 mr-1" />
+                                  Edit
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
                     </TableBody>
                   </Table>
                 </div>
@@ -1248,6 +1319,34 @@ export function AssignStockToStaff() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="asset_tag">
+                    Asset Tag {isTrackableAsset(selectedItem) ? "*" : ""}
+                  </Label>
+                  <Input
+                    id="asset_tag"
+                    placeholder="e.g., QCC-IT-0001"
+                    value={assignmentForm.asset_tag}
+                    onChange={(e) => setAssignmentForm(prev => ({ ...prev, asset_tag: e.target.value }))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {isTrackableAsset(selectedItem)
+                      ? "Required for trackable equipment being issued out."
+                      : "Optional for non-trackable items."}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="serial_number">Serial Number</Label>
+                  <Input
+                    id="serial_number"
+                    placeholder="Manufacturer serial number"
+                    value={assignmentForm.serial_number}
+                    onChange={(e) => setAssignmentForm(prev => ({ ...prev, serial_number: e.target.value }))}
+                  />
+                </div>
+              </div>
+
               {/* Replacement Section */}
               <div className="space-y-2 p-4 border rounded-lg">
                 <div className="flex items-center space-x-2">
@@ -1398,6 +1497,27 @@ export function AssignStockToStaff() {
                     onChange={(e) => setEditForm(prev => ({ ...prev, office_location: e.target.value }))}
                     placeholder="Office location"
                   />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit_asset_tag">Asset Tag</Label>
+                    <Input
+                      id="edit_asset_tag"
+                      value={editForm.asset_tag}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, asset_tag: e.target.value }))}
+                      placeholder="QCC-IT-0001"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit_serial_number">Serial Number</Label>
+                    <Input
+                      id="edit_serial_number"
+                      value={editForm.serial_number}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, serial_number: e.target.value }))}
+                      placeholder="Serial number"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">

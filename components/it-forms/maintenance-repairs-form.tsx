@@ -68,6 +68,8 @@ export function MaintenanceRepairsForm({ onSubmit }: { onSubmit: () => void }) {
     "Other",
   ]
 
+  const canEditOfficialSections = ["admin", "it_head"].includes(user?.role || "")
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
@@ -124,7 +126,26 @@ export function MaintenanceRepairsForm({ onSubmit }: { onSubmit: () => void }) {
       const response = await fetch("/api/it-forms/maintenance-repairs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          submittedByRole: user?.role || "",
+          ...(canEditOfficialSections
+            ? {}
+            : {
+                faultItems: [{ id: "1", partItem: "", makeSerialNo: "", faultRemarks: "" }],
+                otherComments: "",
+                hardwareSupervisorName: "",
+                hardwareSupervisorDate: "",
+                dateOfLastRepairs: "",
+                dateOfPurchase: "",
+                numberOfTimesRepaired: "",
+                sectionalHeadName: "",
+                sectionalHeadDate: "",
+                confirmedBy: "",
+                confirmedDate: "",
+                repairStatus: "",
+              }),
+        }),
       })
 
       const result = await response.json()
@@ -179,6 +200,21 @@ export function MaintenanceRepairsForm({ onSubmit }: { onSubmit: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="rounded-2xl border bg-white/95 p-5 shadow-sm dark:bg-slate-950/60">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <img src="/images/qcc-logo.png" alt="QCC Logo" className="h-12 w-12 rounded-full border bg-white object-contain p-1" />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Quality Control Company Limited</p>
+              <h2 className="text-lg font-bold">Maintenance and Repairs Request Form</h2>
+              <p className="text-sm text-muted-foreground">Structured in the same section flow as the approved paper form.</p>
+            </div>
+          </div>
+          <div className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+            HOD and official fields are reviewer-only
+          </div>
+        </div>
+      </div>
       {error && (
         <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md flex items-center gap-2 border border-destructive/20">
           <AlertCircle className="h-4 w-4 flex-shrink-0" />
@@ -260,7 +296,14 @@ export function MaintenanceRepairsForm({ onSubmit }: { onSubmit: () => void }) {
           <span className="text-xs text-muted-foreground">(To be filled by IT Hardware Group)</span>
         </div>
 
-        <div className="space-y-4">
+        {!canEditOfficialSections && (
+          <div className="mb-4 rounded-md border border-dashed border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-300">
+            This technician section remains blank for staff and IT staff until the request reaches authorized reviewers.
+          </div>
+        )}
+
+        <fieldset disabled={!canEditOfficialSections} className={!canEditOfficialSections ? "opacity-60" : ""}>
+          <div className="space-y-4">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
@@ -398,6 +441,7 @@ export function MaintenanceRepairsForm({ onSubmit }: { onSubmit: () => void }) {
             </div>
           </div>
         </div>
+        </fieldset>
       </div>
 
       {/* Section C - HOD Authorization */}
@@ -407,28 +451,36 @@ export function MaintenanceRepairsForm({ onSubmit }: { onSubmit: () => void }) {
           <h3 className="font-semibold text-sm">Authorization from Head of Department</h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="sectionalHeadName">Name of Sectional Head</Label>
-            <Input
-              id="sectionalHeadName"
-              name="sectionalHeadName"
-              value={formData.sectionalHeadName}
-              onChange={handleInputChange}
-              placeholder="HOD name"
-            />
+        {!canEditOfficialSections && (
+          <div className="mb-4 rounded-md border border-dashed border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
+            This approval area stays blank for staff and IT staff. It is completed during the approval workflow.
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="sectionalHeadDate">Date</Label>
-            <Input
-              id="sectionalHeadDate"
-              name="sectionalHeadDate"
-              type="date"
-              value={formData.sectionalHeadDate}
-              onChange={handleInputChange}
-            />
+        )}
+
+        <fieldset disabled={!canEditOfficialSections} className={!canEditOfficialSections ? "opacity-60" : ""}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="sectionalHeadName">Name of Sectional Head</Label>
+              <Input
+                id="sectionalHeadName"
+                name="sectionalHeadName"
+                value={formData.sectionalHeadName}
+                onChange={handleInputChange}
+                placeholder="HOD name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sectionalHeadDate">Date</Label>
+              <Input
+                id="sectionalHeadDate"
+                name="sectionalHeadDate"
+                type="date"
+                value={formData.sectionalHeadDate}
+                onChange={handleInputChange}
+              />
+            </div>
           </div>
-        </div>
+        </fieldset>
       </div>
 
       {/* Section D - IS Manager */}
@@ -438,28 +490,36 @@ export function MaintenanceRepairsForm({ onSubmit }: { onSubmit: () => void }) {
           <h3 className="font-semibold text-sm">IS Manager / Office Use Only</h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="confirmedBy">Confirmed By</Label>
-            <Input
-              id="confirmedBy"
-              name="confirmedBy"
-              value={formData.confirmedBy}
-              onChange={handleInputChange}
-              placeholder="IS Manager name"
-            />
+        {!canEditOfficialSections && (
+          <div className="mb-4 rounded-md border border-dashed border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300">
+            Reserved for IT Head or Admin confirmation only.
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirmedDate">Date</Label>
-            <Input
-              id="confirmedDate"
-              name="confirmedDate"
-              type="date"
-              value={formData.confirmedDate}
-              onChange={handleInputChange}
-            />
+        )}
+
+        <fieldset disabled={!canEditOfficialSections} className={!canEditOfficialSections ? "opacity-60" : ""}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="confirmedBy">Confirmed By</Label>
+              <Input
+                id="confirmedBy"
+                name="confirmedBy"
+                value={formData.confirmedBy}
+                onChange={handleInputChange}
+                placeholder="IS Manager name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmedDate">Date</Label>
+              <Input
+                id="confirmedDate"
+                name="confirmedDate"
+                type="date"
+                value={formData.confirmedDate}
+                onChange={handleInputChange}
+              />
+            </div>
           </div>
-        </div>
+        </fieldset>
       </div>
 
       {/* Post-Repair Feedback */}
@@ -470,27 +530,35 @@ export function MaintenanceRepairsForm({ onSubmit }: { onSubmit: () => void }) {
           <span className="text-xs text-muted-foreground">(To be filled after repairs)</span>
         </div>
 
-        <div className="space-y-3">
-          <Label>Was your repaired IT gadget working properly?</Label>
-          <RadioGroup
-            value={formData.repairStatus}
-            onValueChange={(value) => handleSelectChange("repairStatus", value)}
-            className="flex flex-col gap-2"
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="working_perfectly" id="working_perfectly" />
-              <Label htmlFor="working_perfectly" className="font-normal cursor-pointer">
-                Working perfectly well now
-              </Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="same_condition" id="same_condition" />
-              <Label htmlFor="same_condition" className="font-normal cursor-pointer">
-                In the same bad condition
-              </Label>
-            </div>
-          </RadioGroup>
-        </div>
+        {!canEditOfficialSections && (
+          <div className="mb-4 rounded-md border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
+            This feedback area stays blank until the request has been handled by the IT unit.
+          </div>
+        )}
+
+        <fieldset disabled={!canEditOfficialSections} className={!canEditOfficialSections ? "opacity-60" : ""}>
+          <div className="space-y-3">
+            <Label>Was your repaired IT gadget working properly?</Label>
+            <RadioGroup
+              value={formData.repairStatus}
+              onValueChange={(value) => handleSelectChange("repairStatus", value)}
+              className="flex flex-col gap-2"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="working_perfectly" id="working_perfectly" />
+                <Label htmlFor="working_perfectly" className="font-normal cursor-pointer">
+                  Working perfectly well now
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="same_condition" id="same_condition" />
+                <Label htmlFor="same_condition" className="font-normal cursor-pointer">
+                  In the same bad condition
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+        </fieldset>
       </div>
 
       <div className="flex justify-end gap-2 pt-4">

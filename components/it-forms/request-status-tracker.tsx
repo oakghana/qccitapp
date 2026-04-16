@@ -32,10 +32,24 @@ interface ITRequisition {
   sectional_head_name?: string
   sectional_head_date?: string
   gadget_make?: string
+  supplier_name?: string
   serial_number?: string
+  item_sn?: string
   year_of_purchase?: number | string
   date_of_purchase?: string
+  date_of_last_repairs?: string
   times_repaired?: number | string
+  diagnosis_items?: Array<{
+    partItem?: string
+    makeSerialNo?: string
+    faultRemarks?: string
+  }>
+  hardware_supervisor_name?: string
+  hardware_supervisor_date?: string
+  confirmed_by?: string
+  confirmed_date?: string
+  recommended?: boolean | null
+  gadget_working_status?: string
   request_date: string
   status: string
   department_head_approved?: boolean
@@ -146,14 +160,22 @@ export function RequestStatusTracker({
       summary: getRequestSummary(req),
       purpose: getRequestPurpose(req),
       status: req.status,
-      gadgetMake: req.gadget_make,
-      serialNumber: req.serial_number,
+      gadgetMake: req.gadget_make || req.supplier_name,
+      serialNumber: req.serial_number || req.item_sn,
       yearOfPurchase: req.year_of_purchase,
       dateOfPurchase: req.date_of_purchase,
+      lastRepairDate: req.date_of_last_repairs,
       timesRepaired: req.times_repaired,
       hodName: req.department_head_approved_by || req.departmental_head_name || req.sectional_head_name,
       hodDate: req.department_head_approved_at || req.departmental_head_date || req.sectional_head_date,
       extraNotes: req.other_comments,
+      diagnosisItems: req.diagnosis_items,
+      supervisorName: req.hardware_supervisor_name,
+      supervisorDate: req.hardware_supervisor_date,
+      managerName: req.confirmed_by,
+      managerDate: req.confirmed_date,
+      recommendation: req.recommended,
+      repairStatus: req.gadget_working_status,
     })
   }
 

@@ -35,6 +35,8 @@ export async function POST(request: NextRequest) {
       department,
       room_number,
       requisition_number,
+      asset_tag,
+      serial_number,
       is_replacement,
       replacement_reason,
       notes,
@@ -159,19 +161,34 @@ export async function POST(request: NextRequest) {
     )
 
     let createdDevices = []
+    const cleanedAssetTag = asset_tag?.trim() || ""
+    const cleanedSerialNumber = serial_number?.trim() || ""
+    const trackingNotes = [
+      cleanedAssetTag ? `Asset Tag: ${cleanedAssetTag}` : "",
+      cleanedSerialNumber ? `Serial Number: ${cleanedSerialNumber}` : "",
+      notes || "",
+    ].filter(Boolean).join('. ')
 
     if (isHardware) {
       // Create device entries for each quantity - use batch insert for better performance
       const deviceInserts = []
       
       for (let i = 0; i < quantity; i++) {
-        const serialNumber = `${stockItem.sku || stockItem.name.substring(0, 3).toUpperCase()}-${Date.now()}-${i + 1}`
-        
+        const generatedSerial = `${stockItem.sku || stockItem.name.substring(0, 3).toUpperCase()}-${Date.now()}-${i + 1}`
+        const deviceSerialNumber = cleanedSerialNumber
+          ? (quantity > 1 ? `${cleanedSerialNumber}-${i + 1}` : cleanedSerialNumber)
+          : generatedSerial
+        const deviceAssetTag = cleanedAssetTag
+          ? (quantity > 1 ? `${cleanedAssetTag}-${i + 1}` : cleanedAssetTag)
+          : null
+
         const deviceNotes = [
           `Assigned to ${assigned_to_name}`,
           `Department: ${department}`,
           `Room: ${room_number || 'N/A'}`,
           requisition_number ? `Requisition: ${requisition_number}` : '',
+          deviceAssetTag ? `Asset Tag: ${deviceAssetTag}` : '',
+          deviceSerialNumber ? `Serial Number: ${deviceSerialNumber}` : '',
           is_replacement ? `Replacement${replacement_reason ? ` - ${replacement_reason}` : ''}` : '',
           notes || ''
         ].filter(Boolean).join('. ')
@@ -180,7 +197,8 @@ export async function POST(request: NextRequest) {
           device_type: stockItem.category || "Other",
           brand: stockItem.name.split(" ")[0] || "Generic",
           model: stockItem.name,
-          serial_number: serialNumber,
+          serial_number: deviceSerialNumber,
+          asset_tag: deviceAssetTag,
           status: "in_use",
           location: location,
           assigned_to: assigned_to_name,
@@ -222,11 +240,13 @@ export async function POST(request: NextRequest) {
       assigned_by: assigned_by,
       assigned_by_role: assigned_by_role,
       requisition_number: requisition_number,
+      asset_tag: cleanedAssetTag || null,
+      serial_number: cleanedSerialNumber || null,
       is_replacement: is_replacement,
       replacement_reason: replacement_reason,
       is_hardware: isHardware,
       devices_created: createdDevices.length,
-      notes: notes,
+      notes: trackingNotes,
       created_at: new Date().toISOString(),
     }
 
@@ -249,6 +269,8 @@ export async function POST(request: NextRequest) {
       `Assigned to ${assigned_to_name}`,
       `Department: ${department}`,
       requisition_number ? `Requisition: ${requisition_number}` : '',
+      cleanedAssetTag ? `Asset Tag: ${cleanedAssetTag}` : '',
+      cleanedSerialNumber ? `Serial Number: ${cleanedSerialNumber}` : '',
       is_replacement ? 'Replacement assignment' : '',
       notes || ''
     ].filter(Boolean).join('. ')

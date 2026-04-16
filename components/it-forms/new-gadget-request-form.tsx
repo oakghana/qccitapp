@@ -73,6 +73,8 @@ export function NewGadgetRequestForm({ onSubmit }: { onSubmit: () => void }) {
     "Other",
   ]
 
+  const canEditOfficialSections = ["admin", "it_head"].includes(user?.role || "")
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
@@ -103,7 +105,23 @@ export function NewGadgetRequestForm({ onSubmit }: { onSubmit: () => void }) {
       const response = await fetch("/api/it-forms/new-gadget", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          submittedByRole: user?.role || "",
+          ...(canEditOfficialSections
+            ? {}
+            : {
+                makeOfGadget: "",
+                serialNumber: "",
+                yearOfPurchase: "",
+                otherComments: "",
+                departmentalHeadName: "",
+                departmentalHeadDate: "",
+                recommended: "",
+                confirmedBy: "",
+                confirmedDate: "",
+              }),
+        }),
       })
 
       const result = await response.json()
@@ -159,6 +177,21 @@ export function NewGadgetRequestForm({ onSubmit }: { onSubmit: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="rounded-2xl border bg-white/95 p-5 shadow-sm dark:bg-slate-950/60">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <img src="/images/qcc-logo.png" alt="QCC Logo" className="h-12 w-12 rounded-full border bg-white object-contain p-1" />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Quality Control Company Limited</p>
+              <h2 className="text-lg font-bold">New IT Gadget Request Form</h2>
+              <p className="text-sm text-muted-foreground">Presented in the same section order as the shared approval form.</p>
+            </div>
+          </div>
+          <div className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+            Review fields are locked for staff submissions
+          </div>
+        </div>
+      </div>
       {error && (
         <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md flex items-center gap-2 border border-destructive/20">
           <AlertCircle className="h-4 w-4 flex-shrink-0" />
@@ -240,8 +273,16 @@ export function NewGadgetRequestForm({ onSubmit }: { onSubmit: () => void }) {
           <span className="text-xs text-muted-foreground">(To be filled by IT Hardware Group)</span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
+        {!canEditOfficialSections && (
+          <div className="mb-4 rounded-md border border-dashed border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-300">
+            This history block stays blank for staff submissions and is completed during technical review.
+          </div>
+        )}
+
+        <fieldset disabled={!canEditOfficialSections} className={!canEditOfficialSections ? "opacity-60" : ""}>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
             <Label htmlFor="makeOfGadget">Make of IT Gadget</Label>
             <Select value={formData.makeOfGadget} onValueChange={(value) => handleSelectChange("makeOfGadget", value)}>
               <SelectTrigger id="makeOfGadget">
@@ -287,17 +328,19 @@ export function NewGadgetRequestForm({ onSubmit }: { onSubmit: () => void }) {
           </div>
         </div>
 
-        <div className="space-y-2 mt-4">
-          <Label htmlFor="otherComments">Any Other Comments</Label>
-          <Textarea
-            id="otherComments"
-            name="otherComments"
-            value={formData.otherComments}
-            onChange={handleInputChange}
-            placeholder="Additional comments about the previous gadget condition..."
-            className="min-h-16"
-          />
+          <div className="space-y-2 mt-4">
+            <Label htmlFor="otherComments">Any Other Comments</Label>
+            <Textarea
+              id="otherComments"
+              name="otherComments"
+              value={formData.otherComments}
+              onChange={handleInputChange}
+              placeholder="Additional comments about the previous gadget condition..."
+              className="min-h-16"
+            />
+          </div>
         </div>
+        </fieldset>
       </div>
 
       {/* Section C - HOD Authorization */}
@@ -307,28 +350,36 @@ export function NewGadgetRequestForm({ onSubmit }: { onSubmit: () => void }) {
           <h3 className="font-semibold text-sm">Authorization from Head of Department</h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="departmentalHeadName">Name of Departmental Head</Label>
-            <Input
-              id="departmentalHeadName"
-              name="departmentalHeadName"
-              value={formData.departmentalHeadName}
-              onChange={handleInputChange}
-              placeholder="HOD name"
-            />
+        {!canEditOfficialSections && (
+          <div className="mb-4 rounded-md border border-dashed border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
+            This approval block is reserved for the review workflow and stays blank for staff submissions.
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="departmentalHeadDate">Date</Label>
-            <Input
-              id="departmentalHeadDate"
-              name="departmentalHeadDate"
-              type="date"
-              value={formData.departmentalHeadDate}
-              onChange={handleInputChange}
-            />
+        )}
+
+        <fieldset disabled={!canEditOfficialSections} className={!canEditOfficialSections ? "opacity-60" : ""}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="departmentalHeadName">Name of Departmental Head</Label>
+              <Input
+                id="departmentalHeadName"
+                name="departmentalHeadName"
+                value={formData.departmentalHeadName}
+                onChange={handleInputChange}
+                placeholder="HOD name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="departmentalHeadDate">Date</Label>
+              <Input
+                id="departmentalHeadDate"
+                name="departmentalHeadDate"
+                type="date"
+                value={formData.departmentalHeadDate}
+                onChange={handleInputChange}
+              />
+            </div>
           </div>
-        </div>
+        </fieldset>
       </div>
 
       {/* Section D - IS Manager */}
@@ -338,52 +389,60 @@ export function NewGadgetRequestForm({ onSubmit }: { onSubmit: () => void }) {
           <h3 className="font-semibold text-sm">IS Manager / Office Use Only</h3>
         </div>
 
-        <div className="space-y-4">
-          <div className="space-y-3">
-            <Label>Recommended?</Label>
-            <RadioGroup
-              value={formData.recommended}
-              onValueChange={(value) => handleSelectChange("recommended", value)}
-              className="flex gap-6"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="yes" id="recommended_yes" />
-                <Label htmlFor="recommended_yes" className="font-normal cursor-pointer">
-                  Yes
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="no" id="recommended_no" />
-                <Label htmlFor="recommended_no" className="font-normal cursor-pointer">
-                  No
-                </Label>
-              </div>
-            </RadioGroup>
+        {!canEditOfficialSections && (
+          <div className="mb-4 rounded-md border border-dashed border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300">
+            Only Admin or IT Head can complete this section.
           </div>
+        )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="confirmedBy">Confirmed By</Label>
-              <Input
-                id="confirmedBy"
-                name="confirmedBy"
-                value={formData.confirmedBy}
-                onChange={handleInputChange}
-                placeholder="IS Manager name"
-              />
+        <fieldset disabled={!canEditOfficialSections} className={!canEditOfficialSections ? "opacity-60" : ""}>
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <Label>Recommended?</Label>
+              <RadioGroup
+                value={formData.recommended}
+                onValueChange={(value) => handleSelectChange("recommended", value)}
+                className="flex gap-6"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="yes" id="recommended_yes" />
+                  <Label htmlFor="recommended_yes" className="font-normal cursor-pointer">
+                    Yes
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="no" id="recommended_no" />
+                  <Label htmlFor="recommended_no" className="font-normal cursor-pointer">
+                    No
+                  </Label>
+                </div>
+              </RadioGroup>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmedDate">Date</Label>
-              <Input
-                id="confirmedDate"
-                name="confirmedDate"
-                type="date"
-                value={formData.confirmedDate}
-                onChange={handleInputChange}
-              />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="confirmedBy">Confirmed By</Label>
+                <Input
+                  id="confirmedBy"
+                  name="confirmedBy"
+                  value={formData.confirmedBy}
+                  onChange={handleInputChange}
+                  placeholder="IS Manager name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmedDate">Date</Label>
+                <Input
+                  id="confirmedDate"
+                  name="confirmedDate"
+                  type="date"
+                  value={formData.confirmedDate}
+                  onChange={handleInputChange}
+                />
+              </div>
             </div>
           </div>
-        </div>
+        </fieldset>
       </div>
 
       <div className="flex justify-end gap-2 pt-4">

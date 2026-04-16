@@ -138,7 +138,7 @@ export function UserManagement() {
           return
         }
 
-        const { users: fetchedUsers, currentUserRole } = await response.json()
+        const { users: fetchedUsers } = await response.json()
         console.log("[v0] Loaded users from API:", fetchedUsers)
 
         const mappedUsers: SystemUser[] = fetchedUsers.map((profile: any) => ({
@@ -148,6 +148,7 @@ export function UserManagement() {
           phone: profile.phone || "",
           role: profile.role,
           location: profile.location || "Head Office",
+          department: profile.department || "",
           status:
             !profile.is_active || profile.status === "suspended"
               ? "suspended"
@@ -207,6 +208,8 @@ export function UserManagement() {
   }
 
   const locationOptions = getLocationFilterOptions()
+
+  const formatRoleLabel = (role: string) => role.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase())
 
   const handleUserAction = async (userId: string, action: "activate" | "deactivate" | "suspend" | "delete") => {
     try {
@@ -387,7 +390,7 @@ export function UserManagement() {
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {currentUser?.role === "admin" && (
             <Button
               variant="outline"
@@ -396,9 +399,17 @@ export function UserManagement() {
             >
               <User className="mr-2 h-4 w-4" />
               Account Requests
-              <Badge variant="secondary" className="ml-2 bg-yellow-100 text-yellow-800">
-                3
-              </Badge>
+            </Button>
+          )}
+
+          {currentUser?.role === "admin" && (
+            <Button
+              variant="outline"
+              onClick={() => (window.location.href = "/dashboard/admin/department-heads")}
+              className="hover:bg-emerald-50 hover:border-emerald-300"
+            >
+              <Users className="mr-2 h-4 w-4" />
+              Map Staff to HOD
             </Button>
           )}
 
@@ -498,17 +509,87 @@ export function UserManagement() {
       </Card>
 
       {/* User Table */}
-      <Card className="bg-slate-900/50 border-slate-700/50">
+      <Card className="border-slate-200 bg-white/90 shadow-sm dark:border-slate-800 dark:bg-slate-950/60">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
             <Users className="h-5 w-5" />
             Users Directory
           </CardTitle>
-          <CardDescription className="text-slate-400">Manage all system users and their roles</CardDescription>
+          <CardDescription>
+            {filteredUsers.length} of {users.length} users shown. Use this list for account updates and HOD mapping access.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Placeholder for users table */}
-          <div className="text-slate-400 text-center py-6">Users table would be displayed here</div>
+          {loading ? (
+            <div className="text-center py-10 text-muted-foreground">Loading users...</div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground">
+              No users matched the selected filters.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredUsers.map((user) => (
+                <div
+                  key={user.id}
+                  className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/40 lg:flex-row lg:items-center lg:justify-between"
+                >
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 font-semibold text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">
+                      {user.name
+                        .split(" ")
+                        .map((part) => part[0])
+                        .slice(0, 2)
+                        .join("")}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-slate-900 dark:text-slate-100">{user.name}</p>
+                      <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                        <span className="inline-flex items-center gap-1"><Mail className="h-3.5 w-3.5" />{user.email || "No email"}</span>
+                        <span className="inline-flex items-center gap-1"><Phone className="h-3.5 w-3.5" />{user.phone || "No phone"}</span>
+                        <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{getCanonicalLocationName(user.location)}</span>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Department: {user.department || "Not assigned"} • Created: {user.createdDate}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                    <Badge variant={roleBadgeColors[user.role] as any}>{formatRoleLabel(user.role)}</Badge>
+                    <Badge variant={statusColors[user.status] as any}>{formatRoleLabel(user.status)}</Badge>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEditUser(user)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit User
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleResetPassword(user)}>
+                          <KeyRound className="mr-2 h-4 w-4" />
+                          Reset Password
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleUserAction(user.id, user.status === "active" ? "deactivate" : "activate")}>
+                          <User className="mr-2 h-4 w-4" />
+                          {user.status === "active" ? "Deactivate" : "Activate"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleUserAction(user.id, "suspend")}>
+                          Suspend User
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleUserAction(user.id, "delete")} className="text-red-600 focus:text-red-600">
+                          Delete User
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

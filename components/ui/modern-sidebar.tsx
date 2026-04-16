@@ -695,10 +695,14 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
   const navigation = useMemo(() => getNavigationItems(), [user, counts])
 
   useEffect(() => {
-    if (user?.role === "admin" && navigation.groups.length > 0) {
-      setExpandedGroups((prev) => (prev.length > 0 ? prev : navigation.groups.map((group) => group.name)))
+    if (navigation.groups.length > 0) {
+      const activeGroups = navigation.groups
+        .filter((group) => group.items.some((item) => isActiveLink(item.href)))
+        .map((group) => group.name)
+
+      setExpandedGroups((prev) => (prev.length > 0 ? prev : activeGroups))
     }
-  }, [user?.role, navigation.groups])
+  }, [pathname, navigation.groups])
 
   // Prevent hydration mismatch by not rendering until mounted
   if (!isMounted) {

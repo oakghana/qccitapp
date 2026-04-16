@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@supabase/supabase-js"
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://example.supabase.co",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || "service-role-key-placeholder"
+)
 
 export async function GET() {
   try {
     console.log("[v0] Loading users from API...")
 
-    const supabase = await createServerClient()
-
-    // Fetch all users using service role (bypasses RLS)
-    const { data: users, error } = await supabase.from("profiles").select("*").order("created_at", { ascending: false })
+    const { data: users, error } = await supabaseAdmin.from("profiles").select("*").order("created_at", { ascending: false })
 
     if (error) {
       console.error("[v0] Error fetching users:", error)

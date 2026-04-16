@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
       recommended,
       confirmedBy,
       confirmedDate,
+      submittedByRole,
     } = body
 
     console.log("[new-gadget] Creating new gadget request:", {
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
     })
 
     const requestNumber = await generateNextSequentialNumber()
+    const canEditOfficialSections = ["admin", "it_head"].includes(submittedByRole || "")
 
     const insertData = {
       request_number: requestNumber,
@@ -52,15 +54,15 @@ export async function POST(request: NextRequest) {
       department_name: departmentName,
       complaints_from_users: complaintsFromUsers,
       request_date: requestDate || new Date().toISOString().split("T")[0],
-      gadget_make: makeOfGadget || null,
-      serial_number: serialNumber || null,
-      year_of_purchase: yearOfPurchase ? parseInt(yearOfPurchase) : null,
-      other_comments: otherComments || null,
-      departmental_head_name: departmentalHeadName || null,
-      departmental_head_date: departmentalHeadDate || null,
-      recommended: recommended === "yes" ? true : recommended === "no" ? false : null,
-      confirmed_by: confirmedBy || null,
-      confirmed_date: confirmedDate || null,
+      gadget_make: canEditOfficialSections ? makeOfGadget || null : null,
+      serial_number: canEditOfficialSections ? serialNumber || null : null,
+      year_of_purchase: canEditOfficialSections && yearOfPurchase ? parseInt(yearOfPurchase) : null,
+      other_comments: canEditOfficialSections ? otherComments || null : null,
+      departmental_head_name: canEditOfficialSections ? departmentalHeadName || null : null,
+      departmental_head_date: canEditOfficialSections ? departmentalHeadDate || null : null,
+      recommended: canEditOfficialSections ? (recommended === "yes" ? true : recommended === "no" ? false : null) : null,
+      confirmed_by: canEditOfficialSections ? confirmedBy || null : null,
+      confirmed_date: canEditOfficialSections ? confirmedDate || null : null,
       status: "pending_department_head",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

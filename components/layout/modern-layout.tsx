@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
+import { usePathname } from "next/navigation"
 import { ModernSidebar, MobileMenuButton } from "@/components/ui/modern-sidebar"
 import { PWAInstall } from "@/components/ui/pwa-install"
 import { MobileAppDownload } from "@/components/ui/mobile-app-download"
@@ -33,6 +34,7 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
   const [isOnline, setIsOnline] = useState(true)
   const [isMounted, setIsMounted] = useState(false)
   const [showMobileDownload, setShowMobileDownload] = useState(false)
+  const pathname = usePathname()
   const { user, logout } = useAuth()
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
   const { setupConnectivityListeners, preloadCriticalData, isOnline: checkOnline, clearCache } = useOfflineCache()
@@ -80,6 +82,34 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
   
   // Check if user can see notifications menu (IT Head and Admin only)
   const canSeeNotifications = user?.role === "it_head" || user?.role === "admin"
+
+  const quickAccessLinks = user?.role === "admin"
+    ? [
+        { name: "Users", href: "/dashboard/users" },
+        { name: "HOD Mapping", href: "/dashboard/admin/department-heads" },
+        { name: "Approvals", href: "/dashboard/user-accounts" },
+        { name: "Store", href: "/dashboard/store-overview" },
+        { name: "Assign Stock", href: "/dashboard/assign-stock" },
+        { name: "Devices", href: "/dashboard/devices" },
+        { name: "IT Forms", href: "/dashboard/it-forms/approvals" },
+        { name: "Settings", href: "/dashboard/system-settings" },
+      ]
+    : user?.role === "it_head"
+      ? [
+          { name: "Devices", href: "/dashboard/devices" },
+          { name: "Approvals", href: "/dashboard/it-forms/approvals" },
+          { name: "Service Desk", href: "/dashboard/service-desk" },
+          { name: "Store", href: "/dashboard/store-inventory" },
+          { name: "Reports", href: "/dashboard/it-reports" },
+        ]
+      : []
+
+  const pageTitle = pathname
+    ?.split("/")
+    .filter(Boolean)
+    .slice(-1)[0]
+    ?.replace(/-/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase()) || "Overview"
 
   if (!isMounted) {
     return (
@@ -139,7 +169,7 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
                 Dashboard
               </span>
               <span>/</span>
-              <span className="text-orange-900 dark:text-orange-100 font-semibold">Overview</span>
+              <span className="text-orange-900 dark:text-orange-100 font-semibold">{pageTitle}</span>
             </div>
           </div>
 
@@ -291,6 +321,30 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
             </DropdownMenu>
           </div>
         </header>
+
+        {quickAccessLinks.length > 0 && (
+          <div className="border-b border-orange-200/50 bg-white/85 px-4 shadow-sm backdrop-blur-sm dark:border-orange-800/50 dark:bg-orange-950/75 sm:px-6 lg:px-8">
+            <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto py-3">
+              {quickAccessLinks.map((link) => {
+                const isActive = pathname === link.href || pathname?.startsWith(`${link.href}/`)
+                return (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    className={cn(
+                      "whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
+                      isActive
+                        ? "border-orange-500 bg-orange-500 text-white"
+                        : "border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:border-orange-800 dark:bg-orange-900/30 dark:text-orange-300"
+                    )}
+                  >
+                    {link.name}
+                  </a>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Main Content Area */}
         <main className={cn("flex-1 p-6 sm:p-8 lg:p-10 overflow-auto", className)}>

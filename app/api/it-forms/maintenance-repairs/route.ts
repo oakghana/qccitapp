@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
       confirmedBy,
       confirmedDate,
       repairStatus,
+      submittedByRole,
     } = body
 
     console.log("[maintenance-repairs] Creating new maintenance request:", {
@@ -47,6 +48,7 @@ export async function POST(request: NextRequest) {
     })
 
     const requestNumber = await generateNextSequentialNumber()
+    const canEditOfficialSections = ["admin", "it_head"].includes(submittedByRole || "")
 
     const insertData = {
       request_number: requestNumber,
@@ -54,18 +56,18 @@ export async function POST(request: NextRequest) {
       department_name: departmentName,
       complaints_from_users: complaintsFromUsers,
       request_date: requestDate || new Date().toISOString().split("T")[0],
-      diagnosis_items: faultItems || [],
-      other_comments: otherComments || null,
-      hardware_supervisor_name: hardwareSupervisorName || null,
-      hardware_supervisor_date: hardwareSupervisorDate || null,
-      date_of_last_repairs: dateOfLastRepairs || null,
-      date_of_purchase: dateOfPurchase || null,
-      times_repaired: numberOfTimesRepaired ? parseInt(numberOfTimesRepaired) : null,
-      sectional_head_name: sectionalHeadName || null,
-      sectional_head_date: sectionalHeadDate || null,
-      confirmed_by: confirmedBy || null,
-      confirmed_date: confirmedDate || null,
-      gadget_working_status: repairStatus || null,
+      diagnosis_items: canEditOfficialSections ? faultItems || [] : [],
+      other_comments: canEditOfficialSections ? otherComments || null : null,
+      hardware_supervisor_name: canEditOfficialSections ? hardwareSupervisorName || null : null,
+      hardware_supervisor_date: canEditOfficialSections ? hardwareSupervisorDate || null : null,
+      date_of_last_repairs: canEditOfficialSections ? dateOfLastRepairs || null : null,
+      date_of_purchase: canEditOfficialSections ? dateOfPurchase || null : null,
+      times_repaired: canEditOfficialSections && numberOfTimesRepaired ? parseInt(numberOfTimesRepaired) : null,
+      sectional_head_name: canEditOfficialSections ? sectionalHeadName || null : null,
+      sectional_head_date: canEditOfficialSections ? sectionalHeadDate || null : null,
+      confirmed_by: canEditOfficialSections ? confirmedBy || null : null,
+      confirmed_date: canEditOfficialSections ? confirmedDate || null : null,
+      gadget_working_status: canEditOfficialSections ? repairStatus || null : null,
       status: "pending_department_head",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

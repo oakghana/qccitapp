@@ -30,6 +30,7 @@ export async function GET() {
         return {
           ...member,
           linked: !!link,
+          department_head_id: link?.department_head_id || null,
         }
       })
     )

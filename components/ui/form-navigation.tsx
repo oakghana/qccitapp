@@ -24,6 +24,18 @@ const navigationItems: NavigationItem[] = [
     roles: ["admin", "it_head", "it_staff", "service_desk_head", "service_desk_staff", "user", "service_provider"],
   },
   {
+    name: "Store Overview",
+    href: "/dashboard/store-overview",
+    icon: BarChart3,
+    roles: ["admin", "it_store_head", "regional_it_head"],
+  },
+  {
+    name: "Assign Stock",
+    href: "/dashboard/assign-stock",
+    icon: UserPlus,
+    roles: ["admin", "it_store_head", "regional_it_head"],
+  },
+  {
     name: "Devices",
     href: "/dashboard/devices",
     icon: Laptop,
@@ -58,6 +70,18 @@ const navigationItems: NavigationItem[] = [
     href: "/dashboard/users",
     icon: Users,
     roles: ["admin", "it_head"],
+  },
+  {
+    name: "HOD Mapping",
+    href: "/dashboard/admin/department-heads",
+    icon: Users,
+    roles: ["admin"],
+  },
+  {
+    name: "IT Forms",
+    href: "/dashboard/it-forms/approvals",
+    icon: FileText,
+    roles: ["admin", "it_head", "department_head"],
   },
   {
     name: "User Accounts",
@@ -105,12 +129,34 @@ export function FormNavigation({ currentPage, className = "" }: FormNavigationPr
 
   return (
     <Card className={`mb-4 ${className}`}>
-      <CardContent className="p-2 py-2.5">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-medium text-gray-600 dark:text-gray-400">Quick Navigation</h3>
-          <span className="text-xs text-gray-500 dark:text-gray-500 capitalize">
-            {user.role.replace("_", " ")} • {getCanonicalLocationName(user.location)}
-          </span>
+      <CardContent className="p-3">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-medium text-gray-600 dark:text-gray-400">Quick Navigation</h3>
+            <span className="text-xs text-gray-500 dark:text-gray-500 capitalize">
+              {user.role.replace(/_/g, " ")} • {getCanonicalLocationName(user.location)}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {allowedItems.map((item) => {
+              const Icon = item.icon
+              const isActive = currentPage === item.href
+
+              return (
+                <Button
+                  key={item.href}
+                  variant={isActive ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleNavigation(item.href)}
+                  className="h-8 rounded-full"
+                >
+                  <Icon className="mr-1.5 h-3.5 w-3.5" />
+                  {item.name}
+                </Button>
+              )
+            })}
+          </div>
         </div>
       </CardContent>
     </Card>
