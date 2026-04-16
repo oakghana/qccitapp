@@ -151,7 +151,7 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
         <Alert variant="destructive" className="mb-4">
           <ShieldAlert className="h-4 w-4" />
           <AlertDescription>
-            Admins, Head Office IT leads, and Regional IT Heads can create repair requests. Other users can view existing repairs.
+            Admins, IT Staff, IT leads, and Regional IT Heads can create repair requests. Other users can view existing repairs.
             For IT support, please submit a service desk ticket.
           </AlertDescription>
         </Alert>

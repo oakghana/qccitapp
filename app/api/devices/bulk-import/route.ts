@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import { validateCsvImport, type DeviceImportRecord } from "@/lib/device-import/csv-validator"
+import { validateCsvImport } from "@/lib/device-import/csv-validator"
+import { getCanonicalLocationName, getLocationAliases } from "@/lib/location-filter"
 
 // Use service role key to bypass RLS
 const supabase = createClient(
@@ -36,15 +37,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User location is required" }, { status: 400 })
     }
 
+    const effectiveLocation = getCanonicalLocationName(userLocation)
+    const locationAliases = getLocationAliases(userLocation)
+
     // Fetch location details to capture location_id, region_id, district_id
-    const { data: locationData, error: locationError } = await supabase
-      .from("locations")
-      .select("id, region_id, district_id, name, region, type")
-      .ilike("name", userLocation)
-      .single()
+    let locationData: any = null
+    let locationError: any = null
+
+    if (locationAliases.length > 0) {
+      const locationClauses = locationAliases
+        .map((alias) => alias.replace(/[,%()]/g, "").trim())
+        .filter(Boolean)
+        .map((alias) => `name.ilike.%${alias}%`)
+
+      const locationLookup = await supabase
+        .from("locations")
+        .select("id, region_id, district_id, name, region, type")
+        .or(locationClauses.join(","))
+        .limit(1)
+
+      locationData = locationLookup.data?.[0] ?? null
+      locationError = locationLookup.error
+    }
 
     if (locationError || !locationData) {
-      console.log("[v0] Could not find location:", userLocation)
+      console.log("[v0] Could not find location:", userLocation, "using effective location:", effectiveLocation)
     }
 
     const locationId = locationData?.id
@@ -102,7 +119,7 @@ export async function POST(request: NextRequest) {
       model: record.model,
       serial_number: record.serial_number,
       status: record.status || "active",
-      location: userLocation, // Force location to user's location
+      location: effectiveLocation, // Force location to canonical user location
       location_id: locationId || null, // Add location_id if available
       region_id: regionId || null, // Add region_id if available
       district_id: districtId || null, // Add district_id if available
@@ -130,7 +147,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log("[v0] Successfully imported", validationResult.records.length, "devices to location:", userLocation, "at", new Date().toISOString())
+    console.log("[v0] Successfully imported", validationResult.records.length, "devices to location:", effectiveLocation, "at", new Date().toISOString())
 
     // Create audit log entry for the bulk import
     try {
@@ -138,7 +155,7 @@ export async function POST(request: NextRequest) {
         action: "bulk_device_import",
         resource: "devices",
         details: JSON.stringify({
-          location: userLocation,
+          location: effectiveLocation,
           location_id: locationId,
           region_id: regionId,
           district_id: districtId,
@@ -161,7 +178,7 @@ export async function POST(request: NextRequest) {
       skippedCount,
       totalRows: validationResult.records.length + skippedCount,
       warnings: validationResult.warnings || [],
-      message: `Successfully imported ${validationResult.records.length} device(s) to ${userLocation}${skippedMsg}`,
+      message: `Successfully imported ${validationResult.records.length} device(s) to ${effectiveLocation}${skippedMsg}`,
     })
   } catch (error: any) {
     console.error("[v0] Bulk import error:", error)
@@ -207,9 +224,17 @@ printer,HP,LaserJet M404,SN12347,active,2023-03-10,2025-03-10,Print Room,101,Mai
         .order("device_type")
         .order("brand")
 
-      // Filter by location (case-insensitive)
+      // Filter by location using aliases so Head Office/Accra and CR/Cape Coast stay aligned
       if (location !== "all") {
-        query = query.ilike("location", location)
+        const aliases = getLocationAliases(location)
+        const clauses = aliases
+          .map((alias) => alias.replace(/[,%()]/g, "").trim())
+          .filter(Boolean)
+          .map((alias) => `location.ilike.%${alias}%`)
+
+        if (clauses.length > 0) {
+          query = query.or(clauses.join(","))
+        }
       }
 
       const { data: devices, error: fetchError } = await query

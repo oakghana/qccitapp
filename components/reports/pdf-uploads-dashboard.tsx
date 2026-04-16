@@ -135,7 +135,7 @@ export function PDFUploadsDashboard() {
 
   const canUpload = user && (
     ["admin", "it_head", "regional_it_head"].includes(user.role) ||
-    (user.role === "it_staff" && user.location && !user.location.toLowerCase().includes("head"))
+    (user.role === "it_staff" && user.location && locationsMatch(user.location, "Head Office"))
   )
   const canEdit = user && ["admin", "it_head"].includes(user.role)
   const canDelete = user && ["admin", "it_head"].includes(user.role)
@@ -630,7 +630,7 @@ export function PDFUploadsDashboard() {
         {!canUpload && user?.role === "it_staff" && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
             <p className="font-medium">Note:</p>
-            <p>To upload documents, please contact your IT Head or Regional IT Head.</p>
+            <p>Only Admin, IT Head, Regional IT Head, and IT Staff at Head Office or Accra can upload documents.</p>
           </div>
         )}
       </div>

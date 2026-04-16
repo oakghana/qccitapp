@@ -22,6 +22,7 @@ const LOCATION_CANONICAL_MAP: Record<string, string> = {
   "head_office_accra": "Head Office",
   "head_office-accra": "Head Office",
   "headoffice": "Head Office",
+  accra: "Head Office",
   // Merge all Western North variants → "Western North"
   wn: "Western North",
   western_north: "Western North",
@@ -46,7 +47,7 @@ const LOCATION_ALIAS_GROUPS: Record<string, string[]> = {
   "Cape Coast": ["CR", "Cape Coast", "Central Region", "cape_coast", "cr", "central_region"],
   "Ho": ["VR", "Ho", "Volta", "vr", "ho", "volta"],
   "Sunyani": ["BAR", "Sunyani", "Brong Ahafo", "bar", "sunyani", "brong_ahafo"],
-  "Head Office": ["Head Office", "head_office", "HeadOffice", "Head Office Accra"],
+  "Head Office": ["Head Office", "head_office", "HeadOffice", "Head Office Accra", "Accra", "accra"],
 }
 
 export function getLocationAliases(location: string | null | undefined): string[] {
@@ -198,14 +199,14 @@ export function canEditLocation(user: User | null, location: string): boolean {
 
 /**
  * Checks if a user can create IT repair tasks
- * Admins, Head Office IT leads, and Regional IT heads can create repairs
+ * Admins, IT staff, Head Office IT leads, and Regional IT heads can create repairs
  * Other staff can only view repairs
  */
 export function canCreateRepairs(user: User | null): boolean {
   if (!user) return false
   if (user.role === "admin") return true
   if (user.role === "regional_it_head") return true
-  if (user.role === "it_staff" && locationsMatch(user.location, "Head Office")) return true
+  if (user.role === "it_staff") return true
   if (user.role === "it_head" && locationsMatch(user.location, "Head Office")) return true
   if (user.role === "it_store_head" && locationsMatch(user.location, "Head Office")) return true
   return false
