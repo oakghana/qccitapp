@@ -68,15 +68,25 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
 
     setLoading(true)
     try {
+      console.debug("[v0] loadDevices start", { user: user ? { id: user.id, role: user.role, location: user.location } : null, queryField, queryValue })
       let query: any = supabase.from("devices").select("*")
 
       // Always apply location filter first
       if (!canSeeAllLocations(user) && user.location) {
+        // log aliases used by applyLocationFilter for debugging
+        try {
+          const { getLocationAliases } = await import("@/lib/location-filter")
+          console.debug("[v0] applying location filter aliases", getLocationAliases(user.location))
+        } catch (e) {
+          console.debug("[v0] could not load aliases for debug", e)
+        }
         query = applyLocationFilter(query, user, "location")
       }
 
       // Only apply location filter at DB level, do NOT apply search filter at DB level
       const { data, error } = await query
+
+      console.debug("[v0] raw devices fetched", { count: (data || []).length, sample: (data || []).slice(0, 5) })
 
       if (error) {
         console.error("[v0] Error loading devices:", error)
@@ -84,6 +94,7 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
       }
 
       let filtered = data || []
+      console.debug("[v0] starting in-memory filtering", { queryValue })
       // In-memory search filtering for all fields
       if (queryValue) {
         const q = queryValue.toLowerCase()
@@ -101,6 +112,7 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
             (d.assigned_user && d.assigned_user.toLowerCase().includes(q))
           )
         })
+        console.debug("[v0] after in-memory filter", { count: filtered.length })
       }
       setDevices(filtered)
     } catch (error) {
