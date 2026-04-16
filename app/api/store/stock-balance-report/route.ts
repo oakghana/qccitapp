@@ -157,12 +157,7 @@ export async function GET(request: Request) {
 
     let items = allItems || []
 
-    // Filter by regional_it_head's location
-    if (profile.role === "regional_it_head") {
-      items = items.filter(
-        (item) => item.location?.toLowerCase() === profile.location?.toLowerCase()
-      )
-    }
+    // Regional IT heads can now view all locations (no filter)
 
     // Filter by device type if specified (case-insensitive)
     if (deviceType !== "all") {
