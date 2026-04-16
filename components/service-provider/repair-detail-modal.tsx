@@ -157,10 +157,12 @@ export function RepairDetailModal({
           </div>
 
           {/* Notes */}
-          {repair.notes && (
+          {(repair.work_notes || repair.description) && (
             <div className="rounded-lg border p-4">
               <h3 className="mb-2 font-semibold">Notes</h3>
-              <p className="text-sm text-muted-foreground">{repair.notes}</p>
+              <p className="text-sm text-muted-foreground">
+                {repair.work_notes || repair.description}
+              </p>
             </div>
           )}
 
