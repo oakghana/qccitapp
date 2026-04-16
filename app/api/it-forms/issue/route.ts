@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update approval chain with issuance info
-    let approvalChain = requisition.approval_chain || []
+    let approvalChain = requisition.approval_timeline || requisition.approval_chain || []
     approvalChain.push({
       approver: issuedBy,
       role: "it_store_head",
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       .from("it_equipment_requisitions")
       .update({
         status: "issued",
-        approval_chain: approvalChain,
+        approval_timeline: approvalChain,
         items_issued: itemsIssued,
         issued_date: new Date().toISOString(),
         updated_at: new Date().toISOString(),

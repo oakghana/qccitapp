@@ -60,7 +60,7 @@ interface ITRequisition {
   it_head_approved?: boolean
   admin_approved?: boolean
   store_head_approved?: boolean
-  approval_chain: Array<{
+  approval_timeline?: Array<{
     approver: string
     role: string
     action: string

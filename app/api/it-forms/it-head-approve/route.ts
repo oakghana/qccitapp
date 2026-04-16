@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       updateData.status = "rejected_it_head"
     }
 
-    const approvalChain = requisition.approval_chain || []
+    const approvalChain = requisition.approval_timeline || requisition.approval_chain || []
     approvalChain.push({
       approver: approvedBy,
       role: "it_head",
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       notes,
       timestamp: new Date().toISOString(),
     })
-    updateData.approval_chain = approvalChain
+    updateData.approval_timeline = approvalChain
 
     const { data: updated } = await supabaseAdmin
       .from("it_equipment_requisitions")

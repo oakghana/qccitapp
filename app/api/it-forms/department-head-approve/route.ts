@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       updateData.department_head_approved_by = approvedBy
       updateData.department_head_approved_at = now
 
-      const approvalChain = requisition.approval_chain || []
+      const approvalChain = requisition.approval_timeline || requisition.approval_chain || []
       approvalChain.push({
         approver: approvedBy,
         role: "department_head",
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
         notes,
         timestamp: now,
       })
-      updateData.approval_chain = approvalChain
+      updateData.approval_timeline = approvalChain
     }
 
     if (formType === "new-gadget") {

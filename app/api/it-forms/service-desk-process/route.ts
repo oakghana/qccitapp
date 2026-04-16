@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update the approval chain
-    const approvalChain = requisition.approval_chain || []
+    const approvalChain = requisition.approval_timeline || requisition.approval_chain || []
     approvalChain.push({
       approver: processedBy,
       role: "service_desk",
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       notes: notes,
       timestamp: new Date().toISOString(),
     })
-    updateData.approval_chain = approvalChain
+    updateData.approval_timeline = approvalChain
 
     const { data: updated, error: updateError } = await supabaseAdmin
       .from("it_equipment_requisitions")

@@ -31,7 +31,7 @@ interface ITRequisition {
   department: string
   request_date: string
   status: string
-  approval_chain: Array<{
+  approval_timeline?: Array<{
     approver: string
     role: string
     action: string
@@ -368,11 +368,11 @@ export function ITFormsApprovalDashboard() {
                 </div>
               </div>
 
-              {selectedRequisition.approval_chain && selectedRequisition.approval_chain.length > 0 && (
+              {(selectedRequisition.approval_timeline || []).length > 0 && (
                 <div className="space-y-2">
                   <Label className="text-muted-foreground">Approval History</Label>
                   <div className="space-y-2">
-                    {selectedRequisition.approval_chain.map((approval, idx) => (
+                    {(selectedRequisition.approval_timeline || []).map((approval, idx) => (
                       <div key={idx} className="bg-muted p-3 rounded text-sm space-y-1">
                         <div className="font-medium">
                           {approval.action.toUpperCase()} by {approval.approver} ({approval.role})

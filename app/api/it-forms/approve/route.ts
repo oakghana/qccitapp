@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     // Determine new status based on action
     let newStatus = requisition.status
-    let approvalChain = requisition.approval_chain || []
+    let approvalChain = requisition.approval_timeline || requisition.approval_chain || []
 
     if (action === "submit") {
       newStatus = "pending"
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       .from("it_equipment_requisitions")
       .update({
         status: newStatus,
-        approval_chain: approvalChain,
+        approval_timeline: approvalChain,
         updated_at: new Date().toISOString(),
       })
       .eq("id", requisitionId)

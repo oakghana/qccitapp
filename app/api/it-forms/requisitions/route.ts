@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       department: department,
       request_date: requestDate || now,
       status: "pending_department_head",
-      approval_chain: [
+      approval_timeline: [
         {
           approver: requestedBy,
           role: "requester",

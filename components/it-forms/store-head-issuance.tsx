@@ -28,7 +28,7 @@ interface ITRequisition {
   issuance_notes?: string
   issued_at?: string
   issued_by?: string
-  approval_chain: Array<any>
+  approval_timeline?: Array<any>
   created_at: string
 }
 

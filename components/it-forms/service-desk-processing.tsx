@@ -43,7 +43,7 @@ interface ITRequisition {
   it_head_approved?: boolean
   admin_approved?: boolean
   store_head_approved?: boolean
-  approval_chain: Array<any>
+  approval_timeline?: Array<any>
   created_at: string
   updated_at: string
 }
