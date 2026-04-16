@@ -401,21 +401,21 @@ export function ITHeadRepairManagement() {
   })
 
   const createRepairTask = async () => {
-    if (!selectedDevice || !issueDescription || !selectedProvider) {
+    if (!selectedDevice || !issueDescription) {
       toast({
         title: "❌ Missing Information",
-        description: "Please fill in all required fields: device, issue description, and service provider",
+        description: "Please fill in all required fields: device and issue description",
         variant: "destructive",
       })
       return
     }
 
     const device = devices.find((d) => d.id === selectedDevice)
-    const provider = serviceProviders.find((p) => p.id === selectedProvider)
+    // Automatically use NATHLAND as the service provider
+    const provider = serviceProviders.find((p) => p.name === "NATHLAND COMPANY LIMITED")
 
-    console.log("[v0] Validating repair task - Device:", !!device, "Provider:", !!provider)
-    console.log("[v0] Selected provider ID:", selectedProvider)
-    console.log("[v0] Available providers:", serviceProviders.map(p => ({ id: p.id, name: p.name })))
+    console.log("[v0] Creating repair task - Device:", !!device, "Provider:", !!provider)
+    console.log("[v0] Auto-assigned to provider:", provider?.name)
 
     if (!device) {
       toast({
@@ -428,15 +428,15 @@ export function ITHeadRepairManagement() {
 
     if (!provider) {
       toast({
-        title: "❌ Selected service provider not found",
-        description: "The selected service provider is not available. Please refresh the page and try selecting a different provider.",
+        title: "❌ NATHLAND Service Provider Not Available",
+        description: "The NATHLAND service provider is not available. Please contact support.",
         variant: "destructive",
       })
       return
     }
 
     try {
-      console.log("[v0] Saving repair task via API")
+      console.log("[v0] Saving repair task via API - Auto-assigned to NATHLAND")
 
       // Convert attachments to base64 or file names
       const attachmentNames = attachments.map((file) => file.name)
@@ -473,10 +473,10 @@ export function ITHeadRepairManagement() {
         return
       }
 
-      console.log("[v0] Repair task saved successfully:", result)
+      console.log("[v0] Repair task saved successfully and assigned to NATHLAND:", result)
       toast({
-        title: "🔧 Repair Task Created Successfully",
-        description: "The repair request has been submitted",
+        title: "✓ Repair Task Created",
+        description: "The repair request has been assigned to NATHLAND COMPANY LIMITED",
       })
 
       // Reload tasks
@@ -511,15 +511,16 @@ export function ITHeadRepairManagement() {
   }
 
   const updateRepairTask = async () => {
-    if (!editingTask || !editSelectedDevice || !editIssueDescription || !editSelectedProvider) return
+    if (!editingTask || !editSelectedDevice || !editIssueDescription) return
 
     const device = devices.find((d) => d.id === editSelectedDevice)
-    const provider = serviceProviders.find((p) => p.id === editSelectedProvider)
+    // Automatically use NATHLAND as the service provider
+    const provider = serviceProviders.find((p) => p.name === "NATHLAND COMPANY LIMITED")
 
     if (!device || !provider) return
 
     try {
-      console.log("[v0] Updating repair task via API")
+      console.log("[v0] Updating repair task via API - Auto-assigned to NATHLAND")
 
       const response = await fetch("/api/repairs", {
         method: "PUT",
@@ -796,29 +797,6 @@ export function ITHeadRepairManagement() {
                     </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="provider">Service Provider</Label>
-                    <Select value={selectedProvider} onValueChange={setSelectedProvider}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose service provider" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(serviceProviders || []).length > 0 ? (
-                          (serviceProviders || []).map((provider) => (
-                            <SelectItem key={provider.id} value={provider.id}>
-                              {provider.name}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="loading" disabled>
-                            Loading service providers...
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
                 <div>
                   <Label htmlFor="issue">Issue Description</Label>
                   <Textarea
@@ -857,6 +835,12 @@ export function ITHeadRepairManagement() {
                       onChange={(e) => setEstimatedCost(e.target.value)}
                     />
                   </div>
+                </div>
+
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>Service Provider:</strong> This repair will be automatically assigned to <strong>NATHLAND COMPANY LIMITED</strong>
+                  </p>
                 </div>
 
                 <div>
@@ -908,7 +892,7 @@ export function ITHeadRepairManagement() {
                   </Button>
                   <Button
                     onClick={createRepairTask}
-                    disabled={!selectedDevice || !issueDescription || !selectedProvider}
+                    disabled={!selectedDevice || !issueDescription}
                     className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white"
                   >
                     <Wrench className="h-4 w-4 mr-2" />
@@ -984,22 +968,12 @@ export function ITHeadRepairManagement() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
 
-                <div>
-                  <Label htmlFor="edit-provider">Service Provider</Label>
-                  <Select value={editSelectedProvider} onValueChange={setEditSelectedProvider}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose service provider" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(serviceProviders || []).map((provider) => (
-                        <SelectItem key={provider.id} value={provider.id}>
-                          {provider.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Service Provider:</strong> This repair is assigned to <strong>NATHLAND COMPANY LIMITED</strong>
+                </p>
               </div>
 
               <div>

@@ -178,8 +178,8 @@ export async function POST(request: NextRequest) {
     // Generate a task number
     const taskNumber = `REP-${Date.now().toString(36).toUpperCase()}`
 
-    // Insert the repair request
-    // Note: service_provider_id is set to null to avoid FK constraint issues with hardcoded providers
+    // Insert the repair request with automatic assignment to NATHLAND
+    // Note: service_provider_id is set to NATHLAND's ID to automatically assign repairs
     const { data, error } = await supabaseAdmin
       .from("repair_requests")
       .insert({
@@ -188,13 +188,13 @@ export async function POST(request: NextRequest) {
         description: body.description || body.issue_description,
         issue_description: body.issue_description,
         priority: body.priority || "medium",
-        status: body.service_provider_name ? "assigned" : "pending",
+        status: "assigned", // Automatically set to assigned since NATHLAND is assigned
         location: body.location,
         requested_by: body.requested_by,
-        service_provider_id: null, // Set to null - using hardcoded providers, not DB references
-        service_provider_name: body.service_provider_name || null,
+        service_provider_id: "808e21d0-8069-4687-8d40-5b5f609c0fb0", // NATHLAND COMPANY LIMITED ID
+        service_provider_name: "NATHLAND COMPANY LIMITED", // Automatically assign to NATHLAND
         service_provider_assigned_by: body.service_provider_assigned_by || null,
-        service_provider_assigned_date: body.service_provider_assigned_date || null,
+        service_provider_assigned_date: new Date().toISOString(), // Set assignment date
         estimated_cost: body.estimated_cost || null,
         task_number: taskNumber,
         created_at: new Date().toISOString(),
@@ -210,88 +210,70 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Created repair request:", data)
 
-    // If a service provider is assigned, send email notification
-    if (body.service_provider_name) {
-      // Hardcoded service provider email addresses
-      const providerEmails: Record<string, string> = {
-        "NATHLAND COMPANY LIMITED": "nathland@gmail.com",
-        "INTEL COMPUTERS": "intel@computers.com",
-      }
+    // Always send email to NATHLAND COMPANY LIMITED for every repair created
+    const providerName = "NATHLAND COMPANY LIMITED"
+    const providerEmail = "nathland@gmail.com"
+
+    console.log("[v0] Sending repair notification to NATHLAND:", providerName, providerEmail)
+
+    // Fetch device info for email
+    let deviceInfo = body.device_name || "Unknown Device"
+    if (body.device_id) {
+      const { data: device } = await supabaseAdmin
+        .from("devices")
+        .select("device_type, brand, model, serial_number, asset_tag")
+        .eq("id", body.device_id)
+        .single()
       
-      const providerName = body.service_provider_name
-      const providerEmail = providerEmails[providerName]
-
-      console.log("[v0] Using hardcoded service provider:", providerName, providerEmail)
-
-      if (providerEmail) {
-        // Fetch device info for email
-        let deviceInfo = body.device_name || "Unknown Device"
-        if (body.device_id) {
-          const { data: device } = await supabaseAdmin
-            .from("devices")
-            .select("device_type, brand, model, serial_number, asset_tag")
-            .eq("id", body.device_id)
-            .single()
-          
-          if (device) {
-            deviceInfo = `${device.asset_tag || device.serial_number} - ${device.device_type} (${device.brand} ${device.model})`
-          }
-        }
-
-        // Send email notification
-        const emailResult = await sendServiceProviderEmail(
-          providerEmail,
-          providerName,
-          {
-            taskNumber,
-            deviceInfo,
-            issueDescription: body.issue_description || body.description || "No description provided",
-            priority: body.priority || "medium",
-            estimatedCost: body.estimated_cost,
-            location: body.location || "Unknown",
-            requestedBy: body.requested_by_name || "IT Department",
-          }
-        )
-
-        console.log("[v0] Email notification result:", emailResult)
+      if (device) {
+        deviceInfo = `${device.asset_tag || device.serial_number} - ${device.device_type} (${device.brand} ${device.model})`
       }
     }
 
-    // Create in-app notification for service provider
-    if (body.service_provider_name) {
-      try {
-        // Map hardcoded provider names to user IDs or send to admin
-        const providerMap: Record<string, string> = {
-          "NATHLAND COMPANY LIMITED": "nathland-company",
-          "INTEL COMPUTERS": "intel-computers",
-        }
-
-        const providerId = providerMap[body.service_provider_name] || body.service_provider_name
-
-        // Create notification record
-        const { error: notifError } = await supabaseAdmin
-          .from("notifications")
-          .insert({
-            recipient_type: "service_provider",
-            recipient_id: providerId,
-            title: "New Repair Task Assigned",
-            message: `Task ${taskNumber}: ${body.device_name} - ${body.issue_description}`,
-            type: "repair_assigned",
-            related_id: data.id,
-            related_type: "repair_request",
-            read: false,
-            created_at: new Date().toISOString(),
-          })
-
-        if (notifError) {
-          console.error("[v0] Error creating in-app notification:", notifError)
-        } else {
-          console.log("[v0] In-app notification created for service provider:", providerId)
-        }
-      } catch (err) {
-        console.error("[v0] Error in notification creation:", err)
-        // Don't fail the repair creation if notification fails
+    // Send email notification
+    const emailResult = await sendServiceProviderEmail(
+      providerEmail,
+      providerName,
+      {
+        taskNumber,
+        deviceInfo,
+        issueDescription: body.issue_description || body.description || "No description provided",
+        priority: body.priority || "medium",
+        estimatedCost: body.estimated_cost,
+        location: body.location || "Unknown",
+        requestedBy: body.requested_by_name || "IT Department",
       }
+    )
+
+    console.log("[v0] Email notification result:", emailResult)
+
+    // Create in-app notification for NATHLAND
+    try {
+      const providerId = "nathland-company"
+
+      // Create notification record
+      const { error: notifError } = await supabaseAdmin
+        .from("notifications")
+        .insert({
+          recipient_type: "service_provider",
+          recipient_id: providerId,
+          title: "New Repair Task Assigned",
+          message: `Task ${taskNumber}: ${body.device_name} - ${body.issue_description}`,
+          type: "repair_assigned",
+          related_id: data.id,
+          related_type: "repair_request",
+          read: false,
+          created_at: new Date().toISOString(),
+        })
+
+      if (notifError) {
+        console.error("[v0] Error creating in-app notification:", notifError)
+      } else {
+        console.log("[v0] In-app notification created for NATHLAND:", providerId)
+      }
+    } catch (err) {
+      console.error("[v0] Error in notification creation:", err)
+      // Don't fail the repair creation if notification fails
     }
 
     return NextResponse.json({ repair: data, taskNumber })
