@@ -70,17 +70,21 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
     try {
       let query: any = supabase.from("devices").select("*")
 
-      // Apply search filter if provided
-      if (queryField && queryValue) {
-        // @ts-ignore - dynamic query building for Supabase
-        query = query.ilike(queryField, `%${queryValue}%`)
+      // Always apply location filter first
+      if (!canSeeAllLocations(user) && user.location) {
+        query = applyLocationFilter(query, user, "location")
       }
 
-      if (!canSeeAllLocations(user) && user.location) {
-        // Use centralized helper so filtering matches other parts of the app
-        // This applies the user's location and also includes Central Stores
-        // @ts-ignore - Supabase query typing is dynamic here
-        query = applyLocationFilter(query, user, "location")
+      // Apply search filter if provided
+      if (queryValue) {
+        let field = queryField
+        // If the query looks like a device tag, search asset_tag and id
+        if (/^[A-Z0-9]{6,}$/.test(queryValue)) {
+          // Try both asset_tag and id fields
+          query = query.or(`asset_tag.ilike.%${queryValue}%,id.ilike.%${queryValue}%`)
+        } else if (field) {
+          query = query.ilike(field, `%${queryValue}%`)
+        }
       }
 
       const { data, error } = await query
@@ -90,7 +94,6 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
         return
       }
 
-      console.log("[v0] Loaded devices for repair request:", (data || []).length)
       // Only include devices from the user's assigned region (exclude Central Stores and others)
       let filtered = data || []
       if (!canSeeAllLocations(user) && user.location) {
@@ -143,7 +146,12 @@ export function NewRepairRequestForm({ onSubmit }: NewRepairRequestFormProps) {
       loadDevices()
       return
     }
-    await loadDevices(searchField, q)
+    // If query looks like a device tag, ignore searchField and search by asset_tag/id
+    if (/^[A-Z0-9]{6,}$/.test(q)) {
+      await loadDevices(undefined, q)
+    } else {
+      await loadDevices(searchField, q)
+    }
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
