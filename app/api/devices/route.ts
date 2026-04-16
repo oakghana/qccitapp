@@ -7,6 +7,28 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+function getLocationFilterClauses(location: string) {
+  const normalized = location.toLowerCase().replace(/[_-]+/g, " ").trim()
+  const aliasMap: Record<string, string[]> = {
+    cr: ["CR", "Cape Coast", "Central Region"],
+    "cape coast": ["Cape Coast", "CR", "Central Region"],
+    vr: ["VR", "Ho", "Volta"],
+    ho: ["Ho", "VR", "Volta"],
+    bar: ["BAR", "Sunyani", "Brong Ahafo"],
+    sunyani: ["Sunyani", "BAR", "Brong Ahafo"],
+    wn: ["WN", "Western North"],
+    ws: ["WS", "Western South"],
+    "head office": ["Head Office", "Head Office Accra"],
+  }
+
+  const aliases = Array.from(new Set([location, normalized, ...(aliasMap[normalized] || [])]))
+
+  return aliases.map((term) => {
+    const safeTerm = term.replace(/,/g, " ").trim()
+    return safeTerm.length <= 3 ? `location.ilike.${safeTerm}` : `location.ilike.%${safeTerm}%`
+  })
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
@@ -39,12 +61,9 @@ export async function GET(request: NextRequest) {
         query = query.ilike("location", likeQ)
       }
     } else if (!canSeeAll && location) {
-      // Apply location filter if user can't see all locations
-      // Normalize common separators so codes like `head_office` match labels like `Head Office`.
-      const fuzzy = location.replace(/[_-]+/g, " ").trim()
-      // Use case-insensitive partial match
+      const locationClauses = getLocationFilterClauses(location)
       // @ts-ignore
-      query = query.ilike("location", `%${fuzzy}%`)
+      query = query.or(locationClauses.join(","))
     }
 
     const { data, error } = await query

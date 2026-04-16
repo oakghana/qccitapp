@@ -28,6 +28,18 @@ const LOCATION_CANONICAL_MAP: Record<string, string> = {
   // Merge all Western South variants → "Western South"
   ws: "Western South",
   western_south: "Western South",
+  // Regional aliases
+  cr: "Cape Coast",
+  cape_coast: "Cape Coast",
+  central_region: "Cape Coast",
+  vr: "Ho",
+  ho: "Ho",
+  volta: "Ho",
+  bar: "Sunyani",
+  brong_ahafo: "Sunyani",
+  sunyani: "Sunyani",
+  eastern: "Eastern",
+  nsawam: "Eastern",
 }
 
 /**
@@ -46,7 +58,11 @@ export function getCanonicalLocationName(location: string | null | undefined): s
  */
 export function locationsMatch(loc1: string | null | undefined, loc2: string | null | undefined): boolean {
   if (!loc1 || !loc2) return false
-  return normalizeLocation(loc1) === normalizeLocation(loc2)
+
+  const directMatch = normalizeLocation(loc1) === normalizeLocation(loc2)
+  const canonicalMatch = normalizeLocation(getCanonicalLocationName(loc1)) === normalizeLocation(getCanonicalLocationName(loc2))
+
+  return directMatch || canonicalMatch
 }
 
 /**

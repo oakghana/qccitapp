@@ -161,6 +161,7 @@ export function DeviceInventory() {
   const [dbDistricts, setDbDistricts] = useState<{ id: string; code: string; name: string; region_id: string }[]>([])
 
   const supabase = createClient()
+  const canSelectAllLocations = user ? canSeeAllLocations(user) : false
 
   useEffect(() => {
     loadDevices()
@@ -168,6 +169,12 @@ export function DeviceInventory() {
     loadRegionsAndDistricts()
     checkDevicesWithoutLocation()
   }, [])
+
+  useEffect(() => {
+    if (user?.location && !canSelectAllLocations) {
+      setLocationFilter(getCanonicalLocationName(user.location))
+    }
+  }, [user?.location, canSelectAllLocations])
 
   const loadRegionsAndDistricts = async () => {
     try {
@@ -683,7 +690,7 @@ export function DeviceInventory() {
             ) : (
               <>Showing {startIndex}–{endIndex} of {devices.length} devices</>
             )}
-            {user?.location && !canSeeAllLocations(user) ? ` in ${user.location}` : ""}
+            {user?.location && !canSeeAllLocations(user) ? ` in ${getCanonicalLocationName(user.location)}` : ""}
           </p>
         </div>
         <div className="flex gap-2">
@@ -765,19 +772,20 @@ export function DeviceInventory() {
             </Button>
           </div>
         </div>
-        <Select value={locationFilter} onValueChange={setLocationFilter}>
-          <SelectTrigger className="w-full sm:w-36 h-9">
+        <Select value={locationFilter} onValueChange={setLocationFilter} disabled={!canSelectAllLocations}>
+          <SelectTrigger className="w-full sm:w-40 h-9">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Locations</SelectItem>
-            {dbLocations
-              .filter((loc) => loc.code && loc.code.trim() !== "")
-              .map((loc) => (
-                <SelectItem key={loc.code} value={loc.code}>
-                  {loc.name}
-                </SelectItem>
-              ))}
+            {canSelectAllLocations && <SelectItem value="all">All Locations</SelectItem>}
+            {(canSelectAllLocations
+              ? dbLocations.filter((loc) => loc.code && loc.code.trim() !== "")
+              : [{ code: getCanonicalLocationName(user?.location || ""), name: getCanonicalLocationName(user?.location || "") }]
+            ).map((loc) => (
+              <SelectItem key={loc.code} value={loc.code}>
+                {loc.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
