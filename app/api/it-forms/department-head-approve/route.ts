@@ -60,7 +60,14 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString()
     const updateData: any = {
       updated_at: now,
-      status: action === "approve" ? "pending_service_desk" : "rejected_department_head",
+      status:
+        formType === "requisition"
+          ? action === "approve"
+            ? "pending_service_desk"
+            : "rejected_department_head"
+          : action === "approve"
+            ? "approved"
+            : "rejected",
     }
 
     if (formType === "requisition") {

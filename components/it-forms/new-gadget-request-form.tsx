@@ -48,7 +48,6 @@ export function NewGadgetRequestForm({ onSubmit }: { onSubmit: () => void }) {
     "IT",
     "Marketing",
     "Sales",
-    "Logistics",
     "Procurement",
     "Administration",
     "Other",
@@ -73,7 +72,7 @@ export function NewGadgetRequestForm({ onSubmit }: { onSubmit: () => void }) {
     "Other",
   ]
 
-  const canEditOfficialSections = ["admin", "it_head"].includes(user?.role || "")
+  const canEditOfficialSections = false
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -266,7 +265,7 @@ export function NewGadgetRequestForm({ onSubmit }: { onSubmit: () => void }) {
       </div>
 
       {/* Section B - Previous IT Gadget History */}
-      <div className="border rounded-lg p-4 bg-muted/30">
+      <div className="border rounded-lg p-4 bg-slate-100/80 dark:bg-slate-900/60 border-slate-300 dark:border-slate-700">
         <div className="flex items-center gap-2 mb-4">
           <div className="bg-orange-500/10 text-orange-600 px-2 py-1 rounded text-xs font-semibold">SECTION B</div>
           <h3 className="font-semibold text-sm">Previous IT Gadget History</h3>
@@ -344,7 +343,7 @@ export function NewGadgetRequestForm({ onSubmit }: { onSubmit: () => void }) {
       </div>
 
       {/* Section C - HOD Authorization */}
-      <div className="border rounded-lg p-4 bg-muted/30">
+      <div className="border rounded-lg p-4 bg-slate-100/80 dark:bg-slate-900/60 border-slate-300 dark:border-slate-700">
         <div className="flex items-center gap-2 mb-4">
           <div className="bg-blue-500/10 text-blue-600 px-2 py-1 rounded text-xs font-semibold">SECTION C</div>
           <h3 className="font-semibold text-sm">Authorization from Head of Department</h3>
@@ -383,7 +382,7 @@ export function NewGadgetRequestForm({ onSubmit }: { onSubmit: () => void }) {
       </div>
 
       {/* Section D - IS Manager */}
-      <div className="border rounded-lg p-4 bg-muted/30">
+      <div className="border rounded-lg p-4 bg-slate-100/80 dark:bg-slate-900/60 border-slate-300 dark:border-slate-700">
         <div className="flex items-center gap-2 mb-4">
           <div className="bg-green-500/10 text-green-600 px-2 py-1 rounded text-xs font-semibold">SECTION D</div>
           <h3 className="font-semibold text-sm">IS Manager / Office Use Only</h3>

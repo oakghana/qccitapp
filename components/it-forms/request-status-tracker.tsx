@@ -145,7 +145,7 @@ export function RequestStatusTracker({
     setFilteredRequisitions(filtered)
   }
 
-  const canEditRequest = (req: ITRequisition) => ["draft", "pending_department_head"].includes(req.status)
+  const canEditRequest = (req: ITRequisition) => ["draft", "pending_department_head", "pending"].includes(req.status)
 
   const handleDownload = async (req: ITRequisition) => {
     const requestNumber = getRequestNumber(req)
@@ -286,6 +286,7 @@ export function RequestStatusTracker({
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { variant: any; label: string }> = {
       draft: { variant: "secondary", label: "Draft" },
+      pending: { variant: "default", label: "Awaiting HOD" },
       pending_department_head: { variant: "default", label: "Awaiting HOD" },
       pending_service_desk: { variant: "default", label: "Processing" },
       pending_it_head: { variant: "default", label: "Awaiting IT Head" },
@@ -302,7 +303,7 @@ export function RequestStatusTracker({
 
   const getNextStep = (req: ITRequisition) => {
     if (formType !== "requisition") {
-      if (["draft", "pending_department_head"].includes(req.status)) return "Waiting for Department Head approval"
+      if (["draft", "pending_department_head", "pending"].includes(req.status)) return "Waiting for Department Head approval"
       if (req.status === "pending_service_desk") return "Being reviewed by IT Service Desk"
       if (req.status === "pending_it_head") return "Awaiting IT Head review"
       if (req.status === "pending_admin") return "Awaiting Admin review"

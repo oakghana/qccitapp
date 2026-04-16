@@ -99,6 +99,7 @@ export function ITFormsApprovalDashboard() {
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { variant: any; label: string; icon: any }> = {
       draft: { variant: "secondary", label: "Draft", icon: Clock },
+      pending: { variant: "default", label: "Awaiting HOD", icon: Clock },
       pending_department_head: { variant: "default", label: "Awaiting HOD", icon: Clock },
       pending_service_desk: { variant: "outline", label: "Service Desk Review", icon: CheckCircle2 },
       pending_it_head: { variant: "outline", label: "IT Head Review", icon: CheckCircle2 },
@@ -116,7 +117,7 @@ export function ITFormsApprovalDashboard() {
   const canApprove = (req: ITRequisition): boolean => {
     const userRole = user?.role || ""
 
-    if (["draft", "pending_department_head"].includes(req.status)) {
+    if (["draft", "pending_department_head", "pending"].includes(req.status)) {
       return false
     }
     if (req.status === "pending_service_desk") {
@@ -195,7 +196,7 @@ export function ITFormsApprovalDashboard() {
   }
 
   const getPendingCount = () => {
-    return requisitions.filter((r) => ["pending_department_head", "pending_service_desk", "pending_it_head", "pending_admin", "pending_store", "draft"].includes(r.status)).length
+    return requisitions.filter((r) => ["pending", "pending_department_head", "pending_service_desk", "pending_it_head", "pending_admin", "pending_store", "draft"].includes(r.status)).length
   }
 
   return (

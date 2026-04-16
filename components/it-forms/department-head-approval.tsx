@@ -153,7 +153,7 @@ export function DepartmentHeadApprovalModule() {
   }
 
   const canApprove = (req: ITFormRequest): boolean => {
-    return ["draft", "pending_department_head"].includes(req.status) && !isApproved(req) && !isRejected(req)
+    return ["draft", "pending_department_head", "pending"].includes(req.status) && !isApproved(req) && !isRejected(req)
   }
 
   const buildApprovalStages = (req: ITFormRequest): any[] => {

@@ -16,7 +16,7 @@ export function ITEquipmentRequisitionForm({ onSubmit }: { onSubmit: () => void 
   const [error, setError] = useState("")
   const { user } = useAuth()
   const { toast } = useToast()
-  const canEditOfficialSections = ["admin", "it_head"].includes(user?.role || "")
+  const canEditOfficialSections = false
 
   const [formData, setFormData] = useState({
     itemSN: "",
@@ -37,7 +37,6 @@ export function ITEquipmentRequisitionForm({ onSubmit }: { onSubmit: () => void 
     "IT",
     "Marketing",
     "Sales",
-    "Logistics",
     "Procurement",
     "Administration",
     "Other",
@@ -266,7 +265,7 @@ export function ITEquipmentRequisitionForm({ onSubmit }: { onSubmit: () => void 
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/60">
+      <div className="rounded-2xl border border-slate-300 bg-slate-100/80 p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
         <div className="flex items-center gap-2 mb-4">
           <div className="bg-blue-500/10 text-blue-600 px-2 py-1 rounded text-xs font-semibold">SECTION C</div>
           <h3 className="font-semibold text-sm">Authorization from Head of Department</h3>
@@ -280,7 +279,7 @@ export function ITEquipmentRequisitionForm({ onSubmit }: { onSubmit: () => void 
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/60">
+      <div className="rounded-2xl border border-slate-300 bg-slate-100/80 p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
         <div className="flex items-center gap-2 mb-4">
           <div className="bg-green-500/10 text-green-600 px-2 py-1 rounded text-xs font-semibold">SECTION D</div>
           <h3 className="font-semibold text-sm">IS Manager / Office Use Only</h3>

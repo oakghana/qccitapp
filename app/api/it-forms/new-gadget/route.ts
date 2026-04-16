@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     })
 
     const requestNumber = await generateNextSequentialNumber()
-    const canEditOfficialSections = ["admin", "it_head"].includes(submittedByRole || "")
+    const canEditOfficialSections = false
 
     const insertData = {
       request_number: requestNumber,
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       recommended: canEditOfficialSections ? (recommended === "yes" ? true : recommended === "no" ? false : null) : null,
       confirmed_by: canEditOfficialSections ? confirmedBy || null : null,
       confirmed_date: canEditOfficialSections ? confirmedDate || null : null,
-      status: "pending_department_head",
+      status: "pending",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
@@ -166,7 +166,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 })
     }
 
-    if (!["draft", "pending_department_head"].includes(existing.status)) {
+    if (!["draft", "pending_department_head", "pending"].includes(existing.status)) {
       return NextResponse.json({ error: "This request is already under review and cannot be edited." }, { status: 403 })
     }
 

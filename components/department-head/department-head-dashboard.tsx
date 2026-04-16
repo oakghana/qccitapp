@@ -361,7 +361,7 @@ export function DepartmentHeadDashboard() {
                           </div>
                           <Badge
                             className={`${
-                              req.status === "pending_department_head"
+                              ["pending_department_head", "pending"].includes(req.status)
                                 ? "bg-amber-500/20 text-amber-200"
                                 : "bg-green-500/20 text-green-200"
                             }`}
