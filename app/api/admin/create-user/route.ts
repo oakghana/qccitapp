@@ -1,49 +1,74 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import bcrypt from "bcryptjs"
+import { LOCATIONS } from "@/lib/locations"
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+const DEFAULT_PASSWORD_HASH = "$2b$10$y.4.eCKGm0kI0hXv1rhJtuLYpKJH3R/Pfxvn9AU6DVF5PzYHsnmqm"
 
-export async function POST(request: Request) {
+function normalizeLocation(location?: string | null) {
+  if (!location) return "Head Office"
+  return LOCATIONS[location as keyof typeof LOCATIONS] || location
+}
+
+function mapStatus(status?: string | null) {
+  if (status === "approved" || status === "active") {
+    return { status: "approved", is_active: true }
+  }
+
+  if (status === "suspended") {
+    return { status: "suspended", is_active: false }
+  }
+
+  return { status: "pending", is_active: false }
+}
+
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { name, email, phone, role, location, department, password, createdBy, username, status } = body
 
-    console.log("[v0] Creating user:", { email, role, location, username })
+    if (!name || !email) {
+      return NextResponse.json({ error: "Name and email are required" }, { status: 400 })
+    }
 
-    const passwordToHash = password || "qcc@123"
-    // Use fixed hash for default password qcc@123 to ensure consistency
-    const hashedPassword = password 
-      ? await bcrypt.hash(passwordToHash, 10) 
-      : "$2b$10$y.4.eCKGm0kI0hXv1rhJtuLYpKJH3R/Pfxvn9AU6DVF5PzYHsnmqm"
-
-    // Use provided username or fall back to email
     const finalUsername = username || email
+    const passwordToHash = password || "qcc@123"
+    const hashedPassword = password ? await bcrypt.hash(passwordToHash, 10) : DEFAULT_PASSWORD_HASH
+    const activation = mapStatus(status)
+    const normalizedLocation = normalizeLocation(location)
 
-    // Check if username already exists
-    const { data: existingUser } = await supabase
+    console.log("[v0] Creating user:", { email, role, location: normalizedLocation, username: finalUsername })
+
+    const { data: existingUser, error: existingError } = await supabase
       .from("profiles")
       .select("id")
-      .eq("username", finalUsername)
-      .single()
+      .or(`username.eq.${finalUsername},email.eq.${email}`)
+      .maybeSingle()
+
+    if (existingError && existingError.code !== "PGRST116") {
+      console.error("[v0] Error checking existing user:", existingError)
+    }
 
     if (existingUser) {
-      return NextResponse.json({ error: "Username already exists" }, { status: 400 })
+      return NextResponse.json({ error: "Username or email already exists" }, { status: 400 })
     }
 
     const { data, error } = await supabase
       .from("profiles")
       .insert({
         username: finalUsername,
-        email: email,
+        email,
         full_name: name,
-        role: role,
-        location: location,
+        role: role || "staff",
+        location: normalizedLocation,
         phone: phone || "+233XXXXXXXXX",
         department: department || "ITD",
         password_hash: hashedPassword,
-        status: status || "approved",
-        is_active: true,
+        status: activation.status,
+        is_active: activation.is_active,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .select()
       .single()
@@ -64,23 +89,90 @@ export async function POST(request: Request) {
       user_agent: request.headers.get("user-agent") || "unknown",
     })
 
-    console.log("[v0] User created successfully:", data.username)
-
     return NextResponse.json({
       success: true,
-      user: {
-        id: data.id,
-        username: data.username,
-        email: data.email,
-        full_name: data.full_name,
-        role: data.role,
-        location: data.location,
-        department: data.department,
-      },
+      user: data,
       password: passwordToHash,
     })
   } catch (error: any) {
     console.error("[v0] Error in create-user API:", error)
     return NextResponse.json({ error: error.message || "Failed to create user" }, { status: 500 })
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { id, name, email, phone, role, location, department, status, action, password } = body
+
+    if (!id) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 })
+    }
+
+    const updates: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    }
+
+    let plainPassword: string | null = null
+
+    if (action === "reset_password") {
+      plainPassword = password || "qcc@123"
+      updates.password_hash = plainPassword === "qcc@123" ? DEFAULT_PASSWORD_HASH : await bcrypt.hash(plainPassword, 10)
+    } else {
+      if (name !== undefined) updates.full_name = name
+      if (email !== undefined) {
+        updates.email = email
+        updates.username = email
+      }
+      if (phone !== undefined) updates.phone = phone
+      if (role !== undefined) updates.role = role
+      if (location !== undefined) updates.location = normalizeLocation(location)
+      if (department !== undefined) updates.department = department
+
+      if (status !== undefined) {
+        const activation = mapStatus(status)
+        updates.status = activation.status
+        updates.is_active = activation.is_active
+      }
+    }
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error("[v0] Error updating user:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, user: data, password: plainPassword })
+  } catch (error: any) {
+    console.error("[v0] Error updating user via admin API:", error)
+    return NextResponse.json({ error: error.message || "Failed to update user" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { id } = await request.json()
+
+    if (!id) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 })
+    }
+
+    const { error } = await supabase.from("profiles").delete().eq("id", id)
+
+    if (error) {
+      console.error("[v0] Error deleting user:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    console.error("[v0] Error deleting user via admin API:", error)
+    return NextResponse.json({ error: error.message || "Failed to delete user" }, { status: 500 })
   }
 }

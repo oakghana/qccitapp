@@ -150,7 +150,8 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false })
 
     if (!canSeeAll && location) {
-      query = query.or(`location.ilike.${location},location.ilike.%${location}%`)
+      const fuzzyLocation = location.replace(/[_-]+/g, " ").trim()
+      query = query.or(`location.ilike.%${fuzzyLocation}%,requester_location.ilike.%${fuzzyLocation}%`)
     }
 
     const { data, error } = await query
@@ -175,8 +176,13 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Creating repair request:", body)
 
+    if (!body.device_id || !body.issue_description) {
+      return NextResponse.json({ error: "Device and issue description are required" }, { status: 400 })
+    }
+
     // Generate a task number
     const taskNumber = `REP-${Date.now().toString(36).toUpperCase()}`
+    const requestLocation = body.location || body.requester_location || "Head Office"
 
     // Insert the repair request with automatic assignment to NATHLAND
     // Note: service_provider_id is set to NATHLAND's ID to automatically assign repairs
@@ -189,7 +195,8 @@ export async function POST(request: NextRequest) {
         issue_description: body.issue_description,
         priority: body.priority || "medium",
         status: "assigned", // Automatically set to assigned since NATHLAND is assigned
-        location: body.location,
+        location: requestLocation,
+        requester_location: requestLocation,
         requested_by: body.requested_by,
         service_provider_id: "808e21d0-8069-4687-8d40-5b5f609c0fb0", // NATHLAND COMPANY LIMITED ID
         service_provider_name: "NATHLAND COMPANY LIMITED", // Automatically assign to NATHLAND

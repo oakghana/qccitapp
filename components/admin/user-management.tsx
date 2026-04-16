@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Dialog,
@@ -32,12 +33,11 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { FormNavigation } from "@/components/ui/form-navigation"
-import { CreateUserForm } from "@/components/auth/create-user-form"
+import { AdminUserForm } from "@/components/admin/admin-user-form"
 import { usePWAInstall } from "@/components/ui/pwa-install"
 import { DataPagination } from "@/components/ui/data-pagination"
 import { getRoleColorScheme } from "@/lib/role-colors"
 import { cn, formatDisplayDate } from "@/lib/utils"
-import { createClient } from "@/supabase/supabase-client"
 import { getLocationOptions, LOCATIONS } from "@/lib/locations"
 import { getCanonicalLocationName } from "@/lib/location-filter"
 import { useToast } from "@/hooks/use-toast"
@@ -53,6 +53,7 @@ interface SystemUser {
     | "it_head"
     | "it_staff"
     | "staff"
+    | "user"
     | "it_store_head"
     | "department_head"
     | "service_desk_accra"
@@ -75,6 +76,7 @@ const roleBadgeColors = {
   it_head: "default",
   it_staff: "secondary",
   staff: "outline",
+  user: "outline",
   it_store_head: "secondary",
   department_head: "secondary",
   service_desk_accra: "outline",
@@ -110,11 +112,31 @@ export function UserManagement() {
   const roleColors = currentUser?.role ? getRoleColorScheme(currentUser.role) : null
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false)
   const [selectedUserForReset, setSelectedUserForReset] = useState<SystemUser | null>(null)
+  const [resetPasswordValue, setResetPasswordValue] = useState("qcc@123")
   const [editUserOpen, setEditUserOpen] = useState(false)
   const [selectedUserForEdit, setSelectedUserForEdit] = useState<SystemUser | null>(null)
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+
+  const mapProfileToSystemUser = (profile: any): SystemUser => ({
+    id: profile.id,
+    name: profile.full_name || profile.name || profile.username || "Unnamed User",
+    email: profile.email || profile.username || "",
+    phone: profile.phone || "",
+    role: (profile.role || "staff") as SystemUser["role"],
+    location: profile.location || "Head Office",
+    department: profile.department || "",
+    status:
+      !profile.is_active || profile.status === "suspended"
+        ? "suspended"
+        : profile.status === "approved"
+          ? "active"
+          : "inactive",
+    lastLogin: profile.updated_at || "",
+    createdDate: formatDisplayDate(profile.created_at, "N/A"),
+    deviceCount: 0,
+  })
 
   const handleInstallPWA = () => {
     deferredPrompt.prompt()
@@ -144,26 +166,7 @@ export function UserManagement() {
         const { users: fetchedUsers } = await response.json()
         console.log("[v0] Loaded users from API:", fetchedUsers)
 
-        const mappedUsers: SystemUser[] = fetchedUsers.map((profile: any) => ({
-          id: profile.id,
-          name: profile.full_name || profile.username || "Unnamed User",
-          email: profile.email || profile.username || "",
-          phone: profile.phone || "",
-          role: profile.role,
-          location: profile.location || "Head Office",
-          department: profile.department || "",
-          status:
-            !profile.is_active || profile.status === "suspended"
-              ? "suspended"
-              : profile.status === "approved"
-                ? "active"
-                : "inactive",
-          lastLogin: profile.updated_at,
-          createdDate: formatDisplayDate(profile.created_at, "N/A"),
-          deviceCount: 0,
-        }))
-
-        setUsers(mappedUsers)
+        setUsers((fetchedUsers || []).map(mapProfileToSystemUser))
       } catch (error) {
         console.error("[v0] Error loading users:", error)
       } finally {
@@ -224,86 +227,61 @@ export function UserManagement() {
 
   const handleUserAction = async (userId: string, action: "activate" | "deactivate" | "suspend" | "delete") => {
     try {
-      const supabase = createClient()
-
       if (action === "delete") {
-        // Delete user from database
-        const { error } = await supabase.from("profiles").delete().eq("id", userId)
+        const response = await fetch("/api/admin/create-user", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: userId }),
+        })
 
-        if (error) {
-          console.error("[v0] Error deleting user:", error)
-          toast({
-            title: "❌ Failed to Delete User",
-            description: "Failed to delete user. Please try again.",
-            variant: "destructive",
-          })
-          return
+        const result = await response.json()
+
+        if (!response.ok) {
+          throw new Error(result.error || "Failed to delete user")
         }
 
-        // Remove from UI
-        setUsers(users.filter((user) => user.id !== userId))
+        setUsers((prev) => prev.filter((user) => user.id !== userId))
         toast({
           title: "🗑️ User Deleted Successfully",
-          description: "The user account has been removed",
+          description: "The user account has been removed.",
         })
-      } else {
-        // Update user status
-        const newStatus = action === "activate" ? "approved" : action === "deactivate" ? "pending" : "suspended"
-        const isActive = action === "activate"
-
-        const { error } = await supabase
-          .from("profiles")
-          .update({
-            status: newStatus,
-            is_active: isActive,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", userId)
-
-        if (error) {
-          console.error("[v0] Error updating user status:", error)
-          toast({
-            title: "❌ Failed to Update User Status",
-            description: "Failed to update user status. Please try again.",
-            variant: "destructive",
-          })
-          return
-        }
-
-        // Update UI
-        setUsers(
-          users.map((user) => {
-            if (user.id === userId) {
-              switch (action) {
-                case "activate":
-                  return { ...user, status: "active" as const }
-                case "deactivate":
-                  return { ...user, status: "inactive" as const }
-                case "suspend":
-                  return { ...user, status: "suspended" as const }
-                default:
-                  return user
-              }
-            }
-            return user
-          }),
-        )
-        
-        const actionNames = {
-          activate: "activated",
-          deactivate: "deactivated",
-          suspend: "suspended",
-        }
-        toast({
-          title: `✅ User ${actionNames[action]}`,
-          description: `User account has been ${actionNames[action]} successfully`,
-        })
+        return
       }
+
+      const newStatus = action === "activate" ? "approved" : action === "deactivate" ? "pending" : "suspended"
+      const response = await fetch("/api/admin/create-user", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: userId,
+          status: newStatus,
+          action: "update",
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to update user")
+      }
+
+      setUsers((prev) => prev.map((user) => (user.id === userId ? mapProfileToSystemUser(result.user) : user)))
+
+      const actionNames = {
+        activate: "activated",
+        deactivate: "deactivated",
+        suspend: "suspended",
+      }
+
+      toast({
+        title: `✅ User ${actionNames[action]}`,
+        description: `User account has been ${actionNames[action]} successfully.`,
+      })
     } catch (error) {
       console.error("[v0] Error in handleUserAction:", error)
       toast({
         title: "❌ Error",
-        description: "An error occurred. Please try again.",
+        description: error instanceof Error ? error.message : "An error occurred. Please try again.",
         variant: "destructive",
       })
     }
@@ -317,6 +295,42 @@ export function UserManagement() {
   const handleEditUser = (user: SystemUser) => {
     setSelectedUserForEdit(user)
     setEditUserOpen(true)
+  }
+
+  const submitPasswordReset = async () => {
+    if (!selectedUserForReset) return
+
+    try {
+      const response = await fetch("/api/admin/create-user", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedUserForReset.id,
+          action: "reset_password",
+          password: resetPasswordValue,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to reset password")
+      }
+
+      toast({
+        title: "🔐 Password Reset Successful",
+        description: `Password updated for ${selectedUserForReset.name}.`,
+      })
+      setResetPasswordOpen(false)
+      setSelectedUserForReset(null)
+      setResetPasswordValue("qcc@123")
+    } catch (error) {
+      toast({
+        title: "❌ Password Reset Failed",
+        description: error instanceof Error ? error.message : "Unable to reset password.",
+        variant: "destructive",
+      })
+    }
   }
 
   return (
@@ -437,25 +451,11 @@ export function UserManagement() {
                   <DialogTitle>Add New User</DialogTitle>
                   <DialogDescription>Create a new system user account</DialogDescription>
                 </DialogHeader>
-                <CreateUserForm
+                <AdminUserForm
+                  mode="create"
                   onClose={() => setAddUserOpen(false)}
-                  onUserCreated={(newUser) => {
-                    setUsers((prev) => [
-                      {
-                        id: newUser.id,
-                        name: newUser.name || "New User",
-                        email: newUser.email || "",
-                        phone: newUser.phone || "",
-                        role: "staff",
-                        location: newUser.location || "Head Office",
-                        department: newUser.department || "",
-                        status: "inactive",
-                        lastLogin: newUser.requestedDate || new Date().toISOString(),
-                        createdDate: formatDisplayDate(newUser.requestedDate, "N/A"),
-                        deviceCount: 0,
-                      },
-                      ...prev,
-                    ])
+                  onSuccess={(newUser) => {
+                    setUsers((prev) => [mapProfileToSystemUser(newUser), ...prev])
                     setAddUserOpen(false)
                   }}
                 />
@@ -615,6 +615,67 @@ export function UserManagement() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={editUserOpen} onOpenChange={setEditUserOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>Update account details, role, location, and access status.</DialogDescription>
+          </DialogHeader>
+          {selectedUserForEdit && (
+            <AdminUserForm
+              mode="edit"
+              initialUser={selectedUserForEdit}
+              onClose={() => setEditUserOpen(false)}
+              onSuccess={(updatedUser) => {
+                setUsers((prev) => prev.map((user) => (user.id === updatedUser.id ? mapProfileToSystemUser(updatedUser) : user)))
+                setEditUserOpen(false)
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={resetPasswordOpen} onOpenChange={setResetPasswordOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Set a new temporary password for {selectedUserForReset?.name || "this user"}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="reset-password">Temporary Password</Label>
+              <Input
+                id="reset-password"
+                value={resetPasswordValue}
+                onChange={(e) => setResetPasswordValue(e.target.value)}
+                placeholder="Enter temporary password"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => setResetPasswordOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600"
+                onClick={submitPasswordReset}
+              >
+                Reset Password
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

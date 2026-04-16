@@ -44,7 +44,7 @@ export function SystemOverview() {
 
       const [devicesResult, repairsResult, usersResult, providersResult, pendingUsersResult] = await Promise.all([
         supabase.from("devices").select("id", { count: "exact", head: true }),
-        supabase.from("repair_tasks").select("id", { count: "exact", head: true }).eq("status", "in_repair"),
+        supabase.from("repair_requests").select("id", { count: "exact", head: true }).eq("status", "in_repair"),
         supabase.from("profiles").select("id", { count: "exact", head: true }).eq("status", "approved"),
         supabase.from("service_providers").select("id", { count: "exact", head: true }),
         supabase.from("profiles").select("id", { count: "exact", head: true }).eq("status", "pending"),
@@ -52,8 +52,8 @@ export function SystemOverview() {
 
       // Calculate average repair time from completed repairs
       const { data: completedRepairs } = await supabase
-        .from("repair_tasks")
-        .select("created_at, completed_date")
+        .from("repair_requests")
+        .select("created_at, completion_date")
         .eq("status", "completed")
         .not("completed_date", "is", null)
         .limit(50)
@@ -62,10 +62,10 @@ export function SystemOverview() {
       if (completedRepairs && completedRepairs.length > 0) {
         const validDurations = completedRepairs
           .map((repair) => {
-            if (!repair.created_at || !repair.completed_date) return null
+            if (!repair.created_at || !repair.completion_date) return null
 
             const start = new Date(repair.created_at).getTime()
-            const end = new Date(repair.completed_date).getTime()
+            const end = new Date(repair.completion_date).getTime()
 
             if (Number.isNaN(start) || Number.isNaN(end) || end < start) {
               return null
@@ -88,9 +88,9 @@ export function SystemOverview() {
         const [devicesCount, repairsCount, usersCount] = await Promise.all([
           supabase.from("devices").select("id", { count: "exact", head: true }).ilike("location", location),
           supabase
-            .from("repair_tasks")
+            .from("repair_requests")
             .select("id", { count: "exact", head: true })
-            .ilike("location", location)
+            .or(`location.ilike.%${location}%,requester_location.ilike.%${location}%`)
             .eq("status", "in_repair"),
           supabase
             .from("profiles")

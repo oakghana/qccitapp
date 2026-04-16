@@ -103,6 +103,7 @@ export function ITHeadRepairManagement() {
   const [showLiveActivity, setShowLiveActivity] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(6)
+  const isRegionalITHead = user?.role === "regional_it_head"
 
   // Edit form states
   const [editSelectedDevice, setEditSelectedDevice] = useState("")
@@ -179,9 +180,17 @@ export function ITHeadRepairManagement() {
           .map((loc: any) => ({ code: loc.code, name: loc.name }))
       }
       setLocations(activeLocations)
-      // Auto-select user's location for ALL users (not just IT staff)
+
       if (user?.location) {
-        setSelectedLocation(user.location)
+        const normalizedUserLocation = normalizeLocation(user.location)
+        const matchedLocation = activeLocations.find((loc) => {
+          const codeMatch = normalizeLocation(loc.code) === normalizedUserLocation
+          const nameMatch = normalizeLocation(loc.name) === normalizedUserLocation
+          const fuzzyMatch = normalizeLocation(loc.name).includes(normalizedUserLocation) || normalizedUserLocation.includes(normalizeLocation(loc.name))
+          return codeMatch || nameMatch || fuzzyMatch
+        })
+
+        setSelectedLocation(matchedLocation?.code || user.location)
       }
     } catch (error) {
       console.error("[v0] Error loading locations:", error)
@@ -415,7 +424,10 @@ export function ITHeadRepairManagement() {
     if (!selectedDevice || !issueDescription) {
       toast({
         title: "❌ Missing Information",
-        description: "Please fill in all required fields: device and issue description",
+        description:
+          devices.length === 0
+            ? "No devices are currently available for your location. Please confirm the assigned region and try again."
+            : "Please fill in all required fields: device and issue description.",
         variant: "destructive",
       })
       return
@@ -466,7 +478,7 @@ export function ITHeadRepairManagement() {
           service_provider_assigned_date: new Date().toISOString(),
           requested_by: user?.id,
           requested_by_name: user?.name,
-          location: device.location,
+          location: device.location || user?.location || selectedLocation,
           estimated_cost: estimatedCost ? Number.parseFloat(estimatedCost) : null,
           attachments: attachmentNames,
         }),
@@ -544,7 +556,7 @@ export function ITHeadRepairManagement() {
           priority: editPriority,
           service_provider_id: provider.id,
           service_provider_name: provider.name,
-          location: device.location,
+          location: device.location || user?.location || selectedLocation,
           estimated_cost: editEstimatedCost ? Number.parseFloat(editEstimatedCost) : null,
         }),
       })
@@ -717,7 +729,7 @@ export function ITHeadRepairManagement() {
             <DialogTrigger asChild>
               <Button className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white">
                 <Plus className="h-4 w-4 mr-2" />
-                Create Repair Task
+                Add Repair Request
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
@@ -729,18 +741,19 @@ export function ITHeadRepairManagement() {
                 {user?.role !== "it_staff" && (
                   <div>
                     <Label htmlFor="location">Filter by Location</Label>
-                    <Select 
-                      value={selectedLocation} 
+                    <Select
+                      value={selectedLocation}
                       onValueChange={(value) => {
                         setSelectedLocation(value)
-                        setSelectedDevice("") // Reset device when location changes
+                        setSelectedDevice("")
                       }}
+                      disabled={isRegionalITHead}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="All Locations" />
+                        <SelectValue placeholder={isRegionalITHead ? "Assigned region" : "All Locations"} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Locations</SelectItem>
+                        {!isRegionalITHead && <SelectItem value="all">All Locations</SelectItem>}
                         {(locations || []).map((loc) => (
                           <SelectItem key={loc.code} value={loc.code}>
                             {loc.name}
@@ -749,7 +762,15 @@ export function ITHeadRepairManagement() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {devices.length} device(s) available {selectedLocation && selectedLocation !== "all" ? `in ${locations.find(l => l.code === selectedLocation)?.name || selectedLocation}` : ""}
+                      {devices.length} device(s) available {selectedLocation && selectedLocation !== "all" ? `in ${locations.find((l) => l.code === selectedLocation)?.name || user?.location || selectedLocation}` : ""}
+                    </p>
+                  </div>
+                )}
+
+                {isRegionalITHead && (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-950/30">
+                    <p className="text-sm text-emerald-800 dark:text-emerald-200">
+                      Regional IT Heads can create repair requests for their assigned location: <strong>{user?.location}</strong>
                     </p>
                   </div>
                 )}
