@@ -9,7 +9,10 @@ import { Monitor, Copy } from "lucide-react"
 export default function DevicesPage() {
   const { user } = useAuth()
   const canSeeDuplicates =
-    user?.role === "admin" || user?.role === "regional_it_head" || user?.role === "it_head"
+    user?.role === "admin" ||
+    user?.role === "regional_it_head" ||
+    user?.role === "it_head" ||
+    user?.role === "it_staff"
 
   if (!canSeeDuplicates) {
     return (
@@ -21,17 +24,17 @@ export default function DevicesPage() {
 
   return (
     <Tabs defaultValue="inventory" className="space-y-4">
-      <TabsList className="bg-orange-50 border border-orange-200 dark:bg-orange-950/40 dark:border-orange-800">
+      <TabsList className="bg-green-50 border border-green-200 dark:bg-green-950/40 dark:border-green-800">
         <TabsTrigger
           value="inventory"
-          className="flex items-center gap-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white"
+          className="flex items-center gap-2 data-[state=active]:bg-green-500 data-[state=active]:text-white"
         >
           <Monitor className="h-4 w-4" />
           Device Inventory
         </TabsTrigger>
         <TabsTrigger
           value="duplicates"
-          className="flex items-center gap-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white"
+          className="flex items-center gap-2 data-[state=active]:bg-green-500 data-[state=active]:text-white"
         >
           <Copy className="h-4 w-4" />
           Duplicate Checker
