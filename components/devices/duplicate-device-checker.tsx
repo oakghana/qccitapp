@@ -25,7 +25,10 @@ export function DuplicateDeviceChecker() {
   const [stats, setStats] = useState({ totalDuplicates: 0, affectedSerials: 0 })
 
   const canAccess =
-    user?.role === "admin" || user?.role === "regional_it_head" || user?.role === "it_head"
+    user?.role === "admin" ||
+    user?.role === "regional_it_head" ||
+    user?.role === "it_head" ||
+    user?.role === "it_staff"
 
   useEffect(() => {
     if (canAccess) loadDuplicates()
@@ -96,10 +99,10 @@ export function DuplicateDeviceChecker() {
   if (!canAccess) return null
 
   return (
-    <Card className="border-orange-200 dark:border-orange-800">
+    <Card className="border-green-200 dark:border-green-800">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div>
-          <CardTitle className="flex items-center gap-2 text-orange-700 dark:text-orange-300">
+          <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-300">
             <AlertTriangle className="h-5 w-5 text-amber-500" />
             Duplicate Device Entries
           </CardTitle>
@@ -109,7 +112,7 @@ export function DuplicateDeviceChecker() {
           </CardDescription>
         </div>
         <Button variant="outline" size="sm" onClick={loadDuplicates} disabled={loading}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Refresh"}
+          {loading ? <Loader2 className="h-4 w-4 animate-spin text-green-500" /> : "Refresh"}
         </Button>
       </CardHeader>
 
@@ -142,18 +145,18 @@ export function DuplicateDeviceChecker() {
                 return (
                   <div
                     key={group.serial_number}
-                    className="border border-orange-200 dark:border-orange-800 rounded-lg overflow-hidden"
+                    className="border border-green-200 dark:border-green-800 rounded-lg overflow-hidden"
                   >
                     {/* Group header */}
                     <button
-                      className="w-full flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-950/40 hover:bg-orange-100 dark:hover:bg-orange-900/40 transition-colors text-left"
+                      className="w-full flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/40 hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors text-left"
                       onClick={() => toggleExpand(group.serial_number)}
                     >
                       <div className="flex items-center gap-3">
                         {isExpanded ? (
-                          <ChevronDown className="h-4 w-4 text-orange-600" />
+                          <ChevronDown className="h-4 w-4 text-green-600" />
                         ) : (
-                          <ChevronRight className="h-4 w-4 text-orange-600" />
+                          <ChevronRight className="h-4 w-4 text-green-600" />
                         )}
                         <Copy className="h-4 w-4 text-amber-500" />
                         <span className="font-mono font-medium text-sm">{group.serial_number}</span>
