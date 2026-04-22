@@ -190,7 +190,7 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
 
   if (!isMounted) {
     return (
-      <div className="flex min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 dark:from-orange-950 dark:via-amber-950 dark:to-yellow-950">
+      <div className="flex min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-green-950 dark:via-emerald-950 dark:to-teal-950">
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-orange-600 dark:text-orange-400" />
@@ -209,7 +209,7 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
   }
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 dark:from-orange-950 dark:via-amber-950 dark:to-yellow-950">
+      <div className="flex min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-green-950 dark:via-emerald-950 dark:to-teal-950">
       {/* Sidebar */}
       <ModernSidebar
         isOpen={sidebarOpen}
@@ -236,17 +236,17 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
         <MobileAppDownload showOnLogin={false} />
 
         {/* Top Header */}
-        <header className="sticky top-0 z-30 flex h-20 items-center gap-4 border-b border-orange-200/50 bg-white/95 backdrop-blur-xl px-4 sm:px-6 lg:px-8 shadow-sm dark:bg-orange-950/95 dark:border-orange-800/50 flex-shrink-0">
+        <header className="sticky top-0 z-30 flex h-20 items-center gap-4 border-b border-green-200/50 bg-white/95 backdrop-blur-xl px-4 sm:px-6 lg:px-8 shadow-sm dark:bg-green-950/95 dark:border-green-800/50 flex-shrink-0">
           <div className="flex items-center gap-4">
             <MobileMenuButton onClick={() => setSidebarOpen(true)} />
 
             {/* Breadcrumb */}
             <div className="hidden sm:flex items-center space-x-2 text-base font-medium text-orange-600 dark:text-orange-400">
-              <span className="px-3 py-1 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 rounded-lg dark:from-orange-900/30 dark:to-amber-900/30 dark:text-orange-300">
+              <span className="px-3 py-1 bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 rounded-lg dark:from-green-900/30 dark:to-emerald-900/30 dark:text-green-300">
                 Dashboard
               </span>
               <span>/</span>
-              <span className="text-orange-900 dark:text-orange-100 font-semibold">{pageTitle}</span>
+              <span className="text-green-900 dark:text-green-100 font-semibold">{pageTitle}</span>
             </div>
           </div>
 
@@ -344,7 +344,7 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
 
         {/* Quick-access icon bar — visible for all roles */}
         {quickIconLinks.length > 0 && (
-          <div className="border-b border-orange-200/50 bg-white/85 px-2 shadow-sm backdrop-blur-sm dark:border-orange-800/50 dark:bg-orange-950/75 sm:px-4">
+          <div className="border-b border-green-200/50 bg-white/85 px-2 shadow-sm backdrop-blur-sm dark:border-green-800/50 dark:bg-green-950/75 sm:px-4">
             <div className="mx-auto flex max-w-7xl gap-0.5 overflow-x-auto py-1.5 scrollbar-none">
               {quickIconLinks.map((link) => {
                 const isActive = pathname === link.href || (link.href !== "/dashboard" && pathname?.startsWith(`${link.href}/`))
@@ -357,8 +357,8 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
                     className={cn(
                       "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all duration-150 min-w-[52px] flex-shrink-0",
                       isActive
-                        ? "bg-orange-500 text-white shadow-sm"
-                        : "text-orange-700 hover:bg-orange-100 dark:text-orange-300 dark:hover:bg-orange-900/40"
+                        ? "bg-green-500 text-white shadow-sm"
+                        : "text-green-700 hover:bg-green-100 dark:text-green-300 dark:hover:bg-green-900/40"
                     )}
                   >
                     <Icon className="h-4 w-4" />
@@ -371,7 +371,7 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
         )}
 
         {quickAccessLinks.length > 0 && (
-          <div className="border-b border-orange-200/50 bg-white/85 px-4 shadow-sm backdrop-blur-sm dark:border-orange-800/50 dark:bg-orange-950/75 sm:px-6 lg:px-8">
+          <div className="border-b border-green-200/50 bg-white/85 px-4 shadow-sm backdrop-blur-sm dark:border-green-800/50 dark:bg-green-950/75 sm:px-6 lg:px-8">
             <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto py-3">
               {quickAccessLinks.map((link) => {
                 const isActive = pathname === link.href || pathname?.startsWith(`${link.href}/`)
@@ -382,8 +382,8 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
                     className={cn(
                       "whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
                       isActive
-                        ? "border-orange-500 bg-orange-500 text-white"
-                        : "border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:border-orange-800 dark:bg-orange-900/30 dark:text-orange-300"
+                  ? "border-green-500 bg-green-500 text-white"
+                  : "border-green-200 bg-green-50 text-green-700 hover:bg-green-100 dark:border-green-800 dark:bg-green-900/30 dark:text-green-300"
                     )}
                   >
                     {link.name}
@@ -397,7 +397,7 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
         {/* Main Content Area */}
         <main className={cn("flex-1 p-6 sm:p-8 lg:p-10 overflow-auto", className)}>
           <div className="mx-auto max-w-7xl h-full">
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-orange-200/50 dark:bg-orange-950/80 dark:border-orange-800/50 p-8 min-h-full">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-green-200/50 dark:bg-green-950/80 dark:border-green-800/50 p-8 min-h-full">
               {children}
             </div>
           </div>

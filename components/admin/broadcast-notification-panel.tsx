@@ -168,7 +168,7 @@ export const AdminBroadcastPanel: React.FC<AdminBroadcastPanelProps> = ({
   return (
     <div className="space-y-4">
       {/* Header */}
-      <Card className="border-amber-200/50 bg-gradient-to-r from-amber-50/50 to-orange-50/50 dark:from-amber-950/20 dark:to-orange-950/20">
+      <Card className="border-green-200/50 bg-gradient-to-r from-green-50/50 to-emerald-50/50 dark:from-green-950/20 dark:to-emerald-950/20">
         <CardHeader>
           <div className="flex items-start justify-between">
             <div>
@@ -182,7 +182,7 @@ export const AdminBroadcastPanel: React.FC<AdminBroadcastPanelProps> = ({
             </div>
             <Button
               onClick={openNewDialog}
-              className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700"
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
             >
               <Send className="mr-2 h-4 w-4" />
               New Notification
@@ -314,7 +314,7 @@ export const AdminBroadcastPanel: React.FC<AdminBroadcastPanelProps> = ({
                     onClick={() => setNotificationType(type.value)}
                     className={`p-2 rounded-lg border text-sm font-medium transition-colors ${
                       notificationType === type.value
-                        ? 'bg-orange-100 border-orange-500 text-orange-900 dark:bg-orange-900/40 dark:border-orange-400 dark:text-orange-100'
+                        ? 'bg-green-100 border-green-500 text-green-900 dark:bg-green-900/40 dark:border-green-400 dark:text-green-100'
                         : 'bg-background border-border hover:bg-secondary'
                     }`}
                   >
@@ -331,7 +331,7 @@ export const AdminBroadcastPanel: React.FC<AdminBroadcastPanelProps> = ({
                 id="target-role"
                 value={targetRole}
                 onChange={(e) => setTargetRole(e.target.value)}
-                className="w-full px-3 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-full px-3 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
               >
                 {ROLE_OPTIONS.map((role) => (
                   <option key={role.value} value={role.value}>
@@ -349,7 +349,7 @@ export const AdminBroadcastPanel: React.FC<AdminBroadcastPanelProps> = ({
                   id="target-location"
                   value={targetLocation}
                   onChange={(e) => setTargetLocation(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  className="w-full px-3 py-2 border rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
                 >
                   <option value="">All Locations</option>
                   {locations.map((loc) => (
@@ -374,7 +374,7 @@ export const AdminBroadcastPanel: React.FC<AdminBroadcastPanelProps> = ({
             <Button
               onClick={handleSubmit}
               disabled={isLoading}
-              className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700"
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
             >
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {editingNotif ? (
