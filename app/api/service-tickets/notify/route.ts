@@ -134,6 +134,7 @@ export async function POST(request: Request) {
       title: title.trim(),
       message: message.trim(),
       type: notificationType === "urgent" ? "warning" : notificationType,
+      category: "broadcast",
       is_read: false,
       created_at: new Date().toISOString(),
     }))
@@ -175,6 +176,106 @@ export async function POST(request: Request) {
     })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Failed to send notification" }, { status: 500 })
+  }
+}
+
+// PATCH – edit an existing broadcast and re-fan-out to recipients
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json()
+    const { id, title, message, targetRole, targetLocation, sentBy, sentByName, notificationType = "info" } = body
+
+    if (!id || !title?.trim() || !message?.trim() || !targetRole) {
+      return NextResponse.json({ error: "id, title, message and targetRole are required" }, { status: 400 })
+    }
+
+    // Verify sender permission
+    const { data: senderProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("role, full_name")
+      .eq("id", sentBy)
+      .single()
+
+    if (!senderProfile || !ALLOWED_SENDER_ROLES.includes(senderProfile.role)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
+    }
+
+    // Update the admin_notifications record
+    const { data: updated, error: updateError } = await supabaseAdmin
+      .from("admin_notifications")
+      .update({
+        title: title.trim(),
+        message: message.trim(),
+        target_role: targetRole,
+        target_location_name: targetLocation || null,
+        notification_type: notificationType,
+        sent_at: new Date().toISOString(),
+        status: "sent",
+      })
+      .eq("id", id)
+      .select()
+      .single()
+
+    if (updateError || !updated) {
+      return NextResponse.json({ error: updateError?.message || "Update failed" }, { status: 500 })
+    }
+
+    // Delete previous fan-out notifications for this broadcast (by matching title+category+created_at window)
+    // Re-fan-out fresh notifications to the new target set
+    const rolesToNotify = ROLE_MAP[targetRole] ?? [targetRole]
+    const isAllUsers = targetRole === "user" || targetRole === "all"
+
+    let profileQuery = supabaseAdmin
+      .from("profiles")
+      .select("id, full_name, email, role, location")
+      .eq("is_active", true)
+
+    if (!isAllUsers) {
+      profileQuery = profileQuery.in("role", rolesToNotify)
+    }
+    if (targetLocation) {
+      profileQuery = profileQuery.ilike("location", `%${targetLocation}%`)
+    }
+
+    const { data: profiles } = await profileQuery
+    const validRecipients = (profiles ?? []).filter((p) => p.id?.trim())
+
+    if (validRecipients.length > 0) {
+      const notificationPayload = validRecipients.map((p) => ({
+        user_id: p.id,
+        title: title.trim(),
+        message: message.trim(),
+        type: notificationType === "urgent" ? "warning" : notificationType,
+        category: "broadcast",
+        is_read: false,
+        created_at: new Date().toISOString(),
+      }))
+
+      await supabaseAdmin.from("notifications").insert(notificationPayload)
+
+      // Refresh recipient tracking
+      await supabaseAdmin.from("admin_notification_recipients").delete().eq("notification_id", id)
+      const recipientRows = validRecipients.map((p) => ({
+        notification_id: id,
+        user_id: p.id,
+        user_name: p.full_name || p.email,
+        user_email: p.email,
+        user_role: p.role,
+        user_location: p.location || null,
+        is_read: false,
+        received_at: new Date().toISOString(),
+      }))
+      await supabaseAdmin.from("admin_notification_recipients").insert(recipientRows)
+    }
+
+    return NextResponse.json({
+      success: true,
+      broadcast: updated,
+      recipientsCount: validRecipients.length,
+      message: `Notification re-sent to ${validRecipients.length} user${validRecipients.length !== 1 ? "s" : ""}.`,
+    })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || "Failed to update notification" }, { status: 500 })
   }
 }
 
