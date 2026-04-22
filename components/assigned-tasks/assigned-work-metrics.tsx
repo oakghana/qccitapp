@@ -25,6 +25,15 @@ interface TasksByType {
   serviceDesk: number
 }
 
+interface ColleagueMetrics {
+  userId: string
+  name: string
+  completionRate: number
+  completed: number
+  total: number
+  inProgress: number
+}
+
 export function AssignedWorkMetrics() {
   const { user } = useAuth()
   const [metrics, setMetrics] = useState<WorkMetrics>({
@@ -39,6 +48,7 @@ export function AssignedWorkMetrics() {
   })
   const [tasksByType, setTasksByType] = useState<TasksByType>({ repair: 0, serviceDesk: 0 })
   const [loading, setLoading] = useState(true)
+  const [colleagues, setColleagues] = useState<ColleagueMetrics[]>([])
 
   useEffect(() => {
     loadMetrics()
@@ -109,10 +119,79 @@ export function AssignedWorkMetrics() {
         repair: repairCount,
         serviceDesk: serviceDeskCount,
       })
+
+      // Load colleague metrics (only for it_staff)
+      if (user?.role === "it_staff" && user?.location) {
+        await loadColleagueMetrics()
+      }
     } catch (error) {
       console.error("[v0] Error loading metrics:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadColleagueMetrics = async () => {
+    try {
+      // Get all it_staff in the same location
+      const { data: colleagues } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .eq("role", "it_staff")
+        .eq("location", user?.location)
+        .neq("id", user?.id)
+        .eq("is_active", true)
+
+      if (!colleagues || colleagues.length === 0) {
+        setColleagues([])
+        return
+      }
+
+      // Load metrics for each colleague
+      const colleagueMetrics: ColleagueMetrics[] = []
+
+      for (const colleague of colleagues) {
+        const { data: colleagueTasks } = await supabase
+          .from("service_tickets")
+          .select("*")
+          .or(`assigned_to.eq.${colleague.id},assigned_to_name.ilike.%${colleague.full_name}%`)
+
+        const { data: colleagueRepairs } = await supabase
+          .from("repair_requests")
+          .select("*")
+          .or(`assigned_to.eq.${colleague.id},assigned_to_name.ilike.%${colleague.full_name}%`)
+
+        let total = (colleagueTasks?.length || 0) + (colleagueRepairs?.length || 0)
+        let completed = 0
+        let inProgress = 0
+
+        colleagueTasks?.forEach((t: any) => {
+          if (t.status === "completed" || t.status === "resolved") completed++
+          else if (t.status === "in_progress") inProgress++
+        })
+
+        colleagueRepairs?.forEach((r: any) => {
+          if (r.status === "completed") completed++
+          else if (r.status === "in_progress") inProgress++
+        })
+
+        const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0
+
+        colleagueMetrics.push({
+          userId: colleague.id,
+          name: colleague.full_name || colleague.email || "Unknown",
+          completionRate,
+          completed,
+          total,
+          inProgress,
+        })
+      }
+
+      // Sort by completion rate (descending)
+      colleagueMetrics.sort((a, b) => b.completionRate - a.completionRate)
+      setColleagues(colleagueMetrics)
+    } catch (error) {
+      console.error("[v0] Error loading colleague metrics:", error)
     }
   }
 
@@ -133,9 +212,12 @@ export function AssignedWorkMetrics() {
 
   return (
     <Tabs defaultValue="overview" className="w-full">
-      <TabsList className="grid w-full grid-cols-2">
+      <TabsList className="grid w-full grid-cols-2 lg:grid-cols-3">
         <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
+        {user?.role === "it_staff" && colleagues.length > 0 && (
+          <TabsTrigger value="colleagues">Team Performance</TabsTrigger>
+        )}
       </TabsList>
 
       <TabsContent value="overview" className="space-y-4">
@@ -258,6 +340,47 @@ export function AssignedWorkMetrics() {
           </Card>
         </div>
       </TabsContent>
+
+      {user?.role === "it_staff" && colleagues.length > 0 && (
+        <TabsContent value="colleagues" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Team Performance - {user?.location}
+              </CardTitle>
+              <CardDescription>Your colleagues&apos; completion rates and progress</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {colleagues.map((colleague) => (
+                  <div key={colleague.userId} className="flex items-center justify-between p-3 border rounded-lg hover:bg-green-50/50 dark:hover:bg-green-950/10 transition-colors">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold text-sm">{colleague.name}</h4>
+                        {colleague.completionRate >= 80 && (
+                          <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                            ⭐ Top Performer
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4 mt-2">
+                        <span className="text-xs text-muted-foreground">Completed: {colleague.completed}/{colleague.total}</span>
+                        <span className="text-xs text-muted-foreground">In Progress: {colleague.inProgress}</span>
+                      </div>
+                      <Progress value={colleague.completionRate} className="h-2 mt-2" />
+                    </div>
+                    <div className="text-right ml-4">
+                      <div className="text-lg font-bold text-green-600">{colleague.completionRate}%</div>
+                      <p className="text-xs text-muted-foreground">completion</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      )}
     </Tabs>
   )
 }
