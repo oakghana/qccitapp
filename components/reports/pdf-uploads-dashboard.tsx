@@ -629,8 +629,7 @@ export function PDFUploadsDashboard() {
           )}
         {!canUpload && user?.role === "it_staff" && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-            <p className="font-medium">Note:</p>
-            <p>Only Admin, IT Head, Regional IT Head, and IT Staff at Head Office or Accra can upload documents.</p>
+            <p>You don't have permission to upload documents in this location.</p>
           </div>
         )}
       </div>

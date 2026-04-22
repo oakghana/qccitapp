@@ -313,11 +313,6 @@ export default function StockTransferRequestsPage() {
                 ? "Request stock transfers from Central Stores to Head Office"
                 : "View stock transfer requests"}
           </p>
-          {!canApprove && !canCreateRequest && (
-            <p className="text-xs text-emerald-700 mt-1">
-              Note: Only IT Store Head can request transfers, and only Admin can approve them.
-            </p>
-          )}
         </div>
         <div className="flex gap-2">
           {canCreateRequest && (

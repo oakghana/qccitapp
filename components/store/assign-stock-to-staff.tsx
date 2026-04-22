@@ -660,7 +660,7 @@ export function AssignStockToStaff() {
         <CardContent className="pt-6">
           <div className="flex items-center gap-2 text-emerald-700">
             <AlertCircle className="h-5 w-5" />
-            <p>You don't have permission to assign stock items. Only Admin, IT Store Head, and Regional IT Head can perform this action.</p>
+            <p>You don't have permission to assign stock items.</p>
           </div>
         </CardContent>
       </Card>
@@ -689,7 +689,7 @@ export function AssignStockToStaff() {
           </p>
           {user?.role !== "admin" && (
             <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1">
-              Note: Central Stores items cannot be directly assigned. Use Store Requisitions to request items from Central Stores.
+              Central Stores items are requested through Store Requisitions.
             </p>
           )}
         </div>

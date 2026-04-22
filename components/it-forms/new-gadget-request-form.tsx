@@ -390,7 +390,7 @@ export function NewGadgetRequestForm({ onSubmit }: { onSubmit: () => void }) {
 
         {!canEditOfficialSections && (
           <div className="mb-4 rounded-md border border-dashed border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300">
-            Only Admin or IT Head can complete this section.
+            This section is locked for your role.
           </div>
         )}
 

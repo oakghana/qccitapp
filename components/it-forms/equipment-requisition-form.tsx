@@ -285,7 +285,7 @@ export function ITEquipmentRequisitionForm({ onSubmit }: { onSubmit: () => void 
           <h3 className="font-semibold text-sm">IS Manager / Office Use Only</h3>
         </div>
         <div className="mb-4 rounded-md border border-dashed border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300">
-          Only Admin or IT Head can complete this confirmation area.
+          This section is locked for your role.
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-70">
           <Input placeholder="Confirmed by" disabled={!canEditOfficialSections} />
