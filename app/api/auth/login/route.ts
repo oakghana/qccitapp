@@ -2,11 +2,23 @@ import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import bcrypt from "bcryptjs"
 
-// Use service role key to bypass RLS
-const supabase = createClient((process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://placeholder.supabase.co"), (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "placeholder-build-key"))
-
 export async function POST(request: Request) {
   try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error("[v0] Missing Supabase env for login route", {
+        hasNextPublicUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+        hasSupabaseUrl: Boolean(process.env.SUPABASE_URL),
+        hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      })
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
+    }
+
+    // Use service role key to bypass RLS
+    const supabase = createClient(supabaseUrl, serviceRoleKey)
+
     const { username, password } = await request.json()
 
     if (!username || !password) {
