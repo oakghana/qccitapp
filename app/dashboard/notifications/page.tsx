@@ -71,20 +71,22 @@ export default function NotificationsPage() {
   const loadNotifications = async () => {
     try {
       setLoading(true)
+      console.log("[v0] Loading notifications for user:", user?.id)
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
         .eq("user_id", user?.id)
         .order("created_at", { ascending: false })
 
+      console.log("[v0] Notifications fetched:", { count: data?.length, error: error?.message })
       if (error) {
-        console.error("Error loading notifications:", error)
+        console.error("[v0] Error loading notifications:", error)
         return
       }
 
       setNotifications(data || [])
     } catch (error) {
-      console.error("Error loading notifications:", error)
+      console.error("[v0] Error loading notifications:", error)
     } finally {
       setLoading(false)
     }

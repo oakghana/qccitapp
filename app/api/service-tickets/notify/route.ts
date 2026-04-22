@@ -152,7 +152,7 @@ export async function POST(request: Request) {
       }, { status: 500 })
     }
 
-    console.log("[v0] Successfully fanned out', notificationPayload.length, 'notifications")
+    console.log("[v0] Successfully fanned out", notificationPayload.length, "notifications")
 
     // 5. Track recipients in admin_notification_recipients for admin reporting
     const recipientRows = validRecipients.map((p) => ({
