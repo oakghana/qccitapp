@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createClient as createSupabaseAdmin } from "@supabase/supabase-js"
+
+// Use service role to bypass RLS — this app uses custom auth, not Supabase Auth,
+// so auth.uid() is always NULL and anon-key queries return nothing.
+const supabaseAdmin = createSupabaseAdmin(
+  process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+  process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""
+)
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = supabaseAdmin
 
     const body = await request.json()
     const {
@@ -55,7 +62,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = supabaseAdmin
     const userId = request.nextUrl.searchParams.get("userId")
 
     if (!userId) {
@@ -95,7 +102,7 @@ export async function GET(request: NextRequest) {
 // PATCH - Mark notifications as read
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = supabaseAdmin
     const body = await request.json()
     const { notificationIds, userId } = body
 
@@ -147,7 +154,7 @@ export async function PATCH(request: NextRequest) {
 // DELETE - Delete notifications
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = supabaseAdmin
     const body = await request.json()
     const { notificationIds, userId } = body
 

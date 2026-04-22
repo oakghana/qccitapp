@@ -134,7 +134,6 @@ export async function POST(request: Request) {
       title: title.trim(),
       message: message.trim(),
       type: notificationType === "urgent" ? "warning" : notificationType,
-      category: "broadcast",
       is_read: false,
       created_at: new Date().toISOString(),
     }))

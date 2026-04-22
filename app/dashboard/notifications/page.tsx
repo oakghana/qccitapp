@@ -1,13 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect, useCallback } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/lib/auth-context"
 import { Bell, Trash2, CheckCircle, AlertCircle, Info, Mail, Search } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
 
 interface UserNotification {
   id: string
@@ -41,113 +40,85 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [filter, setFilter] = useState<"all" | "unread" | "read">("all")
-  const supabase = createClient()
+
+  const loadNotifications = useCallback(async () => {
+    if (!user?.id) return
+    try {
+      setLoading(true)
+      const res = await fetch(`/api/notifications?userId=${user.id}`)
+      const json = await res.json()
+      if (!res.ok) {
+        console.error("[v0] Error fetching notifications:", json.error)
+        return
+      }
+      setNotifications(json.notifications ?? [])
+    } catch (err) {
+      console.error("[v0] Notifications fetch error:", err)
+    } finally {
+      setLoading(false)
+    }
+  }, [user?.id])
 
   useEffect(() => {
     if (!user?.id) return
     loadNotifications()
-    // Subscribe to real-time changes
-    const channel = supabase
-      .channel(`notifications:${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          loadNotifications()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [user?.id, supabase])
-
-  const loadNotifications = async () => {
-    try {
-      setLoading(true)
-      console.log("[v0] Loading notifications for user:", user?.id)
-      const { data, error } = await supabase
-        .from("notifications")
-        .select("*")
-        .eq("user_id", user?.id)
-        .order("created_at", { ascending: false })
-
-      console.log("[v0] Notifications fetched:", { count: data?.length, error: error?.message })
-      if (error) {
-        console.error("[v0] Error loading notifications:", error)
-        return
-      }
-
-      setNotifications(data || [])
-    } catch (error) {
-      console.error("[v0] Error loading notifications:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
+    // Poll every 30 seconds to pick up new broadcasts
+    const interval = setInterval(loadNotifications, 30_000)
+    return () => clearInterval(interval)
+  }, [user?.id, loadNotifications])
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
-      await supabase
-        .from("notifications")
-        .update({ is_read: true })
-        .eq("id", notificationId)
-
+      await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user?.id, notificationIds: [notificationId] }),
+      })
       setNotifications(prev =>
         prev.map(n => (n.id === notificationId ? { ...n, is_read: true } : n))
       )
-    } catch (error) {
-      console.error("Error marking notification as read:", error)
+    } catch (err) {
+      console.error("Error marking notification as read:", err)
     }
   }
 
   const handleMarkAllAsRead = async () => {
     try {
-      const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id)
-      if (unreadIds.length === 0) return
-
-      await supabase
-        .from("notifications")
-        .update({ is_read: true })
-        .in("id", unreadIds)
-
+      await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user?.id }),
+      })
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
-    } catch (error) {
-      console.error("Error marking all as read:", error)
+    } catch (err) {
+      console.error("Error marking all as read:", err)
     }
   }
 
   const handleDelete = async (notificationId: string) => {
     try {
-      await supabase
-        .from("notifications")
-        .delete()
-        .eq("id", notificationId)
-
+      await fetch("/api/notifications", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user?.id, notificationIds: [notificationId] }),
+      })
       setNotifications(prev => prev.filter(n => n.id !== notificationId))
-    } catch (error) {
-      console.error("Error deleting notification:", error)
+    } catch (err) {
+      console.error("Error deleting notification:", err)
     }
   }
 
   const handleDeleteAll = async () => {
     if (!confirm("Are you sure you want to delete all notifications?")) return
-
     try {
-      await supabase
-        .from("notifications")
-        .delete()
-        .eq("user_id", user?.id)
-
+      await fetch("/api/notifications", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user?.id }),
+      })
       setNotifications([])
-    } catch (error) {
-      console.error("Error deleting all notifications:", error)
+    } catch (err) {
+      console.error("Error deleting all notifications:", err)
     }
   }
 
