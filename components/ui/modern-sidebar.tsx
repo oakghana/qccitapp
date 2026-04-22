@@ -106,24 +106,9 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
   }
 
   const getNavigationItems = (): { items: NavigationItem[]; groups: NavigationGroup[] } => {
-    const baseItems: NavigationItem[] = [{ name: "Dashboard", href: "/dashboard", icon: Home }]
-
     if (user?.role === "staff" || user?.role === "user") {
       return {
         items: [
-          ...baseItems,
-          {
-            name: "Messages",
-            href: "/dashboard/notifications",
-            icon: Bell,
-            badge: counts.notifications > 0 ? counts.notifications : undefined,
-          },
-          {
-            name: "Service Desk",
-            href: "/dashboard/service-desk",
-            icon: Headphones,
-            badge: counts.serviceDeskTickets > 0 ? counts.serviceDeskTickets : undefined,
-          },
           { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
           { name: "IT Store Stock Levels", href: "/dashboard/store-snapshot", icon: Database },
         ],
@@ -143,7 +128,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
 
     if (user?.role === "admin") {
       return {
-        items: [...baseItems],
+        items: [],
         groups: [
           {
             name: "IT Operations",
@@ -266,13 +251,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
     if (user?.role === "it_staff") {
       return {
         items: [
-          ...baseItems,
-          {
-            name: "Messages",
-            href: "/dashboard/notifications",
-            icon: Bell,
-            badge: counts.notifications > 0 ? counts.notifications : undefined,
-          },
           {
             name: "Assigned Tasks",
             href: "/dashboard/assigned-tasks",
@@ -285,7 +263,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
             icon: Wrench,
             badge: counts.repairs > 0 ? counts.repairs : undefined,
           },
-          { name: "Devices", href: "/dashboard/devices", icon: Monitor },
           { name: "Store Stock Levels", href: "/dashboard/store-snapshot", icon: Package },
           {
             name: "Stock Balance Report",
@@ -322,13 +299,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
     if (user?.role === "it_store_head") {
       return {
         items: [
-          ...baseItems,
-          {
-            name: "Messages",
-            href: "/dashboard/notifications",
-            icon: Bell,
-            badge: counts.notifications > 0 ? counts.notifications : undefined,
-          },
           {
             name: "Assigned Tasks",
             href: "/dashboard/assigned-tasks",
@@ -341,7 +311,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
             icon: Wrench,
             badge: counts.repairs > 0 ? counts.repairs : undefined,
           },
-          { name: "Devices", href: "/dashboard/devices", icon: Monitor },
           { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
           { name: "Users", href: "/dashboard/users", icon: Users },
           { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
@@ -392,21 +361,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
 
     if (user?.role === "it_head") {
       return {
-        items: [
-          ...baseItems,
-          {
-            name: "Service Desk",
-            href: "/dashboard/service-desk",
-            icon: Headphones,
-            badge: counts.serviceDeskTickets > 0 ? counts.serviceDeskTickets : undefined,
-          },
-          {
-            name: "Notifications",
-            href: "/dashboard/notifications",
-            icon: Bell,
-            badge: counts.notifications > 0 ? counts.notifications : undefined,
-          },
-        ],
+        items: [],
         groups: [
           {
             name: "IT Operations",
@@ -496,27 +451,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
     // Regional IT Head role - manages regional IT operations (location-based)
     if (user?.role === "regional_it_head") {
       return {
-        items: [
-          ...baseItems,
-          {
-            name: "Messages",
-            href: "/dashboard/notifications",
-            icon: Bell,
-            badge: counts.notifications > 0 ? counts.notifications : undefined,
-          },
-          {
-            name: "Service Desk",
-            href: "/dashboard/service-desk",
-            icon: Headphones,
-            badge: counts.serviceDeskTickets > 0 ? counts.serviceDeskTickets : undefined,
-          },
-          { 
-            name: "Devices", 
-            href: "/dashboard/devices", 
-            icon: Monitor,
-            badge: counts.devices > 0 ? counts.devices : undefined,
-          },
-        ],
+        items: [],
         groups: [
           {
             name: "IT Forms",
@@ -582,21 +517,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
 
     if (user?.role === "department_head") {
       return {
-        items: [
-          ...baseItems,
-          {
-            name: "Messages",
-            href: "/dashboard/notifications",
-            icon: Bell,
-            badge: counts.notifications > 0 ? counts.notifications : undefined,
-          },
-          {
-            name: "Service Desk",
-            href: "/dashboard/service-desk",
-            icon: Headphones,
-            badge: counts.serviceDeskTickets > 0 ? counts.serviceDeskTickets : undefined,
-          },
-        ],
+        items: [],
         groups: [
           {
             name: "IT Forms",
@@ -615,13 +536,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
     if (user?.role === "service_provider") {
       return {
         items: [
-          { name: "Dashboard", href: "/dashboard", icon: Home },
-          {
-            name: "My Repair Jobs",
-            href: "/dashboard/service-provider/my-repairs",
-            icon: Wrench,
-            badge: counts.assignedTasks > 0 ? counts.assignedTasks : undefined,
-          },
           {
             name: "My Tasks (Legacy)",
             href: "/dashboard/service-provider",
@@ -636,13 +550,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
     if (user?.role?.startsWith("service_desk")) {
       return {
         items: [
-          ...baseItems,
-          {
-            name: "Service Desk",
-            href: "/dashboard/service-desk",
-            icon: Headphones,
-            badge: counts.serviceDeskTickets > 0 ? counts.serviceDeskTickets : undefined,
-          },
           {
             name: "Assigned Tasks",
             href: "/dashboard/assigned-tasks",
@@ -655,7 +562,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
             icon: Users,
             badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
           },
-          { name: "Devices", href: "/dashboard/devices", icon: Monitor },
           {
             name: "Repairs",
             href: "/dashboard/repairs",
@@ -679,7 +585,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
       }
     }
 
-    return { items: baseItems, groups: [] }
+    return { items: [], groups: [] }
   }
 
   const handleLogout = () => {
