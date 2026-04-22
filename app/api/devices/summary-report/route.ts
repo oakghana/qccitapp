@@ -32,26 +32,44 @@ export async function GET(request: NextRequest) {
 
     const isRegionalHead = profile.role === "regional_it_head"
 
-    // Build query for devices
-    let devicesQuery = supabase
-      .from("devices")
-      .select("id, device_type, status, location, brand, model, assigned_to, purchase_date, warranty_expiry")
+    // Build query for devices (fetch all with pagination to bypass 1000-row limit)
+    let allDevices: any[] = []
+    let offset = 0
+    const pageSize = 1000 // Supabase default limit
 
-    // Filter by location for regional users (case-insensitive)
-    if ((isRegionalHead || !canSeeAllLocations) && profile.location) {
-      devicesQuery = devicesQuery.ilike("location", profile.location)
+    while (true) {
+      let devicesQuery = supabase
+        .from("devices")
+        .select("id, device_type, status, location, brand, model, assigned_to, purchase_date, warranty_expiry")
+        .order("created_at", { ascending: false })
+        .range(offset, offset + pageSize - 1)
+
+      // Filter by location for regional users (case-insensitive)
+      if ((isRegionalHead || !canSeeAllLocations) && profile.location) {
+        devicesQuery = devicesQuery.ilike("location", profile.location)
+      }
+
+      const { data: devices, error: devicesError } = await devicesQuery
+
+      if (devicesError) {
+        console.error("[v0] Error fetching devices:", devicesError)
+        return NextResponse.json({ error: devicesError.message }, { status: 500 })
+      }
+
+      if (!devices || devices.length === 0) break
+      allDevices = allDevices.concat(devices)
+
+      // If we got fewer than pageSize results, we've reached the end
+      if (devices.length < pageSize) break
+
+      offset += pageSize
     }
 
-    const { data: devices, error: devicesError } = await devicesQuery
-
-    if (devicesError) {
-      console.error("[v0] Error fetching devices:", devicesError)
-      return NextResponse.json({ error: devicesError.message }, { status: 500 })
-    }
+    console.log("[v0] Fetched", allDevices.length, 'devices for summary report')
 
     // Calculate summary statistics by location (merging duplicate names)
     const locationSummary: Record<string, any> = {}
-    devices?.forEach((device) => {
+    allDevices?.forEach((device) => {
       const canonicalLocation = getCanonicalLocationName(device.location)
       if (!locationSummary[canonicalLocation]) {
         locationSummary[canonicalLocation] = {
@@ -82,7 +100,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate summary statistics by device type
     const deviceTypeSummary: Record<string, any> = {}
-    devices?.forEach((device) => {
+    allDevices?.forEach((device) => {
       if (!deviceTypeSummary[device.device_type]) {
         deviceTypeSummary[device.device_type] = {
           total: 0,
@@ -113,11 +131,11 @@ export async function GET(request: NextRequest) {
 
     // Calculate overall totals
     const overallSummary = {
-      totalDevices: devices?.length || 0,
-      totalAssigned: devices?.filter((d) => d.status === "assigned").length || 0,
-      totalAvailable: devices?.filter((d) => d.status === "available").length || 0,
-      totalInRepair: devices?.filter((d) => d.status === "repair").length || 0,
-      totalRetired: devices?.filter((d) => d.status === "retired").length || 0,
+      totalDevices: allDevices?.length || 0,
+      totalAssigned: allDevices?.filter((d) => d.status === "assigned").length || 0,
+      totalAvailable: allDevices?.filter((d) => d.status === "available").length || 0,
+      totalInRepair: allDevices?.filter((d) => d.status === "repair").length || 0,
+      totalRetired: allDevices?.filter((d) => d.status === "retired").length || 0,
       uniqueLocations: Object.keys(locationSummary).length,
       uniqueDeviceTypes: Object.keys(deviceTypeSummary).length,
     }
