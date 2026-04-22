@@ -144,12 +144,12 @@ export default function StoreAnalyticsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-stone-50 to-slate-50 p-4 sm:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Store Analytics</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Store Analytics</h1>
             <p className="text-slate-600 mt-2">Track stock additions and transactions across all locations</p>
           </div>
           <Button onClick={loadData} variant="outline" size="sm">
@@ -160,7 +160,7 @@ export default function StoreAnalyticsPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="additions" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-2 rounded-xl border border-emerald-100 bg-white p-1">
             <TabsTrigger value="additions" className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
               New Stock Additions
@@ -173,7 +173,7 @@ export default function StoreAnalyticsPage() {
 
           {/* New Stock Additions Tab */}
           <TabsContent value="additions" className="space-y-4">
-            <Card>
+            <Card className="rounded-2xl border-emerald-100 shadow-sm bg-white">
               <CardHeader>
                 <CardTitle>New Stock Additions</CardTitle>
                 <CardDescription>
@@ -189,7 +189,7 @@ export default function StoreAnalyticsPage() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b bg-slate-50">
+                        <tr className="border-b bg-emerald-50/60">
                           <th className="text-left py-3 px-4 font-semibold">Item Name</th>
                           <th className="text-left py-3 px-4 font-semibold">Quantity</th>
                           <th className="text-left py-3 px-4 font-semibold">Category</th>
@@ -201,7 +201,7 @@ export default function StoreAnalyticsPage() {
                       </thead>
                       <tbody>
                         {additions.map((addition) => (
-                          <tr key={addition.id} className="border-b hover:bg-slate-50">
+                          <tr key={addition.id} className="border-b hover:bg-emerald-50/40">
                             <td className="py-3 px-4 font-medium">{addition.item_name}</td>
                             <td className="py-3 px-4">
                               <Badge className="bg-green-100 text-green-800">{addition.quantity} pcs</Badge>
@@ -240,7 +240,7 @@ export default function StoreAnalyticsPage() {
 
           {/* All Transactions Tab */}
           <TabsContent value="transactions" className="space-y-4">
-            <Card>
+            <Card className="rounded-2xl border-emerald-100 shadow-sm bg-white">
               <CardHeader>
                 <CardTitle>All Transactions</CardTitle>
                 <CardDescription>
@@ -256,7 +256,7 @@ export default function StoreAnalyticsPage() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b bg-slate-50">
+                        <tr className="border-b bg-emerald-50/60">
                           <th className="text-left py-3 px-4 font-semibold">Item Name</th>
                           <th className="text-left py-3 px-4 font-semibold">Type</th>
                           <th className="text-left py-3 px-4 font-semibold">Quantity</th>
@@ -268,7 +268,7 @@ export default function StoreAnalyticsPage() {
                       </thead>
                       <tbody>
                         {transactions.map((transaction) => (
-                          <tr key={transaction.id} className="border-b hover:bg-slate-50">
+                          <tr key={transaction.id} className="border-b hover:bg-emerald-50/40">
                             <td className="py-3 px-4 font-medium">{transaction.item_name}</td>
                             <td className="py-3 px-4">
                               <Badge className={getTransactionBadgeColor(transaction.transaction_type)}>

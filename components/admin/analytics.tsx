@@ -36,29 +36,46 @@ export function Analytics() {
     return () => clearInterval(refreshInterval)
   }, [timeRange])
 
+  const getStartDateIso = () => {
+    const now = new Date()
+    if (timeRange === "1month") now.setMonth(now.getMonth() - 1)
+    if (timeRange === "3months") now.setMonth(now.getMonth() - 3)
+    if (timeRange === "6months") now.setMonth(now.getMonth() - 6)
+    if (timeRange === "1year") now.setFullYear(now.getFullYear() - 1)
+    return now.toISOString()
+  }
+
   const loadAnalyticsData = async () => {
     try {
       setLoading(true)
+      const startDate = getStartDateIso()
 
       const { data: repairs } = await supabase
         .from("repair_requests")
         .select("*")
+        .gte("created_at", startDate)
         .order("created_at", { ascending: false })
 
-      const { data: tickets } = await supabase.from("tickets").select("*").order("created_at", { ascending: false })
+      const { data: tickets } = await supabase
+        .from("service_tickets")
+        .select("*")
+        .gte("created_at", startDate)
+        .order("created_at", { ascending: false })
 
-      const { data: devices } = await supabase.from("devices").select("type")
+      const { data: devices } = await supabase.from("devices").select("device_type, type")
 
       // Process repairs count
       setTotalRepairs(repairs?.length || 0)
       setTotalServiceDesk(tickets?.length || 0)
 
       // Calculate costs from repairs
-      const cost = repairs?.reduce((sum, r) => sum + (r.cost || 0), 0) || 0
+      const cost =
+        repairs?.reduce((sum, r) => sum + Number(r.cost || r.total_cost || r.invoice_amount || 0), 0) || 0
       setTotalCost(cost)
 
       // Calculate average resolution time from tickets
-      const resolvedTickets = tickets?.filter((t) => t.status === "resolved") || []
+      const resolvedTickets =
+        tickets?.filter((t) => ["resolved", "closed", "completed", "awaiting_confirmation"].includes((t.status || "").toLowerCase())) || []
       const validResolutionTimes = resolvedTickets
         .map((ticket) => {
           const created = new Date(ticket.created_at)
@@ -80,7 +97,7 @@ export function Analytics() {
 
       // Process device breakdown
       const deviceTypes = devices?.reduce((acc: any, d) => {
-        const type = d.type || "Others"
+        const type = d.device_type || d.type || "Others"
         acc[type] = (acc[type] || 0) + 1
         return acc
       }, {})

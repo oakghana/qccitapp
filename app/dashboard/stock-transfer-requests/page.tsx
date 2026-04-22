@@ -300,10 +300,10 @@ export default function StockTransferRequestsPage() {
     <div className="space-y-6">
       <FormNavigation currentPage="/dashboard/stock-transfer-requests" />
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 to-stone-50 p-4">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Package className="h-6 w-6" />
+            <Package className="h-6 w-6 text-emerald-900" />
             Stock Transfer Requests
           </h2>
           <p className="text-muted-foreground">
@@ -314,20 +314,20 @@ export default function StockTransferRequestsPage() {
                 : "View stock transfer requests"}
           </p>
           {!canApprove && !canCreateRequest && (
-            <p className="text-xs text-amber-600 mt-1">
+            <p className="text-xs text-emerald-700 mt-1">
               Note: Only IT Store Head can request transfers, and only Admin can approve them.
             </p>
           )}
         </div>
         <div className="flex gap-2">
           {canCreateRequest && (
-            <Button onClick={openCreateDialog}>
-              <Plus className="h-4 w-4 mr-2" />
+            <Button onClick={openCreateDialog} className="bg-green-100 hover:bg-green-200 text-green-900 border border-green-300">
+              <Plus className="h-4 w-4 mr-2 text-green-900" />
               New Transfer Request
             </Button>
           )}
-          <Button variant="outline" onClick={loadRequests}>
-            <RefreshCcw className="h-4 w-4 mr-2" />
+          <Button variant="outline" onClick={loadRequests} className="border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-900">
+            <RefreshCcw className="h-4 w-4 mr-2 text-emerald-900" />
             Refresh
           </Button>
         </div>
@@ -338,7 +338,7 @@ export default function StockTransferRequestsPage() {
           <TabsTrigger value="pending" className="relative">
             Pending
             {pendingCount > 0 && (
-              <Badge className="ml-2 bg-yellow-500">{pendingCount}</Badge>
+              <Badge className="ml-2 bg-green-200 text-green-900">{pendingCount}</Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="approved">Approved</TabsTrigger>
@@ -438,10 +438,10 @@ export default function StockTransferRequestsPage() {
                           <div className="flex gap-2">
                             <Button
                               size="sm"
-                              className="bg-green-600 hover:bg-green-700"
+                              className="bg-green-100 hover:bg-green-200 text-green-900 border border-green-300"
                               onClick={() => openApproveDialog(request, "approve")}
                             >
-                              <CheckCircle className="h-4 w-4 mr-1" />
+                              <CheckCircle className="h-4 w-4 mr-1 text-green-900" />
                               Approve
                             </Button>
                             <Button
@@ -634,7 +634,7 @@ export default function StockTransferRequestsPage() {
               Reject
             </Button>
             <Button
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-green-100 hover:bg-green-200 text-green-900 border border-green-300"
               onClick={handleApprove}
               disabled={actionLoading || !!actionSuccess}
             >

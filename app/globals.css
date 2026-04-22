@@ -2,84 +2,83 @@
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
- 
+
 :root {
-  --background: oklch(0.99 0.01 140);
-  --foreground: oklch(0.15 0.02 30);
-  --card: oklch(0.98 0.01 140);
-  --card-foreground: oklch(0.15 0.02 30);
-  --popover: oklch(0.99 0.01 140);
-  --popover-foreground: oklch(0.15 0.02 30);
-  --primary: oklch(0.45 0.15 140);
-  --primary-foreground: oklch(0.99 0.01 85);
-  --secondary: oklch(0.75 0.12 65);
-  --secondary-foreground: oklch(0.15 0.02 30);
-  --muted: oklch(0.95 0.02 140);
-  --muted-foreground: oklch(0.45 0.02 30);
-  --accent: oklch(0.65 0.15 65);
-  --accent-foreground: oklch(0.15 0.02 30);
-  --destructive: oklch(0.55 0.22 25);
-  --destructive-foreground: oklch(0.99 0.01 85);
-  --border: oklch(0.9 0.02 140);
-  --input: oklch(0.96 0.01 140);
-  --ring: oklch(0.45 0.15 140 / 0.5);
-  --chart-1: oklch(0.45 0.15 140);
-  --chart-2: oklch(0.65 0.15 65);
-  --chart-3: oklch(0.35 0.1 30);
-  --chart-4: oklch(0.55 0.12 100);
-  --chart-5: oklch(0.75 0.12 65);
-  --radius: 0.75rem;
-  --sidebar: oklch(0.97 0.02 140);
-  --sidebar-foreground: oklch(0.15 0.02 30);
-  --sidebar-primary: oklch(0.45 0.15 140);
-  --sidebar-primary-foreground: oklch(0.99 0.01 85);
-  --sidebar-accent: oklch(0.85 0.05 140);
-  --sidebar-accent-foreground: oklch(0.25 0.02 30);
-  --sidebar-border: oklch(0.9 0.02 140);
-  --sidebar-ring: oklch(0.45 0.15 140 / 0.5);
-  --success: oklch(0.45 0.15 140);
-  --success-foreground: oklch(0.99 0.01 85);
+  --background: oklch(0.99 0.004 60);
+  --foreground: oklch(0.13 0.015 40);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.13 0.015 40);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.13 0.015 40);
+  --primary: oklch(0.62 0.19 48);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.96 0.035 85);
+  --secondary-foreground: oklch(0.35 0.06 50);
+  --muted: oklch(0.96 0.006 60);
+  --muted-foreground: oklch(0.50 0.012 40);
+  --accent: oklch(0.93 0.06 80);
+  --accent-foreground: oklch(0.30 0.06 50);
+  --destructive: oklch(0.56 0.22 25);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.91 0.01 60);
+  --input: oklch(0.97 0.005 60);
+  --ring: oklch(0.62 0.19 48 / 0.4);
+  --chart-1: oklch(0.62 0.19 48);
+  --chart-2: oklch(0.72 0.14 80);
+  --chart-3: oklch(0.50 0.15 25);
+  --chart-4: oklch(0.55 0.12 150);
+  --chart-5: oklch(0.65 0.12 220);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0.004 60);
+  --sidebar-foreground: oklch(0.13 0.015 40);
+  --sidebar-primary: oklch(0.62 0.19 48);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.96 0.035 85);
+  --sidebar-accent-foreground: oklch(0.30 0.06 50);
+  --sidebar-border: oklch(0.91 0.01 60);
+  --sidebar-ring: oklch(0.62 0.19 48 / 0.4);
+  --success: oklch(0.52 0.14 150);
+  --success-foreground: oklch(1 0 0);
 }
 
 .dark {
-  --background: oklch(0.08 0.01 30);
-  --foreground: oklch(0.95 0.01 140);
-  --card: oklch(0.12 0.01 30);
-  --card-foreground: oklch(0.95 0.01 140);
-  --popover: oklch(0.08 0.01 30);
-  --popover-foreground: oklch(0.95 0.01 140);
-  --primary: oklch(0.55 0.18 140);
-  --primary-foreground: oklch(0.08 0.01 30);
-  --secondary: oklch(0.18 0.02 65);
-  --secondary-foreground: oklch(0.95 0.01 140);
-  --muted: oklch(0.15 0.01 30);
-  --muted-foreground: oklch(0.65 0.01 140);
-  --accent: oklch(0.18 0.02 65);
-  --accent-foreground: oklch(0.95 0.01 140);
-  --destructive: oklch(0.55 0.18 25);
-  --destructive-foreground: oklch(0.95 0.01 140);
-  --border: oklch(0.18 0.01 30);
-  --input: oklch(0.15 0.01 30);
-  --ring: oklch(0.55 0.18 140 / 0.5);
-  --chart-1: oklch(0.55 0.18 140);
-  --chart-2: oklch(0.7 0.15 65);
-  --chart-3: oklch(0.35 0.1 30);
-  --chart-4: oklch(0.65 0.12 100);
-  --chart-5: oklch(0.75 0.12 65);
-  --sidebar: oklch(0.1 0.01 30);
-  --sidebar-foreground: oklch(0.95 0.01 140);
-  --sidebar-primary: oklch(0.55 0.18 140);
-  --sidebar-primary-foreground: oklch(0.08 0.01 30);
-  --sidebar-accent: oklch(0.18 0.02 65);
-  --sidebar-accent-foreground: oklch(0.95 0.01 140);
-  --sidebar-border: oklch(0.18 0.01 30);
-  --sidebar-ring: oklch(0.55 0.18 140 / 0.5);
-  --success: oklch(0.55 0.18 140);
-  --success-foreground: oklch(0.08 0.01 30);
+  --background: oklch(0.10 0.008 40);
+  --foreground: oklch(0.95 0.008 60);
+  --card: oklch(0.14 0.008 40);
+  --card-foreground: oklch(0.95 0.008 60);
+  --popover: oklch(0.14 0.008 40);
+  --popover-foreground: oklch(0.95 0.008 60);
+  --primary: oklch(0.70 0.17 48);
+  --primary-foreground: oklch(0.10 0.008 40);
+  --secondary: oklch(0.20 0.015 40);
+  --secondary-foreground: oklch(0.90 0.01 60);
+  --muted: oklch(0.18 0.008 40);
+  --muted-foreground: oklch(0.65 0.01 60);
+  --accent: oklch(0.22 0.015 50);
+  --accent-foreground: oklch(0.90 0.01 60);
+  --destructive: oklch(0.60 0.20 25);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.22 0.01 40);
+  --input: oklch(0.18 0.008 40);
+  --ring: oklch(0.70 0.17 48 / 0.4);
+  --chart-1: oklch(0.70 0.17 48);
+  --chart-2: oklch(0.75 0.12 80);
+  --chart-3: oklch(0.55 0.15 25);
+  --chart-4: oklch(0.58 0.12 150);
+  --chart-5: oklch(0.68 0.12 220);
+  --sidebar: oklch(0.12 0.008 40);
+  --sidebar-foreground: oklch(0.95 0.008 60);
+  --sidebar-primary: oklch(0.70 0.17 48);
+  --sidebar-primary-foreground: oklch(0.10 0.008 40);
+  --sidebar-accent: oklch(0.22 0.015 50);
+  --sidebar-accent-foreground: oklch(0.90 0.01 60);
+  --sidebar-border: oklch(0.22 0.01 40);
+  --sidebar-ring: oklch(0.70 0.17 48 / 0.4);
+  --success: oklch(0.58 0.14 150);
+  --success-foreground: oklch(1 0 0);
 }
 
 @theme inline {
-  /* optional: --font-sans, --font-serif, --font-mono if they are applied in the layout.tsx */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -117,50 +116,42 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 }
- 
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
 }
 
 @layer components {
-  .text-readable-primary {
-    @apply text-gray-900 dark:text-gray-100;
+  .card-modern {
+    @apply bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm;
   }
 
-  .text-readable-secondary {
-    @apply text-gray-700 dark:text-gray-300;
+  .card-modern-hover {
+    @apply bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm transition-shadow hover:shadow-md;
   }
 
-  .text-readable-muted {
-    @apply text-gray-600 dark:text-gray-400;
+  .input-modern {
+    @apply rounded-lg border-gray-200 dark:border-gray-700 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 dark:focus:ring-orange-900/30 transition-all;
   }
 
-  .bg-role-safe {
-    @apply bg-gray-50/80 dark:bg-gray-900/80;
+  .table-modern th {
+    @apply text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/60 px-4 py-3;
   }
 
-  .border-role-safe {
-    @apply border-gray-200 dark:border-gray-800;
+  .table-modern td {
+    @apply px-4 py-3 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-800;
   }
 
-  .text-white {
-    color: #ffffff !important;
+  .table-modern tr:hover td {
+    @apply bg-orange-50/50 dark:bg-orange-950/10;
   }
 
-  .text-black {
-    color: #000000 !important;
-  }
-
-  .badge-readable {
-    @apply bg-gray-100 text-gray-900 border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600;
-  }
-
-  /* Orange scrollbar styling for navigation */
   .scrollbar-thin::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -179,23 +170,13 @@
     background-color: rgb(234, 88, 12);
   }
 
-  /* Firefox scrollbar */
   .scrollbar-thin {
     scrollbar-color: rgb(249, 115, 22) rgb(243, 244, 246);
     scrollbar-width: thin;
   }
 
-  /* Dark mode scrollbar */
   .dark .scrollbar-thin::-webkit-scrollbar-track {
     background-color: rgb(31, 41, 55);
-  }
-
-  .dark .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: rgb(249, 115, 22);
-  }
-
-  .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background-color: rgb(234, 88, 12);
   }
 
   .dark .scrollbar-thin {

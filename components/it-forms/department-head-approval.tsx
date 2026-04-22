@@ -16,11 +16,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CheckCircle2, XCircle, Eye, AlertCircle, Loader2 } from "lucide-react"
+import { CheckCircle2, XCircle, Eye, AlertCircle, Loader2, PenLine } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import { ApprovalTracker } from "./approval-tracker"
 import { formatDisplayDate } from "@/lib/utils"
+import { SignaturePad } from "@/components/ui/signature-pad"
 
 type FormType = "requisition" | "new-gadget" | "maintenance"
 
@@ -66,6 +67,7 @@ export function DepartmentHeadApprovalModule() {
   const [approvalNotes, setApprovalNotes] = useState("")
   const [approvalAction, setApprovalAction] = useState<"approve" | "reject">("approve")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [hodSignature, setHodSignature] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [filterTab, setFilterTab] = useState<"pending" | "approved" | "rejected" | "all">("pending")
   const { user } = useAuth()
@@ -191,6 +193,7 @@ export function DepartmentHeadApprovalModule() {
     setSelectedRequisition(req)
     setApprovalAction("approve")
     setApprovalNotes("")
+    setHodSignature(null)
     setIsApprovalDialogOpen(true)
   }
 
@@ -198,6 +201,7 @@ export function DepartmentHeadApprovalModule() {
     setSelectedRequisition(req)
     setApprovalAction("reject")
     setApprovalNotes("")
+    setHodSignature(null)
     setIsApprovalDialogOpen(true)
   }
 
@@ -222,6 +226,7 @@ export function DepartmentHeadApprovalModule() {
           action: approvalAction,
           approvedBy: user?.full_name || user?.email || "Unknown",
           notes: approvalNotes,
+          hodSignature: approvalAction === "approve" ? hodSignature : undefined,
         }),
       })
 
@@ -239,6 +244,7 @@ export function DepartmentHeadApprovalModule() {
       setIsApprovalDialogOpen(false)
       setSelectedRequisition(null)
       setApprovalNotes("")
+      setHodSignature(null)
     } catch (error: any) {
       console.error("[v0] Error submitting approval:", error)
       toast({
@@ -431,6 +437,29 @@ export function DepartmentHeadApprovalModule() {
                 <h3 className="font-semibold mb-3">Approval Status</h3>
                 <ApprovalTracker stages={buildApprovalStages(selectedRequisition)} currentStatus={selectedRequisition.status} />
               </div>
+
+              {selectedRequisition.department_head_signature && (
+                <div>
+                  <Label className="text-muted-foreground flex items-center gap-1.5">
+                    <PenLine className="h-4 w-4 text-orange-500" />
+                    HOD Signature
+                  </Label>
+                  <div className="mt-2 border rounded-md overflow-hidden bg-white dark:bg-slate-950 p-2 inline-block">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={selectedRequisition.department_head_signature}
+                      alt="HOD Signature"
+                      className="max-h-24 object-contain"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Signed by {selectedRequisition.department_head_approved_by || selectedRequisition.departmental_head_name || "HOD"}{" "}
+                    {selectedRequisition.department_head_approved_at
+                      ? `on ${formatDisplayDate(selectedRequisition.department_head_approved_at)}`
+                      : ""}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
@@ -454,13 +483,26 @@ export function DepartmentHeadApprovalModule() {
                 className="min-h-24 resize-none"
               />
             </div>
+            {approvalAction === "approve" && (
+              <div>
+                <Label className="flex items-center gap-1.5 mb-1.5">
+                  <PenLine className="h-4 w-4 text-orange-500" />
+                  HOD Signature {hodSignature ? <span className="text-green-600 text-xs">(captured)</span> : <span className="text-muted-foreground text-xs">(optional but recommended)</span>}
+                </Label>
+                <SignaturePad
+                  onSave={(dataUrl) => setHodSignature(dataUrl)}
+                  onClear={() => setHodSignature(null)}
+                  height={130}
+                />
+              </div>
+            )}
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsApprovalDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={submitApproval} disabled={isSubmitting || !approvalNotes.trim()} variant={approvalAction === "approve" ? "default" : "destructive"}>
+            <Button onClick={submitApproval} disabled={isSubmitting || !approvalNotes.trim()} variant={approvalAction === "approve" ? "default" : "destructive"} className={approvalAction === "approve" ? "bg-orange-600 hover:bg-orange-700" : ""}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />

@@ -44,11 +44,11 @@ export async function GET(request: NextRequest) {
     const { count: devicesCount, error: devicesError } = await devicesQuery
     if (devicesError) console.error("[v0] Error fetching devices:", devicesError)
 
-    // Fetch active repairs (in_progress status)
+    // Fetch active repairs (all non-completed/non-rejected statuses)
     let repairsQuery = supabase
       .from("repair_requests")
       .select("*", { count: "exact", head: true })
-      .eq("status", "in_progress")
+      .in("status", ["pending", "approved", "in_transit", "with_provider", "in_progress", "assigned"])
     
     repairsQuery = applyRepairLocationFilter(repairsQuery)
     
@@ -78,41 +78,72 @@ export async function GET(request: NextRequest) {
       .eq("status", "pending")
     if (pendingError) console.error("[v0] Error fetching pending approvals:", pendingError.message || pendingError)
 
-    // For IT staff - fetch assigned tasks
+    // For IT staff - fetch assigned tasks from both repair_requests and service_tickets
     let assignedTasksCount = 0
     let inProgressTasksCount = 0
     let completedTasksCount = 0
     let pendingReviewCount = 0
 
     if (userRole === "it_staff" && userId) {
-      const { count: assigned } = await supabase
+      // Repair tasks
+      const { count: assignedRepairs } = await supabase
         .from("repair_requests")
         .select("*", { count: "exact", head: true })
         .eq("assigned_to", userId)
-        .in("status", ["pending", "in_progress"])
-      assignedTasksCount = assigned || 0
+        .not("status", "in", ["completed", "rejected", "resolved", "closed"])
+      
+      // Service tickets assigned to staff
+      const { count: assignedTickets } = await supabase
+        .from("service_tickets")
+        .select("*", { count: "exact", head: true })
+        .eq("assigned_to", userId)
+        .not("status", "in", ["resolved", "closed", "completed"])
+      
+      assignedTasksCount = (assignedRepairs || 0) + (assignedTickets || 0)
 
-      const { count: inProgress } = await supabase
+      const { count: inProgressRepairs } = await supabase
         .from("repair_requests")
         .select("*", { count: "exact", head: true })
         .eq("assigned_to", userId)
-        .eq("status", "in_progress")
-      inProgressTasksCount = inProgress || 0
+        .in("status", ["in_progress", "in_transit", "with_provider", "assigned"])
+      
+      const { count: inProgressTickets } = await supabase
+        .from("service_tickets")
+        .select("*", { count: "exact", head: true })
+        .eq("assigned_to", userId)
+        .in("status", ["in_progress", "assigned"])
+      
+      inProgressTasksCount = (inProgressRepairs || 0) + (inProgressTickets || 0)
 
-      const { count: completed } = await supabase
+      const { count: completedRepairs } = await supabase
         .from("repair_requests")
         .select("*", { count: "exact", head: true })
         .eq("assigned_to", userId)
         .eq("status", "completed")
         .gte("updated_at", startOfMonth.toISOString())
-      completedTasksCount = completed || 0
+      
+      const { count: completedTickets } = await supabase
+        .from("service_tickets")
+        .select("*", { count: "exact", head: true })
+        .eq("assigned_to", userId)
+        .in("status", ["resolved", "closed", "completed"])
+        .gte("updated_at", startOfMonth.toISOString())
+      
+      completedTasksCount = (completedRepairs || 0) + (completedTickets || 0)
 
-      const { count: review } = await supabase
+      const { count: reviewRepairs } = await supabase
         .from("repair_requests")
         .select("*", { count: "exact", head: true })
         .eq("assigned_to", userId)
         .eq("status", "pending_review")
-      pendingReviewCount = review || 0
+      
+      const { count: reviewTickets } = await supabase
+        .from("service_tickets")
+        .select("*", { count: "exact", head: true })
+        .eq("assigned_to", userId)
+        .eq("status", "awaiting_confirmation")
+      
+      pendingReviewCount = (reviewRepairs || 0) + (reviewTickets || 0)
     }
 
     const stats = {

@@ -11,7 +11,7 @@ export async function GET() {
     // Get all staff members
     const { data: staff, error } = await supabaseAdmin
       .from("profiles")
-      .select("id, full_name as name, email, department")
+      .select("id, full_name, email, department")
       .eq("role", "staff")
       .eq("is_active", true)
 
@@ -23,12 +23,15 @@ export async function GET() {
         // Check if there's a department_head_links entry for this staff
         const { data: link } = await supabaseAdmin
           .from("department_head_links")
-          .select("*")
+          .select("department_head_id")
           .eq("staff_id", member.id)
-          .single()
+          .maybeSingle()
 
         return {
-          ...member,
+          id: member.id,
+          name: member.full_name,
+          email: member.email,
+          department: member.department,
           linked: !!link,
           department_head_id: link?.department_head_id || null,
         }

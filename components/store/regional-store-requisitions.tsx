@@ -315,8 +315,8 @@ export function RegionalStoreRequisitions() {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      pending: { color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200", icon: Clock },
-      approved: { color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200", icon: CheckCircle },
+      pending: { color: "bg-emerald-100 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-100", icon: Clock },
+      approved: { color: "bg-emerald-100 text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-100", icon: CheckCircle },
       rejected: { color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200", icon: XCircle },
       cancelled: { color: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200", icon: XCircle },
       fulfilled: { color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200", icon: CheckCircle },
@@ -355,7 +355,7 @@ export function RegionalStoreRequisitions() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 to-stone-50 p-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Store Requisitions</h1>
           <p className="text-muted-foreground">
@@ -365,8 +365,8 @@ export function RegionalStoreRequisitions() {
         {user?.role === "regional_it_head" && (
           <Dialog open={showNewRequisitionDialog} onOpenChange={setShowNewRequisitionDialog}>
             <DialogTrigger asChild>
-              <Button className="bg-green-600 hover:bg-green-700 text-white">
-                <Plus className="mr-2 h-4 w-4" />
+              <Button className="bg-green-100 hover:bg-green-200 text-green-900 border border-green-300">
+                <Plus className="mr-2 h-4 w-4 text-green-900" />
                 New Requisition
               </Button>
             </DialogTrigger>
@@ -421,7 +421,7 @@ export function RegionalStoreRequisitions() {
                     </div>
 
                     {selectedItem && (
-                      <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200">
+                      <Card className="bg-emerald-50 border-emerald-200">
                         <CardContent className="p-4">
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
@@ -481,7 +481,7 @@ export function RegionalStoreRequisitions() {
                       <Button
                         onClick={handleSubmitRequisition}
                         disabled={!selectedItem || !requestedQuantity || submitting}
-                        className="bg-green-600 hover:bg-green-700 text-white"
+                        className="bg-green-100 hover:bg-green-200 text-green-900 border border-green-300"
                       >
                         {submitting ? (
                           <>
@@ -518,19 +518,19 @@ export function RegionalStoreRequisitions() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending Approval</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-500" />
+            <Clock className="h-4 w-4 text-emerald-800" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{pendingApprovals.length}</div>
+            <div className="text-2xl font-bold text-emerald-800">{pendingApprovals.length}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Approved (Pending Fulfillment)</CardTitle>
-            <CheckCircle className="h-4 w-4 text-blue-500" />
+            <CheckCircle className="h-4 w-4 text-emerald-800" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{approvedRequisitions.length}</div>
+            <div className="text-2xl font-bold text-emerald-800">{approvedRequisitions.length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -733,10 +733,10 @@ export function RegionalStoreRequisitions() {
                 disabled={processingApproval || (approvalAction === "reject" && !rejectionReason)}
                 className={
                   approvalAction === "approve"
-                    ? "bg-blue-600 hover:bg-blue-700 text-white"
+                    ? "bg-green-100 hover:bg-green-200 text-green-900 border border-green-300"
                     : approvalAction === "reject"
                     ? "bg-red-600 hover:bg-red-700 text-white"
-                    : "bg-green-600 hover:bg-green-700 text-white"
+                    : "bg-green-100 hover:bg-green-200 text-green-900 border border-green-300"
                 }
               >
                 {processingApproval ? (
@@ -839,10 +839,10 @@ function RequisitionsList({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                      className="text-green-900 border-green-300 hover:bg-green-100"
                       onClick={() => onApprove(req, "approve")}
                     >
-                      <CheckCircle className="h-4 w-4 mr-1" />
+                      <CheckCircle className="h-4 w-4 mr-1 text-green-900" />
                       Approve
                     </Button>
                     <Button
@@ -859,10 +859,10 @@ function RequisitionsList({
                 {canApprove && req.status === "approved" && (
                   <Button
                     size="sm"
-                    className="bg-green-600 hover:bg-green-700 text-white"
+                    className="bg-green-100 hover:bg-green-200 text-green-900 border border-green-300"
                     onClick={() => onApprove(req, "fulfill")}
                   >
-                    <ArrowRightLeft className="h-4 w-4 mr-1" />
+                    <ArrowRightLeft className="h-4 w-4 mr-1 text-green-900" />
                     Fulfill
                   </Button>
                 )}

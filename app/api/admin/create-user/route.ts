@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import bcrypt from "bcryptjs"
+
 import { LOCATIONS } from "@/lib/locations"
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
@@ -12,15 +13,35 @@ function normalizeLocation(location?: string | null) {
 }
 
 function mapStatus(status?: string | null) {
-  if (status === "approved" || status === "active") {
-    return { status: "approved", is_active: true }
-  }
-
-  if (status === "suspended") {
-    return { status: "suspended", is_active: false }
-  }
-
+  if (status === "approved" || status === "active") return { status: "approved", is_active: true }
+  if (status === "suspended") return { status: "suspended", is_active: false }
   return { status: "pending", is_active: false }
+}
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url)
+  const list = searchParams.get("list")
+
+  if (list === "department_heads") {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .eq("role", "department_head")
+      .eq("is_active", true)
+      .order("full_name", { ascending: true })
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    const users = (data || []).map((u: any) => ({
+      id: u.id,
+      name: u.full_name || u.email,
+      email: u.email,
+    }))
+
+    return NextResponse.json({ users })
+  }
+
+  return NextResponse.json({ error: "Invalid query" }, { status: 400 })
 }
 
 export async function POST(request: NextRequest) {
@@ -36,19 +57,12 @@ export async function POST(request: NextRequest) {
     const passwordToHash = password || "qcc@123"
     const hashedPassword = password ? await bcrypt.hash(passwordToHash, 10) : DEFAULT_PASSWORD_HASH
     const activation = mapStatus(status)
-    const normalizedLocation = normalizeLocation(location)
 
-    console.log("[v0] Creating user:", { email, role, location: normalizedLocation, username: finalUsername })
-
-    const { data: existingUser, error: existingError } = await supabase
+    const { data: existingUser } = await supabase
       .from("profiles")
       .select("id")
       .or(`username.eq.${finalUsername},email.eq.${email}`)
       .maybeSingle()
-
-    if (existingError && existingError.code !== "PGRST116") {
-      console.error("[v0] Error checking existing user:", existingError)
-    }
 
     if (existingUser) {
       return NextResponse.json({ error: "Username or email already exists" }, { status: 400 })
@@ -61,7 +75,7 @@ export async function POST(request: NextRequest) {
         email,
         full_name: name,
         role: role || "staff",
-        location: normalizedLocation,
+        location: normalizeLocation(location),
         phone: phone || "+233XXXXXXXXX",
         department: department || "ITD",
         password_hash: hashedPassword,
@@ -73,10 +87,7 @@ export async function POST(request: NextRequest) {
       .select()
       .single()
 
-    if (error) {
-      console.error("[v0] Error creating user:", error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
     await supabase.from("audit_logs").insert({
       user_id: data.id,
@@ -89,13 +100,8 @@ export async function POST(request: NextRequest) {
       user_agent: request.headers.get("user-agent") || "unknown",
     })
 
-    return NextResponse.json({
-      success: true,
-      user: data,
-      password: passwordToHash,
-    })
+    return NextResponse.json({ success: true, user: data, password: passwordToHash })
   } catch (error: any) {
-    console.error("[v0] Error in create-user API:", error)
     return NextResponse.json({ error: error.message || "Failed to create user" }, { status: 500 })
   }
 }
@@ -105,14 +111,9 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { id, name, email, phone, role, location, department, status, action, password } = body
 
-    if (!id) {
-      return NextResponse.json({ error: "User ID is required" }, { status: 400 })
-    }
+    if (!id) return NextResponse.json({ error: "User ID is required" }, { status: 400 })
 
-    const updates: Record<string, any> = {
-      updated_at: new Date().toISOString(),
-    }
-
+    const updates: Record<string, any> = { updated_at: new Date().toISOString() }
     let plainPassword: string | null = null
 
     if (action === "reset_password") {
@@ -128,7 +129,6 @@ export async function PUT(request: NextRequest) {
       if (role !== undefined) updates.role = role
       if (location !== undefined) updates.location = normalizeLocation(location)
       if (department !== undefined) updates.department = department
-
       if (status !== undefined) {
         const activation = mapStatus(status)
         updates.status = activation.status
@@ -136,21 +136,12 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .update(updates)
-      .eq("id", id)
-      .select()
-      .single()
+    const { data, error } = await supabase.from("profiles").update(updates).eq("id", id).select().single()
 
-    if (error) {
-      console.error("[v0] Error updating user:", error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
     return NextResponse.json({ success: true, user: data, password: plainPassword })
   } catch (error: any) {
-    console.error("[v0] Error updating user via admin API:", error)
     return NextResponse.json({ error: error.message || "Failed to update user" }, { status: 500 })
   }
 }
@@ -158,21 +149,13 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const { id } = await request.json()
-
-    if (!id) {
-      return NextResponse.json({ error: "User ID is required" }, { status: 400 })
-    }
+    if (!id) return NextResponse.json({ error: "User ID is required" }, { status: 400 })
 
     const { error } = await supabase.from("profiles").delete().eq("id", id)
-
-    if (error) {
-      console.error("[v0] Error deleting user:", error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
-    console.error("[v0] Error deleting user via admin API:", error)
     return NextResponse.json({ error: error.message || "Failed to delete user" }, { status: 500 })
   }
 }

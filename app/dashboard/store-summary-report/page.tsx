@@ -27,6 +27,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { CentralStoresActivityLog } from "@/components/dashboard/CentralStoresActivityLog"
 import { ItemManagementModal } from "@/components/store/item-management-modal"
+import { safeJsonParse, safeStorage } from "@/lib/utils"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 
@@ -531,9 +532,9 @@ export default function StoreSummaryReportPage() {
     <div className="space-y-6">
       <FormNavigation currentPage="/dashboard/store-summary-report" />
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 to-stone-50 p-4">
         <div>
-          <h2 className="text-2xl font-bold">Stock Balance Report</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Stock Balance Report</h2>
           <p className="text-muted-foreground">Stock movement tracking with opening and closing balances</p>
         </div>
 
@@ -558,7 +559,7 @@ export default function StoreSummaryReportPage() {
         </div>
       </div>
 
-      <Card>
+      <Card className="rounded-2xl border-emerald-100 shadow-sm bg-white">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Filter className="h-5 w-5" />
@@ -569,16 +570,16 @@ export default function StoreSummaryReportPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label htmlFor="start-date">From Date</Label>
-              <Input id="start-date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <Input id="start-date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="input-modern" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="end-date">To Date</Label>
-              <Input id="end-date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <Input id="end-date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="input-modern" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="location">Location</Label>
               <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-                <SelectTrigger id="location">
+                <SelectTrigger id="location" className="input-modern">
                   <SelectValue placeholder="Select location" />
                 </SelectTrigger>
                 <SelectContent>
@@ -594,7 +595,7 @@ export default function StoreSummaryReportPage() {
             <div className="space-y-2">
               <Label htmlFor="device-type">Device Type / Category</Label>
               <Select value={selectedDeviceType} onValueChange={setSelectedDeviceType}>
-                <SelectTrigger id="device-type">
+                <SelectTrigger id="device-type" className="input-modern">
                   <SelectValue placeholder="Select device type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -655,13 +656,13 @@ export default function StoreSummaryReportPage() {
       </Card>
 
       {loading ? (
-        <Card>
+        <Card className="rounded-2xl border-emerald-100 shadow-sm bg-white">
           <CardContent className="p-8 text-center">
             <p>Loading stock balance report...</p>
           </CardContent>
         </Card>
       ) : (
-        <Card className="print:shadow-none">
+        <Card className="print:shadow-none rounded-2xl border-emerald-100 shadow-sm bg-white">
           <CardHeader className="print:text-center">
             <CardTitle className="print:text-2xl">
               {selectedLocation === "all" ? "ALL LOCATIONS" : selectedLocation.toUpperCase()}
@@ -678,8 +679,8 @@ export default function StoreSummaryReportPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse border border-gray-300">
+            <div className="overflow-x-auto rounded-xl border border-gray-200">
+              <table className="w-full table-modern">
                 <thead>
                   <tr className="bg-gray-100">
                     <th className="border border-gray-300 p-2 text-left font-semibold">S/N</th>
@@ -693,10 +694,10 @@ export default function StoreSummaryReportPage() {
                     <th className="border border-gray-300 p-2 text-right font-semibold">CLOSING BALANCE</th>
                     <th className="border border-gray-300 p-2 text-left font-semibold print:hidden">REMARKS</th>
                     {canRequestStock && (
-                      <th className="border border-gray-300 p-2 text-center font-semibold print:hidden bg-blue-50">REQUEST</th>
+                      <th className="border border-gray-300 p-2 text-center font-semibold print:hidden bg-emerald-50">REQUEST</th>
                     )}
                     {canManageItems && (
-                      <th className="border border-gray-300 p-2 text-center font-semibold print:hidden bg-amber-50">MANAGE</th>
+                      <th className="border border-gray-300 p-2 text-center font-semibold print:hidden bg-emerald-50">MANAGE</th>
                     )}
                   </tr>
                 </thead>
@@ -715,7 +716,7 @@ export default function StoreSummaryReportPage() {
                       return (
                         <tr 
                           key={item.code} 
-                          className={`hover:bg-gray-50 ${rowClickable ? 'cursor-pointer hover:bg-blue-50 transition-colors' : ''}`}
+                          className={`hover:bg-gray-50 ${rowClickable ? 'cursor-pointer hover:bg-emerald-50 transition-colors' : ''}`}
                           onClick={rowClickable ? () => openRequestDialog(item) : undefined}
                           title={rowClickable ? `Click to request "${item.itemName}" from Central Stores` : undefined}
                         >
@@ -724,7 +725,7 @@ export default function StoreSummaryReportPage() {
                           <td className="border border-gray-300 p-2">
                             {item.itemName}
                             {rowClickable && (
-                              <span className="ml-2 text-blue-600 text-xs">(Click to request)</span>
+                              <span className="ml-2 text-emerald-700 text-xs">(Click to request)</span>
                             )}
                           </td>
                           <td className="border border-gray-300 p-2 text-sm">{item.category || "Accessories"}</td>
@@ -755,7 +756,7 @@ export default function StoreSummaryReportPage() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="bg-blue-50 hover:bg-blue-100 border-blue-300 text-blue-700"
+                                  className="bg-green-100 hover:bg-green-200 border-green-300 text-green-900"
                                   onClick={(e) => {
                                     e.stopPropagation() // Prevent double-trigger from row click
                                     openRequestDialog(item)
@@ -838,13 +839,13 @@ export default function StoreSummaryReportPage() {
 
       {/* Info box for Regional IT Heads and IT Store Heads */}
       {(isRegionalHead || isITStoreHead) && (
-        <Card className="border-blue-200 bg-blue-50">
+        <Card className="border-emerald-200 bg-emerald-50">
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
-              <Package className="h-5 w-5 text-blue-600 mt-0.5" />
+              <Package className="h-5 w-5 text-emerald-800 mt-0.5" />
               <div>
-                <p className="font-medium text-blue-900">Stock Transfer Request</p>
-                <p className="text-sm text-blue-700">
+                <p className="font-medium text-emerald-900">Stock Transfer Request</p>
+                <p className="text-sm text-emerald-800">
                   {isITStoreHead 
                     ? "To request items from Central Stores to Head Office, select \"Central Stores\" in the Location filter above. You can only request items when Head Office stock is zero. Only Admin can approve these requests."
                     : `To request items from Central Stores, select "Central Stores" in the Location filter above. You can only request items when your local stock (${user?.location}) is zero.`
@@ -861,7 +862,7 @@ export default function StoreSummaryReportPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Send className="h-5 w-5 text-blue-600" />
+              <Send className="h-5 w-5 text-emerald-800" />
               Request Stock from Central Stores
             </DialogTitle>
             <DialogDescription>
@@ -945,7 +946,7 @@ export default function StoreSummaryReportPage() {
             <Button 
               onClick={handleSubmitRequest} 
               disabled={requestLoading || !!requestSuccess}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-green-100 hover:bg-green-200 text-green-900 border border-green-300"
             >
               {requestLoading ? "Submitting..." : "Submit Request"}
             </Button>

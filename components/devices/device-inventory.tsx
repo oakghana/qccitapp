@@ -16,7 +16,7 @@ import { RepairServiceProviderDialog } from "./repair-service-provider-dialog"
 import { Plus, Monitor, Smartphone, Printer, HardDrive, Laptop, Server, UsbIcon, Download, Upload, FileDown } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/auth-context"
-import { canSeeAllLocations, getCanonicalLocationName } from "@/lib/location-filter"
+import { canSeeAllLocations, getCanonicalLocationName, normalizeLocation } from "@/lib/location-filter"
 import { toast } from "@/hooks/use-toast"
 import { deviceLocationService } from "@/lib/device-location-service"
 import { notificationService } from "@/lib/notification-service"
@@ -33,17 +33,7 @@ interface Device {
   model: string
   brand: string
   status: "active" | "repair" | "maintenance" | "retired"
-  location:
-    | "head_office"
-    | "accra"
-    | "kumasi"
-    | "tamale"
-    | "cape_coast"
-    | "takoradi_port"
-    | "tema"
-    | "sunyani"
-    | "kaase_inland_port"
-    | "central_stores"
+  location: string
   assignedTo: string
   assignedDate: string
   lastUpdated: string
@@ -302,7 +292,7 @@ export function DeviceInventory() {
         model: device.model,
         brand: device.brand,
         status: device.status || "active",
-        location: (device.location?.toLowerCase().replace(/ /g, "_") || "head_office") as Device["location"],
+        location: (device.location || "Head Office") as Device["location"],
         assignedTo: device.assigned_to || "Unassigned",
         assignedDate: device.purchase_date || device.created_at,
         lastUpdated: device.updated_at || device.created_at,
@@ -336,9 +326,9 @@ export function DeviceInventory() {
     const matchesStatus = statusFilter === "all" || device.status === statusFilter
     
     // Use canonical location names for comparison
-    const matchesLocation = 
-      locationFilter === "all" || 
-      getCanonicalLocationName(device.location) === locationFilter
+    const matchesLocation =
+      locationFilter === "all" ||
+      normalizeLocation(device.location) === normalizeLocation(locationFilter)
 
     return matchesSearch && matchesStatus && matchesLocation
   })

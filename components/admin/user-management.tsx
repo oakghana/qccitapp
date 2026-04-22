@@ -435,16 +435,6 @@ export function UserManagement() {
             </Button>
           )}
 
-          {currentUser?.role === "admin" && (
-            <Button
-              variant="outline"
-              onClick={() => (window.location.href = "/dashboard/admin/department-heads")}
-              className="hover:bg-emerald-50 hover:border-emerald-300"
-            >
-              <Users className="mr-2 h-4 w-4" />
-              Map Staff to HOD
-            </Button>
-          )}
 
           {currentUser?.role === "admin" && (
             <Dialog open={addUserOpen} onOpenChange={setAddUserOpen}>
@@ -549,7 +539,7 @@ export function UserManagement() {
             Users Directory
           </CardTitle>
           <CardDescription>
-            {sortedUsers.length} of {users.length} users shown. Use this list for account updates and HOD mapping access.
+            {sortedUsers.length} of {users.length} users shown.
           </CardDescription>
         </CardHeader>
         <CardContent>

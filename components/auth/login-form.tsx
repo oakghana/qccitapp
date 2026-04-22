@@ -160,7 +160,7 @@ export function LoginForm() {
                 </a>
               </p>
               <p className="text-xs text-muted-foreground">
-                Powered By the ITD | V1.01.19-26
+                Powered By the ITD | V2.04.22-26
               </p>
             </div>
           </form>

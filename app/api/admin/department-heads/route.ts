@@ -11,7 +11,7 @@ export async function GET() {
     // Get all department heads with staff count
     const { data: heads, error } = await supabaseAdmin
       .from("profiles")
-      .select("id, full_name as name, email, department")
+      .select("id, full_name, email, department")
       .eq("role", "department_head")
       .eq("is_active", true)
 
@@ -28,7 +28,10 @@ export async function GET() {
           .eq("is_active", true)
 
         return {
-          ...head,
+          id: head.id,
+          name: head.full_name,
+          email: head.email,
+          department: head.department,
           staff_count: count || 0,
         }
       })

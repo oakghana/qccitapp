@@ -618,7 +618,7 @@ export function RequisitionManagement() {
       case 'reduction':
         return 'bg-red-100 text-red-800'
       case 'assignment':
-        return 'bg-blue-100 text-blue-800'
+        return 'bg-emerald-100 text-emerald-900'
       default:
         return 'bg-gray-100 text-gray-800'
     }
@@ -639,7 +639,7 @@ export function RequisitionManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 to-stone-50 p-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Store Requisitions</h1>
           <p className="text-muted-foreground">Manage IT item requisitions and issuances (SIV)</p>
@@ -653,8 +653,8 @@ export function RequisitionManagement() {
           {canCreateRequisition() ? (
             <Dialog open={newReqOpen} onOpenChange={setNewReqOpen}>
               <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
+                <Button className="bg-green-100 hover:bg-green-200 text-green-900 border border-green-300">
+                  <Plus className="mr-2 h-4 w-4 text-green-900" />
                   New Requisition
                 </Button>
               </DialogTrigger>
@@ -667,7 +667,7 @@ export function RequisitionManagement() {
               </DialogContent>
             </Dialog>
           ) : (
-            <div className="p-3 border border-amber-300 bg-amber-50 rounded-md text-amber-800">
+            <div className="p-3 border border-emerald-300 bg-emerald-50 rounded-md text-emerald-800">
               <p className="text-sm font-medium">Restricted Access</p>
               <p className="text-xs">Only <strong>Admin</strong> or <strong>IT Store Head</strong> can create requisitions from Central Stores.</p>
             </div>
@@ -848,13 +848,13 @@ export function RequisitionManagement() {
                               <DialogTrigger asChild>
                                 <Button
                                   variant="default"
-                                  className="flex-1 bg-green-600 hover:bg-green-700"
+                                  className="flex-1 bg-green-100 hover:bg-green-200 text-green-900 border border-green-300"
                                   onClick={() => {
                                     setApprovingReq(req)
                                     setApprovedQuantity(req.items[0]?.quantity?.toString() || "")
                                   }}
                                 >
-                                  <CheckCircle className="mr-2 h-4 w-4" />
+                                  <CheckCircle className="mr-2 h-4 w-4 text-green-900" />
                                   Approve
                                 </Button>
                               </DialogTrigger>
@@ -948,9 +948,9 @@ export function RequisitionManagement() {
                                       setApprovalDialogOpen(false)
                                     }}
                                     disabled={isApproving}
-                                    className="flex-1 bg-green-600 hover:bg-green-700"
+                                    className="flex-1 bg-green-100 hover:bg-green-200 text-green-900 border border-green-300"
                                   >
-                                    <CheckCircle className="mr-2 h-4 w-4" />
+                                    <CheckCircle className="mr-2 h-4 w-4 text-green-900" />
                                     {isApproving ? "Processing..." : "Approve & Transfer"}
                                   </Button>
                                 </DialogFooter>
@@ -973,11 +973,11 @@ export function RequisitionManagement() {
                           </>
                         ) : (
                           <div className="w-full space-y-2">
-                            <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
-                              <CheckCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                            <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                              <CheckCircle className="h-5 w-5 text-emerald-800 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Auto-Approved</p>
-                                <p className="text-xs text-blue-700 dark:text-blue-300">
+                                <p className="text-sm font-medium text-emerald-900">Auto-Approved</p>
+                                <p className="text-xs text-emerald-800">
                                   {req.requested_by_role === "it_head"
                                     ? "Requested by IT Head"
                                     : req.requested_by_role === "admin"
@@ -988,7 +988,7 @@ export function RequisitionManagement() {
                             </div>
                             <Button
                               variant="default"
-                              className="w-full bg-blue-600 hover:bg-blue-700"
+                              className="w-full bg-green-100 hover:bg-green-200 text-green-900 border border-green-300"
                               onClick={() => {
                                 setApprovingReq(req)
                                 handleApproveRequisition(req, "approve")

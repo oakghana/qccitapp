@@ -11,6 +11,7 @@ import { Laptop, Wrench, ClipboardList, ShieldCheck, Lock, ArrowRight, Users, He
 import { DepartmentHeadApprovalModule } from "./department-head-approval"
 import { ITServiceDeskProcessingPanel } from "./service-desk-processing"
 import { ITHeadAdminPanel } from "./it-head-admin-panel"
+import { HodApprovalTracker } from "./hod-approval-tracker"
 
 function LockedSection({ title, description }: { title: string; description: string }) {
   return (
@@ -35,6 +36,7 @@ export function ITFormsApprovalDashboard() {
   const canUseHODDesk = ["department_head", "admin"].includes(role)
   const canUseServiceDeskDesk = role.startsWith("service_desk") || role === "admin"
   const canUseManagerDesk = ["it_head", "admin"].includes(role)
+  const canUseHODTracker = ["it_head", "admin"].includes(role)
 
   const defaultTab = useMemo(() => {
     if (canUseHODDesk) return "hod"
@@ -108,11 +110,12 @@ export function ITFormsApprovalDashboard() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid h-auto grid-cols-2 gap-2 md:grid-cols-4">
+        <TabsList className="grid h-auto grid-cols-2 gap-2 md:grid-cols-5">
           <TabsTrigger value="request">Request Services</TabsTrigger>
           <TabsTrigger value="hod" disabled={!canUseHODDesk}>Head of Department</TabsTrigger>
           <TabsTrigger value="service-desk" disabled={!canUseServiceDeskDesk}>IT Service Desk</TabsTrigger>
           <TabsTrigger value="manager" disabled={!canUseManagerDesk}>IT Manager</TabsTrigger>
+          <TabsTrigger value="hod-tracker" disabled={!canUseHODTracker}>HOD Tracker</TabsTrigger>
         </TabsList>
 
         <TabsContent value="request" className="space-y-4">
@@ -177,6 +180,17 @@ export function ITFormsApprovalDashboard() {
           ) : (
             <LockedSection
               title="IT Manager section"
+              description="This section is only for IT Head and Admin users."
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="hod-tracker" className="space-y-4">
+          {canUseHODTracker ? (
+            <HodApprovalTracker />
+          ) : (
+            <LockedSection
+              title="HOD tracker section"
               description="This section is only for IT Head and Admin users."
             />
           )}

@@ -14,6 +14,7 @@ import { canSeeAllLocations } from "@/lib/location-filter"
 import { StaffProductivityWidget } from "./staff-productivity-widget"
 import { IncompleteTasksWidget } from "./incomplete-tasks-widget"
 import { UserNotificationsWidget } from "./user-notifications-widget"
+import { InitialNotificationsToast } from "@/components/notifications/initial-notifications-toast"
 
 export function DashboardOverview() {
   const router = useRouter()
@@ -240,6 +241,7 @@ export function DashboardOverview() {
 
   return (
     <div className="space-y-6">
+      <InitialNotificationsToast />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
@@ -479,14 +481,6 @@ export function DashboardOverview() {
                     <Button
                       variant="outline"
                       className="w-full justify-start bg-transparent hover:bg-blue-50 hover:border-blue-200 transition-colors"
-                      onClick={() => router.push("/dashboard/store-requisitions")}
-                    >
-                      <Plus className="h-5 w-5 mr-3 text-blue-600" />
-                      <span className="text-sm font-medium">New Store Requisition</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start bg-transparent hover:bg-blue-50 hover:border-blue-200 transition-colors"
                       onClick={() => router.push("/dashboard/store-overview")}
                     >
                       <Monitor className="h-5 w-5 mr-3 text-blue-600" />
@@ -499,14 +493,6 @@ export function DashboardOverview() {
                     >
                       <Users className="h-5 w-5 mr-3 text-blue-600" />
                       <span className="text-sm font-medium">Assign Stock to Staff</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start bg-transparent hover:bg-blue-50 hover:border-blue-200 transition-colors"
-                      onClick={() => router.push("/dashboard/stock-transfer-requests")}
-                    >
-                      <Settings className="h-5 w-5 mr-3 text-blue-600" />
-                      <span className="text-sm font-medium">Stock Transfer Requests</span>
                     </Button>
                   </>
                 )}

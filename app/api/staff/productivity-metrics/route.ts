@@ -54,6 +54,8 @@ export async function GET(request: NextRequest) {
 
     // Calculate productivity metrics for each staff member
     const metricsPromises = (staff || []).map(async (member) => {
+      const memberName = (member.full_name || member.email || "").toLowerCase().trim()
+
       // Fetch repair requests assigned to this staff
       let repairQuery = supabaseAdmin
         .from("repair_requests")
@@ -69,11 +71,11 @@ export async function GET(request: NextRequest) {
 
       const { data: repairs } = await repairQuery
 
-      // Fetch service tickets assigned to this staff
+      // Fetch service tickets assigned to this staff — match by UUID or name
       let ticketQuery = supabaseAdmin
         .from("service_tickets")
-        .select("id, status, priority, created_at, updated_at, assigned_at, resolved_at, completed_at")
-        .eq("assigned_to", member.id)
+        .select("id, status, priority, created_at, updated_at, assigned_at, resolved_at, completed_at, assigned_to, assigned_to_name")
+        .or(`assigned_to.eq.${member.id},assigned_to_name.ilike.%${memberName}%`)
 
       if (startDate) {
         ticketQuery = ticketQuery.gte("created_at", startDate)
@@ -84,84 +86,89 @@ export async function GET(request: NextRequest) {
 
       const { data: tickets } = await ticketQuery
 
-      const allTasks = [...(repairs || []), ...(tickets || [])]
+      const repairTasks = repairs || []
+      const ticketTasks = tickets || []
+      const allTasks = [...repairTasks, ...ticketTasks]
       const totalTasks = allTasks.length
+      const totalRepairTasks = repairTasks.length
+      const totalTicketTasks = ticketTasks.length
 
       // Calculate completed tasks
       const completedStatuses = ["completed", "closed", "resolved", "repaired"]
       const cutoff = new Date(Date.now() - 30 * 60 * 1000)
-      const completedTasks = allTasks.filter((t) => {
+      const isCompleted = (t: any) => {
         const status = (t.status || "").toLowerCase()
         if (completedStatuses.includes(status)) return true
-        // treat tickets still awaiting confirmation as done if old enough
         if (status === "awaiting_confirmation" && t.completed_at) {
-          const completedDate = new Date(t.completed_at)
-          if (completedDate <= cutoff) return true
+          return new Date(t.completed_at) <= cutoff
         }
         return false
-      })
+      }
+
+      const completedRepairs = repairTasks.filter(isCompleted)
+      const completedTickets = ticketTasks.filter(isCompleted)
+      const completedTasks = [...completedRepairs, ...completedTickets]
 
       // Calculate completion times and on-time metrics
       let totalCompletionDays = 0
       let onTimeCompletions = 0
 
       completedTasks.forEach((task) => {
-        const startDate = new Date(task.created_at)
-        // use the time IT staff marked completion if available; fallback to updated_at
-        const endDate = new Date(task.completed_at || task.resolved_at || task.updated_at)
-        const completionDays = Math.max(
-          1,
-          Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
-        )
-        
+        const start = new Date(task.created_at)
+        const end = new Date(task.completed_at || task.resolved_at || task.updated_at)
+        const completionDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)))
         totalCompletionDays += completionDays
 
-        // Determine expected completion time based on priority
         const priority = task.priority?.toLowerCase() || "medium"
-        let expectedDays = 7 // default
-        if (priority === "critical") expectedDays = 1
+        let expectedDays = 7
+        if (priority === "critical" || priority === "urgent") expectedDays = 1
         else if (priority === "high") expectedDays = 3
         else if (priority === "medium") expectedDays = 5
         else if (priority === "low") expectedDays = 10
 
-        if (completionDays <= expectedDays) {
-          onTimeCompletions++
-        }
+        if (completionDays <= expectedDays) onTimeCompletions++
       })
 
-      const completionRate = totalTasks > 0 ? (completedTasks.length / totalTasks) * 100 : 0
+      // --- Scoring formula ---
+      // Separate completion rates for repairs vs tickets
+      const repairCompletionRate = totalRepairTasks > 0 ? (completedRepairs.length / totalRepairTasks) * 100 : 0
+      const ticketCompletionRate = totalTicketTasks > 0 ? (completedTickets.length / totalTicketTasks) * 100 : 0
+
+      // Weighted completion rate: repairs 50%, service tickets 50%
+      const hasRepairs = totalRepairTasks > 0
+      const hasTickets = totalTicketTasks > 0
+      let typeWeightedCompletionRate: number
+      if (hasRepairs && hasTickets) {
+        typeWeightedCompletionRate = repairCompletionRate * 0.5 + ticketCompletionRate * 0.5
+      } else if (hasTickets) {
+        typeWeightedCompletionRate = ticketCompletionRate
+      } else {
+        typeWeightedCompletionRate = repairCompletionRate
+      }
+
+      // Overall completion rate against total assigned tasks (fair for heavy workload)
+      const overallCompletionRate = totalTasks > 0 ? (completedTasks.length / totalTasks) * 100 : 0
+
+      // Blend rates so no task type is ignored and high assigned load is still reflected
+      const completionRate = typeWeightedCompletionRate * 0.65 + overallCompletionRate * 0.35
+
       const onTimeRate = completedTasks.length > 0 ? (onTimeCompletions / completedTasks.length) * 100 : 0
       const averageCompletionDays = completedTasks.length > 0 ? totalCompletionDays / completedTasks.length : 0
 
-      // Calculate speed bonus (faster completion = higher bonus)
-      // If avg completion is less than 3 days = 20 bonus points
-      // 3-5 days = 10 bonus points
-      // 5-7 days = 5 bonus points
-      // Over 7 days = 0 bonus points
+      // Speed bonus
       let speedBonus = 0
       if (averageCompletionDays > 0 && averageCompletionDays <= 3) speedBonus = 20
       else if (averageCompletionDays <= 5) speedBonus = 10
       else if (averageCompletionDays <= 7) speedBonus = 5
 
-      // Calculate volume bonus based on total tasks completed
-      // More tasks completed = higher productivity contribution
-      // Scale: Every 10 completed tasks adds a volume multiplier
-      // This ensures staff handling more work get rewarded appropriately
-      const volumeMultiplier = 1 + (completedTasks.length / 50) // +0.2 per 10 tasks, capped naturally
-      
-      // Calculate base productivity score
-      // 40% completion rate + 25% on-time rate + 15% speed bonus + 20% volume factor
-      const baseScore = completionRate * 0.4 + onTimeRate * 0.25 + speedBonus * 0.75
-      
-      // Apply volume multiplier to reward high-volume workers
-      // Staff with more completed tasks get proportionally higher scores
-      const volumeBonus = Math.min(30, completedTasks.length * 0.5) // Up to 30 points for volume
-      
+      // Workload bonus (up to 35 points) — higher ceiling so high-volume resolvers are differentiated
+      const workloadBonus = Math.min(35, Math.sqrt(completedTasks.length) * 3)
+
+      // Final score: completion + on-time + speed + workload throughput
       const productivityScore = Math.round(
-        baseScore + volumeBonus
+        completionRate * 0.4 + onTimeRate * 0.22 + speedBonus * 0.65 + workloadBonus
       )
 
-      // Determine grading (adjusted for volume-weighted scoring)
       let grading: "Excellent" | "Good" | "Average" | "Below Average" | "Poor"
       if (productivityScore >= 90) grading = "Excellent"
       else if (productivityScore >= 75) grading = "Good"
@@ -176,14 +183,18 @@ export async function GET(request: NextRequest) {
         location: member.location || "Unknown",
         role: member.role,
         totalTasksAssigned: totalTasks,
+        totalRepairTasks,
+        totalTicketTasks,
         completedTasks: completedTasks.length,
+        completedRepairTasks: completedRepairs.length,
+        completedTicketTasks: completedTickets.length,
         onTimeCompletions,
         averageCompletionDays: Math.round(averageCompletionDays * 10) / 10,
         completionRate: Math.round(completionRate * 10) / 10,
         onTimeRate: Math.round(onTimeRate * 10) / 10,
         productivityScore,
         speedBonus,
-        rank: 0, // Will be set after sorting
+        rank: 0,
         grading,
       } as ProductivityMetrics
     })

@@ -148,7 +148,7 @@ export default function StoreSnapshotPage() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 to-stone-50 p-4">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">IT Store Stock Levels</h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1">
           {isViewOnlyUser 
@@ -158,16 +158,14 @@ export default function StoreSnapshotPage() {
       </div>
       
       {/* Location Selector */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="text-sm text-gray-600 dark:text-gray-400">
-          Select location to view stock levels. Default shows your location + Central Stores.
-        </div>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between rounded-xl border border-emerald-100 bg-white p-4">
+        <div className="text-sm text-gray-600 dark:text-gray-400" />
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search items, SKU, category..."
-            className="w-full sm:w-64"
+            className="w-full sm:w-64 input-modern"
           />
           <SortControls
             sortField={sortField}
@@ -185,7 +183,7 @@ export default function StoreSnapshotPage() {
           />
         <div className="w-56">
           <Select value={selectedLocation} onValueChange={(v) => setSelectedLocation(v)}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full input-modern">
               <SelectValue placeholder="Select location" />
             </SelectTrigger>
             <SelectContent>
@@ -220,7 +218,7 @@ export default function StoreSnapshotPage() {
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card className="rounded-2xl border-emerald-100 shadow-sm bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Items</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
@@ -231,7 +229,7 @@ export default function StoreSnapshotPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-2xl border-emerald-100 shadow-sm bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">In Stock</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -242,7 +240,7 @@ export default function StoreSnapshotPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-2xl border-emerald-100 shadow-sm bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Low Stock</CardTitle>
             <AlertTriangle className="h-4 w-4 text-yellow-600" />
@@ -253,7 +251,7 @@ export default function StoreSnapshotPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-2xl border-emerald-100 shadow-sm bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Out of Stock</CardTitle>
             <AlertTriangle className="h-4 w-4 text-red-600" />
@@ -265,7 +263,7 @@ export default function StoreSnapshotPage() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="rounded-2xl border-emerald-100 shadow-sm bg-white">
         <CardHeader>
           <CardTitle>Sortable Inventory List</CardTitle>
           <CardDescription>Browse all visible stock items with pagination and sorting.</CardDescription>
@@ -281,7 +279,7 @@ export default function StoreSnapshotPage() {
                 const statusVariant = currentQty === 0 ? "destructive" : currentQty <= item.reorder_level ? "secondary" : "outline"
 
                 return (
-                  <div key={item.id} className="flex items-center justify-between rounded-lg border p-3">
+                  <div key={item.id} className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
                     <div>
                       <h4 className="font-medium text-gray-900 dark:text-gray-100">{item.name || item.item_name}</h4>
                       <p className="text-sm text-gray-500 dark:text-gray-400">

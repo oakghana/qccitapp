@@ -308,6 +308,19 @@ export function ServiceDeskDashboard() {
     }
   }
 
+  const isOpenStatus = (s: string | undefined) => {
+    const ls = (s || "").toLowerCase()
+    return ls === "open" || ls === "pending" || ls === "new"
+  }
+  const isInProgressStatus = (s: string | undefined) => {
+    const ls = (s || "").toLowerCase()
+    return ls === "in_progress" || ls === "in progress" || ls === "assigned" || ls === "on_hold" || ls === "on hold"
+  }
+  const isResolvedStatus = (s: string | undefined) => {
+    const ls = (s || "").toLowerCase()
+    return ls === "resolved" || ls === "closed" || ls === "completed" || ls === "awaiting_confirmation" || ls === "awaiting confirmation"
+  }
+
   const filteredTickets = useMemo(() => {
     let tickets = allTickets
     
@@ -318,15 +331,9 @@ export function ServiceDeskDashboard() {
 
     // Filter by status based on active tab
     if (activeTab === 'closed') {
-      tickets = tickets.filter(t => 
-        t.status?.toLowerCase() === 'resolved' || 
-        t.status?.toLowerCase() === 'closed'
-      )
+      tickets = tickets.filter(t => isResolvedStatus(t.status))
     } else if (activeTab === 'overview') {
-      tickets = tickets.filter(t => 
-        t.status?.toLowerCase() !== 'resolved' && 
-        t.status?.toLowerCase() !== 'closed'
-      )
+      tickets = tickets.filter(t => !isResolvedStatus(t.status))
     }
 
     return tickets
@@ -343,18 +350,15 @@ export function ServiceDeskDashboard() {
 
   const stats = {
     totalTickets: filteredTickets.length,
-    openTickets: filteredTickets.filter((t) => t.status === "Open" || t.status === "open").length,
-    inProgress: filteredTickets.filter((t) => t.status === "In Progress" || t.status === "in_progress").length,
-    resolved: filteredTickets.filter((t) => t.status === "Resolved" || t.status === "resolved" || t.status === "Closed" || t.status === "closed").length,
+    openTickets: filteredTickets.filter((t) => isOpenStatus(t.status)).length,
+    inProgress: filteredTickets.filter((t) => isInProgressStatus(t.status)).length,
+    resolved: filteredTickets.filter((t) => isResolvedStatus(t.status)).length,
     avgResolutionTime: "2.3 hours",
     satisfaction: "94%",
   }
 
   // Get closed/resolved tickets
-  const closedTickets = filteredTickets.filter(t => 
-    t.status === "Resolved" || t.status === "resolved" || 
-    t.status === "Closed" || t.status === "closed"
-  )
+  const closedTickets = filteredTickets.filter(t => isResolvedStatus(t.status))
 
   // Get available locations
   const availableLocations = useMemo(() => {

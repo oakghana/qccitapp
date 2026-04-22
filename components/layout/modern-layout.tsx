@@ -17,7 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Bell, Search, User, LogOut, ChevronDown, WifiOff, Zap, Loader2 } from "lucide-react"
+import { Bell, Search, User, LogOut, ChevronDown, WifiOff, Zap, Loader2, Home, Headphones, Monitor, MessageSquare, Send, Database, Settings, Rss, BookOpen } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useNotifications } from "@/lib/notification-context"
 import { useOfflineCache } from "@/lib/offline-cache"
@@ -83,26 +83,29 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
   // Check if user can see notifications menu (IT Head and Admin only)
   const canSeeNotifications = user?.role === "it_head" || user?.role === "admin"
 
-  const quickAccessLinks = user?.role === "admin"
+  // Icon quick-access links
+  const isMinimalUser = user?.role === "staff" || user?.role === "user"
+  const quickIconLinks = isMinimalUser
     ? [
-        { name: "Users", href: "/dashboard/users" },
-        { name: "HOD Mapping", href: "/dashboard/admin/department-heads" },
-        { name: "Approvals", href: "/dashboard/user-accounts" },
-        { name: "Store", href: "/dashboard/store-overview" },
-        { name: "Assign Stock", href: "/dashboard/assign-stock" },
-        { name: "Devices", href: "/dashboard/devices" },
-        { name: "IT Forms", href: "/dashboard/it-forms/approvals" },
-        { name: "Settings", href: "/dashboard/system-settings" },
+        { name: "Dashboard", href: "/dashboard", icon: Home },
+        { name: "Messages", href: "/dashboard/notifications", icon: Bell },
+        { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones },
+        { name: "Devices", href: "/dashboard/devices", icon: Monitor },
       ]
-    : user?.role === "it_head"
-      ? [
-          { name: "Devices", href: "/dashboard/devices" },
-          { name: "Approvals", href: "/dashboard/it-forms/approvals" },
-          { name: "Service Desk", href: "/dashboard/service-desk" },
-          { name: "Store", href: "/dashboard/store-inventory" },
-          { name: "Reports", href: "/dashboard/it-reports" },
-        ]
-      : []
+    : user?.role === "admin"
+    ? [
+        { name: "Dashboard", href: "/dashboard", icon: Home },
+        { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones },
+        { name: "Notifications", href: "/dashboard/notifications", icon: Bell },
+        { name: "Broadcast", href: "/dashboard/broadcast-notifications", icon: Send },
+        { name: "Lookup Data", href: "/dashboard/lookup-data", icon: Database },
+        { name: "Settings", href: "/dashboard/system-settings", icon: Settings },
+        { name: "Updates", href: "/dashboard/updates", icon: Rss },
+        { name: "Help Guide", href: "/dashboard/help-guide", icon: BookOpen },
+      ]
+    : []
+
+  const quickAccessLinks: { name: string; href: string }[] = []
 
   const pageTitle = pathname
     ?.split("/")
@@ -174,34 +177,6 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
           </div>
 
           <div className="flex flex-1 items-center justify-end gap-4">
-            {/* Search */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hidden md:flex h-12 px-4 bg-gradient-to-r from-orange-100 to-amber-100 hover:from-orange-200 hover:to-amber-200 text-orange-700 border-none rounded-xl shadow-sm dark:from-orange-900/30 dark:to-amber-900/30 dark:text-orange-300"
-            >
-              <Search className="h-5 w-5 mr-3" />
-              Search...
-              <span className="ml-3 text-sm text-orange-500 bg-white px-2 py-1 rounded-md dark:bg-orange-900/50">
-                ⌘K
-              </span>
-            </Button>
-
-            {/* Offline Indicator */}
-            <div className="flex items-center gap-2">
-              {isOnline ? (
-                <div className="hidden sm:flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md dark:bg-green-900/30 dark:text-green-300">
-                  <Zap className="h-3 w-3" />
-                  <span className="text-xs">Online</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 rounded-md dark:bg-orange-900/30 dark:text-orange-300">
-                  <WifiOff className="h-3 w-3" />
-                  <span className="text-xs">Offline</span>
-                </div>
-              )}
-            </div>
-
             {/* Notifications - Only visible to IT Head and Admin */}
             {canSeeNotifications && (
               <DropdownMenu>
@@ -283,44 +258,42 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
               </DropdownMenu>
             )}
 
-            {/* User Menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-2 pl-2">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder-user.jpg" />
-                    <AvatarFallback className="bg-primary/10 text-primary">
-                      {user?.name
-                        ?.split(" ")
-                        .map((n) => n[0])
-                        .join("") || "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="hidden sm:flex flex-col items-start">
-                    <span className="text-sm font-medium">{user?.name || "User"}</span>
-                    <span className="text-xs text-muted-foreground capitalize">{user?.role?.replace("_", " ")}</span>
-                  </div>
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <a href="/dashboard/settings" className="flex items-center cursor-pointer">
-                    <User className="mr-2 h-4 w-4" />
-                    Profile & Settings
-                  </a>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* User display: name + role only, no dropdown for non-admins */}
+            <div className="flex items-center gap-2 pl-2">
+              <div className="hidden sm:flex flex-col items-end">
+                <span className="text-sm font-medium leading-none">{user?.name || "User"}</span>
+                <span className="text-xs text-muted-foreground capitalize mt-0.5">{user?.role?.replace(/_/g, " ") || "staff"}</span>
+              </div>
+            </div>
           </div>
         </header>
+
+        {/* Icon Quick Access bar for staff/user roles */}
+        {quickIconLinks.length > 0 && (
+          <div className="border-b border-orange-200/50 bg-white/85 px-4 shadow-sm backdrop-blur-sm dark:border-orange-800/50 dark:bg-orange-950/75 sm:px-6 lg:px-8">
+            <div className="mx-auto flex max-w-7xl gap-1 overflow-x-auto py-2">
+              {quickIconLinks.map((link) => {
+                const isActive = pathname === link.href || (link.href !== "/dashboard" && pathname?.startsWith(`${link.href}/`))
+                const Icon = link.icon
+                return (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    className={cn(
+                      "flex flex-col items-center gap-1 px-4 py-2 rounded-xl text-xs font-medium transition-colors min-w-[64px]",
+                      isActive
+                        ? "bg-orange-500 text-white shadow-sm"
+                        : "text-orange-700 hover:bg-orange-100 dark:text-orange-300 dark:hover:bg-orange-900/40"
+                    )}
+                  >
+                    <Icon className="h-5 w-5" />
+                    <span>{link.name}</span>
+                  </a>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {quickAccessLinks.length > 0 && (
           <div className="border-b border-orange-200/50 bg-white/85 px-4 shadow-sm backdrop-blur-sm dark:border-orange-800/50 dark:bg-orange-950/75 sm:px-6 lg:px-8">

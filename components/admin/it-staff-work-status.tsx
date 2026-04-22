@@ -110,8 +110,8 @@ export function ITStaffWorkStatus() {
       let query = supabase
         .from("profiles")
         .select("*")
-        .in("role", ["it_staff", "it_head", "regional_it_head"])
-        .eq("status", "approved")
+        .in("role", ["it_staff", "it_head", "regional_it_head", "service_desk_head", "service_desk_staff"])
+        .or("status.eq.approved,status.eq.active,is_active.eq.true")
 
       if (user && user.role === "regional_it_head") {
         query = applyLocationFilter(query, user)
@@ -134,19 +134,21 @@ export function ITStaffWorkStatus() {
             .select("id, status, created_at, updated_at")
             .eq("assigned_to", profile.id)
 
-          // Fetch service tickets assigned to this staff
+          const staffName = (profile.full_name || profile.email || "").toLowerCase().trim()
+
+          // Fetch service tickets assigned to this staff (match by id or assigned name)
           const { data: ticketData } = await supabase
             .from("service_tickets")
-            .select("id, status, created_at, updated_at")
-            .eq("assigned_to", profile.id)
+            .select("id, status, created_at, updated_at, assigned_to, assigned_to_name, resolved_at, completed_at")
+            .or(`assigned_to.eq.${profile.id},assigned_to_name.ilike.%${staffName}%`)
 
           const repairs = repairData || []
           const tickets = ticketData || []
           const allTasks = [...repairs, ...tickets]
 
           // Calculate task statistics
-          const completedStatuses = ["completed", "closed", "resolved", "repaired"]
-          const inProgressStatuses = ["in_progress", "in_repair", "assigned", "diagnosing"]
+          const completedStatuses = ["completed", "closed", "resolved", "repaired", "awaiting_confirmation"]
+          const inProgressStatuses = ["in_progress", "in_repair", "assigned", "diagnosing", "with_provider", "in_transit", "awaiting_parts", "on_hold"]
           
           const completedTasks = allTasks.filter(t => completedStatuses.includes(t.status?.toLowerCase() || '')).length
           const inProgressTasks = allTasks.filter(t => inProgressStatuses.includes(t.status?.toLowerCase() || '')).length
@@ -165,8 +167,21 @@ export function ITStaffWorkStatus() {
           else if (activeTasks > 7) currentWorkload = "high"
           else if (activeTasks > 3) currentWorkload = "medium"
 
-          // Calculate average completion time (simplified)
-          const avgCompletionTime = completedTasks > 0 ? Math.round(24 + Math.random() * 48) : 0
+          const completionDurationsHours = allTasks
+            .filter((task) => completedStatuses.includes((task.status || "").toLowerCase()))
+            .map((task) => {
+              const created = new Date(task.created_at)
+              const endedAt = new Date(task.completed_at || task.resolved_at || task.updated_at)
+              if (Number.isNaN(created.getTime()) || Number.isNaN(endedAt.getTime())) return null
+              const hours = (endedAt.getTime() - created.getTime()) / (1000 * 60 * 60)
+              return hours >= 0 ? hours : null
+            })
+            .filter((v): v is number => v !== null)
+
+          const avgCompletionTime =
+            completionDurationsHours.length > 0
+              ? Math.round(completionDurationsHours.reduce((sum, h) => sum + h, 0) / completionDurationsHours.length)
+              : 0
 
           return {
             id: profile.id,

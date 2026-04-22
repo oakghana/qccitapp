@@ -228,9 +228,9 @@ export default function StoreInventoryPage() {
   const stats = getLocationStats(selectedLocation)
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-4 sm:p-6 space-y-6">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 to-stone-50 p-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">IT Store Inventory</h1>
           <p className="text-muted-foreground mt-1">
@@ -241,7 +241,7 @@ export default function StoreInventoryPage() {
         <div className="flex gap-2">
           {/* Period Filter */}
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-[140px] input-modern">
               <Calendar className="h-4 w-4 mr-2" />
               <SelectValue placeholder="Period" />
             </SelectTrigger>
@@ -255,7 +255,7 @@ export default function StoreInventoryPage() {
           
           {canSeeAll && (
             <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-[200px] input-modern">
                 <SelectValue placeholder="Select location" />
               </SelectTrigger>
               <SelectContent>
@@ -273,7 +273,7 @@ export default function StoreInventoryPage() {
 
       {/* Summary Cards - Enhanced */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
+        <Card className="rounded-2xl border-emerald-100 shadow-sm bg-white">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Items</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
@@ -284,29 +284,29 @@ export default function StoreInventoryPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-2xl border-emerald-100 shadow-sm bg-white">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Quantity</CardTitle>
-            <TrendingUp className="h-4 w-4 text-blue-600" />
+            <TrendingUp className="h-4 w-4 text-emerald-800" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-blue-600">{analytics?.summary?.totalQuantity || stats.totalQuantity}</div>
+            <div className="text-3xl font-bold text-emerald-800">{analytics?.summary?.totalQuantity || stats.totalQuantity}</div>
             <p className="text-xs text-muted-foreground mt-1">Units in stock</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-2xl border-emerald-100 shadow-sm bg-white">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Low Stock</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-orange-600" />
+            <AlertTriangle className="h-4 w-4 text-emerald-800" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-orange-600">{analytics?.summary?.lowStockCount || stats.lowStock}</div>
+            <div className="text-3xl font-bold text-emerald-800">{analytics?.summary?.lowStockCount || stats.lowStock}</div>
             <p className="text-xs text-muted-foreground mt-1">Below reorder level</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-2xl border-emerald-100 shadow-sm bg-white">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Out of Stock</CardTitle>
             <AlertTriangle className="h-4 w-4 text-red-600" />
@@ -320,7 +320,7 @@ export default function StoreInventoryPage() {
 
       {/* Movement Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-green-50 dark:bg-green-950/20 border-green-200">
+        <Card className="rounded-2xl bg-green-50 dark:bg-green-950/20 border-green-200 shadow-sm">
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <div>
@@ -332,7 +332,7 @@ export default function StoreInventoryPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-red-50 dark:bg-red-950/20 border-red-200">
+        <Card className="rounded-2xl bg-red-50 dark:bg-red-950/20 border-red-200 shadow-sm">
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <div>
@@ -344,26 +344,26 @@ export default function StoreInventoryPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200">
+        <Card className="rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 shadow-sm">
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-blue-700 dark:text-blue-400">Assignments</p>
-                <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">{analytics?.summary?.totalAssignments || 0}</p>
+                <p className="text-sm text-emerald-800 dark:text-emerald-300">Assignments</p>
+                <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-300">{analytics?.summary?.totalAssignments || 0}</p>
               </div>
-              <Users className="h-8 w-8 text-blue-500" />
+              <Users className="h-8 w-8 text-emerald-700" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200">
+        <Card className="rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 shadow-sm">
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-amber-700 dark:text-amber-400">Pending Requests</p>
-                <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">{analytics?.summary?.pendingRequisitions || 0}</p>
+                <p className="text-sm text-emerald-800 dark:text-emerald-300">Pending Requests</p>
+                <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-300">{analytics?.summary?.pendingRequisitions || 0}</p>
               </div>
-              <Package className="h-8 w-8 text-amber-500" />
+              <Package className="h-8 w-8 text-emerald-700" />
             </div>
           </CardContent>
         </Card>

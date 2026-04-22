@@ -15,7 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Search, Users, Link2, Unlink2, ChevronRight } from "lucide-react"
+import { Search, Users, Link2, Unlink2, ChevronRight, Zap } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface DepartmentHead {
@@ -45,6 +45,7 @@ export function DepartmentHeadLinking() {
   const [isLinkingOpen, setIsLinkingOpen] = useState(false)
   const [selectedStaff, setSelectedStaff] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isAutoLinking, setIsAutoLinking] = useState(false)
 
   useEffect(() => {
     loadDepartmentHeads()
@@ -150,6 +151,39 @@ export function DepartmentHeadLinking() {
     }
   }
 
+  const handleAutoLinkStaff = async (headId: string) => {
+    setIsAutoLinking(true)
+    try {
+      const response = await fetch("/api/admin/auto-link-department-staff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          department_head_id: headId,
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to auto-link staff")
+      
+      toast({
+        title: "Auto-Link Success",
+        description: data.message || `Successfully linked ${data.linked_count} staff member(s)`,
+      })
+      
+      loadDepartmentHeads()
+      loadStaff()
+    } catch (error) {
+      console.error("[v0] Error auto-linking staff:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to auto-link staff",
+        variant: "destructive",
+      })
+    } finally {
+      setIsAutoLinking(false)
+    }
+  }
+
   const selectedHead = departmentHeads.find((h) => h.id === selectedHeadId)
   const linkedStaffForHead = staff.filter((s) => s.department_head_id === selectedHeadId)
   const availableStaffForHead = staff.filter((s) => !s.department_head_id || s.department_head_id === selectedHeadId)
@@ -170,6 +204,20 @@ export function DepartmentHeadLinking() {
         <h2 className="text-2xl font-bold">Department Head Staff Linking</h2>
         <p className="text-muted-foreground">Manage which staff members report to each department head</p>
       </div>
+
+      <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+        <CardContent className="pt-6">
+          <div className="flex gap-3">
+            <Zap className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-blue-900 dark:text-blue-100">Auto-Link Feature</h3>
+              <p className="text-sm text-blue-800 dark:text-blue-200 mt-1">
+                Click the <span className="font-medium">"Auto-Link"</span> button to automatically link all staff members from the same department and location to this department head. This is the recommended way to set up HOD assignments.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Department Heads List */}
@@ -222,13 +270,23 @@ export function DepartmentHeadLinking() {
                 </CardDescription>
               </div>
               {selectedHead && (
-                <Dialog open={isLinkingOpen} onOpenChange={setIsLinkingOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="gap-2">
-                      <Link2 className="h-4 w-4" />
-                      Link Staff
-                    </Button>
-                  </DialogTrigger>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => handleAutoLinkStaff(selectedHead.id)}
+                    disabled={isAutoLinking}
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    <Zap className="h-4 w-4" />
+                    {isAutoLinking ? "Auto-Linking..." : "Auto-Link"}
+                  </Button>
+                  <Dialog open={isLinkingOpen} onOpenChange={setIsLinkingOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="gap-2">
+                        <Link2 className="h-4 w-4" />
+                        Link Staff
+                      </Button>
+                    </DialogTrigger>
                   <DialogContent className="max-w-md">
                     <DialogHeader>
                       <DialogTitle>Link Staff to {selectedHead.name}</DialogTitle>
@@ -297,6 +355,7 @@ export function DepartmentHeadLinking() {
                     </div>
                   </DialogContent>
                 </Dialog>
+                </div>
               )}
             </div>
           </CardHeader>

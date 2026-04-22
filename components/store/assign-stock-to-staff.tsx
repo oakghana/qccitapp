@@ -658,7 +658,7 @@ export function AssignStockToStaff() {
     return (
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-center gap-2 text-amber-600">
+          <div className="flex items-center gap-2 text-emerald-700">
             <AlertCircle className="h-5 w-5" />
             <p>You don't have permission to assign stock items. Only Admin, IT Store Head, and Regional IT Head can perform this action.</p>
           </div>
@@ -677,7 +677,7 @@ export function AssignStockToStaff() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 to-stone-50 p-4">
         <div>
           <h2 className="text-2xl font-bold text-foreground">Assign Stock to Staff</h2>
           <p className="text-muted-foreground">
@@ -688,18 +688,18 @@ export function AssignStockToStaff() {
                 : "Assign items from all locations' stock to staff members (except Central Stores)"}
           </p>
           {user?.role !== "admin" && (
-            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+            <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1">
               Note: Central Stores items cannot be directly assigned. Use Store Requisitions to request items from Central Stores.
             </p>
           )}
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={loadAssignments}>
-            <RefreshCw className="h-4 w-4 mr-2" />
+          <Button variant="outline" onClick={loadAssignments} className="border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-800">
+            <RefreshCw className="h-4 w-4 mr-2 text-emerald-800" />
             Refresh
           </Button>
-          <Button variant="outline" onClick={handleExportAssignments}>
-            <Download className="h-4 w-4 mr-2" />
+          <Button variant="outline" onClick={handleExportAssignments} className="border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-800">
+            <Download className="h-4 w-4 mr-2 text-emerald-800" />
             Export
           </Button>
         </div>
@@ -719,12 +719,12 @@ export function AssignStockToStaff() {
 
         <TabsContent value="assign" className="space-y-4">
           {/* Info Alert about Central Stores restriction */}
-          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="bg-stone-50 border border-emerald-100 rounded-lg p-4">
             <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+              <AlertCircle className="h-5 w-5 text-emerald-800 mt-0.5" />
               <div>
-                <p className="font-medium text-blue-800 dark:text-blue-200">Stock Assignment Policy</p>
-                <ul className="text-sm text-blue-700 dark:text-blue-300 mt-1 space-y-1">
+                <p className="font-medium text-emerald-900">Stock Assignment Policy</p>
+                <ul className="text-sm text-emerald-800 mt-1 space-y-1">
                   <li>• <strong>Regional IT Heads:</strong> Can only assign stock from their regional location inventory.</li>
                   <li>• <strong>IT Store Heads:</strong> Can only assign stock from Head Office inventory.</li>
                   <li>• <strong>Central Stores:</strong> Items cannot be directly assigned. Use <strong>Store Requisitions</strong> to request items from Central Stores.</li>
@@ -734,11 +734,11 @@ export function AssignStockToStaff() {
           </div>
 
           {/* Search and Filter */}
-          <Card>
+          <Card className="rounded-2xl border-emerald-100 bg-white shadow-sm">
             <CardContent className="pt-4">
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-emerald-800" />
                   <Input
                     placeholder="Search items by name or SKU..."
                     value={searchTerm}
@@ -763,18 +763,18 @@ export function AssignStockToStaff() {
           </Card>
 
           {/* Available Stock Items */}
-          <Card>
+          <Card className="rounded-2xl border-emerald-100 bg-white shadow-sm">
             <CardHeader>
               <CardTitle>Available Stock Items</CardTitle>
               <CardDescription>
                 Select an item to assign to a staff member. Stock will be deducted from the location's inventory.
                 {user?.role === "regional_it_head" && (
-                  <span className="block text-amber-600 dark:text-amber-400 mt-1">
+                  <span className="block text-emerald-700 mt-1">
                     You can only assign items from your regional location ({LOCATIONS[user?.location as keyof typeof LOCATIONS] || user?.location}).
                   </span>
                 )}
                 {user?.role === "it_store_head" && (
-                  <span className="block text-amber-600 dark:text-amber-400 mt-1">
+                  <span className="block text-emerald-700 mt-1">
                     You can only assign items from Head Office stock.
                   </span>
                 )}
@@ -787,12 +787,12 @@ export function AssignStockToStaff() {
                   <p>No items available for assignment</p>
                   <p className="text-sm">Items must have quantity greater than 0</p>
                   {user?.role === "regional_it_head" && (
-                    <p className="text-sm text-amber-600 dark:text-amber-400 mt-2">
+                    <p className="text-sm text-emerald-700 mt-2">
                       Check if your regional location ({LOCATIONS[user?.location as keyof typeof LOCATIONS] || user?.location}) has stock available.
                     </p>
                   )}
                   {user?.role === "it_store_head" && (
-                    <p className="text-sm text-amber-600 dark:text-amber-400 mt-2">
+                    <p className="text-sm text-emerald-700 mt-2">
                       Check if Head Office has stock available.
                     </p>
                   )}
@@ -816,7 +816,7 @@ export function AssignStockToStaff() {
                           <TableRow key={item.id}>
                             <TableCell>
                               <div className="flex items-center gap-2">
-                                <IconComponent className="h-4 w-4 text-muted-foreground" />
+                                <IconComponent className="h-4 w-4 text-emerald-800" />
                                 <div>
                                   <p className="font-medium">{item.name}</p>
                                   {item.sku && (
@@ -840,8 +840,9 @@ export function AssignStockToStaff() {
                               <Button
                                 size="sm"
                                 onClick={() => handleAssignItem(item)}
+                                className="bg-green-100 hover:bg-green-200 text-green-900 border border-green-200"
                               >
-                                <UserPlus className="h-4 w-4 mr-1" />
+                                <UserPlus className="h-4 w-4 mr-1 text-green-900" />
                                 Assign
                               </Button>
                             </TableCell>
@@ -857,7 +858,7 @@ export function AssignStockToStaff() {
         </TabsContent>
 
         <TabsContent value="history" className="space-y-4">
-          <Card>
+          <Card className="rounded-2xl border-emerald-100 bg-white shadow-sm">
             <CardHeader>
               <CardTitle>Assignment History</CardTitle>
               <CardDescription>
@@ -1392,7 +1393,7 @@ export function AssignStockToStaff() {
                        selectedItem.name.toLowerCase().includes("desktop") ||
                        selectedItem.name.toLowerCase().includes("printer")
               ) && (
-                <div className="p-3 bg-blue-50 text-blue-800 rounded-lg text-sm dark:bg-blue-900/20 dark:text-blue-400">
+                <div className="p-3 bg-emerald-50 text-emerald-900 rounded-lg text-sm border border-emerald-200">
                   <p className="font-medium">Hardware Item Detected</p>
                   <p>A device record will be automatically created and added to the location's device inventory.</p>
                 </div>
@@ -1411,6 +1412,7 @@ export function AssignStockToStaff() {
             <Button
               onClick={handleSubmitAssignment}
               disabled={assignmentLoading}
+              className="bg-green-100 hover:bg-green-200 text-green-900 border border-green-300"
             >
               {assignmentLoading ? "Assigning..." : "Assign Item"}
             </Button>
@@ -1533,7 +1535,7 @@ export function AssignStockToStaff() {
               </div>
 
               {editingAssignment.is_hardware && (
-                <div className="p-3 bg-amber-50 text-amber-800 rounded-lg text-sm dark:bg-amber-900/20 dark:text-amber-400">
+                <div className="p-3 bg-emerald-50 text-emerald-900 rounded-lg text-sm border border-emerald-200">
                   <p className="font-medium">Hardware Assignment</p>
                   <p>Updating this assignment will also update the associated device records in the device inventory.</p>
                 </div>
@@ -1552,7 +1554,7 @@ export function AssignStockToStaff() {
             >
               Cancel
             </Button>
-            <Button onClick={handleSaveEdit} disabled={editLoading}>
+            <Button onClick={handleSaveEdit} disabled={editLoading} className="bg-green-100 hover:bg-green-200 text-green-900 border border-green-300">
               {editLoading ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>

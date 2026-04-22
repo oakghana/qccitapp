@@ -47,154 +47,180 @@ export const DEVICE_TYPES = [
 
 export const DEVICE_STATUSES = ["active", "repair", "maintenance", "retired"]
 
-export const REQUIRED_FIELDS = ["device_type", "brand", "model", "serial_number"]
+const FIELD_ALIASES: Record<string, string> = {
+  "device_type": "device_type",
+  "device type": "device_type",
+  "type": "device_type",
+  "category": "device_type",
 
-export function parseCsvFile(fileOrText: File | string): Promise<any[]> {
-  return new Promise((resolve, reject) => {
-    Papa.parse(fileOrText, {
-      header: true,
-      skipEmptyLines: true,
-      dynamicTyping: false,
-      complete: (results) => {
-        resolve(results.data)
-      },
-      error: (error: any) => {
-        reject(new Error(`CSV parsing error: ${error.message}`))
-      },
-    })
+  "brand": "brand",
+  "make": "brand",
+  "manufacturer": "brand",
+
+  "model": "model",
+  "device_model": "model",
+
+  "serial_number": "serial_number",
+  "serial number": "serial_number",
+  "serial": "serial_number",
+  "sn": "serial_number",
+
+  "status": "status",
+  "state": "status",
+
+  "purchase_date": "purchase_date",
+  "purchase date": "purchase_date",
+
+  "warranty_expiry": "warranty_expiry",
+  "warranty expiry": "warranty_expiry",
+  "warranty_end": "warranty_expiry",
+
+  "assigned_to": "assigned_to",
+  "assigned to": "assigned_to",
+  "assigned_user": "assigned_to",
+
+  "room_number": "room_number",
+  "room": "room_number",
+
+  "building": "building",
+  "floor": "floor",
+  "floor_level": "floor",
+
+  "toner_type": "toner_type",
+  "toner model": "toner_model",
+  "toner_model": "toner_model",
+  "toner yield": "toner_yield",
+  "toner_yield": "toner_yield",
+  "monthly_print_volume": "monthly_print_volume",
+}
+
+function normalizeHeader(header: string) {
+  return header.toLowerCase().replace(/[\s-]+/g, "_").trim()
+}
+
+function normalizeRecord(record: Record<string, any>) {
+  const out: Record<string, any> = {}
+  for (const [rawKey, value] of Object.entries(record || {})) {
+    const normalizedRaw = normalizeHeader(String(rawKey || ""))
+    const mapped = FIELD_ALIASES[normalizedRaw] || normalizedRaw
+    out[mapped] = value
+  }
+  return out
+}
+
+function normalizeDateFlexible(value?: string): string | undefined {
+  if (!value) return undefined
+  const raw = value.trim()
+  if (!raw) return undefined
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw
+
+  // dd/mm/yyyy or mm/dd/yyyy fallback
+  const slash = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (slash) {
+    const a = Number(slash[1])
+    const b = Number(slash[2])
+    const y = Number(slash[3])
+    const day = a > 12 ? a : b
+    const month = a > 12 ? b : a
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return `${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+    }
+  }
+
+  const d = new Date(raw)
+  if (Number.isNaN(d.getTime())) return undefined
+  return d.toISOString().slice(0, 10)
+}
+
+function parseAsJson(text: string): any[] | null {
+  try {
+    const parsed = JSON.parse(text)
+    if (Array.isArray(parsed)) return parsed
+    if (parsed && typeof parsed === "object") return [parsed]
+    return null
+  } catch {
+    return null
+  }
+}
+
+function parseAsDelimitedText(text: string): any[] {
+  const parsed = Papa.parse(text, {
+    header: true,
+    skipEmptyLines: true,
+    dynamicTyping: false,
+    delimiter: "", // auto-detect
+  })
+
+  if (parsed.errors?.length) {
+    // Best-effort fallback: treat as line-per-row plain text
+    return text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => ({ model: line }))
+  }
+
+  return (parsed.data as any[]) || []
+}
+
+export function parseImportFile(fileText: string): Promise<any[]> {
+  return new Promise((resolve) => {
+    const trimmed = (fileText || "").trim()
+    if (!trimmed) {
+      resolve([])
+      return
+    }
+
+    const asJson = parseAsJson(trimmed)
+    if (asJson) {
+      resolve(asJson)
+      return
+    }
+
+    resolve(parseAsDelimitedText(trimmed))
   })
 }
 
-export function validateDeviceRecord(
-  record: any,
-  rowNumber: number,
-  existingSerialNumbers: Set<string>
-): { record: DeviceImportRecord | null; errors: ValidationError[] } {
+function buildRecord(rawRecord: any, rowNumber: number): { record: DeviceImportRecord | null; errors: ValidationError[] } {
   const errors: ValidationError[] = []
+  const record = normalizeRecord(rawRecord || {})
 
-  // Normalize field names (trim and lowercase)
-  const normalizedRecord: any = {}
-  for (const [key, value] of Object.entries(record)) {
-    const normalizedKey = key.trim().toLowerCase()
-    normalizedRecord[normalizedKey] = value
+  const rawType = String(record.device_type || "").trim().toLowerCase()
+  const deviceType = DEVICE_TYPES.includes(rawType) ? rawType : "other"
+
+  const rawStatus = String(record.status || "").trim().toLowerCase()
+  const status = DEVICE_STATUSES.includes(rawStatus) ? rawStatus : "active"
+
+  let serial = String(record.serial_number || "").trim()
+  if (!serial) {
+    serial = `AUTO-${Date.now()}-${rowNumber}`
   }
 
-  // Check required fields
-  for (const field of REQUIRED_FIELDS) {
-    if (!normalizedRecord[field] || normalizedRecord[field].toString().trim() === "") {
-      errors.push({
-        row: rowNumber,
-        field,
-        message: `${field} is required`,
-        value: normalizedRecord[field],
-      })
-    }
+  const clean: DeviceImportRecord = {
+    device_type: deviceType,
+    brand: String(record.brand || "Unknown").trim() || "Unknown",
+    model: String(record.model || "Unspecified").trim() || "Unspecified",
+    serial_number: serial,
+    status,
+    purchase_date: normalizeDateFlexible(String(record.purchase_date || "")),
+    warranty_expiry: normalizeDateFlexible(String(record.warranty_expiry || "")),
+    assigned_to: String(record.assigned_to || "").trim() || undefined,
+    room_number: String(record.room_number || "").trim() || undefined,
+    building: String(record.building || "").trim() || undefined,
+    floor: String(record.floor || "").trim() || undefined,
+    toner_type: String(record.toner_type || "").trim() || undefined,
+    toner_model: String(record.toner_model || "").trim() || undefined,
+    toner_yield: String(record.toner_yield || "").trim() || undefined,
+    monthly_print_volume: String(record.monthly_print_volume || "").trim() || undefined,
   }
 
-  // Validate device_type
-  if (normalizedRecord.device_type) {
-    const deviceType = normalizedRecord.device_type.toString().toLowerCase().trim()
-    if (!DEVICE_TYPES.includes(deviceType)) {
-      errors.push({
-        row: rowNumber,
-        field: "device_type",
-        message: `Invalid device type. Must be one of: ${DEVICE_TYPES.join(", ")}`,
-        value: normalizedRecord.device_type,
-      })
-    }
+  if (!clean.serial_number) {
+    errors.push({ row: rowNumber, field: "serial_number", message: "Could not generate serial number" })
+    return { record: null, errors }
   }
 
-  // Validate status
-  if (normalizedRecord.status) {
-    const status = normalizedRecord.status.toString().toLowerCase().trim()
-    if (status !== "" && !DEVICE_STATUSES.includes(status)) {
-      errors.push({
-        row: rowNumber,
-        field: "status",
-        message: `Invalid status. Must be one of: ${DEVICE_STATUSES.join(", ")}`,
-        value: normalizedRecord.status,
-      })
-    }
-  }
-
-  // Validate serial number uniqueness
-  if (normalizedRecord.serial_number) {
-    const serialNumber = normalizedRecord.serial_number.toString().trim()
-    if (existingSerialNumbers.has(serialNumber.toLowerCase())) {
-      errors.push({
-        row: rowNumber,
-        field: "serial_number",
-        message: "Serial number already exists in the system",
-        value: serialNumber,
-      })
-    }
-  }
-
-  // Validate dates (must be ISO format YYYY-MM-DD)
-  if (normalizedRecord.purchase_date && normalizedRecord.purchase_date.toString().trim() !== "") {
-    if (!isValidIsoDate(normalizedRecord.purchase_date.toString())) {
-      errors.push({
-        row: rowNumber,
-        field: "purchase_date",
-        message: "Invalid date format. Use YYYY-MM-DD",
-        value: normalizedRecord.purchase_date,
-      })
-    }
-  }
-
-  if (normalizedRecord.warranty_expiry && normalizedRecord.warranty_expiry.toString().trim() !== "") {
-    if (!isValidIsoDate(normalizedRecord.warranty_expiry.toString())) {
-      errors.push({
-        row: rowNumber,
-        field: "warranty_expiry",
-        message: "Invalid date format. Use YYYY-MM-DD",
-        value: normalizedRecord.warranty_expiry,
-      })
-    }
-  }
-
-  // Validate printer-specific fields
-  const deviceType = normalizedRecord.device_type?.toString().toLowerCase().trim()
-  if (deviceType === "printer" || deviceType === "photocopier") {
-    if (!normalizedRecord.toner_type || normalizedRecord.toner_type.toString().trim() === "") {
-      errors.push({
-        row: rowNumber,
-        field: "toner_type",
-        message: "Toner type is required for printers and photocopiers",
-      })
-    }
-  }
-
-  // Build clean record with normalized field names
-  const cleanRecord: DeviceImportRecord = {
-    device_type: normalizedRecord.device_type?.toString().toLowerCase().trim() || "",
-    brand: normalizedRecord.brand?.toString().trim() || "",
-    model: normalizedRecord.model?.toString().trim() || "",
-    serial_number: normalizedRecord.serial_number?.toString().trim() || "",
-    status: normalizedRecord.status?.toString().toLowerCase().trim() || "active",
-    purchase_date: normalizedRecord.purchase_date?.toString().trim() || undefined,
-    warranty_expiry: normalizedRecord.warranty_expiry?.toString().trim() || undefined,
-    assigned_to: normalizedRecord.assigned_to?.toString().trim() || undefined,
-    room_number: normalizedRecord.room_number?.toString().trim() || undefined,
-    building: normalizedRecord.building?.toString().trim() || undefined,
-    floor: normalizedRecord.floor?.toString().trim() || undefined,
-    toner_type: normalizedRecord.toner_type?.toString().trim() || undefined,
-    toner_model: normalizedRecord.toner_model?.toString().trim() || undefined,
-    toner_yield: normalizedRecord.toner_yield?.toString().trim() || undefined,
-    monthly_print_volume: normalizedRecord.monthly_print_volume?.toString().trim() || undefined,
-  }
-
-  return {
-    record: errors.length === 0 ? cleanRecord : null,
-    errors,
-  }
-}
-
-function isValidIsoDate(dateString: string): boolean {
-  const regex = /^\d{4}-\d{2}-\d{2}$/
-  if (!regex.test(dateString)) return false
-  const date = new Date(dateString + "T00:00:00Z")
-  return date instanceof Date && !isNaN(date.getTime())
+  return { record: clean, errors }
 }
 
 export async function validateCsvImport(
@@ -203,77 +229,78 @@ export async function validateCsvImport(
   options?: { skipDuplicates?: boolean }
 ): Promise<ValidationResult> {
   try {
-    const csvData = await parseCsvFile(fileOrText)
+    const text = typeof fileOrText === "string" ? fileOrText : await fileOrText.text()
+    const rows = await parseImportFile(text)
 
-    if (csvData.length === 0) {
+    if (rows.length === 0) {
       return {
         isValid: false,
         records: [],
-        errors: [{ row: 0, field: "file", message: "CSV file is empty" }],
+        errors: [{ row: 0, field: "file", message: "Import file is empty" }],
         warnings: [],
       }
     }
 
     const validRecords: DeviceImportRecord[] = []
-    const allErrors: ValidationError[] = []
-    const allWarnings: ValidationError[] = []
+    const errors: ValidationError[] = []
+    const warnings: ValidationError[] = []
+    const seenInFile = new Set<string>()
 
-    // Track serial numbers within the CSV to detect intra-file duplicates
-    const csvSerialNumbers = new Map<string, number>() // serial -> first row number
+    for (let i = 0; i < rows.length; i++) {
+      const rowNumber = i + 2
+      const { record, errors: rowErrors } = buildRecord(rows[i], rowNumber)
 
-    for (let i = 0; i < csvData.length; i++) {
-      const rowNumber = i + 2 // +2 because row 1 is headers
-
-      // Check for intra-CSV duplicates first
-      const rawSerial = csvData[i]?.serial_number?.toString().trim().toLowerCase() || 
-                        csvData[i]?.Serial_Number?.toString().trim().toLowerCase() ||
-                        csvData[i]?.SERIAL_NUMBER?.toString().trim().toLowerCase() || ""
-      
-      if (rawSerial && csvSerialNumbers.has(rawSerial)) {
-        const firstRow = csvSerialNumbers.get(rawSerial)!
-        allErrors.push({
-          row: rowNumber,
-          field: "serial_number",
-          message: `Duplicate serial number within CSV file (first seen in row ${firstRow})`,
-          value: rawSerial,
-        })
+      if (!record) {
+        errors.push(...rowErrors)
         continue
       }
-      if (rawSerial) {
-        csvSerialNumbers.set(rawSerial, rowNumber)
-      }
 
-      // Check for duplicates against existing DB records
-      if (options?.skipDuplicates && rawSerial && existingSerialNumbers.has(rawSerial)) {
-        allWarnings.push({
+      const serialLower = record.serial_number.toLowerCase()
+
+      if (seenInFile.has(serialLower)) {
+        warnings.push({
           row: rowNumber,
           field: "serial_number",
-          message: "Skipped - device with this serial number already exists in the system",
-          value: rawSerial,
+          message: "Duplicate serial in the uploaded file, row skipped",
+          value: record.serial_number,
         })
         continue
       }
 
-      const { record, errors } = validateDeviceRecord(csvData[i], rowNumber, existingSerialNumbers)
-
-      if (record) {
-        validRecords.push(record)
-      } else {
-        allErrors.push(...errors)
+      if (existingSerialNumbers.has(serialLower)) {
+        if (options?.skipDuplicates) {
+          warnings.push({
+            row: rowNumber,
+            field: "serial_number",
+            message: "Already exists in system, row skipped",
+            value: record.serial_number,
+          })
+          continue
+        }
+        errors.push({
+          row: rowNumber,
+          field: "serial_number",
+          message: "Serial number already exists",
+          value: record.serial_number,
+        })
+        continue
       }
+
+      seenInFile.add(serialLower)
+      validRecords.push(record)
     }
 
     return {
-      isValid: allErrors.length === 0,
+      isValid: errors.length === 0,
       records: validRecords,
-      errors: allErrors,
-      warnings: allWarnings,
+      errors,
+      warnings,
     }
   } catch (error: any) {
     return {
       isValid: false,
       records: [],
-      errors: [{ row: 0, field: "file", message: error.message }],
+      errors: [{ row: 0, field: "file", message: error?.message || "Unable to parse import file" }],
       warnings: [],
     }
   }
@@ -296,54 +323,9 @@ export function generateCsvTemplate(): string {
   ]
 
   const examples = [
-    [
-      "laptop",
-      "Dell",
-      "Latitude 5520",
-      "SN12345",
-      "active",
-      "2023-01-15",
-      "2025-01-15",
-      "John Doe",
-      "204",
-      "Main Block",
-      "2nd Floor",
-      "",
-    ],
-    [
-      "printer",
-      "HP",
-      "LaserJet M404",
-      "SN12347",
-      "active",
-      "2023-03-10",
-      "2025-03-10",
-      "Print Room",
-      "101",
-      "Main Block",
-      "Ground Floor",
-      "CF217A",
-    ],
-    [
-      "desktop",
-      "Lenovo",
-      "ThinkCentre M90",
-      "SN12348",
-      "active",
-      "2023-04-05",
-      "2025-04-05",
-      "Admin Dept",
-      "105",
-      "Admin Bldg",
-      "1st Floor",
-      "",
-    ],
+    ["laptop", "Dell", "Latitude 5520", "SN12345", "active", "2023-01-15", "2025-01-15", "John Doe", "204", "Main Block", "2", ""],
+    ["other", "", "USB Keyboard", "", "active", "", "", "", "", "", "", ""],
   ]
 
-  const csvLines = [
-    headers.join(","),
-    ...examples.map((row) => row.map((cell) => `"${cell}"`).join(",")),
-  ]
-
-  return csvLines.join("\n")
+  return [headers.join(","), ...examples.map((row) => row.map((cell) => `"${cell}"`).join(","))].join("\n")
 }

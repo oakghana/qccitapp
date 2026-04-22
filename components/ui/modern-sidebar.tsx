@@ -142,35 +142,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
 
     if (user?.role === "admin") {
       return {
-        items: [
-          ...baseItems,
-          {
-            name: "Service Desk",
-            href: "/dashboard/service-desk",
-            icon: Headphones,
-            badge: counts.serviceDeskTickets > 0 ? counts.serviceDeskTickets : undefined,
-          },
-          {
-            name: "Notifications",
-            href: "/dashboard/notifications",
-            icon: Bell,
-            badge: counts.notifications > 0 ? counts.notifications : undefined,
-          },
-          {
-            name: "Broadcast Notifications",
-            href: "/dashboard/broadcast-notifications",
-            icon: Send,
-          },
-          { name: "Lookup Data", href: "/dashboard/lookup-data", icon: Database },
-          { name: "System Settings", href: "/dashboard/system-settings", icon: Settings },
-          {
-            name: "Updates",
-            href: "/dashboard/updates",
-            icon: Rss,
-            badge: counts.updates > 0 ? counts.updates : undefined,
-          },
-          { name: "Help Guide", href: "/dashboard/help-guide", icon: BookOpen },
-        ],
+        items: [...baseItems],
         groups: [
           {
             name: "IT Operations",
@@ -184,9 +156,8 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                 badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
               },
               { name: "Staff Performance Report", href: "/dashboard/staff-performance-report", icon: Target },
-              { name: "IT Reports", href: "/dashboard/it-reports", icon: BarChart3 },
+              { name: "Reports & Analysis", href: "/dashboard/it-reports", icon: BarChart3 },
               { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
-              { name: "Regional IT Needs", href: "/dashboard/regional-needs-analysis", icon: ClipboardList },
             ],
           },
           {
@@ -326,8 +297,8 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
           },
           {
             name: "My Stock Requests",
-            href: "/dashboard/stock-transfer-requests",
-            icon: Send,
+            href: "/dashboard/store-summary-report",
+            icon: FileText,
           },
           { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
           { name: "My Complaints", href: "/dashboard/complaints", icon: MessageSquare },
@@ -397,17 +368,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                 icon: UserPlus,
               },
               {
-                name: "Store Requisitions",
-                href: "/dashboard/store-requisitions",
-                icon: ClipboardList,
-                badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
-              },
-              {
-                name: "Stock Transfer Requests",
-                href: "/dashboard/stock-transfer-requests",
-                icon: Send,
-              },
-              {
                 name: "Stock Balance Report",
                 href: "/dashboard/store-summary-report",
                 icon: FileText,
@@ -458,9 +418,8 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                 badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
               },
               { name: "Staff Performance Report", href: "/dashboard/staff-performance-report", icon: Target },
-              { name: "IT Reports", href: "/dashboard/it-reports", icon: BarChart3 },
+              { name: "Reports & Analysis", href: "/dashboard/it-reports", icon: BarChart3 },
               { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
-              { name: "Regional IT Needs", href: "/dashboard/regional-needs-analysis", icon: ClipboardList },
             ],
           },
           {
@@ -474,13 +433,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                 icon: Wrench,
                 badge: counts.repairs > 0 ? counts.repairs : undefined,
               },
-              {
-                name: "IT Service Provider",
-                href: "/dashboard/service-provider",
-                icon: Truck,
-                badge: counts.serviceProviders > 0 ? counts.serviceProviders : undefined,
-              },
-              { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
             ],
           },
           {
@@ -517,12 +469,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
             badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
             items: [
               { name: "Store Inventory", href: "/dashboard/store-inventory", icon: Package },
-              {
-                name: "Store Requisitions",
-                href: "/dashboard/store-requisitions",
-                icon: ClipboardList,
-                badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
-              },
               {
                 name: "Stock Balance Report",
                 href: "/dashboard/store-summary-report",
@@ -590,9 +536,8 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                 badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
               },
               { name: "Staff Performance Report", href: "/dashboard/staff-performance-report", icon: Target },
-              { name: "IT Reports", href: "/dashboard/it-reports", icon: BarChart3 },
+              { name: "Reports & Analysis", href: "/dashboard/it-reports", icon: BarChart3 },
               { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
-              { name: "Regional IT Needs", href: "/dashboard/regional-needs-analysis", icon: ClipboardList },
             ],
           },
           {
@@ -606,13 +551,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                 icon: Wrench,
                 badge: counts.repairs > 0 ? counts.repairs : undefined,
               },
-              {
-                name: "IT Service Provider",
-                href: "/dashboard/service-provider",
-                icon: Truck,
-                badge: counts.serviceProviders > 0 ? counts.serviceProviders : undefined,
-              },
-              { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
             ],
           },
           {
@@ -626,12 +564,6 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                 name: "Assign Stock to Staff",
                 href: "/dashboard/assign-stock",
                 icon: UserPlus,
-              },
-              {
-                name: "Store Requisitions",
-                href: "/dashboard/regional-store-requisitions",
-                icon: ClipboardList,
-                badge: counts.storeRequisitions > 0 ? counts.storeRequisitions : undefined,
               },
               {
                 name: "Stock Balance Report",

@@ -31,7 +31,7 @@ const FORM_CONFIG: Record<FormType, { table: string; numberField: string; reques
 
 export async function POST(request: NextRequest) {
   try {
-    const { requisitionId, action, approvedBy, notes, formType = "requisition" } = await request.json()
+    const { requisitionId, action, approvedBy, notes, formType = "requisition", hodSignature } = await request.json()
 
     if (!requisitionId || !action || !approvedBy || !notes) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
@@ -75,6 +75,9 @@ export async function POST(request: NextRequest) {
       updateData.department_head_approved = action === "approve"
       updateData.department_head_approved_by = approvedBy
       updateData.department_head_approved_at = now
+      if (action === "approve" && hodSignature) {
+        updateData.department_head_signature = hodSignature
+      }
 
       const approvalChain = requisition.approval_timeline || requisition.approval_chain || []
       approvalChain.push({
@@ -83,6 +86,7 @@ export async function POST(request: NextRequest) {
         action,
         notes,
         timestamp: now,
+        signature: action === "approve" ? !!hodSignature : undefined,
       })
       updateData.approval_timeline = approvalChain
     }
@@ -90,6 +94,9 @@ export async function POST(request: NextRequest) {
     if (formType === "new-gadget") {
       updateData.departmental_head_name = approvedBy
       updateData.departmental_head_date = now.split("T")[0]
+      if (action === "approve" && hodSignature) {
+        updateData.department_head_signature = hodSignature
+      }
       updateData.other_comments = [
         requisition.other_comments,
         `HOD ${action === "approve" ? "approval" : "rejection"} note: ${notes}`,
@@ -101,6 +108,9 @@ export async function POST(request: NextRequest) {
     if (formType === "maintenance") {
       updateData.sectional_head_name = approvedBy
       updateData.sectional_head_date = now.split("T")[0]
+      if (action === "approve" && hodSignature) {
+        updateData.department_head_signature = hodSignature
+      }
       updateData.other_comments = [
         requisition.other_comments,
         `HOD ${action === "approve" ? "approval" : "rejection"} note: ${notes}`,
@@ -124,36 +134,76 @@ export async function POST(request: NextRequest) {
     const requestNumber = requisition[config.numberField]
     const requesterName = requisition[config.requesterField]
 
+    // Create notification for requester about HOD decision
     if (requisition.requested_by_id) {
       await supabaseAdmin
         .from("notifications")
         .insert({
-          recipient_id: requisition.requested_by_id,
-          recipient_type: "staff",
+          user_id: requisition.requested_by_id,
           title: `Department Head ${action === "approve" ? "Approved" : "Rejected"} Your Request`,
-          message: `Your request ${requestNumber} has been ${action === "approve" ? "approved" : "rejected"} by your department head.`,
-          type: "it_form_update",
-          related_id: requisitionId,
-          related_type: config.relatedType,
-          read: false,
+          message: `Your request ${requestNumber} has been ${action === "approve" ? "approved" : "rejected"} by your department head${hodSignature ? " with digital signature" : ""}.`,
+          type: action === "approve" ? "success" : "warning",
+          category: "approval",
+          reference_type: config.relatedType,
+          reference_id: requisitionId,
+          is_read: false,
         })
-        .catch((err) => console.error("[v0] Error creating notification:", err))
+        .catch((err) => console.error("[v0] Error creating notification for requester:", err))
     }
 
+    // Create notification for service desk if approved (create multiple for each service desk member)
     if (action === "approve") {
-      await supabaseAdmin
-        .from("notifications")
-        .insert({
-          recipient_id: "service_desk",
-          recipient_type: "service_desk",
-          title: "New Staff Request Waiting for Processing",
-          message: `Request ${requestNumber} from ${requesterName} is ready for service desk processing.`,
-          type: "it_form_update",
-          related_id: requisitionId,
-          related_type: config.relatedType,
-          read: false,
-        })
-        .catch((err) => console.error("[v0] Error creating service desk notification:", err))
+      // Get all service desk staff
+      const { data: serviceStaff } = await supabaseAdmin
+        .from("profiles")
+        .select("id")
+        .eq("role", "service_desk_staff")
+        .eq("is_active", true)
+
+      if (serviceStaff && serviceStaff.length > 0) {
+        const notifications = serviceStaff.map((staff) => ({
+          user_id: staff.id,
+          title: "New Staff Request Ready for Processing",
+          message: `Request ${requestNumber} from ${requesterName} has been HOD approved and is ready for service desk processing.`,
+          type: "info" as const,
+          category: "approval" as const,
+          reference_type: config.relatedType,
+          reference_id: requisitionId,
+          is_read: false,
+        }))
+
+        await supabaseAdmin
+          .from("notifications")
+          .insert(notifications)
+          .catch((err) => console.error("[v0] Error creating service desk notifications:", err))
+      }
+    }
+
+    // Create notification for rejection - notify admin
+    if (action === "reject") {
+      const { data: admins } = await supabaseAdmin
+        .from("profiles")
+        .select("id")
+        .eq("role", "admin")
+        .eq("is_active", true)
+
+      if (admins && admins.length > 0) {
+        const notifications = admins.map((admin) => ({
+          user_id: admin.id,
+          title: "Request Rejected by Department Head",
+          message: `Request ${requestNumber} from ${requesterName} was rejected by the department head. Reason: ${notes}`,
+          type: "warning" as const,
+          category: "approval" as const,
+          reference_type: config.relatedType,
+          reference_id: requisitionId,
+          is_read: false,
+        }))
+
+        await supabaseAdmin
+          .from("notifications")
+          .insert(notifications)
+          .catch((err) => console.error("[v0] Error creating admin rejection notifications:", err))
+      }
     }
 
     return NextResponse.json({ success: true, requisition: updated })
