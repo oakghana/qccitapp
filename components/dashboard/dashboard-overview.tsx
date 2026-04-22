@@ -15,6 +15,7 @@ import { StaffProductivityWidget } from "./staff-productivity-widget"
 import { IncompleteTasksWidget } from "./incomplete-tasks-widget"
 import { UserNotificationsWidget } from "./user-notifications-widget"
 import { InitialNotificationsToast } from "@/components/notifications/initial-notifications-toast"
+import { WeeklyReportsSummaryWidget } from "./weekly-reports-summary-widget"
 
 export function DashboardOverview() {
   const router = useRouter()
@@ -284,6 +285,11 @@ export function DashboardOverview() {
           <StaffProductivityWidget />
           <IncompleteTasksWidget />
         </div>
+      )}
+
+      {/* Admin-only: Weekly Internet Reports Summary */}
+      {user?.role === "admin" && (
+        <WeeklyReportsSummaryWidget />
       )}
 
       {/* User Notifications Widget */}
