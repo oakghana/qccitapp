@@ -688,7 +688,7 @@ export function DeviceInventory() {
             {totalDevices === 0 ? (
               "No devices"
             ) : (
-              <>Showing {startIndex}–{endIndex} of {devices.length} devices</>
+              <>Showing {startIndex}–{endIndex} of {totalDevices} device{totalDevices !== 1 ? 's' : ''}</>
             )}
             {user?.location && !canSeeAllLocations(user) ? ` in ${getCanonicalLocationName(user.location)}` : ""}
           </p>

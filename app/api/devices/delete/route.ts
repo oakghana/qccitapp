@@ -31,24 +31,25 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Authorization checks:
-    // 1. Users can delete unassigned devices in their location
-    // 2. Regional IT Heads can delete devices in their location (assigned or not)
-    // 3. Admin and IT Head can always delete
+    // 1. Admin and IT Head can always delete any device
+    // 2. Regional IT Heads can delete any device in their location
+    // 3. IT Staff can delete devices in their location (especially for duplicate management)
+    // 4. Other users can delete only unassigned devices in their location
     const canAlwaysDelete = userRole === "admin" || userRole === "it_head"
-    const isUnassigned = !device.assigned_to || device.status === "available" || device.status === "in_stock"
+    const isRegionalHeadOrITStaff = userRole === "regional_it_head" || userRole === "it_staff"
     const isInUserLocation = device.location === userLocation
-    const isRegionalHead = userRole === "regional_it_head"
+    const isUnassigned = !device.assigned_to || device.status === "available" || device.status === "in_stock"
 
     if (!canAlwaysDelete) {
-      if (isRegionalHead && isInUserLocation) {
-        // Regional IT Head can delete devices in their location
+      if (isRegionalHeadOrITStaff && isInUserLocation) {
+        // Regional IT Head and IT Staff can delete devices in their location
       } else if (isUnassigned && isInUserLocation) {
-        // User can delete unassigned devices in their location
+        // Other users can delete unassigned devices in their location
       } else {
         console.error("[v0] Unauthorized delete attempt")
         return NextResponse.json(
           { 
-            error: "You can only delete unassigned devices in your location. Contact Admin or IT Head to delete assigned devices." 
+            error: "You can only delete devices in your location. Contact Admin or IT Head for other locations." 
           }, 
           { status: 403 }
         )

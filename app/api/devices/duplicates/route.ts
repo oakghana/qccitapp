@@ -12,18 +12,18 @@ export async function GET(request: NextRequest) {
     const userRole = searchParams.get("userRole") || ""
     const userLocation = searchParams.get("location") || ""
 
-    // Only admin and regional_it_head can access duplicates
-    if (!["admin", "regional_it_head", "it_head"].includes(userRole)) {
+    // Only admin, regional_it_head, it_head, and it_staff can access duplicates
+    if (!["admin", "regional_it_head", "it_head", "it_staff"].includes(userRole)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
     }
 
-    // Fetch all devices (optionally scoped to location for regional heads)
+    // Fetch all devices (optionally scoped to location for regional heads and it_staff)
     let query = supabaseAdmin
       .from("devices")
       .select("id, serial_number, brand, model, device_type, location, status, asset_tag, assigned_to, created_at")
       .order("serial_number")
 
-    if (userRole === "regional_it_head" && userLocation) {
+    if ((userRole === "regional_it_head" || userRole === "it_staff") && userLocation) {
       query = query.ilike("location", `%${userLocation}%`)
     }
 

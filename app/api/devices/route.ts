@@ -39,42 +39,63 @@ export async function GET(request: NextRequest) {
 
     console.log("[v0] API Devices - location:", location, "canSeeAll:", canSeeAll, "field:", field, "q:", q)
 
-    let query = supabase
-      .from("devices")
-      .select("*")
-      .order("created_at", { ascending: false })
+    let allData: any[] = []
+    let offset = 0
+    const pageSize = 1000 // Supabase default limit
 
-    // If a free-text search is provided, apply it according to `field`
-    if (q) {
-      const likeQ = `%${q}%`
-      if (field === "type") {
-        // match device_type
+    // Fetch all devices in batches of 1000 to bypass Supabase row limit
+    while (true) {
+      let query = supabase
+        .from("devices")
+        .select("*", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .range(offset, offset + pageSize - 1)
+
+      // If a free-text search is provided, apply it according to `field`
+      if (q) {
+        const likeQ = `%${q}%`
+        if (field === "type") {
+          // match device_type
+          // @ts-ignore
+          query = query.ilike("device_type", likeQ)
+        } else if (field === "name") {
+          // search brand or model
+          // @ts-ignore
+          query = query.or(`brand.ilike.%${q}%,model.ilike.%${q}%`)
+        } else {
+          // default to location search
+          // @ts-ignore
+          query = query.ilike("location", likeQ)
+        }
+      } else if (!canSeeAll && location) {
+        const locationClauses = getLocationFilterClauses(location)
         // @ts-ignore
-        query = query.ilike("device_type", likeQ)
-      } else if (field === "name") {
-        // search brand or model
-        // @ts-ignore
-        query = query.or(`brand.ilike.%${q}%,model.ilike.%${q}%`)
-      } else {
-        // default to location search
-        // @ts-ignore
-        query = query.ilike("location", likeQ)
+        query = query.or(locationClauses.join(","))
       }
-    } else if (!canSeeAll && location) {
-      const locationClauses = getLocationFilterClauses(location)
-      // @ts-ignore
-      query = query.or(locationClauses.join(","))
+
+      const { data, error, count } = await query
+
+      if (error) {
+        console.error("[v0] Error loading devices:", error)
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      if (!data || data.length === 0) break
+      allData = allData.concat(data)
+
+      // If this is the first batch and count is available, log it
+      if (offset === 0) {
+        console.log("[v0] Total devices in database:", count)
+      }
+
+      // If we got fewer than pageSize results, we've reached the end
+      if (data.length < pageSize) break
+
+      offset += pageSize
     }
 
-    const { data, error } = await query
-
-    if (error) {
-      console.error("[v0] Error loading devices:", error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    console.log("[v0] Loaded devices:", data?.length)
-    return NextResponse.json({ devices: data || [], count: data?.length || 0 })
+    console.log("[v0] Loaded devices:", allData.length)
+    return NextResponse.json({ devices: allData || [], count: allData.length })
   } catch (error: any) {
     console.error("[v0] Error in devices API:", error)
     return NextResponse.json({ error: error.message }, { status: 500 })
