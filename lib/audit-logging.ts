@@ -1,9 +1,20 @@
 import { createClient } from "@supabase/supabase-js"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+let supabaseAdmin: ReturnType<typeof createClient> | null = null
+
+function getSupabaseAdmin() {
+  if (supabaseAdmin) return supabaseAdmin
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Missing Supabase admin environment variables")
+  }
+
+  supabaseAdmin = createClient(supabaseUrl, serviceRoleKey)
+  return supabaseAdmin
+}
 
 export type AuditAction = 
   | "document_uploaded" 
@@ -32,6 +43,7 @@ export async function logDocumentAudit(
   entry: AuditLogEntry
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const supabase = getSupabaseAdmin()
     const now = new Date().toISOString()
     
     const { error } = await supabase
@@ -70,6 +82,7 @@ export async function getDocumentAuditTrail(
   documentId: string
 ): Promise<AuditLogEntry[] | null> {
   try {
+    const supabase = getSupabaseAdmin()
     const { data, error } = await supabase
       .from("document_audit_logs")
       .select("*")
@@ -103,6 +116,7 @@ export async function getAllAuditLogs(filters?: {
   total: number
 }> {
   try {
+    const supabase = getSupabaseAdmin()
     let query = supabase
       .from("document_audit_logs")
       .select("*", { count: "exact" })
@@ -154,6 +168,7 @@ export async function getDeletionHistory(
   limit: number = 50
 ): Promise<AuditLogEntry[] | null> {
   try {
+    const supabase = getSupabaseAdmin()
     const { data, error } = await supabase
       .from("document_audit_logs")
       .select("*")
@@ -181,6 +196,7 @@ export async function getUserDocumentActivity(
   limit: number = 100
 ): Promise<AuditLogEntry[] | null> {
   try {
+    const supabase = getSupabaseAdmin()
     const { data, error } = await supabase
       .from("document_audit_logs")
       .select("*")

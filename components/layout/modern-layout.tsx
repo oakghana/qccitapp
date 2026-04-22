@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import Link from "next/link"
 import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
 import { ModernSidebar, MobileMenuButton } from "@/components/ui/modern-sidebar"
@@ -276,7 +277,7 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
                 const isActive = pathname === link.href || (link.href !== "/dashboard" && pathname?.startsWith(`${link.href}/`))
                 const Icon = link.icon
                 return (
-                  <a
+                  <Link
                     key={link.href}
                     href={link.href}
                     className={cn(
@@ -288,7 +289,7 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
                   >
                     <Icon className="h-5 w-5" />
                     <span>{link.name}</span>
-                  </a>
+                  </Link>
                 )
               })}
             </div>
@@ -301,7 +302,7 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
               {quickAccessLinks.map((link) => {
                 const isActive = pathname === link.href || pathname?.startsWith(`${link.href}/`)
                 return (
-                  <a
+                  <Link
                     key={link.href}
                     href={link.href}
                     className={cn(
@@ -312,7 +313,7 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
                     )}
                   >
                     {link.name}
-                  </a>
+                  </Link>
                 )
               })}
             </div>

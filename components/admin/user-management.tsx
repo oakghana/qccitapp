@@ -305,6 +305,47 @@ export function UserManagement() {
     setEditUserOpen(true)
   }
 
+  const handleAssignAsHOD = async (selectedUser: SystemUser) => {
+    if (selectedUser.role === "department_head") {
+      toast({
+        title: "Already a Department Head",
+        description: `${selectedUser.name} is already assigned as a department head.`,
+      })
+      return
+    }
+
+    try {
+      const response = await fetch("/api/admin/create-user", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedUser.id,
+          role: "department_head",
+          action: "update",
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to assign department head role")
+      }
+
+      setUsers((prev) => prev.map((entry) => (entry.id === selectedUser.id ? mapProfileToSystemUser(result.user) : entry)))
+
+      toast({
+        title: "Department Head Assigned",
+        description: `${selectedUser.name} is now assigned as a department head.`,
+      })
+    } catch (error) {
+      toast({
+        title: "Assignment Failed",
+        description: error instanceof Error ? error.message : "Unable to assign department head role.",
+        variant: "destructive",
+      })
+    }
+  }
+
   const submitPasswordReset = async () => {
     if (!selectedUserForReset) return
 
@@ -596,6 +637,15 @@ export function UserManagement() {
                           <KeyRound className="mr-2 h-4 w-4" />
                           Reset Password
                         </DropdownMenuItem>
+                        {currentUser?.role === "admin" && (
+                          <DropdownMenuItem
+                            onClick={() => handleAssignAsHOD(user)}
+                            disabled={user.role === "department_head"}
+                          >
+                            <Users className="mr-2 h-4 w-4" />
+                            Assign as HOD
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => handleUserAction(user.id, user.status === "active" ? "deactivate" : "activate")}>
                           <User className="mr-2 h-4 w-4" />
                           {user.status === "active" ? "Deactivate" : "Activate"}
