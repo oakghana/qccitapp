@@ -4,7 +4,14 @@ import bcrypt from "bcryptjs"
 
 export async function POST(request: Request) {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
+    const publicSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serverSupabaseUrl = process.env.SUPABASE_URL
+    const isInvalidPublicUrl =
+      !publicSupabaseUrl ||
+      publicSupabaseUrl.includes("example.supabase.co") ||
+      publicSupabaseUrl.includes("placeholder")
+
+    const supabaseUrl = isInvalidPublicUrl ? serverSupabaseUrl : publicSupabaseUrl
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
     if (!supabaseUrl || !serviceRoleKey) {
@@ -12,6 +19,7 @@ export async function POST(request: Request) {
         hasNextPublicUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
         hasSupabaseUrl: Boolean(process.env.SUPABASE_URL),
         hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+        usingServerFallback: isInvalidPublicUrl,
       })
       return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
     }
