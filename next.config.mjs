@@ -7,9 +7,9 @@ const nextConfig = {
     unoptimized: true,
   },
   env: {
-    // Provide dummy values during build if env vars are not set
+    // Provide dummy value during build if NEXT_PUBLIC_SUPABASE_URL is not set
+    // WARNING: only NEXT_PUBLIC_ vars belong here — server secrets must NOT be listed
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder-build.supabase.co",
-    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder-key-build",
   },
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
