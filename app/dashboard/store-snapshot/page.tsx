@@ -41,6 +41,7 @@ export default function StoreSnapshotPage() {
   
   // Users with "user" role have view-only access to Central Stores stock levels
   const isViewOnlyUser = user?.role === "user"
+  const isStaffOrUser = user?.role === "staff" || user?.role === "user"
 
   useEffect(() => {
     // Load available locations for the selector
@@ -142,6 +143,155 @@ export default function StoreSnapshotPage() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
           <p className="text-muted-foreground">Loading inventory data...</p>
         </div>
+      </div>
+    )
+  }
+
+  // Simplified summary view for staff and users
+  if (isStaffOrUser) {
+    const categoryBreakdown = inventory.reduce(
+      (acc, item) => {
+        const cat = item.category || "Other"
+        if (!acc[cat]) acc[cat] = { total: 0, lowStock: 0, outOfStock: 0 }
+        acc[cat].total += 1
+        if ((item.quantity || item.quantity_in_stock) === 0) acc[cat].outOfStock += 1
+        else if ((item.quantity || item.quantity_in_stock) <= item.reorder_level) acc[cat].lowStock += 1
+        return acc
+      },
+      {} as Record<string, { total: number; lowStock: number; outOfStock: number }>,
+    )
+
+    return (
+      <div className="space-y-6">
+        <div className="rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 to-stone-50 p-4">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">IT Store Stock Levels</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Stock summary for {user?.location || "your location"}
+          </p>
+        </div>
+
+        {/* View-Only Notice for User Role */}
+        {isViewOnlyUser && (
+          <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+            <CardContent className="flex items-start gap-3 pt-6">
+              <Info className="h-5 w-5 text-blue-600 mt-0.5" />
+              <div>
+                <h4 className="font-medium text-blue-900 dark:text-blue-100">View-Only Access</h4>
+                <p className="text-sm text-blue-800 dark:text-blue-200 mt-1">
+                  You have read-only access to IT Store stock levels. To request IT equipment or supplies, please contact
+                  your IT Head or Regional IT Head.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Summary KPI Cards */}
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card className="rounded-2xl border-emerald-100 shadow-sm bg-white">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Categories</CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{Object.keys(categoryBreakdown).length}</div>
+              <p className="text-xs text-muted-foreground">Item categories available</p>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-emerald-100 shadow-sm bg-white">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">In Stock</CardTitle>
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{inStockItems.length}</div>
+              <p className="text-xs text-muted-foreground">Items available</p>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-emerald-100 shadow-sm bg-white">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Low Stock</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-600">{lowStockItems.length}</div>
+              <p className="text-xs text-muted-foreground">Items need reordering</p>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-emerald-100 shadow-sm bg-white">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Out of Stock</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">{outOfStockItems.length}</div>
+              <p className="text-xs text-muted-foreground">Unavailable items</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Category Breakdown Summary */}
+        <Card className="rounded-2xl border-emerald-100 shadow-sm bg-white">
+          <CardHeader>
+            <CardTitle>Stock by Category</CardTitle>
+            <CardDescription>Overview of available items in each category</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {Object.entries(categoryBreakdown).map(([category, stats]) => (
+                <div
+                  key={category}
+                  className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 bg-gray-50/50 dark:bg-gray-900/50"
+                >
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-3 capitalize">{category}</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">Total Items</span>
+                      <Badge variant="outline">{stats.total}</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">In Stock</span>
+                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                        {stats.total - stats.lowStock - stats.outOfStock}
+                      </Badge>
+                    </div>
+                    {stats.lowStock > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Low Stock</span>
+                        <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+                          {stats.lowStock}
+                        </Badge>
+                      </div>
+                    )}
+                    {stats.outOfStock > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Out of Stock</span>
+                        <Badge variant="destructive">{stats.outOfStock}</Badge>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Action Card */}
+        <Card className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-green-200 dark:border-green-800">
+          <CardContent className="flex items-start gap-3 pt-6">
+            <Info className="h-5 w-5 text-green-600 mt-0.5" />
+            <div>
+              <h4 className="font-medium text-green-900 dark:text-green-100">Need Equipment or Supplies?</h4>
+              <p className="text-sm text-green-800 dark:text-green-200 mt-1">
+                To request IT equipment or supplies, submit an Equipment Requisition form in IT Forms section or contact
+                your IT Head.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
