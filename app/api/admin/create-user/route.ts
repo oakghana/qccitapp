@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs"
 
 import { LOCATIONS } from "@/lib/locations"
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+const supabase = createClient((process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://placeholder.supabase.co"), (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "placeholder-build-key"))
 const DEFAULT_PASSWORD_HASH = "$2b$10$y.4.eCKGm0kI0hXv1rhJtuLYpKJH3R/Pfxvn9AU6DVF5PzYHsnmqm"
 
 function normalizeLocation(location?: string | null) {

@@ -2,8 +2,8 @@ import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { createClient } from "@supabase/supabase-js"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://placeholder.supabase.co")
+const supabaseServiceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "placeholder-build-key")
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 export async function GET() {

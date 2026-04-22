@@ -27,8 +27,8 @@ const FORM_CONFIG: Record<FormType, { table: string; numberField: string; reques
 export async function POST(request: NextRequest) {
   try {
     const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://placeholder.supabase.co"),
+      (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "placeholder-build-key")
     )
 
     const { requisitionId, action, approvedBy, notes, formType = "requisition", hodSignature } = await request.json()

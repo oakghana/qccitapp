@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 export async function POST() {
   try {
     // Use service role key to bypass RLS
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+    const supabase = createClient((process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://placeholder.supabase.co"), (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "placeholder-build-key"))
 
     // Generate proper bcryptjs hash for "ghana@1"
     const password = "ghana@1"
