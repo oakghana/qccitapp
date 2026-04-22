@@ -18,7 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Bell, Search, User, LogOut, ChevronDown, WifiOff, Zap, Loader2, Home, Headphones, Monitor, MessageSquare, Send, Database, Settings, Rss, BookOpen } from "lucide-react"
+import { Bell, Search, User, LogOut, ChevronDown, WifiOff, Zap, Loader2, Home, Headphones, Monitor, MessageSquare, Send, Database, Settings, Rss, BookOpen, Wrench, ClipboardList, Users, Package, BarChart3, FileText, Store, Target, Wifi } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { useNotifications } from "@/lib/notification-context"
 import { useOfflineCache } from "@/lib/offline-cache"
@@ -84,17 +84,19 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
   // Check if user can see notifications menu (IT Head and Admin only)
   const canSeeNotifications = user?.role === "it_head" || user?.role === "admin"
 
-  // Icon quick-access links
-  const isMinimalUser = user?.role === "staff" || user?.role === "user"
-  const quickIconLinks = isMinimalUser
-    ? [
+  // Icon quick-access links — shown as a minimal icon bar below the header for all roles
+  const getQuickIconLinks = () => {
+    const role = user?.role
+    if (role === "staff" || role === "user") {
+      return [
         { name: "Dashboard", href: "/dashboard", icon: Home },
         { name: "Messages", href: "/dashboard/notifications", icon: Bell },
         { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones },
-        { name: "Devices", href: "/dashboard/devices", icon: Monitor },
+        { name: "Complaints", href: "/dashboard/complaints", icon: MessageSquare },
       ]
-    : user?.role === "admin"
-    ? [
+    }
+    if (role === "admin") {
+      return [
         { name: "Dashboard", href: "/dashboard", icon: Home },
         { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones },
         { name: "Notifications", href: "/dashboard/notifications", icon: Bell },
@@ -104,7 +106,78 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
         { name: "Updates", href: "/dashboard/updates", icon: Rss },
         { name: "Help Guide", href: "/dashboard/help-guide", icon: BookOpen },
       ]
-    : []
+    }
+    if (role === "it_staff") {
+      return [
+        { name: "Dashboard", href: "/dashboard", icon: Home },
+        { name: "Messages", href: "/dashboard/notifications", icon: Bell },
+        { name: "Tasks", href: "/dashboard/assigned-tasks", icon: ClipboardList },
+        { name: "Repairs", href: "/dashboard/repairs", icon: Wrench },
+        { name: "Devices", href: "/dashboard/devices", icon: Monitor },
+        { name: "Store", href: "/dashboard/store-snapshot", icon: Package },
+        { name: "Complaints", href: "/dashboard/complaints", icon: MessageSquare },
+      ]
+    }
+    if (role === "it_store_head") {
+      return [
+        { name: "Dashboard", href: "/dashboard", icon: Home },
+        { name: "Messages", href: "/dashboard/notifications", icon: Bell },
+        { name: "Tasks", href: "/dashboard/assigned-tasks", icon: ClipboardList },
+        { name: "Repairs", href: "/dashboard/repairs", icon: Wrench },
+        { name: "Devices", href: "/dashboard/devices", icon: Monitor },
+        { name: "Inventory", href: "/dashboard/store-inventory", icon: Store },
+        { name: "Stock Report", href: "/dashboard/store-summary-report", icon: FileText },
+      ]
+    }
+    if (role === "it_head") {
+      return [
+        { name: "Dashboard", href: "/dashboard", icon: Home },
+        { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones },
+        { name: "Notifications", href: "/dashboard/notifications", icon: Bell },
+        { name: "IT Staff", href: "/dashboard/it-staff-status", icon: Users },
+        { name: "Repairs", href: "/dashboard/repairs", icon: Wrench },
+        { name: "Devices", href: "/dashboard/devices", icon: Monitor },
+        { name: "Reports", href: "/dashboard/it-reports", icon: BarChart3 },
+      ]
+    }
+    if (role === "regional_it_head") {
+      return [
+        { name: "Dashboard", href: "/dashboard", icon: Home },
+        { name: "Messages", href: "/dashboard/notifications", icon: Bell },
+        { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones },
+        { name: "IT Staff", href: "/dashboard/it-staff-status", icon: Users },
+        { name: "Devices", href: "/dashboard/devices", icon: Monitor },
+        { name: "Repairs", href: "/dashboard/repairs", icon: Wrench },
+        { name: "Reports", href: "/dashboard/it-reports", icon: BarChart3 },
+      ]
+    }
+    if (role === "department_head") {
+      return [
+        { name: "Dashboard", href: "/dashboard", icon: Home },
+        { name: "Messages", href: "/dashboard/notifications", icon: Bell },
+        { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones },
+        { name: "Complaints", href: "/dashboard/complaints", icon: MessageSquare },
+      ]
+    }
+    if (role === "service_provider") {
+      return [
+        { name: "Dashboard", href: "/dashboard", icon: Home },
+        { name: "My Repairs", href: "/dashboard/service-provider/my-repairs", icon: Wrench },
+      ]
+    }
+    if (role?.startsWith("service_desk")) {
+      return [
+        { name: "Dashboard", href: "/dashboard", icon: Home },
+        { name: "Service Desk", href: "/dashboard/service-desk", icon: Headphones },
+        { name: "Tasks", href: "/dashboard/assigned-tasks", icon: ClipboardList },
+        { name: "IT Staff", href: "/dashboard/it-staff-status", icon: Users },
+        { name: "Devices", href: "/dashboard/devices", icon: Monitor },
+        { name: "Repairs", href: "/dashboard/repairs", icon: Wrench },
+      ]
+    }
+    return [{ name: "Dashboard", href: "/dashboard", icon: Home }]
+  }
+  const quickIconLinks = getQuickIconLinks()
 
   const quickAccessLinks: { name: string; href: string }[] = []
 
@@ -269,10 +342,10 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
           </div>
         </header>
 
-        {/* Icon Quick Access bar for staff/user roles */}
+        {/* Quick-access icon bar — visible for all roles */}
         {quickIconLinks.length > 0 && (
-          <div className="border-b border-orange-200/50 bg-white/85 px-4 shadow-sm backdrop-blur-sm dark:border-orange-800/50 dark:bg-orange-950/75 sm:px-6 lg:px-8">
-            <div className="mx-auto flex max-w-7xl gap-1 overflow-x-auto py-2">
+          <div className="border-b border-orange-200/50 bg-white/85 px-2 shadow-sm backdrop-blur-sm dark:border-orange-800/50 dark:bg-orange-950/75 sm:px-4">
+            <div className="mx-auto flex max-w-7xl gap-0.5 overflow-x-auto py-1.5 scrollbar-none">
               {quickIconLinks.map((link) => {
                 const isActive = pathname === link.href || (link.href !== "/dashboard" && pathname?.startsWith(`${link.href}/`))
                 const Icon = link.icon
@@ -280,15 +353,16 @@ export function ModernLayout({ children, className }: ModernLayoutProps) {
                   <Link
                     key={link.href}
                     href={link.href}
+                    title={link.name}
                     className={cn(
-                      "flex flex-col items-center gap-1 px-4 py-2 rounded-xl text-xs font-medium transition-colors min-w-[64px]",
+                      "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all duration-150 min-w-[52px] flex-shrink-0",
                       isActive
                         ? "bg-orange-500 text-white shadow-sm"
                         : "text-orange-700 hover:bg-orange-100 dark:text-orange-300 dark:hover:bg-orange-900/40"
                     )}
                   >
-                    <Icon className="h-5 w-5" />
-                    <span>{link.name}</span>
+                    <Icon className="h-4 w-4" />
+                    <span className="leading-tight truncate max-w-[48px] text-center">{link.name}</span>
                   </Link>
                 )
               })}
