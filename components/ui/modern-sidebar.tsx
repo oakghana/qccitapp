@@ -47,6 +47,7 @@ import {
   Edit2,
   Target,
   Laptop,
+  Wifi,
 } from "lucide-react"
 import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
 
@@ -156,6 +157,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                 badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
               },
               { name: "Staff Performance Report", href: "/dashboard/staff-performance-report", icon: Target },
+              { name: "Weekly Internet Report", href: "/dashboard/weekly-internet-report", icon: Wifi },
               { name: "Reports & Analysis", href: "/dashboard/it-reports", icon: BarChart3 },
               { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
             ],
@@ -418,6 +420,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                 badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
               },
               { name: "Staff Performance Report", href: "/dashboard/staff-performance-report", icon: Target },
+              { name: "Weekly Internet Report", href: "/dashboard/weekly-internet-report", icon: Wifi },
               { name: "Reports & Analysis", href: "/dashboard/it-reports", icon: BarChart3 },
               { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
             ],
@@ -536,6 +539,7 @@ export function ModernSidebar({ isOpen, setIsOpen, className, onCollapseChange }
                 badge: counts.itStaffStatus > 0 ? counts.itStaffStatus : undefined,
               },
               { name: "Staff Performance Report", href: "/dashboard/staff-performance-report", icon: Target },
+              { name: "Weekly Internet Report", href: "/dashboard/weekly-internet-report", icon: Wifi },
               { name: "Reports & Analysis", href: "/dashboard/it-reports", icon: BarChart3 },
               { name: "IT Documents", href: "/dashboard/it-documents", icon: FileText },
             ],
