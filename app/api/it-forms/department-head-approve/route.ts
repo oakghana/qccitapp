@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 type FormType = "requisition" | "new-gadget" | "maintenance"
 
 const FORM_CONFIG: Record<FormType, { table: string; numberField: string; requesterField: string; relatedType: string }> = {
@@ -31,6 +26,11 @@ const FORM_CONFIG: Record<FormType, { table: string; numberField: string; reques
 
 export async function POST(request: NextRequest) {
   try {
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
     const { requisitionId, action, approvedBy, notes, formType = "requisition", hodSignature } = await request.json()
 
     if (!requisitionId || !action || !approvedBy || !notes) {
